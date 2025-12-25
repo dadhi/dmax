@@ -69,9 +69,33 @@ Do not use regexp, array includes and split. Use indexof and string iteration to
 
 ## data-get
 
-I decided to pause here an settle/rethink on the syntax to ensure the stable basis for the moving forward:
-1. I misled you with the case. I mean kebab-case used in attributes will automatically be converted to camelCase, snake_case should not be converted when used in expression.
-2. Syntax.
+### Examples
+
+data-get:foo@#.click='`url?${el.value}`'
+same as data-get:foo=...
+
+data-get:#.value@#='url'
+same as data-get@#='url'
+same as data-get='url'
+
+data-post:bar.baz+p-id__uri+#pelem.value?is-p-fetching?p-fetch-code__code@mouseover__delay.300__and.is-foo^.json=
+where:
+: target signal for post response json with mods: merge, replace, append, prepend (last 2 for arrays))
++ req input params with mods: uri( default for get and delete), body (default for post, put, patch)
+? is action state targets with mods: busy (default), done, ok, err, code
+^ control options signal object { headers: {}, retry: {}, cancel: {}, etc. @TBD}, or a special names started with . : usual values of content-type header like json, js, html, sse; cache-control no-cash value (default for sse) .no-cache, etc. TBD
+@ action triggers: signal or event with more interedting mods: and.boolean-signal-name,
+
+data-put...
+
+data-patch...
+
+data-delete...
+
+
+
+
+
 2.1. Events now start with @ instead of on-. We are saving the 2 symbols.
 2.2. Action syntax
 - Basis are data-get, -post, -put, -patch, -delete
