@@ -141,10 +141,12 @@ Summary:
   };
   // Default event for element
   const getAutoEvent = el => {
-    const tag = el.tagName;
+    if (!el || !el.tagName) return 'click';
+    const tag = el.tagName.toUpperCase();
     const type = el.type;
-    if(type === 'checkbox' || type === 'radio') return 'change';
-    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return tag === 'SELECT' ? 'change' : 'input';
+    if (tag === 'FORM') return 'submit';
+    if (type === 'checkbox' || type === 'radio') return 'change';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return tag === 'SELECT' ? 'change' : 'input';
     return 'click';
   };
 
