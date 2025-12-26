@@ -102,7 +102,7 @@ data-class.greeting@foo__5
 data-class.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
 
 
-## data-disp abd hide
+## data-disp
 
 data-disp@is-foo
 
@@ -111,6 +111,23 @@ data-disp@!is-complete@in-flight
 data-disp#cool-elem@is-cool.for-sure
 
 basically the same as data-class but instead of adding or removing classes it hides or displays the element
+
+
+## data-iter
+
+data-iter:posts$post$i.pid#p-tpl@some-additionsl-signal-not-only-posts@#.click
+
+where #p-tpl is template tag, example
+
+```
+<template p-tpl>
+  <li>post <span data-$pid/>: <p data-$post></p> </li>
+</template>
+```
+
+where default bindings for item and idx are it and i, eg data-$it and data-$i
+
+@TBD key for reconciliation eg $key.post.key
 
 
 ## data-get
