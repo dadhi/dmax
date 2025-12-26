@@ -8,8 +8,17 @@ who know cost of gc, closures and objects, who knows that inlining is the great 
 Balance performance and code size. Example: having a single global (compiled) regexp to parse most of the attribute name may be better instead of writing the char-by-char parser in 50locs, even if it slightly faster.
 
 
-
 ## data-def (sign)
+
+data-def:foo-signal='0'
+
+data-def:bars='[]'
+
+data-def:baz.bor.boo   has a null value
+
+same as
+data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
+
 
 ## data-sub
 
