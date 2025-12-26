@@ -3,9 +3,12 @@
 ## Perf instructions
 
 Approach the solution as a performance engineer who know how V8 works, how js ds are layed in memory, s
-who know cost of gc, closures and objects, who knows that inlining is the great technique, who know data oriented and array programming.
+who know cost of gc, closures and objects, who knows that inlining is the great technique, who know data oriented and array programming, who knows what use and to use from the standard lib in hot path.
 
-Balance performance and code size. Example: having a single global (compiled) regexp to parse most of the attribute name may be better instead of writing the char-by-char parser in 50locs, even if it slightly faster.
+Balance performance and code size. 
+Example 1: having a single global (compiled) regexp to parse most of the attribute name may be better instead of writing the char-by-char parser in 50locs, even if it slightly faster.
+
+Example 2: using indexof may be faste the loop over string and compare because internally it is heavy optimized with simd and such. But using forEach or includes with lambda is not good on smalm arrays because of the lambda alloc cost. 
 
 
 ## data-def (sign)
@@ -73,10 +76,6 @@ A sugar consisting of 0, 1 or 2 targets with the same grammar as in data-sub for
 - If single target is specified, this means the second target will be default prop/default event of the current element.
 
 - No targets is the valid case if the curr element has a name attr, then this nsme will be used for signal.
-
-## Perf Note
-
-Do not use regexp, array includes and split. Use indexof and string iteration to find token boundaries. It is fine to use indexof multiple times for different chars (as we do not have indexofany). But remember that indexof is heavily optimized by v8.
 
 
 ## data-class
