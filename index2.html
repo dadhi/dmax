@@ -153,19 +153,16 @@ Summary:
   // Compile JS expression with caching
   const compile = body => {
     if(fnCache.has(body)) return fnCache.get(body);
-    // Extract identifiers (simple heuristic, not a full parser)
-    // Exclude JS reserved words, globals, el, ev
     const RESERVED = new Set([
       'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
     ]);
     let argNames = ['el','ev'];
     let signalNames = [];
-    // Find identifiers (not perfect, but works for most cases)
     let ids = Array.from(body.matchAll(/\b([a-zA-Z_$][\w$]*)\b/g)).map(m=>m[1]);
     for(let id of ids){
       if(!RESERVED.has(id) && !argNames.includes(id) && !signalNames.includes(id)) signalNames.push(id);
     }
-    argNames = signalNames.concat(argNames); // signals first, then el, ev
+    argNames = signalNames.concat(argNames);
     let fn;
     try {
       fn = new Function(...argNames, `try{ return ${body} }catch(e){console.error(e)}`);
@@ -173,10 +170,14 @@ Summary:
       console.error('Failed to compile expression:', body, e);
       fn = () => undefined;
     }
-    // Wrap to provide signals/el/ev by name
     const wrapped = (S, el, ev) => {
       const args = signalNames.map(k => S[k]);
-      return fn(...args, el, ev);
+      try {
+        const res = fn(...args, el, ev);
+        return (typeof res === 'number' && isNaN(res)) ? undefined : res;
+      } catch (e) {
+        return undefined;
+      }
     };
     fnCache.set(body, wrapped);
     return wrapped;
