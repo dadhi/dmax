@@ -1,6 +1,15 @@
 # Requirements
 
-## data-sign
+## Perf instructions
+
+Approach the solution as a performance engineer who know how V8 works, how js ds are layed in memory, s
+who know cost of gc, closures and objects, who knows that inlining is the great technique, who know data oriented and array programming.
+
+Balance performance and code size. Example: having a single global (compiled) regexp to parse most of the attribute name may be better instead of writing the char-by-char parser in 50locs, even if it slightly faster.
+
+
+
+## data-def (sign)
 
 ## data-sub
 
