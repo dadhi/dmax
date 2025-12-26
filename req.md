@@ -80,37 +80,32 @@ A sugar consisting of 0, 1 or 2 targets with the same grammar as in data-sub for
 
 ## data-class
 
-data-class.green-button.green-check.-gray-button@is-done@#el-id.load
+data-class.foo.bar@baz='baz + boo.fix > 42'
+data-class.greeting@foo__5
+data-class:.green-button.-gray-button@is-done@#el-id.load
 
 where:
-.class-to-add
+  .class-to-add
+  .-class-to-remove
 
-.-class-to-remove
+@is-done is a signal trigger
+@#el-id.load is an event trigger
 
-@is-done is signal trigger
+data-class:.foo.bar@baz='baz + boo.fix > 42'
+  (expression value interpreted as boolean)
 
-@#el-id.load event trigger
-
-
-data-class.foo.bar@baz='baz + boo.fix > 42'
-
-where exp value interpeted as boolean
-
-
-data-class.greeting@foo__5
-
-data-class.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
+data-class:.greeting@foo__5
+data-class:.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
 
 
 ## data-disp
 
-data-disp@is-foo
-
-data-disp@!is-complete@in-flight
-
-data-disp#cool-elem@is-cool.for-sure
-
 basically the same as data-class but instead of adding or removing classes it hides or displays the element
+data-disp@is-foo
+data-disp@!is-complete@in-flight
+data-disp:#cool-elem@is-cool.for-sure
+
+Same as data-class, but instead of adding/removing classes, it hides or displays the element (display: none).
 
 
 ## data-iter
@@ -119,7 +114,35 @@ data-iter:posts$post$i.pid#p-tpl@some-additionsl-signal-not-only-posts@#.click
 
 where #p-tpl is template tag, example
 
-```
+``` 
+
+---
+
+## Answers & Clarifications to Open Issues
+
+### 1. Error Handling
+- **All errors should be reported**: Any parsing, runtime, or subscription error should be surfaced in the console with clear context (attribute, element, error type, and location if possible).
+- **Console errors**: All errors (parsing, invalid names, missing elements, JS evaluation, network, etc.) must be logged to the console. Consider using `console.error` with detailed messages.
+
+### 2. Triggers Logic
+- **Triggers are always OR by default**: If multiple triggers are specified (signals/events), the subscription fires when *any* of them change (logical OR). AND-combination is only used when explicit mods like `__and.signal-name` are present.
+
+### 3. Batching Mode
+- **Batching mode (TBD)**: Add support for batching updates, e.g., using `requestAnimationFrame` or a similar mechanism. This can be a mod like `__batch` or `__raf`. When enabled, updates are coalesced and applied together in the next animation frame or microtask.
+
+### 4. Subscription Lifecycle
+- **Subscriptions are set up when the element is added/loaded into the DOM**: Subscriptions (signals/events) are established when the element with the directive is connected to the DOM. If the element is removed and re-added, subscriptions should be re-established.
+
+
+### 5. Mod Syntax for Triggers
+- **Supported mods**: `__and.signal-name`, `__eq.value`, `__gt.value`, `__lt.value`, `__ge.value`, `__ne.value` (and similar). These allow for conditional triggering (e.g., only fire when signal equals a value, or is greater than a value, etc.).
+- **__and.signal mod clarification**: `__and.signal` means an additional trigger condition: when the modded signal is triggered, the value of the `and.signal` is checked as a boolean. It does **not** mean that we subscribe to `and.signal`; it is not a separate trigger. The main trigger is still the modded signal, and the `and.signal` is just a boolean condition checked at that time.
+- **Syntax**: Mods are always prefixed with double underscore and can be chained, e.g., `@foo__and.bar__gt.42`.
+
+### 6. Unsubscribe on Unload
+- **Unsubscribe on event unload**: Subscriptions must be cleaned up (unsubscribed) when the element is removed from the DOM or on an appropriate unload event. Use `disconnectedCallback` for custom elements or `MutationObserver` for plain elements to detect removal and clean up listeners/subscriptions.
+
+---
 <template p-tpl>
   <li>post <span data-$pid/>: <p data-$post></p> </li>
 </template>

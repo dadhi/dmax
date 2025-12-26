@@ -1,0 +1,462 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>dmax v0.3 MVP Copy</title>
+<!-- Styling is intentionally minimal for MVP tracking -->
+<style>
+  .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
+</style>
+</head>
+<body>
+
+<!-- MVP HTML Example and Summary for Crosschecking -->
+<!-- Copied from index.html, keep this section updated for test tracking -->
+<div data-def='{
+  "user": {
+    "name": "Alice",
+    "age": 25,
+    "ui": {
+      "theme-color": "#007bff",
+      "is-active": true,
+      "font-size": 16
+    }
+  },
+  "count": 10,
+  "doubled": 20,
+  "message": "Hello World"
+}'></div>
+
+<section>
+  <h3>8. List Rendering (data-iter)</h3>
+  <template id="tpl-post">
+    <li>post <span data-$i></span>: <span data-$it></span></li>
+  </template>
+  <ul data-iter:posts#tpl-post></ul>
+</section>
+  <h3>1. Deep Nested Signal Sync</h3>
+  <label>User Name (nested path):</label>
+  <input type="text" data-sync:user.name>
+  <p>Hello, <strong data-sync:user.name></strong>!</p>
+  <label>Age:</label>
+  <input type="number" data-sync:user.age>
+  <p>Age: <span data-sync:user.age></span> years old</p>
+</section>
+
+<section>
+  <h3>2. Style & Boolean Deep Sync</h3>
+  <label>Theme Color:</label>
+  <input type="color" data-sync:user.ui.theme-color>
+  <div class="preview" data-sub:.style.color@user.ui.theme-color="user.ui.themeColor">This text color syncs to theme-color signal!</div>
+  <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
+  <input type="range" min="12" max="32" data-sync:user.ui.font-size>
+  <p data-sub:.style.font-size@user.ui.font-size="`${user.ui.fontSize}px`">This text resizes dynamically!</p>
+  <label><input type="checkbox" data-sync:user.ui.is-active> Active Status</label>
+  <p>Status: <strong data-sub:.@user.ui.is-active="user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+</section>
+
+<section>
+  <h3>3. Multiple Triggers & Targets</h3>
+  <button data-sub:count@.click="count + 1">+1</button>
+  <button data-sub:count@.click="count - 1">-1</button>
+  <button data-sub:count@.click="0">Reset</button>
+  <p>Count: <strong data-sub:.@count="count"></strong></p>
+  <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="count * 2"></span></p>
+</section>
+
+<section>
+  <h3>4. Side Effects & Multiple Triggers</h3>
+  <button id="btn1">Button 1</button>
+  <button id="btn2">Button 2</button>
+  <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', count) || '✓ Check console'"></span></p>
+  <p>Multi-trigger display: <strong data-sub:#@count@#btn1.click@#btn2.click="count + ' (updated)'"></strong></p>
+</section>
+
+<section>
+  <h3>5. Cross-Element Property Sync</h3>
+  <label>Source Input:</label>
+  <input id="src" placeholder="Type here..." data-sync:message>
+  <label>Mirror (via data-sub):</label>
+  <p class="preview" data-sub:.@#src.input="document.getElementById('src').value"></p>
+  <label>Another Mirror:</label>
+  <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
+</section>
+
+<section>
+  <h3>6. Window Events & Intervals</h3>
+  <p>Window width: <span data-sub:.@#window.resize="window.innerWidth + 'px'"></span></p>
+  <p>Current time: <span data-sub:.@#interval.1000="new Date().toLocaleTimeString()"></span></p>
+</section>
+
+<section>
+  <h3>7. Default Props & Events</h3>
+  <input id="inp1" placeholder="Default event (input)">
+  <p>Mirror using @.: <span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
+  <button id="btn3">Click me</button>
+  <p>Default event @.: <span data-sub:.@#btn3="'Clicked!'" ></span></p>
+</section>
+
+<h4>State Tree (Live Debug):</h4>
+<pre data-debug></pre>
+
+<!--
+Summary:
+- data-iter renders a list using a template for each item in the array signal.
+- Usage: <ul data-iter:.posts#tpl-id></ul>
+- Template can use data-$it (item) and data-$i (index) for binding.
+-->
+
+<!-- MVP JS and summary will be tracked here for crosschecking and improvement planning -->
+<script>
+// dmax MVP logic with new syntax support and modular parsing
+(()=>{
+  const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  const debug=document.querySelector('[data-debug]');
+
+  // Optimized kebab→camel (no regex, cached)
+  const toCamel = s => {
+    if(!s || s.indexOf('-') === -1) return s;
+    if(keyCache.has(s)) return keyCache.get(s);
+    let result = '', i = 0;
+    while(i < s.length){
+      if(s[i] === '-'){
+        // Skip multiple consecutive hyphens
+        while(s[i] === '-' && i + 1 < s.length) i++;
+        if(i < s.length) result += s[i].toUpperCase(), i++;
+      } else {
+        result += s[i++];
+      }
+    }
+    keyCache.set(s, result);
+    return result;
+  };
+
+  // Default property for element
+  const getAutoProp = el => {
+    const tag = el.tagName;
+    const type = el.type;
+    if(type === 'checkbox' || type === 'radio') return 'checked';
+    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return 'value';
+    return 'textContent';
+  };
+  // Default event for element
+  const getAutoEvent = el => {
+    const tag = el.tagName;
+    const type = el.type;
+    if(type === 'checkbox' || type === 'radio') return 'change';
+    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return tag === 'SELECT' ? 'change' : 'input';
+    return 'click';
+  };
+
+  // Compile JS expression with caching
+  const compile = body => {
+    if(fnCache.has(body)) return fnCache.get(body);
+    let fn;
+    try {
+      fn = new Function('$', 'el', 'ev', `with($){ try{ return ${body} }catch(e){console.error(e)} }`);
+    } catch(e) {
+      console.error('Failed to compile expression:', body, e);
+      fn = () => undefined;
+    }
+    fnCache.set(body, fn);
+    return fn;
+  };
+
+  // Modular parser for data-* attributes with triggers/targets/mods
+  function parseDataAttr(attr, prefixLen) {
+    const s = attr;
+    let i = prefixLen; // Skip prefix (e.g., 'data-sub', 'data-class', etc.)
+    const targets = [], triggers = [];
+    // Parse targets (starting with :)
+    while(i < s.length && s[i] === ':'){
+      i++;
+      if(i >= s.length) break;
+      let elemId = '', propPath = '', isCurr = false;
+      if(s[i] === '.'){
+        isCurr = true; i++;
+        if(i < s.length && s[i] !== ':' && s[i] !== '@'){
+          while(i < s.length && s[i] !== ':' && s[i] !== '@') propPath += s[i++];
+        }
+        targets.push({type:'prop', elemId:'', propPath: propPath || null, isCurr});
+      } else if(s[i] === '#'){
+        i++;
+        while(i < s.length && s[i] !== '.' && s[i] !== ':' && s[i] !== '@') elemId += s[i++];
+        if(i < s.length && s[i] === '.'){
+          i++;
+          while(i < s.length && s[i] !== ':' && s[i] !== '@') propPath += s[i++];
+        }
+        targets.push({type:'prop', elemId, propPath: propPath || null, isCurr:false});
+      } else {
+        let signalName = '';
+        while(i < s.length && s[i] !== ':' && s[i] !== '@') signalName += s[i++];
+        if(!signalName){ console.error('Empty signal name in target:', attr); return null; }
+        targets.push({type:'signal', name:signalName});
+      }
+    }
+    // Parse triggers (starting with @)
+    while(i < s.length && s[i] === '@'){
+      i++;
+      if(i >= s.length) break;
+      let elemId = '', eventName = '', isCurr = false;
+      if(s[i] === '.'){
+        isCurr = true; i++;
+        if(i < s.length && s[i] !== ':' && s[i] !== '@' && s[i] !== '_'){
+          while(i < s.length && s[i] !== ':' && s[i] !== '@' && s[i] !== '_') eventName += s[i++];
+        }
+        triggers.push({type:'event', elemId:'', eventName: eventName || null, isCurr, mods:{}});
+      } else if(s[i] === '#'){
+        i++;
+        while(i < s.length && s[i] !== '.' && s[i] !== ':' && s[i] !== '@' && s[i] !== '_') elemId += s[i++];
+        if(i < s.length && s[i] === '.'){
+          i++;
+          while(i < s.length && s[i] !== ':' && s[i] !== '@' && s[i] !== '_') eventName += s[i++];
+        }
+        triggers.push({type:'event', elemId, eventName: eventName || null, isCurr:false, mods:{}});
+      } else {
+        let signalName = '';
+        while(i < s.length && s[i] !== '@' && s[i] !== '_' && s[i] !== ':') signalName += s[i++];
+        if(!signalName){ console.error('Empty signal name in trigger:', attr); return null; }
+        triggers.push({type:'signal', name:signalName, mods:{}});
+      }
+      let mods = {};
+      while(i < s.length && s[i] === '_' && s[i+1] === '_'){
+        i += 2;
+        let modName = '', modVal = '';
+        while(i < s.length && s[i] !== '.' && s[i] !== '@' && s[i] !== '_' && s[i] !== ':') modName += s[i++];
+        if(i < s.length && s[i] === '.'){
+          i++;
+          while(i < s.length && s[i] !== '@' && s[i] !== '_' && s[i] !== ':') modVal += s[i++];
+        }
+        mods[modName] = modVal ? +modVal : 1;
+      }
+      if(triggers.length) triggers[triggers.length-1].mods = mods;
+    }
+    // Extra: warn if dangling : or @
+    if(i < s.length && (s[i] === ':' || s[i] === '@')) {
+      console.error('Dangling ":" or "@" in attribute:', attr);
+      return null;
+    }
+    return {targets, triggers};
+  }
+
+  // Set property (fast, supports nested)
+  const setProp = (el, path, val) => {
+    if(!path) path = getAutoProp(el);
+    const parts = path.split('.');
+    let t = el;
+    try {
+      for(let i = 0; i < parts.length - 1; i++) {
+        let key = parts[i];
+        // Support array indexes: foo.0.bar
+        if(/^\d+$/.test(key)) key = +key;
+        t = t[toCamel(key)];
+        if(!t) throw new Error('Invalid property path');
+      }
+      let last = parts[parts.length - 1];
+      if(/^\d+$/.test(last)) last = +last;
+      last = toCamel(last);
+      if(t && t[last] !== val) t[last] = val;
+    } catch(e) {
+      console.error('Failed to set property', path, 'on', el, e);
+    }
+  };
+
+  // Track all event listeners and signal handlers for cleanup
+  const cleanupMap = new WeakMap();
+
+  // Generic setup for data-sub, data-class, data-disp
+  function setupGeneric(type, el, attr, body) {
+    const parsed = parseDataAttr(attr, type === 'data-sub' ? 8 : (type === 'data-class' ? 10 : 9));
+    if(!parsed) return;
+    const {targets, triggers} = parsed;
+    const fn = compile(body);
+    const handler = ev => {
+      const result = fn(Object.fromEntries(S), el, ev);
+      if(targets.length === 0) return;
+      for(let t of targets){
+        const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+        if(!targetEl) continue;
+        if(type === 'data-sub'){
+          if(t.type === 'signal') set(t.name, result);
+          else setProp(targetEl, t.propPath, result);
+        } else if(type === 'data-class'){
+          if(t.propPath){
+            const classes = t.propPath.split('.');
+            for(const cls of classes){
+              if(!cls) continue;
+              if(cls[0] === '-') targetEl.classList.remove(cls.slice(1));
+              else if(result) targetEl.classList.add(cls);
+              else targetEl.classList.remove(cls);
+            }
+          }
+        } else if(type === 'data-disp'){
+          targetEl.style.display = result ? '' : 'none';
+        }
+      }
+    };
+    // Track listeners for cleanup
+    let listeners = cleanupMap.get(el);
+    if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+    for(let t of triggers){
+      if(t.type === 'signal'){
+        const root = toCamel(t.name.split('.')[0]);
+        if(!subs.has(root)) subs.set(root, []);
+        subs.get(root).push(handler);
+        listeners.push({type:'signal', root, handler});
+        if(!t.mods || !t.mods.notimmediate) handler();
+      } else {
+        let targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+        const eventName = t.eventName || getAutoEvent(targetEl);
+        if(!targetEl){ console.error('Element not found:', t.elemId); continue; }
+        targetEl.addEventListener(eventName, handler);
+        listeners.push({type:'event', targetEl, eventName, handler});
+        if(t.mods && t.mods.immediate) handler();
+      }
+    }
+    if(triggers.length === 0) handler();
+  }
+
+  // MutationObserver for cleanup
+  const observer = new MutationObserver(records => {
+    for(const rec of records){
+      for(const node of rec.removedNodes){
+        if(node.nodeType !== 1) continue;
+        const listeners = cleanupMap.get(node);
+        if(listeners){
+          for(const l of listeners){
+            if(l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler);
+            if(l.type === 'signal'){
+              const arr = subs.get(l.root);
+              if(arr) subs.set(l.root, arr.filter(fn => fn !== l.handler));
+            }
+          }
+          cleanupMap.delete(node);
+        }
+      }
+    }
+  });
+  observer.observe(document.body, {childList:true, subtree:true});
+
+  // Setup wrappers
+  const setupSub = (el, attr, body) => setupGeneric('data-sub', el, attr, body);
+  const setupClass = (el, attr, body) => setupGeneric('data-class', el, attr, body);
+  const setupDisp = (el, attr, body) => setupGeneric('data-disp', el, attr, body);
+
+  // Compact data-iter implementation
+  function setupIter(el, attr) {
+    // Syntax: data-iter:.signal#tpl-id
+    let i = 9; // 'data-iter'.length
+    if(attr[i] !== ':') return;
+    i++;
+    let signal = '', tplId = '';
+    if(attr[i] === '.') { i++; while(i < attr.length && attr[i] !== '#') signal += attr[i++]; }
+    if(attr[i] === '#') { i++; while(i < attr.length) tplId += attr[i++]; }
+    if(!signal || !tplId) return;
+    const render = () => {
+      const arr = get(signal) || [];
+      el.innerHTML = '';
+      const tpl = document.getElementById(tplId);
+      if(!tpl) return;
+      for(let idx=0; idx<arr.length; idx++){
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        // Bind data-$it and data-$i
+        node.querySelectorAll('[data-$it]').forEach(n=>n.textContent=arr[idx]);
+        node.querySelectorAll('[data-$i]').forEach(n=>n.textContent=idx);
+        el.appendChild(node);
+      }
+    };
+    // Subscribe to signal changes
+    const root = toCamel(signal.split('.')[0]);
+    if(!subs.has(root)) subs.set(root, []);
+    subs.get(root).push(render);
+    render();
+  }
+
+  // Signal get/set/emit
+  const get = p => {
+    const parts = p.split('.');
+    let v = S.get(toCamel(parts[0]));
+    for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
+    return v;
+  };
+  const emit = p => {
+    const root = toCamel(p.split('.')[0]);
+    const handlers = subs.get(root);
+    if(handlers) handlers.forEach(fn => fn());
+    updateDebug();
+  };
+  const set = (p, v) => {
+    const parts = p.split('.');
+    const root = toCamel(parts[0]);
+    const current = get(p);
+    if(JSON.stringify(current) === JSON.stringify(v)) return;
+    if(parts.length === 1){
+      S.set(root, v);
+    } else {
+      const base = JSON.parse(JSON.stringify(S.get(root)));
+      let t = base;
+      for(let i = 1; i < parts.length - 1; i++) t = t[toCamel(parts[i])];
+      t[toCamel(parts[parts.length - 1])] = v;
+      S.set(root, base);
+    }
+    emit(root);
+  };
+
+  // Debug update
+  const updateDebug = () => {
+    if(debug) debug.textContent = JSON.stringify(Object.fromEntries(S), null, 2);
+  };
+
+  // Init: definitions and subscriptions
+  const init = () => {
+    const all = document.querySelectorAll('*');
+    // PHASE 1: Definitions
+    all.forEach(el => {
+      for(let a of el.attributes){
+        if(a.name !== 'data-def' && a.name.indexOf('data-def:') !== 0) continue;
+        const colonIdx = a.name.indexOf(':');
+        const name = colonIdx === -1 ? '' : a.name.substring(colonIdx + 1);
+        const camelName = toCamel(name);
+        if(camelName === 'ev' || camelName === 'el'){
+          console.error('Reserved signal name:', name); continue;
+        }
+        if(!name){
+          const o = JSON.parse(a.value);
+          for(let k in o){
+            const camelK = toCamel(k);
+            if(camelK === 'ev' || camelK === 'el'){
+              console.error('Reserved signal name:', k); continue;
+            }
+            S.set(camelK, o[k]);
+          }
+        } else {
+          S.set(camelName, Function('return ' + a.value)());
+        }
+      }
+    });
+    // PHASE 2: Subscriptions
+    all.forEach(el => {
+      for(let a of el.attributes){
+        if(a.name.indexOf('data-sub') === 0){
+          setupSub(el, a.name, a.value);
+        } else if(a.name.indexOf('data-class') === 0){
+          setupClass(el, a.name, a.value);
+        } else if(a.name.indexOf('data-disp') === 0){
+          setupDisp(el, a.name, a.value);
+        } else if(a.name.indexOf('data-iter') === 0){
+          setupIter(el, a.name);
+        }
+      }
+    });
+    updateDebug();
+  };
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
