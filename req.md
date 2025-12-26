@@ -80,6 +80,27 @@ A sugar consisting of 0, 1 or 2 targets with the same grammar as in data-sub for
 
 ## data-class
 
+data-class.green-button.green-check.-gray-button@is-done@#el-id.load
+
+where:
+.class-to-add
+
+.-class-to-remove
+
+@is-done is signal trigger
+
+@#el-id.load event trigger
+
+
+data-class.foo.bar@baz='baz + boo.fix > 42'
+
+where exp value interpeted as boolean
+
+
+data-class.greeting@foo__5
+
+data-class.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
+
 
 ## data-disp
 
