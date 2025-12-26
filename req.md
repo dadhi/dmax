@@ -102,7 +102,15 @@ data-class.greeting@foo__5
 data-class.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
 
 
-## data-disp
+## data-disp abd hide
+
+data-disp@is-foo
+
+data-disp@!is-complete@in-flight
+
+data-disp#cool-elem@is-cool.for-sure
+
+basically the same as data-class but instead of adding or removing classes it hides or displays the element
 
 
 ## data-get
