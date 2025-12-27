@@ -616,6 +616,7 @@ Summary:
       el.innerHTML = '';
       const tpl = document.getElementById(tplId);
       if(!tpl) return;
+      const frag = document.createDocumentFragment();
       for(let idx=0; idx<arr.length; idx++){
         const node = tpl.content.firstElementChild.cloneNode(true);
         // Bind data-$it and data-$i by attribute name check (avoid CSS selector issues with $)
@@ -625,7 +626,6 @@ Summary:
           if(n.hasAttribute && n.hasAttribute('data-$it')) n.textContent = arr[idx];
           if(n.hasAttribute && n.hasAttribute('data-$i')) n.textContent = idx;
         });
-        el.appendChild(node);
         // simple nested rendering: if item has `replies` array, append a small ul
         try {
           const item = arr[idx];
@@ -639,7 +639,9 @@ Summary:
             node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
           }
         } catch(e) { /* non-fatal for nested demo */ }
+        frag.appendChild(node);
       }
+      el.appendChild(frag);
     };
     // Subscribe to signal changes
     const root = toCamel(signal.split('.')[0]);
