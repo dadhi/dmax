@@ -27,15 +27,7 @@
   "message": "Hello World"
 }'></div>
 
-<section>
-  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
-  <h3>8. List Rendering (data-iter)</h3>
-  <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
-  <template id="tpl-post">
-    <li>post <span data-$i></span>: <span data-$it></span></li>
-  </template>
-  <ul data-iter:posts#tpl-post></ul>
-</section>
+<!-- data-iter section moved below (after section 7) -->
   <div class="page">data-sync:user.name, data-sync:user.age</div>
   <h3>1. Deep Nested Signal Sync</h3>
   <!-- data-sync:user.name, data-sync:user.age -->
@@ -95,21 +87,31 @@
 </section>
 
 <section>
-  <div class="page">data-sub:.@#window.resize, data-sub:.@#interval.1000</div>
+  <div class="page">data-sub:.@.window.resize, data-sub:.@.interval.1000</div>
   <h3>6. Window Events & Intervals</h3>
   <!-- data-sub:.@.window.resize, data-sub:.@.interval.1000 -->
-  <p>Window width: <span data-sub:.@#window.resize="window.innerWidth + 'px'"></span></p>
-  <p>Current time: <span data-sub:.@#interval.1000="new Date().toLocaleTimeString()"></span></p>
+  <p>Window width: <span data-sub:.@.window.resize="window.innerWidth + 'px'"></span></p>
+  <p>Current time: <span data-sub:.@.interval.1000="new Date().toLocaleTimeString()"></span></p>
 </section>
 
 <section>
   <div class="page">data-sub:.@#inp1, data-sub:.@#btn3</div>
   <h3>7. Default Props & Events</h3>
-  <!-- data-sub:.@.inp1, data-sub:.@.btn3 -->
+  <!-- data-sub:.@#inp1, data-sub:.@#btn3 -->
   <input id="inp1" placeholder="Default event (input)">
   <p>Mirror using @.: <span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
   <button id="btn3">Click me</button>
   <p>Default event @.: <span data-sub:.@#btn3="'Clicked!'" ></span></p>
+</section>
+
+<section>
+  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
+  <h3>8. List Rendering (data-iter)</h3>
+  <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
+  <template id="tpl-post">
+    <li>post <span data-$i></span>: <span data-$it></span></li>
+  </template>
+  <ul data-iter:posts#tpl-post></ul>
 </section>
 
 <h4>State Tree (Live Debug):</h4>
@@ -466,29 +468,48 @@ Summary:
         subs.get(root).push(handler);
         listeners.push({type:'signal', root, handler});
         if(!t.mods || !t.mods.notimmediate) handler();
-      } else {
-        // support special pseudo-targets: 'window' and 'interval'
-        let targetEl = null;
-        if(t.elemId){
-          if(t.elemId === 'window') targetEl = window;
-          else if(t.elemId === 'interval') targetEl = null; // handled below
-          else targetEl = document.getElementById(t.elemId);
-        } else {
-          targetEl = el;
+        continue;
+      }
+
+      // Event triggers
+      // Resolve target element: explicit id (`#id`), special tokens via eventName (`window`, `interval`), or current element
+      let targetEl = null;
+      let eventName = t.eventName || null;
+
+      // Case: explicit element id
+      if(t.elemId){
+        if(t.elemId === 'window') targetEl = window;
+        else if(t.elemId === 'interval') targetEl = null; // handled below
+        else targetEl = document.getElementById(t.elemId);
+      }
+
+      // Case: new syntax uses `.window` or `.interval` as eventName while isCurr is true
+      if(t.isCurr && eventName){
+        const parts = eventName.split('.');
+        if(parts[0] === 'window'){
+          const ev = parts[1] || 'resize';
+          window.addEventListener(ev, handler);
+          listeners.push({type:'event', targetEl: window, eventName: ev, handler});
+          if(t.mods && t.mods.immediate) handler();
+          continue;
         }
-        const eventName = t.eventName || getAutoEvent(targetEl);
-        if(t.elemId === 'interval'){
-          const ms = parseInt(t.eventName) || 1000;
+        if(parts[0] === 'interval'){
+          const ms = parseInt(parts[1]) || 1000;
           const id = setInterval(handler, ms);
           listeners.push({type:'interval', id});
           if(t.mods && t.mods.immediate) handler();
           continue;
         }
-        if(!targetEl){ console.error('Element not found:', t.elemId); continue; }
-        targetEl.addEventListener(eventName, handler);
-        listeners.push({type:'event', targetEl, eventName, handler});
-        if(t.mods && t.mods.immediate) handler();
       }
+
+      // If still no targetEl, fall back to current element
+      if(!targetEl) targetEl = el;
+      // Determine final event name
+      const finalEvent = eventName || getAutoEvent(targetEl);
+      if(targetEl === null){ console.error('Element not found:', t.elemId); continue; }
+      targetEl.addEventListener(finalEvent, handler);
+      listeners.push({type:'event', targetEl, eventName: finalEvent, handler});
+      if(t.mods && t.mods.immediate) handler();
     }
     if(triggers.length === 0) handler();
   }
@@ -519,6 +540,46 @@ Summary:
   const setupSub = (el, attr, body) => setupGeneric('data-sub', el, attr, body);
   const setupClass = (el, attr, body) => setupGeneric('data-class', el, attr, body);
   const setupDisp = (el, attr, body) => setupGeneric('data-disp', el, attr, body);
+
+  // Two-way sync for data-sync:target.path
+  function setupSync(el, attr) {
+    // attr example: 'data-sync:user.name'
+    const colon = attr.indexOf(':');
+    const path = colon === -1 ? '' : attr.substring(colon + 1);
+    if(!path) return;
+    const root = toCamel(path.split('.')[0]);
+
+    // handler to update element from signal
+    const update = () => {
+      const val = get(path);
+      const prop = getAutoProp(el);
+      try {
+        if(prop === 'checked') el.checked = Boolean(val);
+        else if(prop === 'value') el.value = val == null ? '' : val;
+        else el.textContent = val == null ? '' : val;
+      } catch(e) { console.error('Failed to apply sync value', e); }
+    };
+
+    // initial apply
+    update();
+
+    // subscribe to signal changes
+    if(!subs.has(root)) subs.set(root, []);
+    subs.get(root).push(update);
+    let listeners = cleanupMap.get(el);
+    if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+    listeners.push({type:'signal', root, handler: update});
+
+    // listen to element events to write back to signal
+    const evName = getAutoEvent(el);
+    const write = () => {
+      const prop = getAutoProp(el);
+      const val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent);
+      set(path, val);
+    };
+    el.addEventListener(evName, write);
+    listeners.push({type:'event', targetEl: el, eventName: evName, handler: write});
+  }
 
   // Compact data-iter implementation
   function setupIter(el, attr) {
@@ -615,7 +676,9 @@ Summary:
     // PHASE 2: Subscriptions
     all.forEach(el => {
       for(let a of el.attributes){
-        if(a.name.indexOf('data-sub') === 0){
+        if(a.name.indexOf('data-sync') === 0){
+          setupSync(el, a.name);
+        } else if(a.name.indexOf('data-sub') === 0){
           setupSub(el, a.name, a.value);
         } else if(a.name.indexOf('data-class') === 0){
           setupClass(el, a.name, a.value);
