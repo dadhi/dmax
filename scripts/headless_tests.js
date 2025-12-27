@@ -131,6 +131,22 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 50));
     if(btn3Preview.textContent.includes('Clicked')) pass('Section7 btn3 click'); else fail('Section7 btn3 click failed');
 
+      // Section 8: data-iter renders posts
+      const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter') === 0));
+      if(!iterUl) fail('Section8 data-iter element missing');
+      // debug: log attributes and template
+      console.log('data-iter attributes on page:', Array.from(doc.querySelectorAll('*')).map(el=>Array.from(el.getAttributeNames()).filter(a=>a.indexOf('data-iter')===0)).filter(a=>a.length));
+      const tpl = doc.getElementById('tpl-post');
+      console.log('tpl:', tpl ? tpl.innerHTML.slice(0,200) : 'no tpl');
+      console.log('iterUl outerHTML:', iterUl.outerHTML.slice(0,200));
+      // inspect page state (exposed for tests)
+      if(typeof window.__getState === 'function'){
+        try{ const st = window.__getState(); console.log('page state keys:', Object.keys(st), 'posts length:', (st.posts && st.posts.length)); }catch(e){ console.log('failed to read __getState', e); }
+      } else console.log('__getState not available');
+      // expect number of list items equal to posts in initial data-def (3)
+      const items = Array.from(iterUl.children || []);
+      if(items.length === 3) pass('Section8 data-iter rendered 3 items'); else fail('Section8 data-iter rendered wrong number: ' + items.length);
+
     console.log('All tests completed.');
   } catch (e) {
     console.error('Error during headless tests:', e && e.stack || e);

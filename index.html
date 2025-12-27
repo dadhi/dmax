@@ -24,12 +24,13 @@
   },
   "count": 10,
   "doubled": 20,
+  "posts": ["First post","Second post","Third post"],
   "message": "Hello World"
 }'></div>
 
 <!-- data-iter section moved below (after section 7) -->
-  <div class="page">data-sync:user.name, data-sync:user.age</div>
   <h3>1. Deep Nested Signal Sync</h3>
+  <div class="page">data-sync:user.name, data-sync:user.age</div>
   <!-- data-sync:user.name, data-sync:user.age -->
   <label>User Name (nested path):</label>
   <input type="text" data-sync:user.name>
@@ -40,8 +41,8 @@
 </section>
 
 <section>
-  <div class="page">data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active</div>
   <h3>2. Style & Boolean Deep Sync</h3>
+  <div class="page">data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active</div>
   <!-- data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active -->
   <label>Theme Color:</label>
   <input type="color" data-sync:user.ui.theme-color>
@@ -54,8 +55,8 @@
 </section>
 
 <section>
-  <div class="page">data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count</div>
   <h3>3. Multiple Triggers & Targets</h3>
+  <div class="page">data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count</div>
   <!-- data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count -->
   <button data-sub:count@.click="count + 1">+1</button>
   <button data-sub:count@.click="count - 1">-1</button>
@@ -65,8 +66,8 @@
 </section>
 
 <section>
-  <div class="page">data-sub@count@#btn1.click@#btn2.click, data-sub:#@count@#btn1.click@#btn2.click</div>
   <h3>4. Side Effects & Multiple Triggers</h3>
+  <div class="page">data-sub@count@#btn1.click@#btn2.click, data-sub:#@count@#btn1.click@#btn2.click</div>
   <!-- data-sub@count@.btn1.click@.btn2.click, data-sub:.@count@.btn1.click@.btn2.click -->
   <button id="btn1">Button 1</button>
   <button id="btn2">Button 2</button>
@@ -75,8 +76,8 @@
 </section>
 
 <section>
-  <div class="page">data-sync:message, data-sub:.@#src.input, data-sub:.value@#src.input</div>
   <h3>5. Cross-Element Property Sync</h3>
+  <div class="page">data-sync:message, data-sub:.@#src.input, data-sub:.value@#src.input</div>
   <!-- data-sync:message, data-sub:.@.src.input, data-sub:.value@.src.input -->
   <label>Source Input:</label>
   <input id="src" placeholder="Type here..." data-sync:message>
@@ -87,16 +88,16 @@
 </section>
 
 <section>
-  <div class="page">data-sub:.@.window.resize, data-sub:.@.interval.1000</div>
   <h3>6. Window Events & Intervals</h3>
+  <div class="page">data-sub:.@.window.resize, data-sub:.@.interval.1000</div>
   <!-- data-sub:.@.window.resize, data-sub:.@.interval.1000 -->
   <p>Window width: <span data-sub:.@.window.resize="window.innerWidth + 'px'"></span></p>
   <p>Current time: <span data-sub:.@.interval.1000="new Date().toLocaleTimeString()"></span></p>
 </section>
 
 <section>
-  <div class="page">data-sub:.@#inp1, data-sub:.@#btn3</div>
   <h3>7. Default Props & Events</h3>
+  <div class="page">data-sub:.@#inp1, data-sub:.@#btn3</div>
   <!-- data-sub:.@#inp1, data-sub:.@#btn3 -->
   <input id="inp1" placeholder="Default event (input)">
   <p>Mirror using @.: <span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
@@ -105,8 +106,8 @@
 </section>
 
 <section>
-  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
   <h3>8. List Rendering (data-iter)</h3>
+  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
   <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
   <template id="tpl-post">
     <li>post <span data-$i></span>: <span data-$it></span></li>
@@ -588,7 +589,13 @@ Summary:
     if(attr[i] !== ':') return;
     i++;
     let signal = '', tplId = '';
-    if(attr[i] === '.') { i++; while(i < attr.length && attr[i] !== '#') signal += attr[i++]; }
+    // support both `:.signal#tpl` and `:signal#tpl` forms
+    if(attr[i] === '.') {
+      i++;
+      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
+    } else {
+      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
+    }
     if(attr[i] === '#') { i++; while(i < attr.length) tplId += attr[i++]; }
     if(!signal || !tplId) return;
     const render = () => {
@@ -598,9 +605,13 @@ Summary:
       if(!tpl) return;
       for(let idx=0; idx<arr.length; idx++){
         const node = tpl.content.firstElementChild.cloneNode(true);
-        // Bind data-$it and data-$i
-        node.querySelectorAll('[data-$it]').forEach(n=>n.textContent=arr[idx]);
-        node.querySelectorAll('[data-$i]').forEach(n=>n.textContent=idx);
+        // Bind data-$it and data-$i by attribute name check (avoid CSS selector issues with $)
+        if(node.hasAttribute && node.hasAttribute('data-$it')) node.textContent = arr[idx];
+        if(node.hasAttribute && node.hasAttribute('data-$i')) node.textContent = idx;
+        node.querySelectorAll('*').forEach(n => {
+          if(n.hasAttribute && n.hasAttribute('data-$it')) n.textContent = arr[idx];
+          if(n.hasAttribute && n.hasAttribute('data-$i')) n.textContent = idx;
+        });
         el.appendChild(node);
       }
     };
@@ -696,6 +707,8 @@ Summary:
   } else {
     init();
   }
+  // expose state for headless tests/debugging
+  window.__getState = () => Object.fromEntries(S);
 })();
 </script>
 
