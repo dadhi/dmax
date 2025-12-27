@@ -1,0 +1,573 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>dmax v0.3</title>
+<style>
+  body{font-family:sans-serif;padding:16px;line-height:1.5;max-width:900px;margin:0 auto;background:#f8f9fa}
+  button{margin:4px;padding:8px 12px;cursor:pointer;border:1px solid #007bff;background:#007bff;color:white;border-radius:4px}
+  button:hover{background:#0056b3}
+  input,select{padding:8px;margin:4px;border:1px solid #ccc;border-radius:4px}
+  pre{background:#222;color:#4af626;padding:12px;border-radius:4px;position:sticky;top:10px;max-height:300px;overflow:auto;font-size:12px}
+  section{background:white;margin-bottom:20px;padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+  section h3{margin-top:0;color:#333;border-bottom:2px solid #007bff;padding-bottom:8px}
+  .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
+  label{display:inline-block;margin:8px 0;font-weight:500}
+</style>
+</head>
+<body>
+
+<div data-def='{
+  "user": {
+    "name": "Alice",
+    "age": 25,
+    "ui": {
+      "theme-color": "#007bff",
+      "is-active": true,
+      "font-size": 16
+    }
+  },
+  "count": 10,
+  "doubled": 20,
+  "message": "Hello World"
+}'></div>
+
+<section>
+  <h3>1. Deep Nested Signal Sync</h3>
+  <label>User Name (nested path):</label>
+  <input type="text" data-sync:user.name>
+  <p>Hello, <strong data-sync:user.name></strong>!</p>
+  
+  <label>Age:</label>
+  <input type="number" data-sync:user.age>
+  <p>Age: <span data-sync:user.age></span> years old</p>
+</section>
+
+<section>
+  <h3>2. Style & Boolean Deep Sync</h3>
+  <label>Theme Color:</label>
+  <input type="color" data-sync:user.ui.theme-color>
+  
+  <div class="preview" data-sub:#.style.color@user.ui.theme-color="user.ui.themeColor">
+    This text color syncs to theme-color signal!
+  </div>
+
+  <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
+  <input type="range" min="12" max="32" data-sync:user.ui.font-size>
+  
+  <p data-sub:#.style.font-size@user.ui.font-size="`${user.ui.fontSize}px`">
+    This text resizes dynamically!
+  </p>
+
+  <label>
+    <input type="checkbox" data-sync:user.ui.is-active> Active Status
+  </label>
+  <p>Status: <strong data-sub:#@user.ui.is-active="user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+</section>
+
+<section>
+  <h3>3. Multiple Triggers & Targets</h3>
+  <button data-sub:count@#.click="count + 1">+1</button>
+  <button data-sub:count@#.click="count - 1">-1</button>
+  <button data-sub:count@#.click="0">Reset</button>
+  <p>Count: <strong data-sub:#@count="count"></strong></p>
+  
+  <p>Multi-target (updates 3 places):
+    <span data-sub:#:doubled@count="count * 2"></span>
+  </p>
+</section>
+
+<section>
+  <h3>4. Side Effects & Multiple Triggers</h3>
+  <button id="btn1">Button 1</button>
+  <button id="btn2">Button 2</button>
+  <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', count) || '✓ Check console'"></span></p>
+  <p>Multi-trigger display: <strong data-sub:#@count@#btn1.click@#btn2.click="count + ' (updated)'"></strong></p>
+</section>
+
+<section>
+  <h3>5. Cross-Element Property Sync</h3>
+  <label>Source Input:</label>
+  <input id="src" placeholder="Type here..." data-sync:message>
+  
+  <label>Mirror (via data-sub):</label>
+  <p class="preview" data-sub:#@#src.input="document.getElementById('src').value"></p>
+  
+  <label>Another Mirror:</label>
+  <input id="mirror" readonly data-sub:#.value@#src.input="document.getElementById('src').value">
+</section>
+
+<section>
+  <h3>6. Window Events & Intervals</h3>
+  <p>Window width: <span data-sub:#@#window.resize="window.innerWidth + 'px'"></span></p>
+  <p>Current time: <span data-sub:#@#interval.1000="new Date().toLocaleTimeString()"></span></p>
+</section>
+
+<section>
+  <h3>7. Default Props & Events</h3>
+  <input id="inp1" placeholder="Default event (input)">
+  <p>Mirror using @#: <span data-sub:#@#inp1="document.getElementById('inp1').value"></span></p>
+  
+  <button id="btn3">Click me</button>
+  <p>Default event @#: <span data-sub:#@#btn3="'Clicked!'"></span></p>
+</section>
+
+<h4>State Tree (Live Debug):</h4>
+<pre data-debug></pre>
+
+<script>
+/*
+dmax v0.3 (~3kb unzipped, ~1.3kb min+gzip)
+------------------------------------------
+Subscription Engine: Explicit reactivity, no magic, maximum performance.
+
+Grammar (Complete):
+
+1. data-sub:
+   data-sub(:(signal|#.prop))*((@(signal|#.event))(__mod(.val)?)*)*='js expr'
+   
+   Targets (zero or more):
+   - :signal → user, user.name, foo.bar.baz (nested signals)
+   - :#.prop → #.value, #elem.value, #.style.color, #elem.style.font-size
+   - :# → default prop of current element
+   - :#elem → default prop of element with id
+   - Zero targets → side effect only
+   
+   Triggers (zero or more):
+   - @signal → foo, user.name (signal changes)
+   - @#.event → #.click, #elem.click, #.mouseover
+   - @# → default event of current element
+   - @#elem → default event of element with id
+   - @#window.event, @#document.event → global events
+   - @#interval.ms, @#delay.ms → synthetic events
+   - Zero triggers → evaluate once on init
+   
+   Modifiers:
+   - __immediate (default for @signal)
+   - __notimmediate (default for @#.event)
+   - __once
+   - __debounce.ms
+   - __throttle.ms
+   - __prevent (preventDefault)
+   
+   IMPORTANT: Use kebab-case for properties in attributes!
+   ✅ #.font-size → fontSize
+   ✅ #.text-content → textContent
+   ❌ #.fontSize → fontsize (wrong!)
+
+2. data-sync:
+   data-sync:target1[:target2][__mod]*
+   
+   Sugar for bidirectional sync between 2 targets (signals or props).
+   - One target → second is default prop/event of current element
+   - Two targets → bidirectional sync with writable check
+   - Prevents infinite loops via value comparison
+   - Signal targets get __immediate by default
+
+Examples:
+  data-sub:count@#.click="count + 1"
+  data-sub:#@user.name="user.name"
+  data-sub:#:doubled:foo@count="count * 2"
+  data-sub@count="console.log(count)"
+  data-sub:#@#src.input="ev.target.value"
+  data-sub:#@#="'default'"
+  data-sync:user.name
+  data-sync:user.name:#.value
+
+Performance:
+  - Function caching
+  - Key caching
+  - Zero regex in hot paths
+  - No array.includes, no split in parser
+  - indexOf optimized by V8
+  - with($) scope for signals
+*/
+
+(()=>{
+  const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  const debug=document.querySelector('[data-debug]');
+
+  // Optimized kebab→camel (no regex, cached)
+  const toCamel = s => {
+    if(!s || s.indexOf('-') === -1) return s;
+    if(keyCache.has(s)) return keyCache.get(s);
+    let result = '', i = 0;
+    while(i < s.length){
+      if(s[i] === '-' && i + 1 < s.length){
+        result += s[i + 1].toUpperCase();
+        i += 2;
+      } else {
+        result += s[i];
+        i++;
+      }
+    }
+    keyCache.set(s, result);
+    return result;
+  };
+
+  // Smart property detection
+  const getAutoProp = el => {
+    const tag = el.tagName;
+    const type = el.type;
+    if(type === 'checkbox' || type === 'radio') return 'checked';
+    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return 'value';
+    return 'textContent';
+  };
+
+  // Smart event detection
+  const getAutoEvent = el => {
+    const tag = el.tagName;
+    const type = el.type;
+    if(type === 'checkbox' || type === 'radio') return 'change';
+    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return tag === 'SELECT' ? 'change' : 'input';
+    return 'click';
+  };
+
+  const updateDebug = () => {
+    if(debug) debug.textContent = JSON.stringify(Object.fromEntries(S), null, 2);
+  };
+
+  const get = p => {
+    const parts = p.split('.');
+    let v = S.get(toCamel(parts[0]));
+    for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
+    return v;
+  };
+
+  const emit = p => {
+    const root = toCamel(p.split('.')[0]);
+    const handlers = subs.get(root);
+    if(handlers) handlers.forEach(fn => fn());
+    updateDebug();
+  };
+
+  const set = (p, v) => {
+    const parts = p.split('.');
+    const root = toCamel(parts[0]);
+    const current = get(p);
+    
+    if(JSON.stringify(current) === JSON.stringify(v)) return;
+
+    if(parts.length === 1){
+      S.set(root, v);
+    } else {
+      const base = JSON.parse(JSON.stringify(S.get(root)));
+      let t = base;
+      for(let i = 1; i < parts.length - 1; i++){
+        const key = toCamel(parts[i]);
+        t = t[key];
+      }
+      t[toCamel(parts[parts.length - 1])] = v;
+      S.set(root, base);
+    }
+    emit(root);
+  };
+
+  const setProp = (el, path, val) => {
+    const parts = path.split('.');
+    let t = el;
+    for(let i = 0; i < parts.length - 1; i++) t = t[toCamel(parts[i])];
+    const last = toCamel(parts[parts.length - 1]);
+    if(t && t[last] !== val) t[last] = val;
+  };
+
+  const compile = body => {
+    if(fnCache.has(body)) return fnCache.get(body);
+    const fn = new Function('$', 'el', 'ev', `with($){ try{ return ${body} }catch(e){console.error(e)} }`);
+    fnCache.set(body, fn);
+    return fn;
+  };
+
+  // Parse data-sub attribute name (not value!)
+  const parseDataSub = attr => {
+    const s = attr;
+    let i = 8; // Skip 'data-sub'
+    const targets = [], triggers = [];
+    
+    // Parse targets (starting with :)
+    while(i < s.length && s[i] === ':'){
+      i++; // skip :
+      if(i >= s.length) break;
+      
+      if(s[i] === '#'){
+        // Property target
+        i++; // skip #
+        let elemId = '', propPath = '';
+        
+        // Read element id until . or : or @ or end
+        while(i < s.length){
+          const c = s[i];
+          if(c === '.' || c === ':' || c === '@') break;
+          elemId += c;
+          i++;
+        }
+        
+        // If we found ., read property path
+        if(i < s.length && s[i] === '.'){
+          i++; // skip .
+          while(i < s.length){
+            const c = s[i];
+            if(c === ':' || c === '@') break;
+            propPath += c;
+            i++;
+          }
+        }
+        
+        targets.push({type: 'prop', elemId, propPath});
+      } else {
+        // Signal target
+        let signalName = '';
+        while(i < s.length){
+          const c = s[i];
+          if(c === ':' || c === '@') break;
+          signalName += c;
+          i++;
+        }
+        if(!signalName){
+          console.error('Empty signal name in target');
+          return null;
+        }
+        targets.push({type: 'signal', name: signalName});
+      }
+    }
+    
+    // Parse triggers (starting with @)
+    while(i < s.length && s[i] === '@'){
+      i++; // skip @
+      if(i >= s.length) break;
+      
+      if(s[i] === '#'){
+        // Event trigger
+        i++; // skip #
+        let elemId = '', eventName = '';
+        
+        // Read element id until . or @ or _ or : or end
+        while(i < s.length){
+          const c = s[i];
+          if(c === '.' || c === '@' || c === '_' || c === ':') break;
+          elemId += c;
+          i++;
+        }
+        
+        // If we found ., read event name
+        if(i < s.length && s[i] === '.'){
+          i++; // skip .
+          while(i < s.length){
+            const c = s[i];
+            if(c === '@' || c === '_' || c === ':') break;
+            eventName += c;
+            i++;
+          }
+        }
+        
+        // Parse mods
+        const mods = {};
+        while(i < s.length && i + 1 < s.length && s[i] === '_' && s[i+1] === '_'){
+          i += 2; // skip __
+          let modName = '', modVal = '';
+          while(i < s.length){
+            const c = s[i];
+            if(c === '.' || c === '@' || c === '_' || c === ':') break;
+            modName += c;
+            i++;
+          }
+          if(i < s.length && s[i] === '.'){
+            i++; // skip .
+            while(i < s.length){
+              const c = s[i];
+              if(c === '@' || c === '_' || c === ':') break;
+              modVal += c;
+              i++;
+            }
+          }
+          mods[modName] = modVal ? +modVal : 1;
+        }
+        
+        triggers.push({type: 'event', elemId, eventName, mods});
+      } else {
+        // Signal trigger
+        let signalName = '';
+        while(i < s.length){
+          const c = s[i];
+          if(c === '@' || c === '_' || c === ':') break;
+          signalName += c;
+          i++;
+        }
+        if(!signalName){
+          console.error('Empty signal name in trigger');
+          return null;
+        }
+        
+        // Parse mods
+        const mods = {};
+        while(i < s.length && i + 1 < s.length && s[i] === '_' && s[i+1] === '_'){
+          i += 2; // skip __
+          let modName = '', modVal = '';
+          while(i < s.length){
+            const c = s[i];
+            if(c === '.' || c === '@' || c === '_' || c === ':') break;
+            modName += c;
+            i++;
+          }
+          if(i < s.length && s[i] === '.'){
+            i++; // skip .
+            while(i < s.length){
+              const c = s[i];
+              if(c === '@' || c === '_' || c === ':') break;
+              modVal += c;
+              i++;
+            }
+          }
+          mods[modName] = modVal ? +modVal : 1;
+        }
+        
+        triggers.push({type: 'signal', name: signalName, mods});
+      }
+    }
+    
+    return {targets, triggers};
+  };
+
+  const setupSub = (el, attr, body) => {
+    const parsed = parseDataSub(attr);
+    if(!parsed) return;
+    
+    const {targets, triggers} = parsed;
+    const fn = compile(body);
+    
+    const handler = ev => {
+      const result = fn(Object.fromEntries(S), el, ev);
+      
+      // Apply to all targets
+      if(targets.length === 0){
+        // Side effect only
+        return;
+      }
+      
+      for(let t of targets){
+        if(t.type === 'signal'){
+          set(t.name, result);
+        } else {
+          // Property
+          const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+          if(!targetEl) continue;
+          const propPath = t.propPath || getAutoProp(targetEl);
+          setProp(targetEl, propPath, result);
+        }
+      }
+    };
+    
+    // Register triggers
+    for(let t of triggers){
+      if(t.type === 'signal'){
+        const root = toCamel(t.name.split('.')[0]);
+        if(!subs.has(root)) subs.set(root, []);
+        subs.get(root).push(handler);
+        if(!t.mods || !t.mods.notimmediate) handler(); // immediate by default for signals
+      } else {
+        // Event
+        if(t.elemId === 'interval' || t.elemId === 'delay'){
+          const ms = +t.eventName;
+          if(t.elemId === 'interval') setInterval(handler, ms);
+          else setTimeout(handler, ms);
+        } else if(t.elemId === 'window'){
+          if(!t.eventName){
+            console.error('Window event name required');
+            continue;
+          }
+          window.addEventListener(t.eventName, handler);
+        } else if(t.elemId === 'document'){
+          if(!t.eventName){
+            console.error('Document event name required');
+            continue;
+          }
+          document.addEventListener(t.eventName, handler);
+        } else {
+          const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+          if(!targetEl){
+            console.error('Element not found:', t.elemId);
+            continue;
+          }
+          const eventName = t.eventName || getAutoEvent(targetEl);
+          targetEl.addEventListener(eventName, handler);
+        }
+        if(t.mods && t.mods.immediate) handler();
+      }
+    }
+    
+    // If no triggers, run once
+    if(triggers.length === 0) handler();
+  };
+
+  const init = () => {
+    const all = document.querySelectorAll('*');
+
+    // PHASE 1: Definitions
+    all.forEach(el => {
+      for(let a of el.attributes){
+        if(a.name !== 'data-def' && a.name.indexOf('data-def:') !== 0) continue;
+        
+        const colonIdx = a.name.indexOf(':');
+        const name = colonIdx === -1 ? '' : a.name.substring(colonIdx + 1);
+        const camelName = toCamel(name);
+        
+        if(camelName === 'ev' || camelName === 'el'){
+          console.error('Reserved signal name:', name);
+          continue;
+        }
+        
+        if(!name){
+          const o = JSON.parse(a.value);
+          for(let k in o){
+            const camelK = toCamel(k);
+            if(camelK === 'ev' || camelK === 'el'){
+              console.error('Reserved signal name:', k);
+              continue;
+            }
+            S.set(camelK, o[k]);
+          }
+        } else {
+          S.set(camelName, Function('return ' + a.value)());
+        }
+      }
+    });
+
+    // PHASE 2: Subscriptions
+    all.forEach(el => {
+      for(let a of el.attributes){
+        if(a.name.indexOf('data-sub') === 0){
+          setupSub(el, a.name, a.value);
+        } else if(a.name.indexOf('data-sync:') === 0){
+          // Simple data-sync implementation
+          const parts = a.name.substring(10).split(':');
+          const signal = parts[0];
+          const propPath = parts[1];
+          
+          const signalAccessor = signal.split('.').map(toCamel).join('.');
+          const actualProp = propPath ? propPath.substring(2) : getAutoProp(el);
+          const event = getAutoEvent(el);
+          
+          // Signal → Property
+          setupSub(el, `data-sub:#${propPath||''}@${signal}`, signalAccessor);
+          
+          // Property → Signal (if writable)
+          const canWrite = el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA';
+          if(canWrite){
+            setupSub(el, `data-sub:${signal}@#.${event}`, `el.${toCamel(actualProp)}`);
+          }
+        }
+      }
+    });
+    updateDebug();
+  };
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
