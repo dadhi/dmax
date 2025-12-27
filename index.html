@@ -467,8 +467,23 @@ Summary:
         listeners.push({type:'signal', root, handler});
         if(!t.mods || !t.mods.notimmediate) handler();
       } else {
-        let targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+        // support special pseudo-targets: 'window' and 'interval'
+        let targetEl = null;
+        if(t.elemId){
+          if(t.elemId === 'window') targetEl = window;
+          else if(t.elemId === 'interval') targetEl = null; // handled below
+          else targetEl = document.getElementById(t.elemId);
+        } else {
+          targetEl = el;
+        }
         const eventName = t.eventName || getAutoEvent(targetEl);
+        if(t.elemId === 'interval'){
+          const ms = parseInt(t.eventName) || 1000;
+          const id = setInterval(handler, ms);
+          listeners.push({type:'interval', id});
+          if(t.mods && t.mods.immediate) handler();
+          continue;
+        }
         if(!targetEl){ console.error('Element not found:', t.elemId); continue; }
         targetEl.addEventListener(eventName, handler);
         listeners.push({type:'event', targetEl, eventName, handler});
@@ -491,6 +506,7 @@ Summary:
               const arr = subs.get(l.root);
               if(arr) subs.set(l.root, arr.filter(fn => fn !== l.handler));
             }
+            if(l.type === 'interval') clearInterval(l.id);
           }
           cleanupMap.delete(node);
         }

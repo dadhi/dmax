@@ -1,0 +1,39 @@
+# Node artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Editor and OS files
+.DS_Store
+.vscode/
+
+# Build / output
+dist/
+build/
+coverage/
+
+# jsdom / Chromium downloads and caches
+.local-chromium/
+.local-chromium-*/
+.chromium/
+.cache/
+.cache-jsdom/
+jsdom-cache/
+jsdom.log
+
+# Logs and temporary
+*.log
+npm-debug.log*
+
+# Env
+.env
+.env.local
+
+# Optional: ignore test artifacts created at runtime
+tmp/
+temp/
