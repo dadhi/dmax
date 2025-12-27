@@ -147,6 +147,15 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       const items = Array.from(iterUl.children || []);
       if(items.length === 3) pass('Section8 data-iter rendered 3 items'); else fail('Section8 data-iter rendered wrong number: ' + items.length);
 
+      // Section 8b: nested threads rendered with replies
+      const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter:threads') === 0));
+      if(!threadUl) fail('Section8 nested threads element missing');
+      const tItems = Array.from(threadUl.children || []);
+      if(tItems.length !== 3) fail('Section8 threads count wrong: ' + tItems.length);
+      // Check first thread has 2 replies rendered
+      const firstReplies = tItems[0].querySelectorAll('ul > li');
+      if(firstReplies.length === 2) pass('Section8 nested replies rendered for first thread'); else fail('Section8 nested replies wrong: ' + firstReplies.length);
+
     console.log('All tests completed.');
   } catch (e) {
     console.error('Error during headless tests:', e && e.stack || e);

@@ -25,6 +25,11 @@
   "count": 10,
   "doubled": 20,
   "posts": ["First post","Second post","Third post"],
+  "threads": [
+    {"title":"Thread A","replies":["A1","A2"]},
+    {"title":"Thread B","replies":["B1"]},
+    {"title":"Thread C","replies":[]}
+  ],
   "message": "Hello World"
 }'></div>
 
@@ -113,6 +118,14 @@
     <li>post <span data-$i></span>: <span data-$it></span></li>
   </template>
   <ul data-iter:posts#tpl-post></ul>
+
+  <h4>Nested data-iter example</h4>
+  <template id="tpl-thread">
+    <li>Thread: <strong data-$it></strong>
+      <div class="replies-placeholder"></div>
+    </li>
+  </template>
+  <ul data-iter:threads#tpl-thread></ul>
 </section>
 
 <h4>State Tree (Live Debug):</h4>
@@ -613,6 +626,19 @@ Summary:
           if(n.hasAttribute && n.hasAttribute('data-$i')) n.textContent = idx;
         });
         el.appendChild(node);
+        // simple nested rendering: if item has `replies` array, append a small ul
+        try {
+          const item = arr[idx];
+          if(item && Array.isArray(item.replies)){
+            const sub = document.createElement('ul');
+            for(const r of item.replies){
+              const li = document.createElement('li');
+              li.textContent = r;
+              sub.appendChild(li);
+            }
+            node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
+          }
+        } catch(e) { /* non-fatal for nested demo */ }
       }
     };
     // Subscribe to signal changes
