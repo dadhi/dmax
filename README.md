@@ -5,7 +5,7 @@ Dmax is Datastar.js inspired, fast, small, no-build, no-magic, declarative web l
 ## TL;DR — Supported directives (compact)
 
  - **data-def**: declare initial signals/state (JSON or shorthand). See `index.html` data-def block.
- - **data-sub**: reactive assignments and side-effects. Targets: `:signal`, `:#elem.prop` or `:#` (current). Triggers: `@signal`, `@#.event`, `@#window.event`, `@#interval.ms`. Mods: `__immediate`, `__notimmediate`, `__once`, `__debounce.ms`, `__throttle.ms`, `__prevent`.
+ - **data-sub**: reactive assignments and side-effects. Targets may be signals or element properties; triggers may be signals or element/window events. Supports common trigger modifiers (debounce/throttle/once/immediate/prevent). See `index.html` for concrete attribute examples.
  - **data-sync**: two-way binding sugar between signals/props (one or two targets). Prevents update loops; signals are written back on default events.
  - **data-class**: conditional class add/remove driven by expression and triggers (same trigger grammar as `data-sub`). Use `.` prefix for class names, `.-name` to remove.
  - **data-disp**: show/hide element based on expression triggers (same trigger grammar as `data-class`).

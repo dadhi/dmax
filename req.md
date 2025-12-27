@@ -23,47 +23,52 @@ same as
 data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
 
+
 ## data-sub
 
- data-sub(:(signal|#.prop))*((@(signal|#.event))(__mod(.val)?)*)*='js exp'
+ data-sub(:(signal|:.prop|:#id.prop))*((@(signal|@.event|@#id.event|@!w.event))(__mod(.val)?)*)*='js exp'
 
-- ':signal' - zero, one or many signals; represents target for the right js expr assignment; example for-bar.baz
+ - `:signal` - zero, one or many signals; represents target for the right-hand JS expression assignment (e.g. `:user`, `:user.name`).
 
-- ':#.prop' zero, one, or many element props; represents target for the right js exp: example :#.value for the element where data-sub is defined, :#some-el-id.style.color is nested prop on the elem with id #some-elem, :# is the default target prop of the el where data-sub defined, eg value, checked, selectedOptions, textContent, :#my-input the default prop of the elem with id #my-elem
+ - `:.prop` zero, one, or many element properties on the current element; represents target for the right-hand expression: example `:.value` for the current element's value, `:.style.color` for current element style properties. Use `:.` as the current-element default prop.
 
-- if zero targets is specified then the js expr will be evaluated for its side effect data-sub#='alert(1)' raises alert each time the default prop of the defined el changes, data-sub@foo='bar.baz = 3' - changes bar.baz on the foo change.
+ - `:#id.prop` zero, one, or many element props by id; example `:#some-el-id.style.color` refers to the nested property on the element with id `some-el-id`. `:#id` is the default prop of the element with that id.
 
-- @signal - zero, one or many subscriptions/triggers on the signal change; data-set@foo@bar.baz
+ - If zero targets are specified then the JS expression will be evaluated for its side effect. Example: `data-sub:.='console.log(1)'` evaluates on the current element's default event, `data-sub@user='foo.bar = 3'` runs on `user` signal change.
 
-- @#.event - zero, one or many html events; example @#.click for the el where data-sub is defined, @#elem-id.mouseover is the event of @#elem-id; @# is the default event of the el: input, change. If triggered then not not null event is available in js expr; @#window.event and @#document.event for window and document events respectively. There are also two sintetic events without elem: interval and delay
+ - `@signal` - zero, one or many subscriptions/triggers on signal changes (e.g. `@count`, `@user.name`).
 
-- if no event or signal trigger is specified then js exp is evaluated once on element and its result assigned to all target, if no targets then exp id evaluated for its sideeffects, example data-sub='console.log(42)' - side effect, data-sub:#='42' - assign '42' default el prop; data-sub:#my-input:foo:#.style.width='42' - assign '42' to #my-input default prop, also to foo signal, also to current elem style.width.
+ - `@.event` - zero, one or many DOM events on the current element (e.g. `@.click`, `@.input`).
+   - `@#id.event` targets an element by id's event (e.g. `@#btn.click`).
+   - Special global/document/window events use the `!` prefix: `@!w.resize` (window), `@!d.visibilitychange` (document).
+   - Synthetic timing triggers remain supported via `@!interval.ms` or `@!delay.ms`.
 
-- triggers mods are __immediate (default for @signal), __notimmediate (default for @#.),
+ - If no event or signal trigger is specified then the JS expression is evaluated once during init and/or when the relevant default event occurs; if no targets are provided the expression is evaluated for side effects only.
 
-__once, __debounce.numOfMs, __throttle.numOfMs,
+ - Trigger modifiers: `__immediate` (default for `@signal`), `__notimmediate` (default for `@.event`), `__once`, `__debounce.ms`, `__throttle.ms`, `__prevent` (preventDefault).
 
-__prevent (for preventing default behavior)
+### Parser Notes (updated tokens)
 
-### Parser Notes
+ - `:` denotes start of a target (signal or prop).
 
-- : denotes start of target (signal or prop)
+   - If the next char is `.` then it is a property on the current element (e.g. `:.value`).
+   - If the next char is `#` then it is an element-by-id reference (e.g. `:#my-id.prop`).
+   - Otherwise it's a signal name (e.g. `:user.name`).
 
--- if next char is # then it is prop otherwise signal
+ - `@` denotes start of a trigger (signal or event).
 
---- if signal, read untill : or @ the name of the signal. Signal may be nested, so each . will denote of the signal name in the nested chain. Signal name cannot be empty -> error.
+   - If followed by `!` then it's a special/global target (`!w`/`!d`/`!f`), e.g. `@!w.resize`.
+   - If followed by `.` it's a current-element event (`@.click`).
+   - If followed by `#` it's an element-by-id event (`@#btn.click`).
+   - Otherwise it's a signal trigger (`@count`).
 
---- if prop, then read until . or : or @ the id of prop elem. If its empty then it is current element, otherwise it is id of element. If we read . then read the prop name until the : or @. Property name can be nested (style.color) each new . denote the end of the prop in the nested chain.
+ - Mods follow a double underscore prefix `__` and may include a dot-delimited value (e.g. `__debounce.200`). Mods can be chained.
 
-If we do not read the . after elem name and found : or @ instead, then the property is default for this element. The case with empty elem and no prop is valid @# and denotes current element with default prop.
+ - Property and signal names are expected in kebab-case or snake_case in attributes and are converted to camelCase when accessed in JS expressions (e.g. `font-size` → `fontSize`).
 
-- similar @ denotes start of trigger (signal or event). Property cannot be a trigger, the found name we consider an event -> error if not found.
+ - Errors (invalid tokens, missing elements, malformed expressions) should be reported clearly to the console with attribute + element context.
 
--- if the next char is # it is event otherwise a signal
-
---- if it is signal we read its name until __ or : or @. The name can be nested chain delim by . If the name ends on __ next we read a mod name and possible value after the dot. We read the mod (collecting its name and value) until next mod __ or : or @.
-
---- if it is event read its element id until __ or . or : or @ The id may be empty (curr elem), maybe window or document, othrwise an id of the elem. If we found . then read event name (may be chained with .) untill __ or : or @. Event name may empty (but not for window or document -> error) meaning the default event. If the next was __ then read the mods as above the same as mods for signals. The empty id and event is valid @# meaning default event of the curr elem.
+For concrete attribute examples consult the demo runtime in `index.html` and the TL;DR in `README.md`.
 
 ## data-sync
 
