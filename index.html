@@ -111,7 +111,16 @@
 </section>
 
 <section>
-  <h3>8. List Rendering (data-iter)</h3>
+  <h3>8. Classes & Display (data-class / data-disp)</h3>
+  <div style="margin:6px 0">
+    <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
+  </div>
+  <div id="classBox" data-class:.active.-inactive@user.ui.is-active="user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+  <p id="displayBox" data-disp:@user.ui.is-active="user.ui.isActive">Visible only when active</p>
+</section>
+
+<section>
+  <h3>9. List Rendering (data-iter)</h3>
   <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
   <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
   <template id="tpl-post">
@@ -448,29 +457,36 @@ Summary:
     if(!parsed) return;
     const {targets, triggers} = parsed;
     const fn = compile(body);
+    // Precompute appliers for targets to minimize work on each trigger
+    const appliers = targets.map(t => {
+      const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+      if(!targetEl) return null;
+      if(type === 'data-sub'){
+        if(t.type === 'signal') return res => { try{ set(t.name, res); }catch(e){} };
+        const prop = t.propPath || null;
+        return res => { try{ setProp(targetEl, prop, res); }catch(e){} };
+      }
+      if(type === 'data-class'){
+        const classes = (t.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
+        return res => {
+          try{
+            for(const c of classes){
+              if(c.remove) targetEl.classList.remove(c.name);
+              else if(res) targetEl.classList.add(c.name); else targetEl.classList.remove(c.name);
+            }
+          }catch(e){}
+        };
+      }
+      if(type === 'data-disp'){
+        return res => { try{ targetEl.style.display = res ? '' : 'none'; }catch(e){} };
+      }
+      return null;
+    });
+
     const handler = ev => {
       const result = fn(Object.fromEntries(S), el, ev);
-      if(targets.length === 0) return;
-      for(let t of targets){
-        const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
-        if(!targetEl) continue;
-        if(type === 'data-sub'){
-          if(t.type === 'signal') set(t.name, result);
-          else setProp(targetEl, t.propPath, result);
-        } else if(type === 'data-class'){
-          if(t.propPath){
-            const classes = t.propPath.split('.');
-            for(const cls of classes){
-              if(!cls) continue;
-              if(cls[0] === '-') targetEl.classList.remove(cls.slice(1));
-              else if(result) targetEl.classList.add(cls);
-              else targetEl.classList.remove(cls);
-            }
-          }
-        } else if(type === 'data-disp'){
-          targetEl.style.display = result ? '' : 'none';
-        }
-      }
+      if(!appliers || appliers.length === 0) return;
+      for(const ap of appliers) if(ap) try{ ap(result); }catch(e){}
     };
     // Track listeners for cleanup
     let listeners = cleanupMap.get(el);

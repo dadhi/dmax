@@ -30,3 +30,14 @@ Short TBD:
 
 See `index.html` for live examples and `req.md` for detailed grammar.
 ```
+
+Supported trigger modifiers:
+ - `__immediate` — run handler immediately for signal triggers
+ - `__notimmediate` — avoid immediate run for event triggers
+ - `__once` — run only once then remove subscription
+ - `__debounce.<ms>` — debounce handler by milliseconds
+ - `__throttle.<ms>` — throttle handler by milliseconds
+ - `__prevent` — call `preventDefault()` for DOM events
+ - `__and.<signal>` — conditional AND modifier (TBD semantics)
+ - comparator mods (TBD): `__eq.<v>`, `__gt.<v>`, `__lt.<v>`
+

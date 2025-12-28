@@ -131,7 +131,24 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 50));
     if(btn3Preview.textContent.includes('Clicked')) pass('Section7 btn3 click'); else fail('Section7 btn3 click failed');
 
-      // Section 8: data-iter renders posts
+    // Section 8: data-class / data-disp demo
+    const classBox = doc.getElementById('classBox');
+    const displayBox = doc.getElementById('displayBox');
+    const chkActive = findByAttr('input', 'data-sync:user.ui.is-active');
+    if(!classBox || !displayBox || !chkActive) fail('Section8 class/disp elements missing');
+    // Toggle off
+    chkActive.checked = false;
+    chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    // Accept either class removed or element hidden as valid toggle-off
+    if(!classBox.classList.contains('active') || displayBox.style.display === 'none') pass('Section8 class/disp toggled off'); else fail('Section8 class/disp did not toggle off');
+    // Toggle on
+    chkActive.checked = true;
+    chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(classBox.classList.contains('active') && (displayBox.style.display === '' || displayBox.style.display === undefined)) pass('Section8 class/disp toggled on'); else fail('Section8 class/disp did not toggle on');
+
+      // Section 9: data-iter renders posts
       const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter') === 0));
       if(!iterUl) fail('Section8 data-iter element missing');
       // debug: log attributes and template
