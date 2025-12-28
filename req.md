@@ -160,6 +160,17 @@ Syntax highlights:
 - State targets: `?` after the main spec designates signals that receive action state (busy/done/ok/err/code/all).
 - Headers / options: use `^` immediately after the directive name to control headers and a small set of shortcuts. Example: `data-post^json^cache-control.no-cache:resp@.click="/api"`.
 
+Inputs and mapping:
+- Inputs are declared with `+<signal>` or `+#elem.prop`. Each input may include per-input mods using the double-underscore syntax, for example `+user-id__query.id` or `+#email.value__body`.
+- Modes:
+  - `__query.name` — place input into the URL query parameter `name`. If omitted the parameter name defaults to the last segment of the input signal name.
+  - `__body.name` — include the input under `name` in the request body (when the method uses a body).
+  - `__header.name` — add this input value as header `name`. If `__header` is present without a name the header will be `x-dmax-<last-name>`.
+- Defaults:
+  - GET/DELETE default to `__query` mode when no explicit per-input mode is provided.
+  - POST/PUT/PATCH default to `__body` mode when no explicit per-input mode is provided.
+  - When multiple inputs are mapped to body (explicitly via `__body` or implicitly for non-GET methods), the runtime will merge them into a single JSON object with keys equal to the specified names (or the input's last segment when no name supplied). If only a single body input exists, its value is used directly as the request body.
+
 Headers/options via `^` (primary change):
 - `^<name>.<value>` sets header-like options. Example: `^cache-control.no-cache` → sets `Cache-Control: no-cache`.
 - Shortcuts: common header bundles provided as shortcuts after `^`:
@@ -169,6 +180,18 @@ Headers/options via `^` (primary change):
   - `^html` → `Content-Type: text/html`
   - `^sse` → Accept: text/event-stream, Cache-Control: no-cache
 - Rationale: keeping headers/options under a single token avoids embedding JSON blobs in attributes and keeps attributes compact.
+
+State tracking details:
+- Signal declaration: state signals are declared after `?` and may include a mode suffix: `?busy__busy,err__err,meta__all`.
+  - If the user provides a state name without `__mode`, `__busy` is assumed.
+- Available modes and behavior:
+  - `__busy`: boolean — `true` when request is in-flight, `false` after completion.
+  - `__done`: boolean — `true` on successful completion (mirror of busy/reverse).
+  - `__err`: boolean — `true` when the request failed or response code indicates error.
+  - `__ok`: boolean — `true` on success (reverse of `__err`).
+  - `__code`: number — HTTP status code of the last response.
+  - `__all`: object — `{ busy, done, err, ok, code }` snapshot updated on changes.
+- Behavior: the runtime will create missing state signals at parse time (as if a `data-def` existed) and update them deterministically: set busy=true before request, then set busy=false and other flags appropriately on success/failure. The first iteration uses simple last-wins semantics (no cancellation or request de-duplication).
 
 Note: in the first iteration the runtime will only support `^json` (Content-Type: application/json and JSON response parsing). Support for `^form`, `^text`, `^html`, `^sse` and other shortcuts will be added in later releases.
 

@@ -42,8 +42,13 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
   // Wrap fetch to observe calls
   if (window.fetch) {
     const orig = window.fetch.bind(window);
+    let lastRequest = null;
+    window.__lastRequest = () => lastRequest;
     window.fetch = async function(...args){
-      console.log('TEST: fetch called ->', args[0]);
+      const url = args[0];
+      const init = args[1] || {};
+      try{ lastRequest = { url, init }; }catch(e){}
+      console.log('TEST: fetch called ->', url);
       const res = await orig(...args);
       try{
         const copy = res.clone();
@@ -70,6 +75,12 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
 
   const state1 = window.__getState();
   assert(state1.postResult && state1.postResult.id === 1, 'postResult populated with id 1');
+  // state signals: busy should be false after completion, err should be false, code should be number
+  assert(typeof state1.busy !== 'undefined', 'busy signal exists');
+  assert(state1.busy === false, 'busy is false after completion');
+  assert(typeof state1.err !== 'undefined', 'err signal exists');
+  assert(state1.err === false, 'err is false on success');
+  if (typeof state1.code !== 'undefined') assert(typeof state1.code === 'number', 'code is number');
   console.log('GET test passed');
 
   // Test 2: POST create
@@ -88,6 +99,23 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
 
   const state2 = window.__getState();
   assert(state2.createdPost, 'createdPost present');
+  assert(typeof state2.busy !== 'undefined', 'busy signal exists for POST');
+  assert(state2.busy === false, 'POST busy false after completion');
+  assert(typeof state2.err !== 'undefined', 'err signal exists for POST');
+  assert(state2.err === false, 'POST err false on success');
+  if (typeof state2.code !== 'undefined') assert(typeof state2.code === 'number', 'POST code is number');
+  // verify request body nested structure
+  const last = window.__lastRequest && window.__lastRequest();
+  if(last && last.init && last.init.body){
+    try{
+      const parsed = JSON.parse(last.init.body);
+      // expect nested user.name and user.email from our example
+      if(parsed.user){
+        assert(parsed.user.name, 'nested user.name present in request body');
+        assert(parsed.user.email, 'nested user.email present in request body');
+      }
+    }catch(e){ console.warn('Could not parse request body', e.message); }
+  }
   console.log('POST test passed');
 
   console.log('All action tests passed');

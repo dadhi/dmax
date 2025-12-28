@@ -209,7 +209,7 @@
 <section>
   <h3>11. Actions demo (JSONPlaceholder)</h3>
   <div>
-    <button id="loadPost" data-get:post-result?busy,err@.click="https://jsonplaceholder.typicode.com/posts/1">Load post #1 (GET)</button>
+    <button id="loadPost" data-get:post-result?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts/1">Load post #1 (GET)</button>
     <div style="margin-top:8px">Busy: <span data-sub:.@post-result?busy="(postBusy||false)"></span></div>
     <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(postResult, null, 2)"></pre>
   </div>
@@ -217,7 +217,11 @@
   <div style="margin-top:12px">
     <label>New post title:</label>
     <input id="newTitle" placeholder="Title" />
-    <button id="createPost" data-post^json+#newTitle.value:created-post?busy,err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
+    <label style="margin-left:8px">Author name:</label>
+    <input id="newUserName" placeholder="Name" />
+    <label style="margin-left:8px">Author email:</label>
+    <input id="newUserEmail" placeholder="Email" />
+    <button id="createPost" data-post^json+#newTitle.value__body.title+#newUserName.value__body.user.name+#newUserEmail.value__body.user.email:created-post?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
     <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(createdPost, null, 2)"></pre>
   </div>
 </section>
@@ -836,9 +840,26 @@ Summary:
       // simple mapping for json: handled at runtime; other name.value -> header
       if(raw.indexOf('.') !== -1){ const p = raw.split('.'); const name = p[0]; const val = p.slice(1).join('.'); headers[name.toLowerCase()] = val; }
     }
-    // parse + inputs
+    // parse + inputs (support per-input mods e.g. +sig__query.qname or +#id.prop__body)
     while(i < s.length && s[i] === '+'){
-      i++; const start = i; while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?') i++; const raw = s.slice(start, i).trim(); if(raw) inputs.push(raw);
+      i++; const start = i;
+      // read raw token until separator or start of mods
+      while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?' && !(s[i] === '_' && s[i+1] === '_')) i++;
+      const raw = s.slice(start, i).trim();
+      const input = {raw, mods:{}};
+      // parse trailing mods for this input
+      while(i < s.length && s[i] === '_' && s[i+1] === '_'){
+        i += 2;
+        const mstart = i;
+        while(i < s.length){ const cc = s.charCodeAt(i); if(cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 /* _ */ && s.charCodeAt(i+1) === 95)) break; i++; }
+        const mname = s.slice(mstart, i);
+        let mval = true;
+        if(i < s.length && s[i] === '.'){
+          i++; const mvstart = i; while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_') && s[i] !== '?') i++; mval = s.slice(mvstart, i) || true;
+        }
+        input.mods[mname] = mval;
+      }
+      inputs.push(input);
     }
     // now the rest may contain :target?stateList and triggers
     const rest = s.slice(i);
@@ -851,7 +872,15 @@ Summary:
     let targetSpec = targetPart;
     let stateSpecs = [];
     const qIdx = targetPart.indexOf('?');
-    if(qIdx !== -1){ targetSpec = targetPart.slice(0, qIdx); const st = targetPart.slice(qIdx+1); stateSpecs = st.split(',').map(x=>x.trim()).filter(Boolean); }
+    if(qIdx !== -1){
+      targetSpec = targetPart.slice(0, qIdx);
+      const st = targetPart.slice(qIdx+1);
+      // parse state specs: allow mod suffix like name__busy
+      stateSpecs = st.split(',').map(x=>x.trim()).filter(Boolean).map(sx => {
+        const parts = sx.split('__');
+        return {name: parts[0], mode: parts[1] || 'busy'};
+      });
+    }
     // Build a parseable string for parseDataAttrFast: ensure it starts with ':' or '@'
     let parseStr = (targetSpec || '') + (triggerPart || '');
     if(parseStr && parseStr[0] !== ':' && parseStr[0] !== '@') parseStr = ':' + parseStr;
@@ -872,37 +901,157 @@ Summary:
     const target = parsed.targets.find(t => t.type === 'signal');
     if(!target){ console.error('Action requires a signal target (e.g. :result)'); }
 
-    const doRequest = async (ev, sg) => {
-      // build body from inputs (if any); if multiple inputs, send array
-      let body = null;
-      if(inputs.length === 1){ const raw = inputs[0]; if(raw[0] === '#'){ // element target
-          const parts = raw.slice(1).split('.'); const elem = document.getElementById(parts[0]); const prop = parts.slice(1).join('.') || getAutoProp(elem); body = elem ? (elem[toCamel(prop)] || elem.value || null) : null; }
-        else { // signal
-          body = get(raw.replace(/^\./,'')); }
-      } else if(inputs.length > 1){ body = inputs.map(inp => { if(inp[0] === '#'){ const parts = inp.slice(1).split('.'); const elem = document.getElementById(parts[0]); const prop = parts.slice(1).join('.') || getAutoProp(elem); return elem ? (elem[toCamel(prop)] || elem.value || null) : null; } return get(inp.replace(/^\./,'')); }); }
+    // Ensure state signals exist (create defaults) and map spec modes
+    const stateMap = []; // {name, camel, mode}
+    if(Array.isArray(stateSpecs) && stateSpecs.length){
+      for(const s of stateSpecs){
+        if(!s || !s.name) continue;
+        const camel = toCamel(s.name);
+        const mode = s.mode || 'busy';
+        // create default initial values per mode
+        if(mode === 'busy') { if(!S.has(camel)) S.set(camel, false); }
+        else if(mode === 'done') { if(!S.has(camel)) S.set(camel, false); }
+        else if(mode === 'err') { if(!S.has(camel)) S.set(camel, false); }
+        else if(mode === 'ok') { if(!S.has(camel)) S.set(camel, true); }
+        else if(mode === 'code') { if(!S.has(camel)) S.set(camel, null); }
+        else if(mode === 'all') { if(!S.has(camel)) S.set(camel, {busy:false,done:false,err:false,ok:true,code:null}); }
+        stateMap.push({name: s.name, camel, mode});
+      }
+    }
 
-      // set state signals: first name -> busy (bool), second -> err
-      if(stateSpecs[0]) set(stateSpecs[0], true);
-      if(stateSpecs[1]) set(stateSpecs[1], null);
+    const doRequest = async (ev, sg) => {
+      // build params/body from inputs
+      let body = null;
+      const queryParams = {};
+      const bodyFields = {};
+      if(Array.isArray(inputs) && inputs.length){
+        for(const inp of inputs){
+          const raw = inp.raw || '';
+          // element reference
+          if(raw[0] === '#'){
+            const parts = raw.slice(1).split('.'); const elem = document.getElementById(parts[0]); const prop = parts.slice(1).join('.') || getAutoProp(elem);
+            const val = elem ? (elem[toCamel(prop)] ?? elem.value ?? null) : null;
+            // decide where to place val based on mods or default
+            if(inp.mods['query']){
+              const name = inp.mods['query'] === true ? (parts[parts.length-1]) : inp.mods['query'];
+              queryParams[name] = val;
+            } else if(inp.mods['body']){
+              // body mapping -> collect into bodyFields
+              const name = inp.mods['body'] === true ? (parts[parts.length-1]) : inp.mods['body'];
+              bodyFields[name] = val;
+            } else if(method === 'get' || method === 'delete'){
+              const name = inp.mods['query'] === undefined ? (parts[parts.length-1]) : inp.mods['query'];
+              queryParams[name] = val;
+            } else {
+              // default for non-GET: treat as body field
+              const name = parts[parts.length-1];
+              bodyFields[name] = val;
+            }
+            if(inp.mods['header']){
+              const hname = inp.mods['header'] === true ? (`x-dmax-${parts[parts.length-1]}`) : inp.mods['header'];
+              hdrs[hname.toLowerCase()] = String(val);
+            }
+          } else {
+            // signal input
+            const sig = raw.replace(/^\./,'');
+            const val = get(sig);
+            const last = sig.split('.').pop();
+            if(inp.mods['query']){
+              const name = inp.mods['query'] === true ? last : inp.mods['query'];
+              queryParams[name] = val;
+            } else if(inp.mods['body']){
+              const name = inp.mods['body'] === true ? last : inp.mods['body'];
+              bodyFields[name] = val;
+            } else if(method === 'get' || method === 'delete'){
+              const name = last;
+              queryParams[name] = val;
+            } else {
+              // default for non-GET: collect into bodyFields
+              bodyFields[last] = val;
+            }
+            if(inp.mods['header']){
+              const hname = inp.mods['header'] === true ? (`x-dmax-${last}`) : inp.mods['header'];
+              hdrs[hname.toLowerCase()] = String(val);
+            }
+          }
+        }
+      }
+      // finalize body: support dotted keys -> nested object
+      function setDeep(obj, path, value){
+        const parts = String(path).split('.');
+        let cur = obj;
+        for(let i=0;i<parts.length;i++){
+          const p = parts[i];
+          if(i === parts.length-1){ cur[p] = value; }
+          else { if(typeof cur[p] !== 'object' || cur[p] === null) cur[p] = {}; cur = cur[p]; }
+        }
+      }
+      const bfKeys = Object.keys(bodyFields);
+      if(bfKeys.length === 1){
+        const k = bfKeys[0];
+        if(k.indexOf('.') !== -1){ const o = {}; setDeep(o, k, bodyFields[k]); body = o; }
+        else { body = bodyFields[k]; }
+      } else if(bfKeys.length > 1){
+        const o = {};
+        for(const k of bfKeys){ setDeep(o, k, bodyFields[k]); }
+        body = o;
+      }
+
+      // set initial state signals (before request)
+      for(const s of stateMap){
+        if(s.mode === 'busy') set(s.camel, true);
+        else if(s.mode === 'done') set(s.camel, false);
+        else if(s.mode === 'err') set(s.camel, false);
+        else if(s.mode === 'ok') set(s.camel, false);
+        else if(s.mode === 'code') set(s.camel, null);
+        else if(s.mode === 'all') set(s.camel, {busy:true, done:false, err:false, ok:false, code:null});
+      }
 
       try{
+        // assemble final URL with query params for GET/DELETE
+        let finalUrl = url;
+        const paramKeys = Object.keys(queryParams);
+        if(paramKeys.length && (method === 'get' || method === 'delete')){
+          const q = paramKeys.map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))).join('&');
+          finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q;
+        }
+
         const init = { method: method.toUpperCase(), headers: {} };
         // only JSON supported for now
         if(hdrs['content-type']) init.headers['Content-Type'] = hdrs['content-type'];
         if(hdrs['accept']) init.headers['Accept'] = hdrs['accept'];
         if(body != null){ if(init.headers['Content-Type'] && init.headers['Content-Type'].includes('application/json')) init.body = JSON.stringify(body); else init.body = String(body); }
-        const res = await fetch(url, init);
+        const res = await fetch(finalUrl, init);
         const ok = res.ok;
         let payload = null;
         const ct = res.headers.get('content-type') || '';
         if(ct.indexOf('application/json') !== -1){ payload = await res.json(); }
         else { payload = await res.text(); }
         if(target && target.type === 'signal') set(target.name, payload);
-        if(stateSpecs[0]) set(stateSpecs[0], false);
-        if(stateSpecs[1]) set(stateSpecs[1], null);
+        // update state signals on success
+        for(const s of stateMap){
+          if(s.mode === 'busy') set(s.camel, false);
+          else if(s.mode === 'done') set(s.camel, true);
+          else if(s.mode === 'err') set(s.camel, false);
+          else if(s.mode === 'ok') set(s.camel, true);
+          else if(s.mode === 'code') set(s.camel, res.status);
+          else if(s.mode === 'all') set(s.camel, {busy:false, done:true, err:false, ok:true, code:res.status});
+        }
       } catch(err){
-        if(stateSpecs[0]) set(stateSpecs[0], false);
-        if(stateSpecs[1]) set(stateSpecs[1], err && err.message ? err.message : String(err));
+        // update state signals on error
+        for(const s of stateMap){
+          if(s.mode === 'busy') set(s.camel, false);
+          else if(s.mode === 'done') set(s.camel, false);
+          else if(s.mode === 'err') set(s.camel, true);
+          else if(s.mode === 'ok') set(s.camel, false);
+          else if(s.mode === 'code') set(s.camel, (err && err.status) || null);
+          else if(s.mode === 'all') set(s.camel, {busy:false, done:false, err:true, ok:false, code:(err && err.status) || null});
+        }
+        if(stateMap.length === 0){
+          // fall back to previous simple behavior
+          if(stateSpecs[0]) set(stateSpecs[0], false);
+          if(stateSpecs[1]) set(stateSpecs[1], err && err.message ? err.message : String(err));
+        }
         console.error('Action fetch error', err);
       }
     };
