@@ -164,14 +164,61 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       const items = Array.from(iterUl.children || []);
       if(items.length === 3) pass('Section8 data-iter rendered 3 items'); else fail('Section8 data-iter rendered wrong number: ' + items.length);
 
-      // Section 8b: nested threads rendered with replies
+      // Section 9b: nested threads rendered with replies
       const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter:threads') === 0));
       if(!threadUl) fail('Section8 nested threads element missing');
       const tItems = Array.from(threadUl.children || []);
       if(tItems.length !== 3) fail('Section8 threads count wrong: ' + tItems.length);
       // Check first thread has 2 replies rendered
       const firstReplies = tItems[0].querySelectorAll('ul > li');
-      if(firstReplies.length === 2) pass('Section8 nested replies rendered for first thread'); else fail('Section8 nested replies wrong: ' + firstReplies.length);
+      if(firstReplies.length === 2) pass('Section9 nested replies rendered for first thread'); else fail('Section9 nested replies wrong: ' + firstReplies.length);
+
+    // Section 10: modifiers (once, debounce, throttle, and)
+    // Once test
+    const onceBtn = doc.getElementById('onceBtn');
+    const onceVal = doc.getElementById('onceVal');
+    if(!onceBtn || !onceVal) fail('Modifiers: once elements missing');
+    onceBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 50));
+    onceBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(Number(onceVal.textContent.trim() || 0) === 1) pass('Modifiers once works'); else fail('Modifiers once failed');
+
+    // Debounce test: rapid clicks => single increment
+    const debBtn = doc.getElementById('debBtn');
+    const debVal = doc.getElementById('debVal');
+    if(!debBtn || !debVal) fail('Modifiers: debounce elements missing');
+    debBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    debBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    debBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 220));
+    if(Number(debVal.textContent.trim() || 0) === 1) pass('Modifiers debounce works'); else fail('Modifiers debounce failed');
+
+    // Throttle test: rapid clicks => at most few increments (>=1)
+    const thrBtn = doc.getElementById('thrBtn');
+    const thrVal = doc.getElementById('thrVal');
+    if(!thrBtn || !thrVal) fail('Modifiers: throttle elements missing');
+    thrBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    thrBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    thrBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 350));
+    if(Number(thrVal.textContent.trim() || 0) >= 1) pass('Modifiers throttle works (>=1)'); else fail('Modifiers throttle failed');
+
+    // __and.<signal> test
+    const gate = doc.getElementById('gate');
+    const andBtn = doc.getElementById('andBtn');
+    const andVal = doc.getElementById('andVal');
+    if(!gate || !andBtn || !andVal) fail('Modifiers: and elements missing');
+    // ensure gate off
+    gate.checked = false; gate.dispatchEvent(new window.Event('change', { bubbles: true }));
+    andBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 120));
+    if(Number(andVal.textContent.trim() || 0) === 0) pass('Modifiers __and prevents when gate false'); else fail('Modifiers __and failed when gate false');
+    // enable gate and try
+    gate.checked = true; gate.dispatchEvent(new window.Event('change', { bubbles: true }));
+    andBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 120));
+    if(Number(andVal.textContent.trim() || 0) === 1) pass('Modifiers __and allows when gate true'); else fail('Modifiers __and failed when gate true');
 
     console.log('All tests completed.');
   } catch (e) {

@@ -137,6 +137,27 @@
   <ul data-iter:threads#tpl-thread></ul>
 </section>
 
+<section>
+  <h3>10. Modifiers demo (once/debounce/throttle/and)</h3>
+  <div>
+    <button id="onceBtn" data-sub:mod-once@.click__once="(modOnce || 0) + 1">Once</button>
+    <span id="onceVal" data-sub:.@mod-once="modOnce"></span>
+  </div>
+  <div>
+    <button id="debBtn" data-sub:mod-deb@.click__debounce.120="(modDeb || 0) + 1">Debounce</button>
+    <span id="debVal" data-sub:.@mod-deb="modDeb"></span>
+  </div>
+  <div>
+    <button id="thrBtn" data-sub:mod-thr@.click__throttle.120="(modThr || 0) + 1">Throttle</button>
+    <span id="thrVal" data-sub:.@mod-thr="modThr"></span>
+  </div>
+  <div>
+    <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
+    <button id="andBtn" data-sub:mod-and@.click__and.gate="(modAnd || 0) + 1">AND</button>
+    <span id="andVal" data-sub:.@mod-and="modAnd"></span>
+  </div>
+</section>
+
 <h4>State Tree (Live Debug):</h4>
 <pre data-debug></pre>
 
@@ -268,8 +289,9 @@ Summary:
           if (cc === 58 /* ':' */ || cc === 64 /* '@' */ || (cc === 95 /* '_' */ && s.charCodeAt(i+1) === 95)) break;
           i++;
         }
-        const num = s.slice(vs, i);
-        val = num ? +num : 1;
+        const raw = s.slice(vs, i) || '';
+        // convert numeric-like values to numbers, otherwise keep as string (support nested paths like foo.bar)
+        if(raw !== '' && !Number.isNaN(Number(raw))) val = +raw; else val = raw;
       }
       mods[name] = val;
     }
@@ -492,12 +514,43 @@ Summary:
     let listeners = cleanupMap.get(el);
     if(!listeners) listeners = [], cleanupMap.set(el, listeners);
     for(let t of triggers){
+      // build a decorated handler that supports modifier semantics: __prevent, __once, __debounce, __throttle, __and
+      const makeDecorated = (orig, t, opts={}) => {
+        const mods = t.mods || {};
+        const debMs = mods.debounce != null ? Number(mods.debounce) : null;
+        const thrMs = mods.throttle != null ? Number(mods.throttle) : null;
+        const once = mods.once !== undefined;
+        const prevent = mods.prevent !== undefined;
+        const andPath = mods.and || null;
+        let timer = null;
+        let last = 0;
+        let decorated;
+        decorated = function(ev){
+          if(prevent && ev && typeof ev.preventDefault === 'function') try{ ev.preventDefault(); }catch(e){}
+          const run = () => {
+            // __and check (supports nested signal path)
+            if(andPath){
+              try{ if(!get(String(andPath))) return; }catch(e){ return; }
+            }
+            try{ orig(ev); }catch(e){}
+            if(once && decorated && decorated.remove) decorated.remove();
+          };
+          if(debMs != null){ clearTimeout(timer); timer = setTimeout(run, debMs); return; }
+          if(thrMs != null){ const now = Date.now(); if(now - last >= thrMs){ last = now; run(); } return; }
+          run();
+        };
+        return decorated;
+      };
+
       if(t.type === 'signal'){
         const root = toCamel(t.name.split('.')[0]);
         if(!subs.has(root)) subs.set(root, []);
-        subs.get(root).push(handler);
-        listeners.push({type:'signal', root, handler});
-        if(!t.mods || !t.mods.notimmediate) handler();
+        const dec = makeDecorated(handler, t);
+        // allow removal for __once
+        dec.remove = () => { const arr = subs.get(root) || []; subs.set(root, arr.filter(fn => fn !== dec)); };
+        subs.get(root).push(dec);
+        listeners.push({type:'signal', root, handler: dec});
+        if(!t.mods || !t.mods.notimmediate) dec();
         continue;
       }
 
@@ -537,9 +590,16 @@ Summary:
       // Determine final event name
       const finalEvent = eventName || getAutoEvent(targetEl);
       if(targetEl === null){ console.error('Element not found:', t.elemId); continue; }
-      targetEl.addEventListener(finalEvent, handler);
-      listeners.push({type:'event', targetEl, eventName: finalEvent, handler});
-      if(t.mods && t.mods.immediate) handler();
+      // decorate handler with modifiers
+      const dec = (function(orig, tt){
+        const mods = tt.mods || {};
+        const decorated = makeDecorated(orig, tt);
+        decorated.remove = () => { try{ targetEl.removeEventListener(finalEvent, decorated); }catch(e){} };
+        return decorated;
+      })(handler, t);
+      targetEl.addEventListener(finalEvent, dec);
+      listeners.push({type:'event', targetEl, eventName: finalEvent, handler: dec});
+      if(t.mods && t.mods.immediate) dec();
     }
     if(triggers.length === 0) handler();
   }
@@ -665,6 +725,8 @@ Summary:
     subs.get(root).push(render);
     render();
   }
+
+  // --- Modifiers demo helpers: none (logic implemented in setupGeneric above)
 
   // Signal get/set/emit
   const get = p => {
