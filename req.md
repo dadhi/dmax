@@ -146,26 +146,71 @@ where default bindings for item and idx are it and i, eg data-$it and data-$i
 
 ## data-get
 
-### Examples
+## Data actions (GET/POST/PUT/PATCH/DELETE)
 
-data-get:foo@.click='`url?${el.value}`'
-same as data-get:foo=...
+Design goals:
+- Declarative, small-footprint HTTP actions that integrate with signals and triggers.
+- Control request headers/options succinctly via a dedicated `^` token after the directive name.
+- Keep advanced features (retry, cancellation, background signals) as TBD and addable later as global mods.
 
-data-get:.value@.='url'
-same as data-get@.='url'
-same as data-get='url'
+Syntax highlights:
+- Directive: `data-get`, `data-post`, `data-put`, `data-patch`, `data-delete`.
+- Target: `:signal` — where the response (or response state) will be written.
+- Input targets: `+id` or `+#elem.prop` to supply request body/params from element(s).
+- State targets: `?` after the main spec designates signals that receive action state (busy/done/ok/err/code/all).
+- Headers / options: use `^` immediately after the directive name to control headers and a small set of shortcuts. Example: `data-post^json^cache-control.no-cache:resp@.click="/api"`.
 
-data-post:bar.baz+p-id__uri+#pelem.value?is-p-fetching?p-fetch-code__code@.mouseover__delay.300__and.is-foo^.json=
-where:
-: target signal for post response json with mods: merge, replace, append, prepend (last 2 for arrays))
-+ req input params with mods: uri( default for get and delete), body (default for post, put, patch)
-? is action state targets with mods: busy (default), done, ok, err, code, all (object containing all)
-^ control options signal object { headers: {}, retry: {}, cancel: {}, etc. @TBD}, or a special names started with . : usual values of content-type header like json, js, html, sse; cache-control no-cache value (default for sse) .no-cache, etc. TBD
-@ action triggers: signal or event with more interedting mods: and.boolean-signal-name,
+Headers/options via `^` (primary change):
+- `^<name>.<value>` sets header-like options. Example: `^cache-control.no-cache` → sets `Cache-Control: no-cache`.
+- Shortcuts: common header bundles provided as shortcuts after `^`:
+  - `^json` → `Content-Type: application/json` (and Accept: application/json)
+  - `^form` → `Content-Type: application/x-www-form-urlencoded`
+  - `^text` → `Content-Type: text/plain`
+  - `^html` → `Content-Type: text/html`
+  - `^sse` → Accept: text/event-stream, Cache-Control: no-cache
+- Rationale: keeping headers/options under a single token avoids embedding JSON blobs in attributes and keeps attributes compact.
 
-data-put...
+Note: in the first iteration the runtime will only support `^json` (Content-Type: application/json and JSON response parsing). Support for `^form`, `^text`, `^html`, `^sse` and other shortcuts will be added in later releases.
 
-data-patch...
+Examples:
+- Simple GET into `result` on click:
+  - `data-get:result@.click="/api/items"`
+- POST with JSON shortcut and caching control:
+  - `data-post^json^cache-control.no-cache:result@.click="/api/save"`
+- Pass input value as body (element `#src`):
+  - `data-post+ #src.value:result@.click="/api/echo"`
+- Receive action state signals `busy` and `err`:
+  - `data-get:result?busy,err@.click="/api/status"`
 
-data-delete...
+Behavior notes & future work:
+- Responses should be parsed based on `Content-Type` (JSON -> JS object), and assigned to the target signal.
+- `^` currently controls headers/accept and a handful of shortcuts; retry/cancel/signal options will be introduced as attribute-level/global mods later (e.g. `data-post__retry.3:...`).
+- Security: attributes that build URLs from user input must be validated; consider safe-URL helpers or requiring `encodeURIComponent` in expressions.
+- Cancellation: when implemented, long-running requests should be cancellable on element removal or new requests for the same action.
+
+Pros / Cons / Gaps
+- Pros:
+  - Declarative and compact: `^` keeps headers terse and readable in attributes.
+  - Integrates with the signal model — easy to wire responses into reactive state.
+  - Small runtime surface: no heavy abstractions, easy to reason about in a tiny library.
+- Cons:
+  - Less flexible than programmatic fetch: advanced fetch `init` options (credentials, mode, signal) require additional syntax or are TBD.
+  - Security risks if expressions construct URLs without encoding.
+  - No built-in complex retry/circuit/backoff logic yet.
+- Gaps / Cool extras to consider:
+  - Optimistic updates, response transforms hooks, streaming/SSE handlers, progress events, automatic cancellation on element removal.
+  - Global mods for retry/cancel/signal integration to allow declarative long-running workflows.
+
+Comparison with state-of-the-art frameworks
+- HTMX: Very similar in spirit (HTML-driven HTTP). HTMX focuses on server-side snippets and DOM swapping; dmax actions are signal-oriented and return parsed responses into JS signals rather than replacing DOM by default.
+- Alpine/Stimulus: These are small and directive-driven; Alpine couples state with the DOM and offers `x-data`/`x-on` handlers. dmax is more signal-centric (Map of signals) and aims for smaller runtime compiled expressions.
+- React/Vue/Svelte: Full frameworks provide fetch/data layers via libraries (SWR, React Query, Vue Query) with rich features (caching, retries, revalidation). dmax aims to remain tiny — it can integrate with such libraries or implement a minimal subset: declarative actions, basic parsing, and optional future enhancements (retry, cancel).
+
+Recommendation
+- Implement the `^` header/shortcut syntax as specified, keep retry/cancel/options as future global attribute mods, and provide clear docs and security guidance (encode inputs, CORS, credentials).
+- Provide a small set of built-in shortcuts (`^json`, `^form`, `^sse`) and a mapping table in docs.
+
+--
+
+For implementation details refer to the runtime patches plan (will introduce a small request helper that reads `^` tokens, resolves body/params, sets headers, performs fetch, and writes responses to the target signal). 
 
