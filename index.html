@@ -33,7 +33,11 @@
     {"title":"Thread C","replies":[]}
   ],
   "message": "Hello World"
+  ,
+  "onceTest": 0,
+  "alwaysTest": 0
 }'></div>
+
 
 <!-- data-iter section moved below (after section 7) -->
   <h3>1. Deep Nested Signal Sync</h3>
@@ -72,6 +76,14 @@
   <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="count * 2"></span></p>
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
+
+  <!-- Global-modifiers examples -->
+  <div style="margin-top:8px">
+    <button id="gOnceBtn" data-sub__once:once-test@.click="onceTest + 1">GlobalOnce +1</button>
+    <span id="gOnceDisplay" data-sub:.@once-test="onceTest"></span>
+    <button id="gAlwaysBtn" data-sub__once:always-test@.click__always="alwaysTest + 1" style="margin-left:8px">GlobalOnce+triggerAlways +1</button>
+    <span id="gAlwaysDisplay" data-sub:.@always-test="alwaysTest"></span>
+  </div>
 
   <div style="margin-top:8px;border:1px dashed #eee;padding:8px;border-radius:6px">
     <div>Interval / Delay exposure (shows `ev.type`, `ev.detail.ms`, and `sg`):</div>
@@ -320,6 +332,14 @@ Summary:
     const s = attr;
     const n = s.length;
     let i = prefixLen;
+    // parse optional attribute-level global modifiers: __mod(.val)?
+    let globalMods = {};
+    if(i + 1 < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95){
+      const gm = parseModsFast(s, i, n);
+      if(gm[0] === null) return null;
+      globalMods = gm[0];
+      i = gm[1];
+    }
     const targets = [];
     const triggers = [];
 
@@ -425,7 +445,9 @@ Summary:
           if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
-          triggers.push({type: 'special', name: tok, arg, mods: modsRes[0]});
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'special', name: tok, arg, mods: merged});
           continue;
         }
         if (c === 35 /* # */) {
@@ -454,7 +476,9 @@ Summary:
           if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
-          triggers.push({type: 'event', elemId: id, eventName, isCurr: false, mods: modsRes[0]});
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'event', elemId: id, eventName, isCurr: false, mods: merged});
         } else if (c === 46 /* . */) {
           i++;
           const startE = i;
@@ -470,7 +494,9 @@ Summary:
           if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
-          triggers.push({type: 'event', elemId: '', eventName, isCurr: true, mods: modsRes[0]});
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'event', elemId: '', eventName, isCurr: true, mods: merged});
         } else {
           const start = i;
           while (i < n) {
@@ -486,7 +512,9 @@ Summary:
           if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
-          triggers.push({type: 'signal', name, mods: modsRes[0]});
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'signal', name, mods: merged});
         }
       } else {
         return null;

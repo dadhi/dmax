@@ -66,6 +66,10 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
  - Mods follow a double underscore prefix `__` and may include a dot-delimited value (e.g. `__debounce.200`). Mods can be chained.
 
+ - Attribute-level/global mods: You can place mods directly after the directive name to apply them to all triggers on that attribute. Example: `data-sub__once:.@click` applies `__once` to all triggers inside that attribute.
+   - Trigger-level mods override attribute-level mods. Example: `data-sub__once:foo@.click__always` — the `__always` on the trigger will override the attribute-level `__once` for that trigger.
+   - A special modifier `__always` is provided to explicitly override a global `__once` and force always-run behavior on a per-trigger basis.
+
  - Property and signal names are expected in kebab-case or snake_case in attributes and are converted to camelCase when accessed in JS expressions (e.g. `font-size` → `fontSize`).
 
  - Errors (invalid tokens, missing elements, malformed expressions) should be reported clearly to the console with attribute + element context.

@@ -97,6 +97,24 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 50));
     if(probeBtn.textContent && /probeBtn\s+click/.test(probeBtn.textContent)) pass('Probe el/ev available on event'); else fail('Probe el/ev not available');
 
+    // Global-modifiers tests: data-sub__once and trigger override __always
+    const gOnceBtn = doc.getElementById('gOnceBtn');
+    const gOnceDisplay = doc.getElementById('gOnceDisplay');
+    const gAlwaysBtn = doc.getElementById('gAlwaysBtn');
+    const gAlwaysDisplay = doc.getElementById('gAlwaysDisplay');
+    if(!gOnceBtn || !gOnceDisplay || !gAlwaysBtn || !gAlwaysDisplay) fail('Global-mod elements missing');
+    // gOnce should increment only once
+    gOnceBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    gOnceBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(Number(gOnceDisplay.textContent.trim() || 0) === 1) pass('Global __once works'); else fail('Global __once failed');
+    // gAlways has global __once but trigger-level __always should override and allow multiple
+    gAlwaysBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    gAlwaysBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(Number(gAlwaysDisplay.textContent.trim() || 0) >= 2) pass('Global __once overridden by __always works'); else fail('Global __once overridden by __always failed');
+
     // Section 4: btn1/btn2 side-effect and multi-trigger display
     const btn1 = doc.getElementById('btn1');
     const btn2 = doc.getElementById('btn2');

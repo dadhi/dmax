@@ -25,6 +25,7 @@ Notes:
  - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
  - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
  - For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev` to compiled expressions: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds.
+ - Attribute-level/global mods: you can append modifiers directly after the directive name (e.g. `data-sub__once:...`) to apply them to all triggers on that attribute. Trigger-level modifiers (after a trigger) override attribute-level ones. Use `__always` to override a global `__once` on a specific trigger.
  - `data-iter` precomputes shallow bindings for faster updates.
 
 Short TBD:
