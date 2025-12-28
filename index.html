@@ -234,24 +234,25 @@ Summary:
   // Compile JS expression with caching
   const compile = body => {
     if(fnCache.has(body)) return fnCache.get(body);
-    let argNames = ['el','ev'];
-    let signalNames = [];
-    let ids = Array.from(body.matchAll(/\b([a-zA-Z_$][\w$]*)\b/g)).map(m=>m[1]);
-    for(let id of ids){
-      if(!RESERVED.has(id) && !argNames.includes(id) && !signalNames.includes(id)) signalNames.push(id);
+    // find candidate identifiers in the expression
+    const ids = Array.from(body.matchAll(/\b([a-zA-Z_$][\w$]*)\b/g)).map(m=>m[1]);
+    const signalNames = [];
+    for(const id of ids){
+      if(!RESERVED.has(id) && !signalNames.includes(id)) signalNames.push(id);
     }
-    argNames = signalNames.concat(argNames);
+    // build destructuring header: `const { a, b, c } = S;`
+    const destruct = signalNames.length ? `const { ${signalNames.join(', ')} } = S;` : '';
     let fn;
     try {
-      fn = new Function(...argNames, `try{ return ${body} }catch(e){console.error(e)}`);
+      // single-function signature: (S, el, ev) -> creates locals via destructuring
+      fn = new Function('S','el','ev', `try{ ${destruct} return ${body} }catch(e){console.error(e)}`);
     } catch(e) {
       console.error('Failed to compile expression:', body, e);
       fn = () => undefined;
     }
-    const wrapped = (S, el, ev) => {
-      const args = signalNames.map(k => S[k]);
+    const wrapped = (Sobj, el, ev) => {
       try {
-        const res = fn(...args, el, ev);
+        const res = fn(Sobj, el, ev);
         return (typeof res === 'number' && isNaN(res)) ? undefined : res;
       } catch (e) {
         return undefined;
