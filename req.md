@@ -69,6 +69,13 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
  - Attribute-level/global mods: You can place mods directly after the directive name to apply them to all triggers on that attribute. Example: `data-sub__once:.@click` applies `__once` to all triggers inside that attribute.
    - Trigger-level mods override attribute-level mods. Example: `data-sub__once:foo@.click__always` — the `__always` on the trigger will override the attribute-level `__once` for that trigger.
    - A special modifier `__always` is provided to explicitly override a global `__once` and force always-run behavior on a per-trigger basis.
+ - Attribute-level/global mods: You can place mods directly after the directive name to apply them to all triggers on that attribute. Example: `data-sub__once:.@click` applies `__once` to all triggers inside that attribute.
+   - Trigger-level mods override attribute-level mods. Example: `data-sub__once:foo@.click__always` — the `__always` on the trigger will override the attribute-level `__once` for that trigger.
+   - A special modifier `__always` is provided to explicitly override a global `__once` and force always-run behavior on a per-trigger basis.
+ - Guard mods (post-checks): `__eq.<v>`, `__ne.<v>`, `__gt.<v>`, `__ge.<v>`, `__lt.<v>`, `__le.<v>`, `__notand.<signal>` can be used to conditionally allow or block evaluation of the expression after the trigger fires. These can be specified globally (attribute-level) or locally (per-trigger). Examples:
+   - `data-sub:.@count__gt.5="..."` — only run when `count > 5`.
+   - `data-sub__gt.10:.@foo@bar__lt.3="..."` — attribute-level guard `gt 10` applies to triggers unless overridden locally.
+   - `__notand.someFlag` — block when `someFlag` is truthy.
 
  - Property and signal names are expected in kebab-case or snake_case in attributes and are converted to camelCase when accessed in JS expressions (e.g. `font-size` → `fontSize`).
 

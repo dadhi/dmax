@@ -32,10 +32,11 @@
     {"title":"Thread B","replies":["B1"]},
     {"title":"Thread C","replies":[]}
   ],
-  "message": "Hello World"
-  ,
-  "onceTest": 0,
-  "alwaysTest": 0
+  "message": "Hello World",
+  "once-test": 0,
+  "always-test": 0,
+  "guard-val": 3,
+  "other-flag": false
 }'></div>
 
 
@@ -83,6 +84,18 @@
     <span id="gOnceDisplay" data-sub:.@once-test="onceTest"></span>
     <button id="gAlwaysBtn" data-sub__once:always-test@.click__always="alwaysTest + 1" style="margin-left:8px">GlobalOnce+triggerAlways +1</button>
     <span id="gAlwaysDisplay" data-sub:.@always-test="alwaysTest"></span>
+  </div>
+  <div style="margin-top:8px;padding:8px;border:1px solid #eee;border-radius:6px">
+    <div>Guard examples (eq/ne/gt/ge/lt/le/notand):</div>
+      <div style="margin:6px 0">
+      <button id="incGuard" data-sub:guard-val@.click="guardVal + 1">Inc Guard</button>
+      <span id="guardValDisplay" data-sub:.@guard-val="guardVal" style="margin-left:8px"></span>
+    </div>
+    <div>
+      <span id="gtOut" data-sub:.@guard-val__gt.5="guardVal > 5 ? 'GT5' : ''"></span>
+      <span id="eqOut" data-sub:.@guard-val__eq.3="guardVal == 3 ? 'EQ3' : ''" style="margin-left:8px"></span>
+      <span id="notandOut" data-sub__notand.other-flag:.@guard-val="guardVal ? 'allowed' : ''" style="margin-left:8px"></span>
+    </div>
   </div>
 
   <div style="margin-top:8px;border:1px dashed #eee;padding:8px;border-radius:6px">
@@ -622,6 +635,14 @@ Summary:
         const once = mods.once !== undefined;
         const prevent = mods.prevent !== undefined;
         const andPath = mods.and || null;
+        // guard mods
+        const notandPath = mods.notand || null;
+        const guardEq = mods.eq !== undefined ? mods.eq : undefined;
+        const guardNe = mods.ne !== undefined ? mods.ne : undefined;
+        const guardGt = mods.gt !== undefined ? Number(mods.gt) : undefined;
+        const guardGe = mods.ge !== undefined ? Number(mods.ge) : undefined;
+        const guardLt = mods.lt !== undefined ? Number(mods.lt) : undefined;
+        const guardLe = mods.le !== undefined ? Number(mods.le) : undefined;
         let timer = null;
         let last = 0;
         let decorated;
@@ -632,6 +653,22 @@ Summary:
             if(andPath){
               try{ if(!get(String(andPath))) return; }catch(e){ return; }
             }
+            // notand: if set and truthy -> block
+            if(notandPath){ try{ if(get(String(notandPath))) return; }catch(e){ return; } }
+            // guard checks: evaluate subject value based on trigger type or event
+            try{
+              let subjectVal = undefined;
+              if(t.type === 'signal') subjectVal = get(String(t.name));
+              else if(ev && ev.detail && typeof ev.detail.ms !== 'undefined') subjectVal = ev.detail.ms;
+              // eq / ne
+              if(guardEq !== undefined){ if(String(subjectVal) != String(guardEq)) return; }
+              if(guardNe !== undefined){ if(String(subjectVal) == String(guardNe)) return; }
+              // numeric comparisons
+              if(guardGt !== undefined){ if(!(Number(subjectVal) > guardGt)) return; }
+              if(guardGe !== undefined){ if(!(Number(subjectVal) >= guardGe)) return; }
+              if(guardLt !== undefined){ if(!(Number(subjectVal) < guardLt)) return; }
+              if(guardLe !== undefined){ if(!(Number(subjectVal) <= guardLe)) return; }
+            }catch(e){ return; }
             try{ orig(ev, sg); }catch(e){}
             if(once && decorated && decorated.remove) decorated.remove();
           };
