@@ -140,17 +140,29 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     chkActive.checked = false;
     chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
     await new Promise(r => setTimeout(r, 80));
+    console.log('DEBUG after toggle off: classBox.className=', classBox.className, 'displayBox.style.display=', displayBox.style.display);
     // Accept either class removed or element hidden as valid toggle-off
     if(!classBox.classList.contains('active') || displayBox.style.display === 'none') pass('Section8 class/disp toggled off'); else fail('Section8 class/disp did not toggle off');
     // Toggle on
     chkActive.checked = true;
     chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
     await new Promise(r => setTimeout(r, 80));
-    if(classBox.classList.contains('active') && (displayBox.style.display === '' || displayBox.style.display === undefined)) pass('Section8 class/disp toggled on'); else fail('Section8 class/disp did not toggle on');
+    console.log('DEBUG after toggle on: classBox.className=', classBox.className, 'displayBox.style.display=', displayBox.style.display);
+    if(classBox.classList.contains('active') && window.getComputedStyle(displayBox).display !== 'none') pass('Section8 class/disp toggled on'); else fail('Section8 class/disp did not toggle on');
+
+    // Extra focused check: ensure displayBox visibility toggles with checkbox
+    // start with checkbox off -> should hide
+    chkActive.checked = false; chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(window.getComputedStyle(displayBox).display === 'none') pass('Display box hides when inactive'); else fail('Display box did not hide when inactive');
+    // toggle on -> should show
+    chkActive.checked = true; chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(window.getComputedStyle(displayBox).display !== 'none') pass('Display box shows when active'); else fail('Display box did not show when active');
 
       // Section 9: data-iter renders posts
       const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter') === 0));
-      if(!iterUl) fail('Section8 data-iter element missing');
+      if(!iterUl) fail('Section9 data-iter element missing');
       // debug: log attributes and template
       console.log('data-iter attributes on page:', Array.from(doc.querySelectorAll('*')).map(el=>Array.from(el.getAttributeNames()).filter(a=>a.indexOf('data-iter')===0)).filter(a=>a.length));
       const tpl = doc.getElementById('tpl-post');
@@ -162,13 +174,13 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       } else console.log('__getState not available');
       // expect number of list items equal to posts in initial data-def (3)
       const items = Array.from(iterUl.children || []);
-      if(items.length === 3) pass('Section8 data-iter rendered 3 items'); else fail('Section8 data-iter rendered wrong number: ' + items.length);
+      if(items.length === 3) pass('Section9 data-iter rendered 3 items'); else fail('Section9 data-iter rendered wrong number: ' + items.length);
 
       // Section 9b: nested threads rendered with replies
       const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter:threads') === 0));
-      if(!threadUl) fail('Section8 nested threads element missing');
+      if(!threadUl) fail('Section9 nested threads element missing');
       const tItems = Array.from(threadUl.children || []);
-      if(tItems.length !== 3) fail('Section8 threads count wrong: ' + tItems.length);
+      if(tItems.length !== 3) fail('Section9 threads count wrong: ' + tItems.length);
       // Check first thread has 2 replies rendered
       const firstReplies = tItems[0].querySelectorAll('ul > li');
       if(firstReplies.length === 2) pass('Section9 nested replies rendered for first thread'); else fail('Section9 nested replies wrong: ' + firstReplies.length);

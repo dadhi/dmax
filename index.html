@@ -6,6 +6,8 @@
 <!-- Styling is intentionally minimal for MVP tracking -->
 <style>
   .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
+  .active{border-color:#28a745;background:#eaffea}
+  .inactive{opacity:.7;filter:grayscale(.2)}
 </style>
 </head>
 <body>
@@ -116,7 +118,7 @@
     <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
   </div>
   <div id="classBox" data-class:.active.-inactive@user.ui.is-active="user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
-  <p id="displayBox" data-disp:@user.ui.is-active="user.ui.isActive">Visible only when active</p>
+  <p id="displayBox" data-disp:.@user.ui.is-active="user.ui.isActive">Visible only when active</p>
 </section>
 
 <section>
@@ -175,6 +177,11 @@ Summary:
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
   const debug=document.querySelector('[data-debug]');
 
+  // common reserved identifiers for expression compilation (hoisted to avoid recreating per-compile)
+  const RESERVED = new Set([
+    'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
+  ]);
+
   // Optimized kebab→camel (no regex, cached)
   const toCamel = s => {
     if(!s || s.indexOf('-') === -1) return s;
@@ -212,12 +219,21 @@ Summary:
     return 'click';
   };
 
+  // Default display fallback for elements when computed display is 'none'
+  const defaultDisplayForTag = el => {
+    const t = (el.tagName || '').toLowerCase();
+    if(!t) return 'block';
+    if(t === 'span' || t === 'a' || t === 'strong' || t === 'em' || t === 'b' || t === 'i' || t === 'img') return 'inline';
+    if(t === 'tr') return 'table-row';
+    if(t === 'td' || t === 'th') return 'table-cell';
+    if(t === 'li') return 'list-item';
+    if(t === 'ul' || t === 'ol' || t === 'nav' || t === 'section' || t === 'div') return 'block';
+    return 'block';
+  };
+
   // Compile JS expression with caching
   const compile = body => {
     if(fnCache.has(body)) return fnCache.get(body);
-    const RESERVED = new Set([
-      'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
-    ]);
     let argNames = ['el','ev'];
     let signalNames = [];
     let ids = Array.from(body.matchAll(/\b([a-zA-Z_$][\w$]*)\b/g)).map(m=>m[1]);
@@ -248,25 +264,7 @@ Summary:
   
 
   // Fast, compact parser (char-scanning) for data-* attribute names
-  // Added for review; does not replace existing `parseDataAttr` yet.
-  function toCamelSimple(s) {
-    if (!s || s.indexOf('-') === -1) return s;
-    let result = '';
-    let i = 0;
-    while (i < s.length && s[i] === '-') i++; // skip leading hyphens
-    let upper = false;
-    for (; i < s.length; i++) {
-      const ch = s[i];
-      if (ch === '-') {
-        while (i + 1 < s.length && s[i + 1] === '-') i++;
-        if (i + 1 < s.length) upper = true;
-      } else {
-        result += upper ? ch.toUpperCase() : ch;
-        upper = false;
-      }
-    }
-    return result;
-  }
+  // (uses `toCamel` above which is cached)
 
   function parseModsFast(s, i, n) {
     const mods = {};
@@ -320,15 +318,17 @@ Summary:
           out.push(seg);
           continue;
         }
+        // Preserve a leading '-' marker (used by data-class to indicate removal)
+        const leading = seg[0] === '-';
         const pieces = seg.split('-');
         let idx = 0;
-        if (pieces[0] === '') idx = 1; // ignore leading hyphen
+        if (pieces[0] === '') idx = 1; // ignore leading hyphen in split
         if (idx >= pieces.length) { console.error('Invalid kebab segment in attr name:', attr); return null; }
         if (pieces[pieces.length - 1] === '') { console.error('Trailing hyphen in attr name is invalid:', attr); return null; }
         for (let k = idx; k < pieces.length; ++k) if (pieces[k] === '') { console.error('Consecutive hyphens in attr name are invalid:', attr); return null; }
         const segToConvert = pieces.slice(idx).join('-');
-        const camel = toCamelSimple(segToConvert);
-        out.push(camel);
+        const camel = toCamel(segToConvert);
+        out.push(leading ? ('-' + camel) : camel);
       }
       return out.join('.');
     }
@@ -493,14 +493,37 @@ Summary:
         return res => {
           try{
             for(const c of classes){
-              if(c.remove) targetEl.classList.remove(c.name);
-              else if(res) targetEl.classList.add(c.name); else targetEl.classList.remove(c.name);
+              if(c.remove){
+                if(res) targetEl.classList.remove(c.name);
+                else targetEl.classList.add(c.name);
+              } else {
+                if(res) targetEl.classList.add(c.name);
+                else targetEl.classList.remove(c.name);
+              }
             }
           }catch(e){}
         };
       }
       if(type === 'data-disp'){
-        return res => { try{ targetEl.style.display = res ? '' : 'none'; }catch(e){} };
+        // Cache original display and whether it was an inline style
+        const inline = targetEl.style && targetEl.style.display ? targetEl.style.display : '';
+        const computed = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+        const hadInline = inline !== '';
+        const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
+        return res => {
+          try{
+            if(res){
+              if(hadInline) targetEl.style.display = originalDisplay;
+              else {
+                // if computed is still 'none' (hidden by CSS), force originalDisplay; otherwise remove inline style
+                const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+                if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
+              }
+            } else {
+              targetEl.style.display = 'none';
+            }
+          }catch(e){}
+        };
       }
       return null;
     });
@@ -745,7 +768,7 @@ Summary:
     const parts = p.split('.');
     const root = toCamel(parts[0]);
     const current = get(p);
-    if(JSON.stringify(current) === JSON.stringify(v)) return;
+    if (current === v || (current && v && typeof current === 'object' && typeof v === 'object' && JSON.stringify(current) === JSON.stringify(v))) return;
     if(parts.length === 1){
       S.set(root, v);
     } else {
