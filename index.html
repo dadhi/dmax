@@ -72,6 +72,22 @@
   <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="count * 2"></span></p>
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
+
+  <div style="margin-top:8px;border:1px dashed #eee;padding:8px;border-radius:6px">
+    <div>Interval / Delay exposure (shows `ev.type`, `ev.detail.ms`, and `sg`):</div>
+    <div style="margin:6px 0">
+      <span id="intervalInfo" data-sub:.@_interval.1000="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' sg:' + (sg || 'no-sg')"></span>
+      &nbsp; — automatic @_interval (every 1s)
+    </div>
+    <div style="margin:6px 0">
+      <span id="delayInfoAuto" data-sub:.@_delay.1500="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' sg:' + (sg || 'no-sg')"></span>
+      &nbsp; — automatic @_delay (one-shot 1.5s)
+    </div>
+    <div style="margin:6px 0">
+      <button id="manualDelayBtn" onclick="document.getElementById('manualDelayTarget').dispatchEvent(new CustomEvent('delay',{detail:{ms:700}}))">Trigger manual delay (700ms)</button>
+      <span id="manualDelayTarget" data-sub:.@.delay="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' el:' + (el && el.id) + ' sg:' + (sg || 'no-sg')" style="margin-left:8px"></span>
+    </div>
+  </div>
 </section>
 
 <section>
@@ -641,14 +657,19 @@ Summary:
         }
         if(name === 'interval'){
           const ms = parseInt(t.arg) || 1000;
-          const id = setInterval(handler, ms);
+          const tick = () => {
+            try{ handler(new CustomEvent('interval', {detail:{ms}})); }catch(e){}
+          };
+          const id = setInterval(tick, ms);
           listeners.push({type:'interval', id});
-          if(t.mods && t.mods.immediate) handler();
+          if(t.mods && t.mods.immediate) tick();
           continue;
         }
         if(name === 'delay'){
           const ms = parseInt(t.arg) || 0;
-          const id = setTimeout(handler, ms);
+          const id = setTimeout(() => {
+            try{ handler(new CustomEvent('delay', {detail:{ms}})); }catch(e){}
+          }, ms);
           listeners.push({type:'timeout', id});
           continue;
         }

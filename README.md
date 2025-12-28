@@ -23,6 +23,8 @@ Notes:
  - Expressions are compiled & cached; signals stored in a small `Map` (`S`).
  - Compiled expressions receive three helper variables: `el` (the element), `ev` (the triggering Event, if any), and `sg` (the signal path string that triggered the evaluation, if any).
  - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
+ - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
+ - For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev` to compiled expressions: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds.
  - `data-iter` precomputes shallow bindings for faster updates.
 
 Short TBD:
