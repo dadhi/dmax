@@ -2,13 +2,14 @@
 
 ## Perf instructions
 
-Approach the solution as a performance engineer who know how V8 works, how js ds are layed in memory, s
-who know cost of gc, closures and objects, who knows that inlining is the great technique, who know data oriented and array programming, who knows what use and to use from the standard lib in hot path.
+Approach the solution as a performance engineer who knows how V8 works, how js ds are layed in memory,
+who knows cost of gc, closures and objects, who knows that inlining is the great technique, who know data oriented and array programming, who knows what use and to use from the standard lib in hot path.
 
-Balance performance and code size. 
-Example 1: having a single global (compiled) regexp to parse most of the attribute name may be better instead of writing the char-by-char parser in 50locs, even if it slightly faster.
+Balance performance and code size.
 
-Example 2: using indexof may be faste the loop over string and compare because internally it is heavy optimized with simd and such. But using forEach or includes with lambda is not good on smalm arrays because of the lambda alloc cost. 
+Example 1: having a single global (compiled) regexp to parse most of the attribute name may be better instead of writing the char-by-char parser in 50locs, even if it slightly faster. But only if regexp is working, if we need 2, 3, 5 regexps then no.
+
+Example 2: using indexof may be faster the loop over string and compare because internally it is heavy optimized with simd and such. But using forEach or includes with lambda is not good on smalm arrays because of the lambda alloc cost. 
 
 
 ## data-def (sign)
@@ -21,7 +22,6 @@ data-def:baz.bor.boo   has a null value
 
 same as
 data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
-
 
 
 ## data-sub
@@ -57,7 +57,7 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
  - `@` denotes start of a trigger (signal or event).
 
-   - If followed by `!` then it's a special/global target (`!w`/`!d`/`!f`), e.g. `@!w.resize`.
+   - If followed by `!` then it's a special/global target window, document, form (`!w`/`!d`/`!f`), e.g. `@!w.resize`.
    - If followed by `.` it's a current-element event (`@.click`).
    - If followed by `#` it's an element-by-id event (`@#btn.click`).
    - Otherwise it's a signal trigger (`@count`).
@@ -68,7 +68,8 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
  - Errors (invalid tokens, missing elements, malformed expressions) should be reported clearly to the console with attribute + element context.
 
-For concrete attribute examples consult the demo runtime in `index.html` and the TL;DR in `README.md`.
+For concrete attribute examples consult the demo runtime in `index.html`.
+
 
 ## data-sync
 
@@ -102,6 +103,7 @@ data-class:.foo.bar@baz='baz + boo.fix > 42'
 data-class:.greeting@foo__5
 data-class:.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
 
+
 ## data-disp
 
 basically the same as data-class but instead of adding or removing classes it hides or displays the element
@@ -114,7 +116,7 @@ Same as data-class, but instead of adding/removing classes, it hides or displays
 
 ## data-iter
 
-data-iter:posts$post$i.pid#p-tpl@some-additionsl-signal-not-only-posts@#.click
+data-iter:posts$post$i.pid#p-tpl@some-additionsl-signal-not-only-posts@.click
 
 where #p-tpl is template tag, example
 
@@ -133,14 +135,14 @@ where default bindings for item and idx are it and i, eg data-$it and data-$i
 
 ### Examples
 
-data-get:foo@#.click='`url?${el.value}`'
+data-get:foo@.click='`url?${el.value}`'
 same as data-get:foo=...
 
-data-get:#.value@#='url'
-same as data-get@#='url'
+data-get:.value@.='url'
+same as data-get@.='url'
 same as data-get='url'
 
-data-post:bar.baz+p-id__uri+#pelem.value?is-p-fetching?p-fetch-code__code@mouseover__delay.300__and.is-foo^.json=
+data-post:bar.baz+p-id__uri+#pelem.value?is-p-fetching?p-fetch-code__code@.mouseover__delay.300__and.is-foo^.json=
 where:
 : target signal for post response json with mods: merge, replace, append, prepend (last 2 for arrays))
 + req input params with mods: uri( default for get and delete), body (default for post, put, patch)
