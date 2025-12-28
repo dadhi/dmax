@@ -1,0 +1,988 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>dmax v0.3 MVP Copy</title>
+<!-- Styling is intentionally minimal for MVP tracking -->
+<style>
+  .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
+  .active{border-color:#28a745;background:#eaffea}
+  .inactive{opacity:.7;filter:grayscale(.2)}
+</style>
+</head>
+<body>
+
+<!-- MVP HTML Example and Summary for Crosschecking -->
+<!-- Copied from index.html, keep this section updated for test tracking -->
+<div data-def='{
+  "user": {
+    "name": "Alice",
+    "age": 25,
+    "ui": {
+      "theme-color": "#007bff",
+      "is-active": true,
+      "font-size": 16
+    }
+  },
+  "count": 10,
+  "doubled": 20,
+  "posts": ["First post","Second post","Third post"],
+  "threads": [
+    {"title":"Thread A","replies":["A1","A2"]},
+    {"title":"Thread B","replies":["B1"]},
+    {"title":"Thread C","replies":[]}
+  ],
+  "message": "Hello World",
+  "once-test": 0,
+  "always-test": 0,
+  "guard-val": 3,
+  "other-flag": false
+}'></div>
+
+
+<!-- data-iter section moved below (after section 7) -->
+  <h3>1. Deep Nested Signal Sync</h3>
+  <div class="page">data-sync:user.name, data-sync:user.age</div>
+  <!-- data-sync:user.name, data-sync:user.age -->
+  <label>User Name (nested path):</label>
+  <input type="text" data-sync:user.name>
+  <p>Hello, <strong data-sync:user.name></strong>!</p>
+  <label>Age:</label>
+  <input type="number" data-sync:user.age>
+  <p>Age: <span data-sync:user.age></span> years old</p>
+</section>
+
+<section>
+  <h3>2. Style & Boolean Deep Sync</h3>
+  <div class="page">data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active</div>
+  <!-- data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active -->
+  <label>Theme Color:</label>
+  <input type="color" data-sync:user.ui.theme-color>
+  <div class="preview" data-sub:.style.color@user.ui.theme-color="user.ui.themeColor">This text color syncs to theme-color signal!</div>
+  <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
+  <input type="range" min="12" max="32" data-sync:user.ui.font-size>
+  <p data-sub:.style.font-size@user.ui.font-size="`${user.ui.fontSize}px`">This text resizes dynamically!</p>
+  <label><input type="checkbox" data-sync:user.ui.is-active> Active Status</label>
+  <p>Status: <strong data-sub:.@user.ui.is-active="user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+</section>
+
+<section>
+  <h3>3. Multiple Triggers & Targets</h3>
+  <div class="page">data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count</div>
+  <!-- data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count -->
+  <button data-sub:count@.click="count + 1">+1</button>
+  <button data-sub:count@.click="count - 1">-1</button>
+  <button data-sub:count@.click="0">Reset</button>
+  <p>Count: <strong data-sub:.@count="count"></strong></p>
+  <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="count * 2"></span></p>
+  <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
+  <span id="probeOut" data-sub:.@count="sg"></span>
+
+  <!-- Global-modifiers examples -->
+  <div style="margin-top:8px">
+    <button id="gOnceBtn" data-sub__once:once-test@.click="onceTest + 1">GlobalOnce +1</button>
+    <span id="gOnceDisplay" data-sub:.@once-test="onceTest"></span>
+    <button id="gAlwaysBtn" data-sub__once:always-test@.click__always="alwaysTest + 1" style="margin-left:8px">GlobalOnce+triggerAlways +1</button>
+    <span id="gAlwaysDisplay" data-sub:.@always-test="alwaysTest"></span>
+  </div>
+  <div style="margin-top:8px;padding:8px;border:1px solid #eee;border-radius:6px">
+    <div>Guard examples (eq/ne/gt/ge/lt/le/notand):</div>
+      <div style="margin:6px 0">
+      <button id="incGuard" data-sub:guard-val@.click="guardVal + 1">Inc Guard</button>
+      <span id="guardValDisplay" data-sub:.@guard-val="guardVal" style="margin-left:8px"></span>
+    </div>
+    <div>
+      <span id="gtOut" data-sub:.@guard-val__gt.5="guardVal > 5 ? 'GT5' : ''"></span>
+      <span id="eqOut" data-sub:.@guard-val__eq.3="guardVal == 3 ? 'EQ3' : ''" style="margin-left:8px"></span>
+      <span id="notandOut" data-sub__notand.other-flag:.@guard-val="guardVal ? 'allowed' : ''" style="margin-left:8px"></span>
+    </div>
+  </div>
+
+  <div style="margin-top:8px;border:1px dashed #eee;padding:8px;border-radius:6px">
+    <div>Interval / Delay exposure (shows `ev.type`, `ev.detail.ms`, and `sg`):</div>
+    <div style="margin:6px 0">
+      <span id="intervalInfo" data-sub:.@_interval.1000="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' sg:' + (sg || 'no-sg')"></span>
+      &nbsp; — automatic @_interval (every 1s)
+    </div>
+    <div style="margin:6px 0">
+      <span id="delayInfoAuto" data-sub:.@_delay.1500="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' sg:' + (sg || 'no-sg')"></span>
+      &nbsp; — automatic @_delay (one-shot 1.5s)
+    </div>
+    <div style="margin:6px 0">
+      <button id="manualDelayBtn" onclick="document.getElementById('manualDelayTarget').dispatchEvent(new CustomEvent('delay',{detail:{ms:700}}))">Trigger manual delay (700ms)</button>
+      <span id="manualDelayTarget" data-sub:.@.delay="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' el:' + (el && el.id) + ' sg:' + (sg || 'no-sg')" style="margin-left:8px"></span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h3>4. Side Effects & Multiple Triggers</h3>
+  <div class="page">data-sub@count@#btn1.click@#btn2.click, data-sub:#@count@#btn1.click@#btn2.click</div>
+  <!-- data-sub@count@.btn1.click@.btn2.click, data-sub:.@count@.btn1.click@.btn2.click -->
+  <button id="btn1">Button 1</button>
+  <button id="btn2">Button 2</button>
+  <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', count) || '✓ Check console'"></span></p>
+  <p>Multi-trigger display: <strong data-sub:#@count@#btn1.click@#btn2.click="count + ' (updated)'"></strong></p>
+</section>
+
+<section>
+  <h3>5. Cross-Element Property Sync</h3>
+  <div class="page">data-sync:message, data-sub:.@#src.input, data-sub:.value@#src.input</div>
+  <!-- data-sync:message, data-sub:.@.src.input, data-sub:.value@.src.input -->
+  <label>Source Input:</label>
+  <input id="src" placeholder="Type here..." data-sync:message>
+  <label>Mirror (via data-sub):</label>
+  <p class="preview" data-sub:.@#src.input="document.getElementById('src').value"></p>
+  <label>Another Mirror:</label>
+  <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
+</section>
+
+<section>
+  <h3>6. Window Events & Intervals</h3>
+  <div class="page">data-sub:.@_window.resize, data-sub:.@_interval.1000</div>
+  <!-- data-sub:.@_window.resize, data-sub:.@_interval.1000 -->
+  <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
+  <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
+</section>
+
+<section>
+  <h3>7. Default Props & Events</h3>
+  <div class="page">data-sub:.@#inp1, data-sub:.@#btn3</div>
+  <!-- data-sub:.@#inp1, data-sub:.@#btn3 -->
+  <input id="inp1" placeholder="Default event (input)">
+  <p>Mirror using @.: <span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
+  <button id="btn3">Click me</button>
+  <p>Default event @.: <span data-sub:.@#btn3="'Clicked!'" ></span></p>
+</section>
+
+<section>
+  <h3>8. Classes & Display (data-class / data-disp)</h3>
+  <div style="margin:6px 0">
+    <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
+  </div>
+  <div id="classBox" data-class:.active.-inactive@user.ui.is-active="user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+  <p id="displayBox" data-disp:.@user.ui.is-active="user.ui.isActive">Visible only when active</p>
+</section>
+
+<section>
+  <h3>9. List Rendering (data-iter)</h3>
+  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
+  <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
+  <template id="tpl-post">
+    <li>post <span data-$i></span>: <span data-$it></span></li>
+  </template>
+  <ul data-iter:posts#tpl-post></ul>
+
+  <h4>Nested data-iter example</h4>
+  <template id="tpl-thread">
+    <li>Thread: <strong data-$it></strong>
+      <div class="replies-placeholder"></div>
+    </li>
+  </template>
+  <ul data-iter:threads#tpl-thread></ul>
+</section>
+
+<section>
+  <h3>10. Modifiers demo (once/debounce/throttle/and)</h3>
+  <div>
+    <button id="onceBtn" data-sub:mod-once@.click__once="(modOnce || 0) + 1">Once</button>
+    <span id="onceVal" data-sub:.@mod-once="modOnce"></span>
+  </div>
+  <div>
+    <button id="debBtn" data-sub:mod-deb@.click__debounce.120="(modDeb || 0) + 1">Debounce</button>
+    <span id="debVal" data-sub:.@mod-deb="modDeb"></span>
+  </div>
+  <div>
+    <button id="thrBtn" data-sub:mod-thr@.click__throttle.120="(modThr || 0) + 1">Throttle</button>
+    <span id="thrVal" data-sub:.@mod-thr="modThr"></span>
+  </div>
+  <div>
+    <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
+    <button id="andBtn" data-sub:mod-and@.click__and.gate="(modAnd || 0) + 1">AND</button>
+    <span id="andVal" data-sub:.@mod-and="modAnd"></span>
+  </div>
+</section>
+
+<h4>State Tree (Live Debug):</h4>
+<pre data-debug></pre>
+
+<!--
+Summary:
+- data-iter renders a list using a template for each item in the array signal.
+- Usage: <ul data-iter:posts#tpl-id></ul>
+- Template can use data-$it (item) and data-$i (index) for binding.
+-->
+
+<!-- MVP JS and summary will be tracked here for crosschecking and improvement planning -->
+<script>
+// dmax MVP logic with new syntax support and modular parsing
+(()=>{
+  const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  const debug=document.querySelector('[data-debug]');
+
+  // common reserved identifiers for expression compilation (hoisted to avoid recreating per-compile)
+  const RESERVED = new Set([
+    'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','sg','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
+  ]);
+
+  // Optimized kebab→camel (no regex, cached)
+  const toCamel = s => {
+    if(!s || s.indexOf('-') === -1) return s;
+    if(keyCache.has(s)) return keyCache.get(s);
+    let result = '', i = 0;
+    while(i < s.length){
+      if(s[i] === '-'){
+        // Skip multiple consecutive hyphens
+        while(s[i] === '-' && i + 1 < s.length) i++;
+        if(i < s.length) result += s[i].toUpperCase(), i++;
+      } else {
+        result += s[i++];
+      }
+    }
+    keyCache.set(s, result);
+    return result;
+  };
+
+  // Default property for element
+  const getAutoProp = el => {
+    const tag = el.tagName;
+    const type = el.type;
+    if(type === 'checkbox' || type === 'radio') return 'checked';
+    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return 'value';
+    return 'textContent';
+  };
+  // Default event for element
+  const getAutoEvent = el => {
+    if (!el || !el.tagName) return 'click';
+    const tag = el.tagName.toUpperCase();
+    const type = el.type;
+    if (tag === 'FORM') return 'submit';
+    if (type === 'checkbox' || type === 'radio') return 'change';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return tag === 'SELECT' ? 'change' : 'input';
+    return 'click';
+  };
+
+  // Default display fallback for elements when computed display is 'none'
+  const defaultDisplayForTag = el => {
+    const t = (el.tagName || '').toLowerCase();
+    if(!t) return 'block';
+    if(t === 'span' || t === 'a' || t === 'strong' || t === 'em' || t === 'b' || t === 'i' || t === 'img') return 'inline';
+    if(t === 'tr') return 'table-row';
+    if(t === 'td' || t === 'th') return 'table-cell';
+    if(t === 'li') return 'list-item';
+    if(t === 'ul' || t === 'ol' || t === 'nav' || t === 'section' || t === 'div') return 'block';
+    return 'block';
+  };
+
+  // Compile JS expression with caching
+  const compile = body => {
+    if(fnCache.has(body)) return fnCache.get(body);
+    // find candidate identifiers in the expression
+    const ids = Array.from(body.matchAll(/\b([a-zA-Z_$][\w$]*)\b/g)).map(m=>m[1]);
+    const signalNames = [];
+    for(const id of ids){
+      if(!RESERVED.has(id) && !signalNames.includes(id)) signalNames.push(id);
+    }
+    // build destructuring header: `const { a, b, c } = S;`
+    const destruct = signalNames.length ? `const { ${signalNames.join(', ')} } = S;` : '';
+    let fn;
+    try {
+      // single-function signature: (S, el, ev, sg) -> creates locals via destructuring
+      // `sg` is the signal path (string) that triggered evaluation, or undefined.
+      fn = new Function('S','el','ev','sg', `try{ ${destruct} return ${body} }catch(e){console.error(e)}`);
+    } catch(e) {
+      console.error('Failed to compile expression:', body, e);
+      fn = () => undefined;
+    }
+    const wrapped = (Sobj, el, ev, sg) => {
+      try {
+        const res = fn(Sobj, el, ev, sg);
+        return (typeof res === 'number' && isNaN(res)) ? undefined : res;
+      } catch (e) {
+        return undefined;
+      }
+    };
+    fnCache.set(body, wrapped);
+    return wrapped;
+  };
+
+  
+
+  // Fast, compact parser (char-scanning) for data-* attribute names
+  // (uses `toCamel` above which is cached)
+
+  function parseModsFast(s, i, n) {
+    const mods = {};
+    while (i < n && s.charCodeAt(i) === 95 /* '_' */ && s.charCodeAt(i+1) === 95 /* '_' */) {
+      i += 2;
+      const start = i;
+      while (i < n) {
+        const cc = s.charCodeAt(i);
+        if (cc === 46 /* '.' */ || cc === 58 /* ':' */ || cc === 64 /* '@' */ || (cc === 95 /* '_' */ && s.charCodeAt(i+1) === 95)) break;
+        i++;
+      }
+      const name = s.slice(start, i);
+      if (!name) return [null, i];
+      let val = 1;
+      if (i < n && s.charCodeAt(i) === 46 /* '.' */) {
+        i++;
+        const vs = i;
+        while (i < n) {
+          const cc = s.charCodeAt(i);
+          if (cc === 58 /* ':' */ || cc === 64 /* '@' */ || (cc === 95 /* '_' */ && s.charCodeAt(i+1) === 95)) break;
+          i++;
+        }
+        const raw = s.slice(vs, i) || '';
+        // convert numeric-like values to numbers, otherwise keep as string (support nested paths like foo.bar)
+        if(raw !== '' && !Number.isNaN(Number(raw))) val = +raw; else val = raw;
+      }
+      mods[name] = val;
+    }
+    return [mods, i];
+  }
+
+  function parseDataAttrFast(attr, prefixLen) {
+    const s = attr;
+    const n = s.length;
+    let i = prefixLen;
+    // parse optional attribute-level global modifiers: __mod(.val)?
+    let globalMods = {};
+    if(i + 1 < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95){
+      const gm = parseModsFast(s, i, n);
+      if(gm[0] === null) return null;
+      globalMods = gm[0];
+      i = gm[1];
+    }
+    const targets = [];
+    const triggers = [];
+
+    function normalizePath(path) {
+      if (!path) return null;
+      const parts = path.split('.');
+      const out = [];
+      for (let j = 0; j < parts.length; ++j) {
+        const seg = parts[j];
+        if (/[A-Z]/.test(seg)) {
+          console.error('CamelCase in attr name is invalid:', attr);
+          return null;
+        }
+        if (seg.indexOf('-') === -1) {
+          if (seg === '') return null;
+          out.push(seg);
+          continue;
+        }
+        // Preserve a leading '-' marker (used by data-class to indicate removal)
+        const leading = seg[0] === '-';
+        const pieces = seg.split('-');
+        let idx = 0;
+        if (pieces[0] === '') idx = 1; // ignore leading hyphen in split
+        if (idx >= pieces.length) { console.error('Invalid kebab segment in attr name:', attr); return null; }
+        if (pieces[pieces.length - 1] === '') { console.error('Trailing hyphen in attr name is invalid:', attr); return null; }
+        for (let k = idx; k < pieces.length; ++k) if (pieces[k] === '') { console.error('Consecutive hyphens in attr name are invalid:', attr); return null; }
+        const segToConvert = pieces.slice(idx).join('-');
+        const camel = toCamel(segToConvert);
+        out.push(leading ? ('-' + camel) : camel);
+      }
+      return out.join('.');
+    }
+
+    while (i < n) {
+      const ch = s.charCodeAt(i);
+      if (ch === 58 /* : */) {
+        i++;
+        if (i >= n) return null;
+        const c = s.charCodeAt(i);
+        if (c === 35 /* # */) {
+          i++;
+          const startId = i;
+          while (i < n) {
+            const cc = s.charCodeAt(i);
+            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */) break;
+            i++;
+          }
+          const id = s.slice(startId, i);
+          let prop = null;
+          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+            i++;
+            const startP = i;
+            while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
+            const raw = s.slice(startP, i) || null;
+            prop = raw ? normalizePath(raw) : null;
+            if (prop === null && raw !== null) return null;
+          }
+          targets.push({type: 'prop', elemId: id, propPath: prop, isCurr: false});
+        } else if (c === 46 /* . */) {
+          i++;
+          const startP = i;
+          while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
+          const raw = s.slice(startP, i) || null;
+          const prop = raw ? normalizePath(raw) : null;
+          if (prop === null && raw !== null) return null;
+          targets.push({type: 'prop', elemId: '', propPath: prop, isCurr: true});
+        } else {
+          const start = i;
+          while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
+          const raw = s.slice(start, i);
+          if (!raw) return null;
+          const name = normalizePath(raw);
+          if (name === null) return null;
+          targets.push({type: 'signal', name});
+        }
+      } else if (ch === 64 /* @ */) {
+        i++;
+        if (i >= n) return null;
+        const c = s.charCodeAt(i);
+        // Special global/document/form/interval/delay tokens start with `_` (e.g. @_window.resize, @_interval.1000)
+        if (c === 95 /* _ */) {
+          i++;
+          const startTok = i;
+          while (i < n) {
+            const cc = s.charCodeAt(i);
+            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            i++;
+          }
+          const tok = s.slice(startTok, i);
+          if (!tok) return null;
+          let arg = null;
+          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+            i++;
+            const startA = i;
+            while (i < n) {
+              const cc = s.charCodeAt(i);
+              if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+              i++;
+            }
+            arg = s.slice(startA, i) || null;
+          }
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'special', name: tok, arg, mods: merged});
+          continue;
+        }
+        if (c === 35 /* # */) {
+          i++;
+          const startId = i;
+          while (i < n) {
+            const cc = s.charCodeAt(i);
+            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            i++;
+          }
+          const id = s.slice(startId, i);
+          let eventName = null;
+          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+            i++;
+            const startE = i;
+            while (i < n) {
+              const cc = s.charCodeAt(i);
+              if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+              i++;
+            }
+            const raw = s.slice(startE, i) || null;
+            eventName = raw ? normalizePath(raw) : null;
+            if (eventName === null && raw !== null) return null;
+          }
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'event', elemId: id, eventName, isCurr: false, mods: merged});
+        } else if (c === 46 /* . */) {
+          i++;
+          const startE = i;
+          while (i < n) {
+            const cc = s.charCodeAt(i);
+            if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            i++;
+          }
+          const raw = s.slice(startE, i) || null;
+          const eventName = raw ? normalizePath(raw) : null;
+          if (eventName === null && raw !== null) return null;
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'event', elemId: '', eventName, isCurr: true, mods: merged});
+        } else {
+          const start = i;
+          while (i < n) {
+            const cc = s.charCodeAt(i);
+            if (cc === 64 /* @ */ || cc === 58 /* : */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            i++;
+          }
+          const raw = s.slice(start, i);
+          if (!raw) return null;
+          const name = normalizePath(raw);
+          if (name === null) return null;
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const merged = Object.assign({}, globalMods, modsRes[0]);
+          if(merged.always !== undefined) delete merged.once;
+          triggers.push({type: 'signal', name, mods: merged});
+        }
+      } else {
+        return null;
+      }
+      if (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) return null;
+    }
+    if (!targets.length && !triggers.length) return null;
+    return {targets, triggers};
+  }
+
+  // Set property (fast, supports nested)
+  const setProp = (el, path, val) => {
+    if(!path) path = getAutoProp(el);
+    const parts = path.split('.');
+    let t = el;
+    try {
+      for(let i = 0; i < parts.length - 1; i++) {
+        let key = parts[i];
+        // Support array indexes: foo.0.bar
+        if(/^\d+$/.test(key)) key = +key;
+        t = t[toCamel(key)];
+        if(!t) throw new Error('Invalid property path');
+      }
+      let last = parts[parts.length - 1];
+      if(/^\d+$/.test(last)) last = +last;
+      last = toCamel(last);
+      if(t && t[last] !== val) t[last] = val;
+    } catch(e) {
+      console.error('Failed to set property', path, 'on', el, e);
+    }
+  };
+
+  // Track all event listeners and signal handlers for cleanup
+  const cleanupMap = new WeakMap();
+
+  // Generic setup for data-sub, data-class, data-disp
+  function setupGeneric(type, el, attr, body) {
+    const parsed = parseDataAttrFast(attr, type === 'data-sub' ? 8 : (type === 'data-class' ? 10 : 9));
+    if(!parsed) return;
+    const {targets, triggers} = parsed;
+    const fn = compile(body);
+    // Precompute appliers for targets to minimize work on each trigger
+    const appliers = targets.map(t => {
+      const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+      if(!targetEl) return null;
+      if(type === 'data-sub'){
+        if(t.type === 'signal') return res => { try{ set(t.name, res); }catch(e){} };
+        const prop = t.propPath || null;
+        return res => { try{ setProp(targetEl, prop, res); }catch(e){} };
+      }
+      if(type === 'data-class'){
+        const classes = (t.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
+        return res => {
+          try{
+            for(const c of classes){
+              if(c.remove){
+                if(res) targetEl.classList.remove(c.name);
+                else targetEl.classList.add(c.name);
+              } else {
+                if(res) targetEl.classList.add(c.name);
+                else targetEl.classList.remove(c.name);
+              }
+            }
+          }catch(e){}
+        };
+      }
+      if(type === 'data-disp'){
+        // Cache original display and whether it was an inline style
+        const inline = targetEl.style && targetEl.style.display ? targetEl.style.display : '';
+        const computed = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+        const hadInline = inline !== '';
+        const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
+        return res => {
+          try{
+            if(res){
+              if(hadInline) targetEl.style.display = originalDisplay;
+              else {
+                // if computed is still 'none' (hidden by CSS), force originalDisplay; otherwise remove inline style
+                const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+                if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
+              }
+            } else {
+              targetEl.style.display = 'none';
+            }
+          }catch(e){}
+        };
+      }
+      return null;
+    });
+
+    const handler = (ev, sg) => {
+      const result = fn(Object.fromEntries(S), el, ev, sg);
+      if(!appliers || appliers.length === 0) return;
+      for(const ap of appliers) if(ap) try{ ap(result); }catch(e){}
+    };
+    // Track listeners for cleanup
+    let listeners = cleanupMap.get(el);
+    if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+    for(let t of triggers){
+      // build a decorated handler that supports modifier semantics: __prevent, __once, __debounce, __throttle, __and
+      const makeDecorated = (orig, t, opts={}) => {
+        const mods = t.mods || {};
+        const debMs = mods.debounce != null ? Number(mods.debounce) : null;
+        const thrMs = mods.throttle != null ? Number(mods.throttle) : null;
+        const once = mods.once !== undefined;
+        const prevent = mods.prevent !== undefined;
+        const andPath = mods.and || null;
+        // guard mods
+        const notandPath = mods.notand || null;
+        const guardEq = mods.eq !== undefined ? mods.eq : undefined;
+        const guardNe = mods.ne !== undefined ? mods.ne : undefined;
+        const guardGt = mods.gt !== undefined ? Number(mods.gt) : undefined;
+        const guardGe = mods.ge !== undefined ? Number(mods.ge) : undefined;
+        const guardLt = mods.lt !== undefined ? Number(mods.lt) : undefined;
+        const guardLe = mods.le !== undefined ? Number(mods.le) : undefined;
+        let timer = null;
+        let last = 0;
+        let decorated;
+        decorated = function(ev, sg){
+          if(prevent && ev && typeof ev.preventDefault === 'function') try{ ev.preventDefault(); }catch(e){}
+          const run = () => {
+            // __and check (supports nested signal path)
+            if(andPath){
+              try{ if(!get(String(andPath))) return; }catch(e){ return; }
+            }
+            // notand: if set and truthy -> block
+            if(notandPath){ try{ if(get(String(notandPath))) return; }catch(e){ return; } }
+            // guard checks: evaluate subject value based on trigger type or event
+            try{
+              let subjectVal = undefined;
+              if(t.type === 'signal') subjectVal = get(String(t.name));
+              else if(ev && ev.detail && typeof ev.detail.ms !== 'undefined') subjectVal = ev.detail.ms;
+              // eq / ne
+              if(guardEq !== undefined){ if(String(subjectVal) != String(guardEq)) return; }
+              if(guardNe !== undefined){ if(String(subjectVal) == String(guardNe)) return; }
+              // numeric comparisons
+              if(guardGt !== undefined){ if(!(Number(subjectVal) > guardGt)) return; }
+              if(guardGe !== undefined){ if(!(Number(subjectVal) >= guardGe)) return; }
+              if(guardLt !== undefined){ if(!(Number(subjectVal) < guardLt)) return; }
+              if(guardLe !== undefined){ if(!(Number(subjectVal) <= guardLe)) return; }
+            }catch(e){ return; }
+            try{ orig(ev, sg); }catch(e){}
+            if(once && decorated && decorated.remove) decorated.remove();
+          };
+          if(debMs != null){ clearTimeout(timer); timer = setTimeout(run, debMs); return; }
+          if(thrMs != null){ const now = Date.now(); if(now - last >= thrMs){ last = now; run(); } return; }
+          run();
+        };
+        return decorated;
+      };
+
+      if(t.type === 'signal'){
+        const root = toCamel(t.name.split('.')[0]);
+        if(!subs.has(root)) subs.set(root, []);
+        const dec = makeDecorated(handler, t);
+        // allow removal for __once
+        dec.remove = () => { const arr = subs.get(root) || []; subs.set(root, arr.filter(fn => fn !== dec)); };
+        subs.get(root).push(dec);
+        listeners.push({type:'signal', root, handler: dec});
+        if(!t.mods || !t.mods.notimmediate) dec(undefined, t.name);
+        continue;
+      }
+
+      // Event triggers
+      // Resolve target element: explicit id (`#id`) or current element
+      let targetEl = null;
+      let eventName = t.eventName || null;
+
+      // Case: explicit element id — no legacy mappings, require real element id
+      if(t.elemId){
+        targetEl = document.getElementById(t.elemId);
+        if(!targetEl){ console.error('Element not found for id:', t.elemId); }
+      }
+
+      // Case: new syntax uses `.window` or `.interval` as eventName while isCurr is true
+      // Handle special triggers produced by the `_` token: @_window, @_document, @_form, @_interval, @_delay
+      if(t.type === 'special'){
+        const name = t.name;
+        if(name === 'window'){
+          const ev = (t.arg && String(t.arg)) || 'resize';
+          window.addEventListener(ev, handler);
+          listeners.push({type:'event', targetEl: window, eventName: ev, handler});
+          if(t.mods && t.mods.immediate) handler();
+          continue;
+        }
+        if(name === 'document'){
+          const ev = (t.arg && String(t.arg)) || 'visibilitychange';
+          document.addEventListener(ev, handler);
+          listeners.push({type:'event', targetEl: document, eventName: ev, handler});
+          if(t.mods && t.mods.immediate) handler();
+          continue;
+        }
+        if(name === 'interval'){
+          const ms = parseInt(t.arg) || 1000;
+          const tick = () => {
+            try{ handler(new CustomEvent('interval', {detail:{ms}})); }catch(e){}
+          };
+          const id = setInterval(tick, ms);
+          listeners.push({type:'interval', id});
+          if(t.mods && t.mods.immediate) tick();
+          continue;
+        }
+        if(name === 'delay'){
+          const ms = parseInt(t.arg) || 0;
+          const id = setTimeout(() => {
+            try{ handler(new CustomEvent('delay', {detail:{ms}})); }catch(e){}
+          }, ms);
+          listeners.push({type:'timeout', id});
+          continue;
+        }
+        if(name === 'form'){
+          // bind to closest form ancestor
+          const formEl = el && el.closest ? el.closest('form') : null;
+          if(formEl){
+            const ev = (t.arg && String(t.arg)) || 'submit';
+            formEl.addEventListener(ev, handler);
+            listeners.push({type:'event', targetEl: formEl, eventName: ev, handler});
+            if(t.mods && t.mods.immediate) handler();
+          }
+          continue;
+        }
+      }
+
+      // If still no targetEl, fall back to current element
+      if(!targetEl) targetEl = el;
+      // Determine final event name
+      const finalEvent = eventName || getAutoEvent(targetEl);
+      if(targetEl === null){ console.error('Element not found:', t.elemId); continue; }
+      // decorate handler with modifiers
+      const dec = (function(orig, tt){
+        const mods = tt.mods || {};
+        const decorated = makeDecorated(orig, tt);
+        decorated.remove = () => { try{ targetEl.removeEventListener(finalEvent, decorated); }catch(e){} };
+        return decorated;
+      })(handler, t);
+      targetEl.addEventListener(finalEvent, dec);
+      listeners.push({type:'event', targetEl, eventName: finalEvent, handler: dec});
+      if(t.mods && t.mods.immediate) dec();
+    }
+    if(triggers.length === 0) handler();
+  }
+
+  // MutationObserver for cleanup
+  const observer = new MutationObserver(records => {
+    for(const rec of records){
+      for(const node of rec.removedNodes){
+        if(node.nodeType !== 1) continue;
+        const listeners = cleanupMap.get(node);
+        if(listeners){
+          for(const l of listeners){
+            if(l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler);
+            if(l.type === 'signal'){
+              const arr = subs.get(l.root);
+              if(arr) subs.set(l.root, arr.filter(fn => fn !== l.handler));
+            }
+            if(l.type === 'interval') clearInterval(l.id);
+          }
+          cleanupMap.delete(node);
+        }
+      }
+    }
+  });
+  observer.observe(document.body, {childList:true, subtree:true});
+
+  // Setup wrappers
+  const setupSub = (el, attr, body) => setupGeneric('data-sub', el, attr, body);
+  const setupClass = (el, attr, body) => setupGeneric('data-class', el, attr, body);
+  const setupDisp = (el, attr, body) => setupGeneric('data-disp', el, attr, body);
+
+  // Two-way sync for data-sync:target.path
+  function setupSync(el, attr) {
+    // attr example: 'data-sync:user.name'
+    const colon = attr.indexOf(':');
+    const path = colon === -1 ? '' : attr.substring(colon + 1);
+    if(!path) return;
+    const root = toCamel(path.split('.')[0]);
+
+    // handler to update element from signal
+    const update = () => {
+      const val = get(path);
+      const prop = getAutoProp(el);
+      try {
+        if(prop === 'checked') el.checked = Boolean(val);
+        else if(prop === 'value') el.value = val == null ? '' : val;
+        else el.textContent = val == null ? '' : val;
+      } catch(e) { console.error('Failed to apply sync value', e); }
+    };
+
+    // initial apply
+    update();
+
+    // subscribe to signal changes
+    if(!subs.has(root)) subs.set(root, []);
+    subs.get(root).push(update);
+    let listeners = cleanupMap.get(el);
+    if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+    listeners.push({type:'signal', root, handler: update});
+
+    // listen to element events to write back to signal
+    const evName = getAutoEvent(el);
+    const write = () => {
+      const prop = getAutoProp(el);
+      const val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent);
+      set(path, val);
+    };
+    el.addEventListener(evName, write);
+    listeners.push({type:'event', targetEl: el, eventName: evName, handler: write});
+  }
+
+  // Compact data-iter implementation
+  function setupIter(el, attr) {
+    // Syntax: data-iter:.signal#tpl-id
+    let i = 9; // 'data-iter'.length
+    if(attr[i] !== ':') return;
+    i++;
+    let signal = '', tplId = '';
+    // support both `:.signal#tpl` and `:signal#tpl` forms
+    if(attr[i] === '.') {
+      i++;
+      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
+    } else {
+      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
+    }
+    if(attr[i] === '#') { i++; while(i < attr.length) tplId += attr[i++]; }
+    if(!signal || !tplId) return;
+    const render = () => {
+      const arr = get(signal) || [];
+      el.innerHTML = '';
+      const tpl = document.getElementById(tplId);
+      if(!tpl) return;
+      const frag = document.createDocumentFragment();
+      for(let idx=0; idx<arr.length; idx++){
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        // Bind data-$it and data-$i by attribute name check (avoid CSS selector issues with $)
+        if(node.hasAttribute && node.hasAttribute('data-$it')) node.textContent = arr[idx];
+        if(node.hasAttribute && node.hasAttribute('data-$i')) node.textContent = idx;
+        node.querySelectorAll('*').forEach(n => {
+          if(n.hasAttribute && n.hasAttribute('data-$it')) n.textContent = arr[idx];
+          if(n.hasAttribute && n.hasAttribute('data-$i')) n.textContent = idx;
+        });
+        // simple nested rendering: if item has `replies` array, append a small ul
+        try {
+          const item = arr[idx];
+          if(item && Array.isArray(item.replies)){
+            const sub = document.createElement('ul');
+            for(const r of item.replies){
+              const li = document.createElement('li');
+              li.textContent = r;
+              sub.appendChild(li);
+            }
+            node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
+          }
+        } catch(e) { /* non-fatal for nested demo */ }
+        frag.appendChild(node);
+      }
+      el.appendChild(frag);
+    };
+    // Subscribe to signal changes
+    const root = toCamel(signal.split('.')[0]);
+    if(!subs.has(root)) subs.set(root, []);
+    subs.get(root).push(render);
+    render();
+  }
+
+  // --- Modifiers demo helpers: none (logic implemented in setupGeneric above)
+
+  // Signal get/set/emit
+  const get = p => {
+    const parts = p.split('.');
+    let v = S.get(toCamel(parts[0]));
+    for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
+    return v;
+  };
+  const emit = p => {
+    const root = toCamel(p.split('.')[0]);
+    const handlers = subs.get(root);
+    if(handlers) handlers.forEach(fn => fn(undefined, p));
+    updateDebug();
+  };
+  const set = (p, v) => {
+    const parts = p.split('.');
+    const root = toCamel(parts[0]);
+    const current = get(p);
+    if (current === v || (current && v && typeof current === 'object' && typeof v === 'object' && JSON.stringify(current) === JSON.stringify(v))) return;
+    if(parts.length === 1){
+      S.set(root, v);
+    } else {
+      const base = JSON.parse(JSON.stringify(S.get(root)));
+      let t = base;
+      for(let i = 1; i < parts.length - 1; i++) t = t[toCamel(parts[i])];
+      t[toCamel(parts[parts.length - 1])] = v;
+      S.set(root, base);
+    }
+    emit(p);
+  };
+
+  // Debug update
+  const updateDebug = () => {
+    if(debug) debug.textContent = JSON.stringify(Object.fromEntries(S), null, 2);
+  };
+
+  // Init: definitions and subscriptions
+  const init = () => {
+    const all = document.querySelectorAll('*');
+    // PHASE 1: Definitions
+    all.forEach(el => {
+      for(let a of el.attributes){
+        if(a.name !== 'data-def' && a.name.indexOf('data-def:') !== 0) continue;
+        const colonIdx = a.name.indexOf(':');
+        const name = colonIdx === -1 ? '' : a.name.substring(colonIdx + 1);
+        const camelName = toCamel(name);
+        if(camelName === 'ev' || camelName === 'el'){
+          console.error('Reserved signal name:', name); continue;
+        }
+        if(!name){
+          const o = JSON.parse(a.value);
+          for(let k in o){
+            const camelK = toCamel(k);
+            if(camelK === 'ev' || camelK === 'el'){
+              console.error('Reserved signal name:', k); continue;
+            }
+            S.set(camelK, o[k]);
+          }
+        } else {
+          S.set(camelName, Function('return ' + a.value)());
+        }
+      }
+    });
+    // PHASE 2: Subscriptions
+    all.forEach(el => {
+      for(let a of el.attributes){
+        if(a.name.indexOf('data-sync') === 0){
+          setupSync(el, a.name);
+        } else if(a.name.indexOf('data-sub') === 0){
+          setupSub(el, a.name, a.value);
+        } else if(a.name.indexOf('data-class') === 0){
+          setupClass(el, a.name, a.value);
+        } else if(a.name.indexOf('data-disp') === 0){
+          setupDisp(el, a.name, a.value);
+        } else if(a.name.indexOf('data-iter') === 0){
+          setupIter(el, a.name);
+        }
+      }
+    });
+    updateDebug();
+  };
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  // expose state for headless tests/debugging
+  window.__getState = () => Object.fromEntries(S);
+})();
+</script>
+
+</body>
+</html>
