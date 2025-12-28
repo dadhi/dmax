@@ -98,10 +98,10 @@
 
 <section>
   <h3>6. Window Events & Intervals</h3>
-  <div class="page">data-sub:.@.window.resize, data-sub:.@.interval.1000</div>
-  <!-- data-sub:.@.window.resize, data-sub:.@.interval.1000 -->
-  <p>Window width: <span data-sub:.@.window.resize="window.innerWidth + 'px'"></span></p>
-  <p>Current time: <span data-sub:.@.interval.1000="new Date().toLocaleTimeString()"></span></p>
+  <div class="page">data-sub:.@_window.resize, data-sub:.@_interval.1000</div>
+  <!-- data-sub:.@_window.resize, data-sub:.@_interval.1000 -->
+  <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
+  <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
 </section>
 
 <section>
@@ -383,6 +383,35 @@ Summary:
         i++;
         if (i >= n) return null;
         const c = s.charCodeAt(i);
+        // Special global/document/form/interval/delay tokens start with `_` (e.g. @_window.resize, @_interval.1000)
+        if (c === 95 /* _ */) {
+          i++;
+          const startTok = i;
+          while (i < n) {
+            const cc = s.charCodeAt(i);
+            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            i++;
+          }
+          const tok = s.slice(startTok, i);
+          if (!tok) return null;
+          let arg = null;
+          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+            i++;
+            const startA = i;
+            while (i < n) {
+              const cc = s.charCodeAt(i);
+              if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+              i++;
+            }
+            arg = s.slice(startA, i) || null;
+          }
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          triggers.push({type: 'special', name: tok, arg, mods: modsRes[0]});
+          continue;
+        }
         if (c === 35 /* # */) {
           i++;
           const startId = i;
@@ -582,32 +611,56 @@ Summary:
       }
 
       // Event triggers
-      // Resolve target element: explicit id (`#id`), special tokens via eventName (`window`, `interval`), or current element
+      // Resolve target element: explicit id (`#id`) or current element
       let targetEl = null;
       let eventName = t.eventName || null;
 
-      // Case: explicit element id
+      // Case: explicit element id — no legacy mappings, require real element id
       if(t.elemId){
-        if(t.elemId === 'window') targetEl = window;
-        else if(t.elemId === 'interval') targetEl = null; // handled below
-        else targetEl = document.getElementById(t.elemId);
+        targetEl = document.getElementById(t.elemId);
+        if(!targetEl){ console.error('Element not found for id:', t.elemId); }
       }
 
       // Case: new syntax uses `.window` or `.interval` as eventName while isCurr is true
-      if(t.isCurr && eventName){
-        const parts = eventName.split('.');
-        if(parts[0] === 'window'){
-          const ev = parts[1] || 'resize';
+      // Handle special triggers produced by the `_` token: @_window, @_document, @_form, @_interval, @_delay
+      if(t.type === 'special'){
+        const name = t.name;
+        if(name === 'window'){
+          const ev = (t.arg && String(t.arg)) || 'resize';
           window.addEventListener(ev, handler);
           listeners.push({type:'event', targetEl: window, eventName: ev, handler});
           if(t.mods && t.mods.immediate) handler();
           continue;
         }
-        if(parts[0] === 'interval'){
-          const ms = parseInt(parts[1]) || 1000;
+        if(name === 'document'){
+          const ev = (t.arg && String(t.arg)) || 'visibilitychange';
+          document.addEventListener(ev, handler);
+          listeners.push({type:'event', targetEl: document, eventName: ev, handler});
+          if(t.mods && t.mods.immediate) handler();
+          continue;
+        }
+        if(name === 'interval'){
+          const ms = parseInt(t.arg) || 1000;
           const id = setInterval(handler, ms);
           listeners.push({type:'interval', id});
           if(t.mods && t.mods.immediate) handler();
+          continue;
+        }
+        if(name === 'delay'){
+          const ms = parseInt(t.arg) || 0;
+          const id = setTimeout(handler, ms);
+          listeners.push({type:'timeout', id});
+          continue;
+        }
+        if(name === 'form'){
+          // bind to closest form ancestor
+          const formEl = el && el.closest ? el.closest('form') : null;
+          if(formEl){
+            const ev = (t.arg && String(t.arg)) || 'submit';
+            formEl.addEventListener(ev, handler);
+            listeners.push({type:'event', targetEl: formEl, eventName: ev, handler});
+            if(t.mods && t.mods.immediate) handler();
+          }
           continue;
         }
       }

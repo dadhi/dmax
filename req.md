@@ -26,7 +26,7 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
 ## data-sub
 
- data-sub(:(signal|:.prop|:#id.prop))*((@(signal|@.event|@#id.event|@!w.event))(__mod(.val)?)*)*='js exp'
+ data-sub(:(signal|:.prop|:#id.prop))*((@(signal|@.event|@#id.event|@_window.event))(__mod(.val)?)*)*='js exp'
 
  - `:signal` - zero, one or many signals; represents target for the right-hand JS expression assignment (e.g. `:user`, `:user.name`).
 
@@ -40,8 +40,8 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
  - `@.event` - zero, one or many DOM events on the current element (e.g. `@.click`, `@.input`).
    - `@#id.event` targets an element by id's event (e.g. `@#btn.click`).
-   - Special global/document/window events use the `!` prefix: `@!w.resize` (window), `@!d.visibilitychange` (document).
-   - Synthetic timing triggers remain supported via `@!interval.ms` or `@!delay.ms`.
+  - Special/global/document events use the `_` prefix: `@_window.resize` (window), `@_document.visibilitychange` (document).
+  - Synthetic timing triggers are supported via `@_interval.ms` or `@_delay.ms`.
 
  - If no event or signal trigger is specified then the JS expression is evaluated once during init and/or when the relevant default event occurs; if no targets are provided the expression is evaluated for side effects only.
 
@@ -59,7 +59,7 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
  - `@` denotes start of a trigger (signal or event).
 
-   - If followed by `!` then it's a special/global target window, document, form (`!w`/`!d`/`!f`), e.g. `@!w.resize`.
+   - If followed by `_` then it's a special/global target: `_window`, `_document`, `_form`, `_interval`, `_delay` (e.g. `@_window.resize`).
    - If followed by `.` it's a current-element event (`@.click`).
    - If followed by `#` it's an element-by-id event (`@#btn.click`).
    - Otherwise it's a signal trigger (`@count`).
@@ -110,7 +110,7 @@ data-class:.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
 
 basically the same as data-class but instead of adding or removing classes it hides or displays the element
 data-disp@is-foo
-data-disp@!is-complete@in-flight
+data-disp@_is-complete@in-flight
 data-disp:#cool-elem@is-cool.for-sure
 
 Same as data-class, but instead of adding/removing classes, it hides or displays the element (display: none).

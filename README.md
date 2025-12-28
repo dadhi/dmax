@@ -22,6 +22,7 @@ Notes:
  - Attributes use kebab-case; runtime converts to camelCase for JS access.
  - Expressions are compiled & cached; signals stored in a small `Map` (`S`).
  - Compiled expressions receive three helper variables: `el` (the element), `ev` (the triggering Event, if any), and `sg` (the signal path string that triggered the evaluation, if any).
+ - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
  - `data-iter` precomputes shallow bindings for faster updates.
 
 Short TBD:
