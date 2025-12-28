@@ -45,6 +45,8 @@ data-def='{"foo": 0, "bars":[], "baz":{"bor":{"boo": null}}}'
 
  - If no event or signal trigger is specified then the JS expression is evaluated once during init and/or when the relevant default event occurs; if no targets are provided the expression is evaluated for side effects only.
 
+ - Compiled expressions receive three helper variables: `el` (the element), `ev` (the triggering Event, if any), and `sg` (the signal path string that triggered the evaluation, if any).
+
  - Trigger modifiers: `__immediate` (default for `@signal`), `__notimmediate` (default for `@.event`), `__once`, `__debounce.ms`, `__throttle.ms`, `__prevent` (preventDefault).
 
 ### Parser Notes (updated tokens)

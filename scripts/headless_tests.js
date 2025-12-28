@@ -84,6 +84,19 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 50));
     if(Number(countDisplay.textContent.trim()) === Number(before) + 1) pass('Section3 +1 works'); else fail('Section3 +1 failed');
 
+    // Probe `el`, `ev`, `sg` example: probeOut should show 'count' when signal triggers
+    const probeBtn = doc.getElementById('probeBtn');
+    const probeOut = doc.getElementById('probeOut');
+    if(!probeBtn || !probeOut) fail('Probe elements missing');
+    // after increment, probeOut should receive sg='count'
+    btnPlus.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 50));
+    if((probeOut.textContent || '').trim() === 'count') pass('Probe sg shows signal name on signal trigger'); else fail('Probe sg did not show signal name');
+    // clicking probeBtn should set its own text to include id and event type and no sg
+    probeBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 50));
+    if(probeBtn.textContent && /probeBtn\s+click/.test(probeBtn.textContent)) pass('Probe el/ev available on event'); else fail('Probe el/ev not available');
+
     // Section 4: btn1/btn2 side-effect and multi-trigger display
     const btn1 = doc.getElementById('btn1');
     const btn2 = doc.getElementById('btn2');
@@ -140,14 +153,12 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     chkActive.checked = false;
     chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
     await new Promise(r => setTimeout(r, 80));
-    console.log('DEBUG after toggle off: classBox.className=', classBox.className, 'displayBox.style.display=', displayBox.style.display);
     // Accept either class removed or element hidden as valid toggle-off
     if(!classBox.classList.contains('active') || displayBox.style.display === 'none') pass('Section8 class/disp toggled off'); else fail('Section8 class/disp did not toggle off');
     // Toggle on
     chkActive.checked = true;
     chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
     await new Promise(r => setTimeout(r, 80));
-    console.log('DEBUG after toggle on: classBox.className=', classBox.className, 'displayBox.style.display=', displayBox.style.display);
     if(classBox.classList.contains('active') && window.getComputedStyle(displayBox).display !== 'none') pass('Section8 class/disp toggled on'); else fail('Section8 class/disp did not toggle on');
 
     // Extra focused check: ensure displayBox visibility toggles with checkbox

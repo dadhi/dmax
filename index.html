@@ -70,6 +70,8 @@
   <button data-sub:count@.click="0">Reset</button>
   <p>Count: <strong data-sub:.@count="count"></strong></p>
   <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="count * 2"></span></p>
+  <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
+  <span id="probeOut" data-sub:.@count="sg"></span>
 </section>
 
 <section>
@@ -179,7 +181,7 @@ Summary:
 
   // common reserved identifiers for expression compilation (hoisted to avoid recreating per-compile)
   const RESERVED = new Set([
-    'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
+    'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','sg','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
   ]);
 
   // Optimized kebab→camel (no regex, cached)
@@ -244,15 +246,16 @@ Summary:
     const destruct = signalNames.length ? `const { ${signalNames.join(', ')} } = S;` : '';
     let fn;
     try {
-      // single-function signature: (S, el, ev) -> creates locals via destructuring
-      fn = new Function('S','el','ev', `try{ ${destruct} return ${body} }catch(e){console.error(e)}`);
+      // single-function signature: (S, el, ev, sg) -> creates locals via destructuring
+      // `sg` is the signal path (string) that triggered evaluation, or undefined.
+      fn = new Function('S','el','ev','sg', `try{ ${destruct} return ${body} }catch(e){console.error(e)}`);
     } catch(e) {
       console.error('Failed to compile expression:', body, e);
       fn = () => undefined;
     }
-    const wrapped = (Sobj, el, ev) => {
+    const wrapped = (Sobj, el, ev, sg) => {
       try {
-        const res = fn(Sobj, el, ev);
+        const res = fn(Sobj, el, ev, sg);
         return (typeof res === 'number' && isNaN(res)) ? undefined : res;
       } catch (e) {
         return undefined;
@@ -529,8 +532,8 @@ Summary:
       return null;
     });
 
-    const handler = ev => {
-      const result = fn(Object.fromEntries(S), el, ev);
+    const handler = (ev, sg) => {
+      const result = fn(Object.fromEntries(S), el, ev, sg);
       if(!appliers || appliers.length === 0) return;
       for(const ap of appliers) if(ap) try{ ap(result); }catch(e){}
     };
@@ -549,14 +552,14 @@ Summary:
         let timer = null;
         let last = 0;
         let decorated;
-        decorated = function(ev){
+        decorated = function(ev, sg){
           if(prevent && ev && typeof ev.preventDefault === 'function') try{ ev.preventDefault(); }catch(e){}
           const run = () => {
             // __and check (supports nested signal path)
             if(andPath){
               try{ if(!get(String(andPath))) return; }catch(e){ return; }
             }
-            try{ orig(ev); }catch(e){}
+            try{ orig(ev, sg); }catch(e){}
             if(once && decorated && decorated.remove) decorated.remove();
           };
           if(debMs != null){ clearTimeout(timer); timer = setTimeout(run, debMs); return; }
@@ -574,7 +577,7 @@ Summary:
         dec.remove = () => { const arr = subs.get(root) || []; subs.set(root, arr.filter(fn => fn !== dec)); };
         subs.get(root).push(dec);
         listeners.push({type:'signal', root, handler: dec});
-        if(!t.mods || !t.mods.notimmediate) dec();
+        if(!t.mods || !t.mods.notimmediate) dec(undefined, t.name);
         continue;
       }
 
@@ -762,7 +765,7 @@ Summary:
   const emit = p => {
     const root = toCamel(p.split('.')[0]);
     const handlers = subs.get(root);
-    if(handlers) handlers.forEach(fn => fn());
+    if(handlers) handlers.forEach(fn => fn(undefined, p));
     updateDebug();
   };
   const set = (p, v) => {
@@ -779,7 +782,7 @@ Summary:
       t[toCamel(parts[parts.length - 1])] = v;
       S.set(root, base);
     }
-    emit(root);
+    emit(p);
   };
 
   // Debug update
