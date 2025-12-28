@@ -2,4 +2,7 @@
   "dependencies": {
     "jsdom": "^27.4.0"
   }
+  ,"scripts":{
+    "test:actions":"node tests/actions.e2e.js"
+  }
 }
