@@ -426,27 +426,72 @@ Summary:
             i++;
             const startP = i;
             while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
-            const raw = s.slice(startP, i) || null;
+            let raw = s.slice(startP, i) || null;
+            if (raw) {
+              const mi = raw.indexOf('__');
+              if (mi !== -1) {
+                // split off inline mods that were consumed into raw
+                const namePart = raw.slice(0, mi);
+                const modsStart = startP + namePart.length;
+                raw = namePart;
+                i = modsStart;
+              }
+            }
             prop = raw ? normalizePath(raw) : null;
             if (prop === null && raw !== null) return null;
           }
-          targets.push({type: 'prop', elemId: id, propPath: prop, isCurr: false});
+          // parse optional target mods after id/prop
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
+          if(mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
+          targets.push({type: 'prop', elemId: id, propPath: prop, isCurr: false, mods: mergedTargetMods});
         } else if (c === 46 /* . */) {
           i++;
           const startP = i;
           while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
-          const raw = s.slice(startP, i) || null;
+          let raw = s.slice(startP, i) || null;
+          if (raw) {
+            const mi = raw.indexOf('__');
+            if (mi !== -1) {
+              const namePart = raw.slice(0, mi);
+              const modsStart = startP + namePart.length;
+              raw = namePart;
+              i = modsStart;
+            }
+          }
           const prop = raw ? normalizePath(raw) : null;
           if (prop === null && raw !== null) return null;
-          targets.push({type: 'prop', elemId: '', propPath: prop, isCurr: true});
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
+          if(mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
+          targets.push({type: 'prop', elemId: '', propPath: prop, isCurr: true, mods: mergedTargetMods});
         } else {
           const start = i;
           while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
-          const raw = s.slice(start, i);
+          let raw = s.slice(start, i);
           if (!raw) return null;
+          // allow inline target mods like foo__append by splitting them off
+          const mi = raw.indexOf('__');
+          if (mi !== -1) {
+            const namePart = raw.slice(0, mi);
+            raw = namePart;
+            i = start + namePart.length;
+          }
           const name = normalizePath(raw);
           if (name === null) return null;
-          targets.push({type: 'signal', name});
+          let modsRes = [ {}, i ];
+          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (modsRes[0] === null) return null;
+          i = modsRes[1];
+          const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
+          if(mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
+          targets.push({type: 'signal', name, mods: mergedTargetMods});
         }
       } else if (ch === 64 /* @ */) {
         i++;
@@ -831,6 +876,19 @@ Summary:
     const headers = {};
     const headerShortcuts = [];
     const inputs = [];
+    // parse optional result modifier immediately after `data-<method>` (e.g. __append/__prepend/__replace)
+    let resultMod = null;
+    while(i + 1 < s.length && s[i] === '_' && s[i+1] === '_'){
+      // read modifier name (stop at separators: ^ + : @)
+      i += 2;
+      const startMod = i;
+      while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_')) i++;
+      const modRaw = s.slice(startMod, i).split('.')[0] || '';
+      if(modRaw) {
+        if(modRaw === 'append' || modRaw === 'prepend' || modRaw === 'replace') resultMod = modRaw;
+        // else: ignore unknown mods here (could be input-level or header-level later)
+      }
+    }
     // parse ^ tokens
     while(i < s.length && s[i] === '^'){
       i++; const start = i; while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?') i++;
@@ -886,7 +944,7 @@ Summary:
     if(parseStr && parseStr[0] !== ':' && parseStr[0] !== '@') parseStr = ':' + parseStr;
     const parsed = parseDataAttrFast(parseStr, 0);
     if(!parsed) return null;
-    return {method, headers, headerShortcuts, inputs, stateSpecs, parsed};
+    return {method, headers, headerShortcuts, inputs, stateSpecs, parsed, resultMod};
   }
 
   async function setupAction(el, attr, url) {
@@ -900,6 +958,12 @@ Summary:
     // For now only support a single signal target (first signal target)
     const target = parsed.targets.find(t => t.type === 'signal');
     if(!target){ console.error('Action requires a signal target (e.g. :result)'); }
+    // derive result modifier from target mods: __replace (default), __append, __prepend
+    if(target && target.mods){
+      if(target.mods.append !== undefined) info.resultMod = 'append';
+      else if(target.mods.prepend !== undefined) info.resultMod = 'prepend';
+      else if(target.mods.replace !== undefined) info.resultMod = 'replace';
+    }
 
     // Ensure state signals exist (create defaults) and map spec modes
     const stateMap = []; // {name, camel, mode}
@@ -1027,7 +1091,26 @@ Summary:
         const ct = res.headers.get('content-type') || '';
         if(ct.indexOf('application/json') !== -1){ payload = await res.json(); }
         else { payload = await res.text(); }
-        if(target && target.type === 'signal') set(target.name, payload);
+        if(target && target.type === 'signal'){
+          // handle result modifier: replace (default), append, prepend
+          const mod = info.resultMod || 'replace';
+          try{
+            if(mod === 'replace'){
+              set(target.name, payload);
+            } else if(mod === 'append' || mod === 'prepend'){
+              const curr = get(target.name);
+              const items = Array.isArray(payload) ? payload.slice() : [payload];
+              let base = Array.isArray(curr) ? curr.slice() : (curr == null ? [] : [curr]);
+              let out;
+              if(mod === 'append') out = base.concat(items);
+              else out = items.concat(base);
+              set(target.name, out);
+            } else {
+              // unknown modifier: fallback to replace
+              set(target.name, payload);
+            }
+          }catch(e){ console.error('Failed applying result modifier', e); set(target.name, payload); }
+        }
         // update state signals on success
         for(const s of stateMap){
           if(s.mode === 'busy') set(s.camel, false);
