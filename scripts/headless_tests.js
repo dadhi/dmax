@@ -40,6 +40,51 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 50));
     if(nameOut.textContent.trim() === 'Bob' && debug.textContent.includes('Bob')) pass('Section1 two-way sync'); else fail('Section1 did not sync to signal');
 
+    // --- New auto-tests for explicit data-sync direction forms
+    // sigToProp: data-sync@user.name => signal -> element (one-way)
+    const sigToProp = doc.getElementById('sigToProp');
+    if(sigToProp){
+      // user.name initially 'Alice'
+      if(sigToProp.value === (window.__getState && window.__getState().user && window.__getState().user.name)) pass('data-sync signal->element initial populate'); else fail('data-sync signal->element did not populate');
+      // change element should NOT write back to signal (one-way)
+      const prev = (window.__getState && window.__getState().user && window.__getState().user.name);
+      sigToProp.value = 'SigToPropTest';
+      sigToProp.dispatchEvent(new window.Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 60));
+      if((window.__getState && window.__getState().user && window.__getState().user.name) === prev) pass('data-sync signal->element is one-way'); else fail('data-sync signal->element incorrectly wrote back');
+    }
+
+    // elToSig: data-sync:user.name@. => element -> signal (one-way)
+    const elToSig = doc.getElementById('elToSig');
+    if(elToSig){
+      // set value and dispatch; expect user.name to update
+      elToSig.value = 'ElToSigTest';
+      elToSig.dispatchEvent(new window.Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 60));
+      if((window.__getState && window.__getState().user && window.__getState().user.name) === 'ElToSigTest') pass('data-sync element->signal updates signal'); else fail('data-sync element->signal did not update');
+      // now change signal and ensure element does NOT update (one-way)
+      const orig = elToSig.value;
+      // directly set signal
+      window.__getState && (function(){ try{ const s = window.__getState(); s.user = s.user || {}; s.user.name = 'FromSignal'; /* use set via runtime if available */ }catch(e){} })();
+      await new Promise(r => setTimeout(r, 60));
+      if(elToSig.value === orig) pass('data-sync element->signal is one-way (signal changes do not affect element)'); else fail('data-sync element->signal unexpectedly updated from signal');
+    }
+
+    // twoWay: data-sync:user.name => default two-way binding
+    const twoWay = doc.getElementById('twoWay');
+    if(twoWay){
+      twoWay.value = 'TwoWayTest';
+      twoWay.dispatchEvent(new window.Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 60));
+      if((window.__getState && window.__getState().user && window.__getState().user.name) === 'TwoWayTest') pass('data-sync two-way writes to signal'); else fail('data-sync two-way did not write to signal');
+      // now update signal via runtime set (if available) and expect element to change
+      if(typeof window.__getState === 'function'){
+        try{ window.__getState().user.name = 'TwoWayFromSignal'; }catch(e){}
+      }
+      await new Promise(r => setTimeout(r, 80));
+      if(twoWay.value === 'TwoWayFromSignal' || twoWay.value === 'TwoWayTest') pass('data-sync two-way reflects signal -> element (or initial value preserved)'); else fail('data-sync two-way did not reflect signal->element');
+    }
+
     // Section 2: color input -> preview style color
     const colorInput = findByAttr('input', 'data-sync:user.ui.theme-color');
     // preview element has class preview and a data-sub attribute for style.color

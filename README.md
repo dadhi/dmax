@@ -13,6 +13,7 @@ Core directives:
  - data-def   : declare initial signals/state (JSON or shorthand)
  - data-sub   : reactive assignments / side-effects (targets: signals or element props; triggers: signals, element/window events; common mods supported)
  - data-sync  : two-way binding sugar (one or two targets, prevents loops)
+	- Directional forms: `data-sync@signal` (signal -> element one-way), `data-sync:signal@.` (element -> signal one-way), and `data-sync:signal` (default two-way). See `index.html` examples.
  - data-class : conditional add/remove classes
  - data-disp  : show/hide by expression
  - data-iter  : array rendering via <template>; use `data-$it` (item) and `data-$i` (index); nested iters supported; uses DocumentFragment batching

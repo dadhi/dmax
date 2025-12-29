@@ -93,6 +93,11 @@ A sugar consisting of 0, 1 or 2 targets with the same grammar as in data-sub for
 - If one the targets is signal, then the should be updated immediatly when the elem with data-sync loaded (unless __noimmediate is specified).
 
 - If single target is specified, this means the second target will be default prop/default event of the current element.
+ - If single target is specified, this means the second target will be default prop/default event of the current element.
+ - New directional forms supported:
+   - `data-sync@signal` — signal -> element only (one-way).
+   - `data-sync:signal@.` or `data-sync:signal@.prop` — element -> signal only (one-way); `.prop` selects the element property to read.
+   - `data-sync:signal` (or `data-sync:signal.prop`) — two-way (default).
 
 - No targets is the valid case if the curr element has a name attr, then this nsme will be used for signal.
 

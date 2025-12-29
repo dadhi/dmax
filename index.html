@@ -53,6 +53,21 @@
 </section>
 
 <section>
+  <h3>1.a data-sync Direction Examples</h3>
+  <div class="page">Demonstrates explicit sync directions: signal->element, element->signal, and two-way.</div>
+  <div style="margin:6px 0">
+    <label>Signal -> Element (one-way): <input id="sigToProp" data-sync@user.name></label>
+  </div>
+  <div style="margin:6px 0">
+    <label>Element -> Signal (one-way): <input id="elToSig" data-sync:user.name@.></label>
+  </div>
+  <div style="margin:6px 0">
+    <label>Two-way (default): <input id="twoWay" data-sync:user.name></label>
+  </div>
+  <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="user.name"></span></div>
+</section>
+
+<section>
   <h3>2. Style & Boolean Deep Sync</h3>
   <div class="page">data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active</div>
   <!-- data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active -->
@@ -1173,16 +1188,53 @@ Summary:
 
   // Two-way sync for data-sync:target.path
   function setupSync(el, attr) {
-    // attr example: 'data-sync:user.name'
-    const colon = attr.indexOf(':');
-    const path = colon === -1 ? '' : attr.substring(colon + 1);
-    if(!path) return;
-    const root = toCamel(path.split('.')[0]);
+    // Enhanced sync: support directional forms via parseDataAttrFast
+    // Examples supported:
+    // - data-sync@sig            => signal -> element (one-way)
+    // - data-sync:foo@.value     => element.prop -> signal (one-way)
+    // - data-sync:foo:.value     => two-way (both directions)
+    const parsed = parseDataAttrFast(attr, 9);
+    if(!parsed){
+      // fallback to old behavior for simple `data-sync:foo` forms
+      const colon = attr.indexOf(':');
+      const path = colon === -1 ? '' : attr.substring(colon + 1);
+      if(!path) return;
+      const root = toCamel(path.split('.')[0]);
+      const update = () => {
+        const val = get(path);
+        const prop = getAutoProp(el);
+        try {
+          if(prop === 'checked') el.checked = Boolean(val);
+          else if(prop === 'value') el.value = val == null ? '' : val;
+          else el.textContent = val == null ? '' : val;
+        } catch(e) { console.error('Failed to apply sync value', e); }
+      };
+      update();
+      if(!subs.has(root)) subs.set(root, []);
+      subs.get(root).push(update);
+      let listeners = cleanupMap.get(el);
+      if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+      listeners.push({type:'signal', root, handler: update});
+      const evName = getAutoEvent(el);
+      const write = () => {
+        const prop = getAutoProp(el);
+        const val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent);
+        set(path, val);
+      };
+      el.addEventListener(evName, write);
+      listeners.push({type:'event', targetEl: el, eventName: evName, handler: write});
+      return;
+    }
 
-    // handler to update element from signal
-    const update = () => {
-      const val = get(path);
-      const prop = getAutoProp(el);
+    // Determine signal target and prop target (if any)
+    const sigTargets = parsed.targets.filter(t => t.type === 'signal');
+    const propTargets = parsed.targets.filter(t => t.type === 'prop');
+    const sigTriggers = parsed.triggers.filter(t => t.type === 'signal');
+    const evTriggers = parsed.triggers.filter(t => t.type === 'event' || t.type === 'special');
+
+    // helper to apply value -> element prop
+    const applyToElement = (val, propPath) => {
+      const prop = propPath || getAutoProp(el);
       try {
         if(prop === 'checked') el.checked = Boolean(val);
         else if(prop === 'value') el.value = val == null ? '' : val;
@@ -1190,25 +1242,63 @@ Summary:
       } catch(e) { console.error('Failed to apply sync value', e); }
     };
 
-    // initial apply
-    update();
+    // subscribe to signal -> element (one-way or part of two-way)
+    if(sigTriggers.length > 0 || (sigTargets.length > 0 && evTriggers.length === 0)){
+      // which signals to subscribe: use triggers if present, otherwise targets
+      const subsigs = sigTriggers.length ? sigTriggers.map(t=>t.name) : sigTargets.map(t=>t.name);
+      for(const sname of subsigs){
+        const root = toCamel(String(sname).split('.')[0]);
+        const handler = () => {
+          try{ const v = get(String(sname));
+            // if prop target provided, use its propPath; otherwise default
+            const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
+            applyToElement(v, pt);
+          }catch(e){}
+        };
+        handler();
+        if(!subs.has(root)) subs.set(root, []);
+        subs.get(root).push(handler);
+        let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+        listeners.push({type:'signal', root, handler});
+      }
+    }
 
-    // subscribe to signal changes
-    if(!subs.has(root)) subs.set(root, []);
-    subs.get(root).push(update);
-    let listeners = cleanupMap.get(el);
-    if(!listeners) listeners = [], cleanupMap.set(el, listeners);
-    listeners.push({type:'signal', root, handler: update});
-
-    // listen to element events to write back to signal
-    const evName = getAutoEvent(el);
-    const write = () => {
-      const prop = getAutoProp(el);
-      const val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent);
-      set(path, val);
-    };
-    el.addEventListener(evName, write);
-    listeners.push({type:'event', targetEl: el, eventName: evName, handler: write});
+    // element -> signal (one-way) when event triggers are present or for two-way
+    if(sigTargets.length > 0){
+      // if there are explicit evTriggers, use those for write; if none and we subscribed above, set up default write as well for two-way
+      const shouldWriteOnEvent = evTriggers.length > 0 || (evTriggers.length === 0 && parsed.triggers.length === 0);
+      if(shouldWriteOnEvent){
+        const targetSig = sigTargets[0].name;
+        const evs = evTriggers.length ? evTriggers : [{type:'event', elemId:'', eventName: null, isCurr:true}];
+        for(const ev of evs){
+          // attach to current element or specific element
+          const targetEl = ev.elemId ? document.getElementById(ev.elemId) : el;
+          if(!targetEl) continue;
+          // If the trigger's eventName looks like a property (e.g. 'value' or 'checked')
+          // treat it as a prop selector and listen on the element's default event instead.
+          let finalEventName = ev.eventName || getAutoEvent(targetEl);
+          let propSelector = null;
+          if(ev.isCurr && ev.eventName){
+            const candidate = ev.eventName;
+            const defaultProp = getAutoProp(targetEl);
+            if(candidate === defaultProp || candidate === 'value' || candidate === 'checked' || candidate === 'textContent'){
+              propSelector = candidate;
+              finalEventName = getAutoEvent(targetEl);
+            }
+          }
+          const handler = () => {
+            try{
+              const prop = (propTargets.length ? (propTargets[0].propPath || getAutoProp(el)) : (propSelector || getAutoProp(targetEl)));
+              const val = (prop === 'checked') ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent);
+              set(String(targetSig), val);
+            }catch(e){}
+          };
+          targetEl.addEventListener(finalEventName, handler);
+          let listeners = cleanupMap.get(targetEl); if(!listeners) listeners = [], cleanupMap.set(targetEl, listeners);
+          listeners.push({type:'event', targetEl, eventName: finalEventName, handler});
+        }
+      }
+    }
   }
 
   // Compact data-iter implementation
