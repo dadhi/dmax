@@ -253,6 +253,8 @@ Summary:
 // dmax MVP logic with new syntax support and modular parsing
 (()=>{
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  // Common character-code constants used by parsers
+  const CC = { DOT: 46, COLON: 58, AT: 64, UNDERSCORE: 95, HASH: 35 };
   const debug=document.querySelector('[data-debug]');
 
   // Optimized kebab→camel (no regex, cached)
@@ -273,35 +275,32 @@ Summary:
     return result;
   };
 
-  // Default property for element
-  const getAutoProp = el => {
-    const tag = el.tagName;
-    const type = el.type;
-    if(type === 'checkbox' || type === 'radio') return 'checked';
-    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return 'value';
-    return 'textContent';
-  };
-  // Default event for element
-  const getAutoEvent = el => {
-    if (!el || !el.tagName) return 'click';
-    const tag = el.tagName.toUpperCase();
-    const type = el.type;
-    if (tag === 'FORM') return 'submit';
-    if (type === 'checkbox' || type === 'radio') return 'change';
-    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return tag === 'SELECT' ? 'change' : 'input';
-    return 'click';
-  };
+  // Default property for element (consistent, compact)
+  const getAutoProp = el =>
+    !el ? 'textContent' :
+    (el.type === 'checkbox' || el.type === 'radio') ? 'checked' :
+    (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') ? 'value' :
+    'textContent';
+
+  // Default event for element (tags are upper-case per W3C; no toUpperCase needed)
+  const getAutoEvent = el =>
+    !el || !el.tagName ? 'click' :
+    (el.tagName === 'FORM') ? 'submit' :
+    (el.type === 'checkbox' || el.type === 'radio') ? 'change' :
+    (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') ? (el.tagName === 'SELECT' ? 'change' : 'input') :
+    'click';
 
   // Default display fallback for elements when computed display is 'none'
+  // Use uppercase tag checks (W3C guarantees) and compact ternary chain.
   const defaultDisplayForTag = el => {
-    const t = (el.tagName || '').toLowerCase();
-    if(!t) return 'block';
-    if(t === 'span' || t === 'a' || t === 'strong' || t === 'em' || t === 'b' || t === 'i' || t === 'img') return 'inline';
-    if(t === 'tr') return 'table-row';
-    if(t === 'td' || t === 'th') return 'table-cell';
-    if(t === 'li') return 'list-item';
-    if(t === 'ul' || t === 'ol' || t === 'nav' || t === 'section' || t === 'div') return 'block';
-    return 'block';
+    const t = el && el.tagName;
+    return !t ? 'block' :
+      (t === 'SPAN' || t === 'A' || t === 'STRONG' || t === 'EM' || t === 'B' || t === 'I' || t === 'IMG') ? 'inline' :
+      (t === 'TR') ? 'table-row' :
+      (t === 'TD' || t === 'TH') ? 'table-cell' :
+      (t === 'LI') ? 'list-item' :
+      (t === 'UL' || t === 'OL' || t === 'NAV' || t === 'SECTION' || t === 'DIV') ? 'block' :
+      'block';
   };
 
   // Compile JS expression with caching
@@ -331,30 +330,31 @@ Summary:
   // Fast, compact parser (char-scanning) for data-* attribute names
   // (uses `toCamel` above which is cached)
 
+  
+
   function parseModsFast(s, i, n) {
     const mods = {};
-    while (i < n && s.charCodeAt(i) === 95 /* '_' */ && s.charCodeAt(i+1) === 95 /* '_' */) {
+    while (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) {
       i += 2;
       const start = i;
       while (i < n) {
         const cc = s.charCodeAt(i);
-        if (cc === 46 /* '.' */ || cc === 58 /* ':' */ || cc === 64 /* '@' */ || (cc === 95 /* '_' */ && s.charCodeAt(i+1) === 95)) break;
+        if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
         i++;
       }
       const name = s.slice(start, i);
       if (!name) return [null, i];
       let val = 1;
-      if (i < n && s.charCodeAt(i) === 46 /* '.' */) {
+      if (i < n && s.charCodeAt(i) === CC.DOT) {
         i++;
         const vs = i;
         while (i < n) {
           const cc = s.charCodeAt(i);
-          if (cc === 58 /* ':' */ || cc === 64 /* '@' */ || (cc === 95 /* '_' */ && s.charCodeAt(i+1) === 95)) break;
+          if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
           i++;
         }
         const raw = s.slice(vs, i) || '';
-        // convert numeric-like values to numbers, otherwise keep as string (support nested paths like foo.bar)
-        if(raw !== '' && !Number.isNaN(Number(raw))) val = +raw; else val = raw;
+        if (raw !== '' && !Number.isNaN(Number(raw))) val = +raw; else val = raw;
       }
       mods[name] = val;
     }
@@ -365,11 +365,10 @@ Summary:
     const s = attr;
     const n = s.length;
     let i = prefixLen;
-    // parse optional attribute-level global modifiers: __mod(.val)?
     let globalMods = {};
-    if(i + 1 < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95){
+    if (i + 1 < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) {
       const gm = parseModsFast(s, i, n);
-      if(gm[0] === null) return null;
+      if (gm[0] === null) return null;
       globalMods = gm[0];
       i = gm[1];
     }
@@ -382,20 +381,12 @@ Summary:
       const out = [];
       for (let j = 0; j < parts.length; ++j) {
         const seg = parts[j];
-        if (/[A-Z]/.test(seg)) {
-          console.error('CamelCase in attr name is invalid:', attr);
-          return null;
-        }
-        if (seg.indexOf('-') === -1) {
-          if (seg === '') return null;
-          out.push(seg);
-          continue;
-        }
-        // Preserve a leading '-' marker (used by data-class to indicate removal)
+        if (/[A-Z]/.test(seg)) { console.error('CamelCase in attr name is invalid:', attr); return null; }
+        if (seg.indexOf('-') === -1) { if (seg === '') return null; out.push(seg); continue; }
         const leading = seg[0] === '-';
         const pieces = seg.split('-');
         let idx = 0;
-        if (pieces[0] === '') idx = 1; // ignore leading hyphen in split
+        if (pieces[0] === '') idx = 1;
         if (idx >= pieces.length) { console.error('Invalid kebab segment in attr name:', attr); return null; }
         if (pieces[pieces.length - 1] === '') { console.error('Trailing hyphen in attr name is invalid:', attr); return null; }
         for (let k = idx; k < pieces.length; ++k) if (pieces[k] === '') { console.error('Consecutive hyphens in attr name are invalid:', attr); return null; }
@@ -408,29 +399,28 @@ Summary:
 
     while (i < n) {
       const ch = s.charCodeAt(i);
-      if (ch === 58 /* : */) {
+      if (ch === CC.COLON) {
         i++;
         if (i >= n) return null;
         const c = s.charCodeAt(i);
-        if (c === 35 /* # */) {
+        if (c === CC.HASH) {
           i++;
           const startId = i;
           while (i < n) {
             const cc = s.charCodeAt(i);
-            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */) break;
+            if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT) break;
             i++;
           }
           const id = s.slice(startId, i);
           let prop = null;
-          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+          if (i < n && s.charCodeAt(i) === CC.DOT) {
             i++;
             const startP = i;
-            while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
+            while (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) i++;
             let raw = s.slice(startP, i) || null;
             if (raw) {
               const mi = raw.indexOf('__');
               if (mi !== -1) {
-                // split off inline mods that were consumed into raw
                 const namePart = raw.slice(0, mi);
                 const modsStart = startP + namePart.length;
                 raw = namePart;
@@ -440,18 +430,17 @@ Summary:
             prop = raw ? normalizePath(raw) : null;
             if (prop === null && raw !== null) return null;
           }
-          // parse optional target mods after id/prop
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
-          if(mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
+          if (mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
           targets.push({type: 'prop', elemId: id, propPath: prop, isCurr: false, mods: mergedTargetMods});
-        } else if (c === 46 /* . */) {
+        } else if (c === CC.DOT) {
           i++;
           const startP = i;
-          while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
+          while (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) i++;
           let raw = s.slice(startP, i) || null;
           if (raw) {
             const mi = raw.indexOf('__');
@@ -465,18 +454,17 @@ Summary:
           const prop = raw ? normalizePath(raw) : null;
           if (prop === null && raw !== null) return null;
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
-          if(mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
+          if (mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
           targets.push({type: 'prop', elemId: '', propPath: prop, isCurr: true, mods: mergedTargetMods});
         } else {
           const start = i;
-          while (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) i++;
+          while (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) i++;
           let raw = s.slice(start, i);
           if (!raw) return null;
-          // allow inline target mods like foo__append by splitting them off
           const mi = raw.indexOf('__');
           if (mi !== -1) {
             const namePart = raw.slice(0, mi);
@@ -486,64 +474,63 @@ Summary:
           const name = normalizePath(raw);
           if (name === null) return null;
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
-          if(mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
+          if (mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
           targets.push({type: 'signal', name, mods: mergedTargetMods});
         }
-      } else if (ch === 64 /* @ */) {
+      } else if (ch === CC.AT) {
         i++;
         if (i >= n) return null;
         const c = s.charCodeAt(i);
-        // Special global/document/form/interval/delay tokens start with `_` (e.g. @_window.resize, @_interval.1000)
-        if (c === 95 /* _ */) {
+        if (c === CC.UNDERSCORE) {
           i++;
           const startTok = i;
           while (i < n) {
             const cc = s.charCodeAt(i);
-            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
             i++;
           }
           const tok = s.slice(startTok, i);
           if (!tok) return null;
           let arg = null;
-          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+          if (i < n && s.charCodeAt(i) === CC.DOT) {
             i++;
             const startA = i;
             while (i < n) {
               const cc = s.charCodeAt(i);
-              if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+              if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
               i++;
             }
             arg = s.slice(startA, i) || null;
           }
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const merged = Object.assign({}, globalMods, modsRes[0]);
-          if(merged.always !== undefined) delete merged.once;
+          if (merged.always !== undefined) delete merged.once;
           triggers.push({type: 'special', name: tok, arg, mods: merged});
           continue;
         }
-        if (c === 35 /* # */) {
+        if (c === CC.HASH) {
           i++;
           const startId = i;
           while (i < n) {
             const cc = s.charCodeAt(i);
-            if (cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
             i++;
           }
           const id = s.slice(startId, i);
           let eventName = null;
-          if (i < n && s.charCodeAt(i) === 46 /* . */) {
+          if (i < n && s.charCodeAt(i) === CC.DOT) {
             i++;
             const startE = i;
             while (i < n) {
               const cc = s.charCodeAt(i);
-              if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+              if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
               i++;
             }
             const raw = s.slice(startE, i) || null;
@@ -551,35 +538,35 @@ Summary:
             if (eventName === null && raw !== null) return null;
           }
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const merged = Object.assign({}, globalMods, modsRes[0]);
-          if(merged.always !== undefined) delete merged.once;
+          if (merged.always !== undefined) delete merged.once;
           triggers.push({type: 'event', elemId: id, eventName, isCurr: false, mods: merged});
-        } else if (c === 46 /* . */) {
+        } else if (c === CC.DOT) {
           i++;
           const startE = i;
           while (i < n) {
             const cc = s.charCodeAt(i);
-            if (cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
             i++;
           }
           const raw = s.slice(startE, i) || null;
           const eventName = raw ? normalizePath(raw) : null;
           if (eventName === null && raw !== null) return null;
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const merged = Object.assign({}, globalMods, modsRes[0]);
-          if(merged.always !== undefined) delete merged.once;
+          if (merged.always !== undefined) delete merged.once;
           triggers.push({type: 'event', elemId: '', eventName, isCurr: true, mods: merged});
         } else {
           const start = i;
           while (i < n) {
             const cc = s.charCodeAt(i);
-            if (cc === 64 /* @ */ || cc === 58 /* : */ || (cc === 95 && s.charCodeAt(i+1) === 95)) break;
+            if (cc === CC.AT || cc === CC.COLON || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
             i++;
           }
           const raw = s.slice(start, i);
@@ -587,17 +574,17 @@ Summary:
           const name = normalizePath(raw);
           if (name === null) return null;
           let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === 95 && s.charCodeAt(i+1) === 95) modsRes = parseModsFast(s, i, n);
+          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
           if (modsRes[0] === null) return null;
           i = modsRes[1];
           const merged = Object.assign({}, globalMods, modsRes[0]);
-          if(merged.always !== undefined) delete merged.once;
+          if (merged.always !== undefined) delete merged.once;
           triggers.push({type: 'signal', name, mods: merged});
         }
       } else {
         return null;
       }
-      if (i < n && s.charCodeAt(i) !== 58 /* : */ && s.charCodeAt(i) !== 64 /* @ */) return null;
+      if (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) return null;
     }
     if (!targets.length && !triggers.length) return null;
     return {targets, triggers};
@@ -639,24 +626,22 @@ Summary:
       const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
       if(!targetEl) return null;
       if(type === 'data-sub'){
-        if(t.type === 'signal') return res => { try{ set(t.name, res); }catch(e){} };
+        if(t.type === 'signal') return res => set(t.name, res);
         const prop = t.propPath || null;
-        return res => { try{ setProp(targetEl, prop, res); }catch(e){} };
+        return res => setProp(targetEl, prop, res);
       }
       if(type === 'data-class'){
         const classes = (t.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
         return res => {
-          try{
-            for(const c of classes){
-              if(c.remove){
-                if(res) targetEl.classList.remove(c.name);
-                else targetEl.classList.add(c.name);
-              } else {
-                if(res) targetEl.classList.add(c.name);
-                else targetEl.classList.remove(c.name);
-              }
+          for(const c of classes){
+            if(c.remove){
+              if(res) targetEl.classList.remove(c.name);
+              else targetEl.classList.add(c.name);
+            } else {
+              if(res) targetEl.classList.add(c.name);
+              else targetEl.classList.remove(c.name);
             }
-          }catch(e){}
+          }
         };
       }
       if(type === 'data-disp'){
@@ -666,18 +651,15 @@ Summary:
         const hadInline = inline !== '';
         const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
         return res => {
-          try{
-            if(res){
-              if(hadInline) targetEl.style.display = originalDisplay;
-              else {
-                // if computed is still 'none' (hidden by CSS), force originalDisplay; otherwise remove inline style
-                const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
-                if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
-              }
-            } else {
-              targetEl.style.display = 'none';
+          if(res){
+            if(hadInline) targetEl.style.display = originalDisplay;
+            else {
+              const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+              if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
             }
-          }catch(e){}
+          } else {
+            targetEl.style.display = 'none';
+          }
         };
       }
       return null;
@@ -686,7 +668,9 @@ Summary:
     const handler = (ev, sg) => {
       const result = fn(Object.fromEntries(S), el, ev, sg);
       if(!appliers || appliers.length === 0) return;
-      for(const ap of appliers) if(ap) try{ ap(result); }catch(e){}
+      try {
+        for(const ap of appliers) if(ap) ap(result);
+      } catch(e) { console.error('Applier error', e); }
     };
     // Track listeners for cleanup
     let listeners = cleanupMap.get(el);
@@ -700,7 +684,6 @@ Summary:
         const once = mods.once !== undefined;
         const prevent = mods.prevent !== undefined;
         const andPath = mods.and || null;
-        // guard mods
         const notandPath = mods.notand || null;
         const guardEq = mods.eq !== undefined ? mods.eq : undefined;
         const guardNe = mods.ne !== undefined ? mods.ne : undefined;
@@ -712,29 +695,20 @@ Summary:
         let last = 0;
         let decorated;
         decorated = function(ev, sg){
-          if(prevent && ev && typeof ev.preventDefault === 'function') try{ ev.preventDefault(); }catch(e){}
+          if(prevent && ev && typeof ev.preventDefault === 'function') ev.preventDefault();
           const run = () => {
-            // __and check (supports nested signal path)
-            if(andPath){
-              try{ if(!get(String(andPath))) return; }catch(e){ return; }
-            }
-            // notand: if set and truthy -> block
-            if(notandPath){ try{ if(get(String(notandPath))) return; }catch(e){ return; } }
-            // guard checks: evaluate subject value based on trigger type or event
-            try{
-              let subjectVal = undefined;
-              if(t.type === 'signal') subjectVal = get(String(t.name));
-              else if(ev && ev.detail && typeof ev.detail.ms !== 'undefined') subjectVal = ev.detail.ms;
-              // eq / ne
-              if(guardEq !== undefined){ if(String(subjectVal) != String(guardEq)) return; }
-              if(guardNe !== undefined){ if(String(subjectVal) == String(guardNe)) return; }
-              // numeric comparisons
-              if(guardGt !== undefined){ if(!(Number(subjectVal) > guardGt)) return; }
-              if(guardGe !== undefined){ if(!(Number(subjectVal) >= guardGe)) return; }
-              if(guardLt !== undefined){ if(!(Number(subjectVal) < guardLt)) return; }
-              if(guardLe !== undefined){ if(!(Number(subjectVal) <= guardLe)) return; }
-            }catch(e){ return; }
-            try{ orig(ev, sg); }catch(e){}
+            if(andPath){ if(!get(String(andPath))) return; }
+            if(notandPath){ if(get(String(notandPath))) return; }
+            let subjectVal = undefined;
+            if(t.type === 'signal') subjectVal = get(String(t.name));
+            else if(ev && ev.detail && typeof ev.detail.ms !== 'undefined') subjectVal = ev.detail.ms;
+            if(guardEq !== undefined){ if(String(subjectVal) != String(guardEq)) return; }
+            if(guardNe !== undefined){ if(String(subjectVal) == String(guardNe)) return; }
+            if(guardGt !== undefined){ if(!(Number(subjectVal) > guardGt)) return; }
+            if(guardGe !== undefined){ if(!(Number(subjectVal) >= guardGe)) return; }
+            if(guardLt !== undefined){ if(!(Number(subjectVal) < guardLt)) return; }
+            if(guardLe !== undefined){ if(!(Number(subjectVal) <= guardLe)) return; }
+            try { orig(ev, sg); } catch (e) { console.error('Handler error', e); }
             if(once && decorated && decorated.remove) decorated.remove();
           };
           if(debMs != null){ clearTimeout(timer); timer = setTimeout(run, debMs); return; }
@@ -909,7 +883,7 @@ Summary:
       while(i < s.length && s[i] === '_' && s[i+1] === '_'){
         i += 2;
         const mstart = i;
-        while(i < s.length){ const cc = s.charCodeAt(i); if(cc === 46 /* . */ || cc === 58 /* : */ || cc === 64 /* @ */ || (cc === 95 /* _ */ && s.charCodeAt(i+1) === 95)) break; i++; }
+        while(i < s.length){ const cc = s.charCodeAt(i); if(cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break; i++; }
         const mname = s.slice(mstart, i);
         let mval = true;
         if(i < s.length && s[i] === '.'){
@@ -1329,7 +1303,7 @@ Summary:
             }
             node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
           }
-        } catch(e) { /* non-fatal for nested demo */ }
+        } catch(e) { console.error(e); }
         frag.appendChild(node);
       }
       el.appendChild(frag);

@@ -20,7 +20,7 @@ function waitFor(conditionFn, timeout = 5000, interval = 30) {
     <div id="__test_area">
       <button id="appendBtn" data-post:testArr__append?busy__busy@.click="https://example.test/append">Append</button>
       <button id="prependBtn" data-post:testArr__prepend?busy__busy@.click="https://example.test/prepend">Prepend</button>
-      <pre id="arrOut" data-sub:.@testArr="JSON.stringify(testArr)"></pre>
+      <pre id="arrOut" data-sub:.@testArr="JSON.stringify(dm.testArr)"></pre>
     </div>
   `;
   const injected = html.replace('</body>', snippet + '\n</body>');
