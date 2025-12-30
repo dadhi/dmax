@@ -64,7 +64,7 @@
   <div style="margin:6px 0">
     <label>Two-way (default): <input id="twoWay" data-sync:user.name></label>
   </div>
-  <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="user.name"></span></div>
+  <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
 </section>
 
 <section>
@@ -73,43 +73,43 @@
   <!-- data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active -->
   <label>Theme Color:</label>
   <input type="color" data-sync:user.ui.theme-color>
-  <div class="preview" data-sub:.style.color@user.ui.theme-color="user.ui.themeColor">This text color syncs to theme-color signal!</div>
+  <div class="preview" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">This text color syncs to theme-color signal!</div>
   <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
   <input type="range" min="12" max="32" data-sync:user.ui.font-size>
-  <p data-sub:.style.font-size@user.ui.font-size="`${user.ui.fontSize}px`">This text resizes dynamically!</p>
+  <p data-sub:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">This text resizes dynamically!</p>
   <label><input type="checkbox" data-sync:user.ui.is-active> Active Status</label>
-  <p>Status: <strong data-sub:.@user.ui.is-active="user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+  <p>Status: <strong data-sub:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
 </section>
 
 <section>
   <h3>3. Multiple Triggers & Targets</h3>
   <div class="page">data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count</div>
   <!-- data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count -->
-  <button data-sub:count@.click="count + 1">+1</button>
-  <button data-sub:count@.click="count - 1">-1</button>
+  <button data-sub:count@.click="dm.count + 1">+1</button>
+  <button data-sub:count@.click="dm.count - 1">-1</button>
   <button data-sub:count@.click="0">Reset</button>
-  <p>Count: <strong data-sub:.@count="count"></strong></p>
-  <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="count * 2"></span></p>
+  <p>Count: <strong data-sub:.@count="dm.count"></strong></p>
+  <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="dm.count * 2"></span></p>
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
 
   <!-- Global-modifiers examples -->
   <div style="margin-top:8px">
-    <button id="gOnceBtn" data-sub__once:once-test@.click="onceTest + 1">GlobalOnce +1</button>
-    <span id="gOnceDisplay" data-sub:.@once-test="onceTest"></span>
-    <button id="gAlwaysBtn" data-sub__once:always-test@.click__always="alwaysTest + 1" style="margin-left:8px">GlobalOnce+triggerAlways +1</button>
-    <span id="gAlwaysDisplay" data-sub:.@always-test="alwaysTest"></span>
+    <button id="gOnceBtn" data-sub__once:once-test@.click="dm.onceTest + 1">GlobalOnce +1</button>
+    <span id="gOnceDisplay" data-sub:.@once-test="dm.onceTest"></span>
+    <button id="gAlwaysBtn" data-sub__once:always-test@.click__always="dm.alwaysTest + 1" style="margin-left:8px">GlobalOnce+triggerAlways +1</button>
+    <span id="gAlwaysDisplay" data-sub:.@always-test="dm.alwaysTest"></span>
   </div>
   <div style="margin-top:8px;padding:8px;border:1px solid #eee;border-radius:6px">
     <div>Guard examples (eq/ne/gt/ge/lt/le/notand):</div>
       <div style="margin:6px 0">
-      <button id="incGuard" data-sub:guard-val@.click="guardVal + 1">Inc Guard</button>
-      <span id="guardValDisplay" data-sub:.@guard-val="guardVal" style="margin-left:8px"></span>
+      <button id="incGuard" data-sub:guard-val@.click="dm.guardVal + 1">Inc Guard</button>
+      <span id="guardValDisplay" data-sub:.@guard-val="dm.guardVal" style="margin-left:8px"></span>
     </div>
     <div>
-      <span id="gtOut" data-sub:.@guard-val__gt.5="guardVal > 5 ? 'GT5' : ''"></span>
-      <span id="eqOut" data-sub:.@guard-val__eq.3="guardVal == 3 ? 'EQ3' : ''" style="margin-left:8px"></span>
-      <span id="notandOut" data-sub__notand.other-flag:.@guard-val="guardVal ? 'allowed' : ''" style="margin-left:8px"></span>
+      <span id="gtOut" data-sub:.@guard-val__gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
+      <span id="eqOut" data-sub:.@guard-val__eq.3="dm.guardVal == 3 ? 'EQ3' : ''" style="margin-left:8px"></span>
+      <span id="notandOut" data-sub__notand.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''" style="margin-left:8px"></span>
     </div>
   </div>
 
@@ -136,8 +136,8 @@
   <!-- data-sub@count@.btn1.click@.btn2.click, data-sub:.@count@.btn1.click@.btn2.click -->
   <button id="btn1">Button 1</button>
   <button id="btn2">Button 2</button>
-  <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', count) || '✓ Check console'"></span></p>
-  <p>Multi-trigger display: <strong data-sub:#@count@#btn1.click@#btn2.click="count + ' (updated)'"></strong></p>
+  <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
+  <p>Multi-trigger display: <strong data-sub:#@count@#btn1.click@#btn2.click="dm.count + ' (updated)'"></strong></p>
 </section>
 
 <section>
@@ -175,8 +175,8 @@
   <div style="margin:6px 0">
     <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
   </div>
-  <div id="classBox" data-class:.active.-inactive@user.ui.is-active="user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
-  <p id="displayBox" data-disp:.@user.ui.is-active="user.ui.isActive">Visible only when active</p>
+  <div id="classBox" data-class:.active.-inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+  <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
 </section>
 
 <section>
@@ -200,21 +200,21 @@
 <section>
   <h3>10. Modifiers demo (once/debounce/throttle/and)</h3>
   <div>
-    <button id="onceBtn" data-sub:mod-once@.click__once="(modOnce || 0) + 1">Once</button>
-    <span id="onceVal" data-sub:.@mod-once="modOnce"></span>
+    <button id="onceBtn" data-sub:mod-once@.click__once="(dm.modOnce || 0) + 1">Once</button>
+    <span id="onceVal" data-sub:.@mod-once="dm.modOnce"></span>
   </div>
   <div>
-    <button id="debBtn" data-sub:mod-deb@.click__debounce.120="(modDeb || 0) + 1">Debounce</button>
-    <span id="debVal" data-sub:.@mod-deb="modDeb"></span>
+    <button id="debBtn" data-sub:mod-deb@.click__debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
+    <span id="debVal" data-sub:.@mod-deb="dm.modDeb"></span>
   </div>
   <div>
-    <button id="thrBtn" data-sub:mod-thr@.click__throttle.120="(modThr || 0) + 1">Throttle</button>
-    <span id="thrVal" data-sub:.@mod-thr="modThr"></span>
+    <button id="thrBtn" data-sub:mod-thr@.click__throttle.120="(dm.modThr || 0) + 1">Throttle</button>
+    <span id="thrVal" data-sub:.@mod-thr="dm.modThr"></span>
   </div>
   <div>
     <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
-    <button id="andBtn" data-sub:mod-and@.click__and.gate="(modAnd || 0) + 1">AND</button>
-    <span id="andVal" data-sub:.@mod-and="modAnd"></span>
+    <button id="andBtn" data-sub:mod-and@.click__and.gate="(dm.modAnd || 0) + 1">AND</button>
+    <span id="andVal" data-sub:.@mod-and="dm.modAnd"></span>
   </div>
 </section>
 
@@ -225,8 +225,8 @@
   <h3>11. Actions demo (JSONPlaceholder)</h3>
   <div>
     <button id="loadPost" data-get:post-result?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts/1">Load post #1 (GET)</button>
-    <div style="margin-top:8px">Busy: <span data-sub:.@post-result?busy="(postBusy||false)"></span></div>
-    <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(postResult, null, 2)"></pre>
+    <div style="margin-top:8px">Busy: <span data-sub:.@post-result?busy="(dm.postBusy||false)"></span></div>
+    <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
   </div>
 
   <div style="margin-top:12px">
@@ -237,7 +237,7 @@
     <label style="margin-left:8px">Author email:</label>
     <input id="newUserEmail" placeholder="Email" />
     <button id="createPost" data-post^json+#newTitle.value__body.title+#newUserName.value__body.user.name+#newUserEmail.value__body.user.email:created-post?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
-    <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(createdPost, null, 2)"></pre>
+    <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
   </div>
 </section>
 
@@ -254,11 +254,6 @@ Summary:
 (()=>{
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
   const debug=document.querySelector('[data-debug]');
-
-  // common reserved identifiers for expression compilation (hoisted to avoid recreating per-compile)
-  const RESERVED = new Set([
-    'true','false','null','undefined','NaN','Infinity','this','window','document','console','Math','Date','Array','Object','String','Number','Boolean','Function','RegExp','Error','Promise','Map','Set','Symbol','BigInt','parseInt','parseFloat','isNaN','isFinite','eval','JSON','el','ev','sg','arguments','return','if','else','for','while','do','switch','case','break','continue','var','let','const','function','new','try','catch','finally','throw','class','extends','super','import','export','default','await','async','yield','static','get','set','of','in','with','delete','instanceof','typeof','void','enum','implements','interface','package','private','protected','public','yield','await','static','super','this','debugger','break','continue','case','catch','default','do','else','finally','for','function','if','return','switch','throw','try','var','let','const','new','class','extends','super','import','export','from','as','of','in','instanceof','typeof','void','delete','enum','await','implements','package','protected','static','yield','interface','private','public','null','true','false'
-  ]);
 
   // Optimized kebab→camel (no regex, cached)
   const toCamel = s => {
@@ -310,32 +305,22 @@ Summary:
   };
 
   // Compile JS expression with caching
+  // New simplified compile: expressions reference the global state explicitly via `dm`.
+  // Example: use `dm.user.name` or `dm.count * 2`. This avoids identifier guessing.
   const compile = body => {
     if(fnCache.has(body)) return fnCache.get(body);
-    // find candidate identifiers in the expression
-    const ids = Array.from(body.matchAll(/\b([a-zA-Z_$][\w$]*)\b/g)).map(m=>m[1]);
-    const signalNames = [];
-    for(const id of ids){
-      if(!RESERVED.has(id) && !signalNames.includes(id)) signalNames.push(id);
-    }
-    // build destructuring header: `const { a, b, c } = S;`
-    const destruct = signalNames.length ? `const { ${signalNames.join(', ')} } = S;` : '';
-    let fn;
+    let inner;
     try {
-      // single-function signature: (S, el, ev, sg) -> creates locals via destructuring
-      // `sg` is the signal path (string) that triggered evaluation, or undefined.
-      fn = new Function('S','el','ev','sg', `try{ ${destruct} return ${body} }catch(e){console.error(e)}`);
+      // signature: (dm, el, ev, sg)
+      // dm is a plain object built from the internal signal Map (S), so expressions
+      // can read values as `dm.foo` or `dm.user.name`.
+      inner = new Function('dm','el','ev','sg', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
     } catch(e) {
       console.error('Failed to compile expression:', body, e);
-      fn = () => undefined;
+      inner = () => undefined;
     }
-    const wrapped = (Sobj, el, ev, sg) => {
-      try {
-        const res = fn(Sobj, el, ev, sg);
-        return (typeof res === 'number' && isNaN(res)) ? undefined : res;
-      } catch (e) {
-        return undefined;
-      }
+    const wrapped = (dm, el, ev, sg) => {
+      try { return inner(dm, el, ev, sg); } catch (e) { return undefined; }
     };
     fnCache.set(body, wrapped);
     return wrapped;
