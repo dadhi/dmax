@@ -22,8 +22,9 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
 
   const doc = window.document;
   const debug = doc.querySelector('[data-debug]');
-  const fail = (m) => { console.error('FAIL:', m); process.exitCode = 2; };
-  const pass = (m) => { console.log('PASS:', m); };
+  let passCount = 0, failCount = 0;
+  const fail = (m) => { console.error('FAIL:', m); failCount++; process.exitCode = 2; };
+  const pass = (m) => { console.log('PASS:', m); passCount++; };
 
   try {
     // Helper to find element by attribute full name (attributes may contain colons/dots)
@@ -329,6 +330,7 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     if(Number(andVal.textContent.trim() || 0) === 1) pass('Modifiers __and allows when gate true'); else fail('Modifiers __and failed when gate true');
 
     console.log('All tests completed.');
+    console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
   } catch (e) {
     console.error('Error during headless tests:', e && e.stack || e);
     process.exitCode = 3;

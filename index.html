@@ -365,12 +365,12 @@ Summary:
     const s = attr;
     const n = s.length;
     let i = prefixLen;
-    let globalMods = {};
-    if (i + 1 < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) {
-      const gm = parseModsFast(s, i, n);
-      if (gm[0] === null) return null;
-      globalMods = gm[0];
-      i = gm[1];
+    let gm = {};
+    if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') {
+      const r = parseModsFast(s, i, n);
+      if (r[0] === null) return null;
+      gm = r[0];
+      i = r[1];
     }
     const targets = [];
     const triggers = [];
@@ -398,193 +398,44 @@ Summary:
     }
 
     while (i < n) {
-      const ch = s.charCodeAt(i);
-      if (ch === CC.COLON) {
+      const c = s.charAt(i);
+      if (c === ':') {
         i++;
         if (i >= n) return null;
-        const c = s.charCodeAt(i);
-        if (c === CC.HASH) {
+        const c2 = s.charAt(i);
+        if (c2 === '#') {
           i++;
-          const startId = i;
-          while (i < n) {
-            const cc = s.charCodeAt(i);
-            if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT) break;
-            i++;
-          }
-          const id = s.slice(startId, i);
+          let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
+          const id = s.slice(i, j); i = j;
           let prop = null;
-          if (i < n && s.charCodeAt(i) === CC.DOT) {
-            i++;
-            const startP = i;
-            while (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) i++;
-            let raw = s.slice(startP, i) || null;
-            if (raw) {
-              const mi = raw.indexOf('__');
-              if (mi !== -1) {
-                const namePart = raw.slice(0, mi);
-                const modsStart = startP + namePart.length;
-                raw = namePart;
-                i = modsStart;
-              }
-            }
-            prop = raw ? normalizePath(raw) : null;
-            if (prop === null && raw !== null) return null;
+          if (i < n && s.charAt(i) === '.') {
+            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++; let raw = s.slice(i, k); if (raw) { const mi = raw.indexOf('__'); if (mi !== -1) { raw = raw.slice(0, mi); } } prop = raw ? normalizePath(raw) : null; if (prop === null && raw !== null) return null; i = k;
           }
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
-          if (mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
-          targets.push({type: 'prop', elemId: id, propPath: prop, isCurr: false, mods: mergedTargetMods});
-        } else if (c === CC.DOT) {
-          i++;
-          const startP = i;
-          while (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) i++;
-          let raw = s.slice(startP, i) || null;
-          if (raw) {
-            const mi = raw.indexOf('__');
-            if (mi !== -1) {
-              const namePart = raw.slice(0, mi);
-              const modsStart = startP + namePart.length;
-              raw = namePart;
-              i = modsStart;
-            }
-          }
-          const prop = raw ? normalizePath(raw) : null;
-          if (prop === null && raw !== null) return null;
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
-          if (mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
-          targets.push({type: 'prop', elemId: '', propPath: prop, isCurr: true, mods: mergedTargetMods});
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged0 = Object.assign({}, gm, mr[0]); if (merged0.always !== undefined) delete merged0.once;
+          targets.push({type:'prop', elemId:id, propPath:prop, isCurr:false, mods:merged0});
+        } else if (c2 === '.') {
+          i++; let j = i; while (j < n && ':@'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; let nm = raw || null; if (nm) { const mi = nm.indexOf('__'); if (mi !== -1) nm = nm.slice(0, mi); } const prop = nm ? normalizePath(nm) : null; if (prop === null && nm !== null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged1 = Object.assign({}, gm, mr[0]); if (merged1.always !== undefined) delete merged1.once; targets.push({type:'prop', elemId:'', propPath:prop, isCurr:true, mods:merged1});
         } else {
-          const start = i;
-          while (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) i++;
-          let raw = s.slice(start, i);
-          if (!raw) return null;
-          const mi = raw.indexOf('__');
-          if (mi !== -1) {
-            const namePart = raw.slice(0, mi);
-            raw = namePart;
-            i = start + namePart.length;
-          }
-          const name = normalizePath(raw);
-          if (name === null) return null;
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const mergedTargetMods = Object.assign({}, globalMods, modsRes[0]);
-          if (mergedTargetMods.always !== undefined) delete mergedTargetMods.once;
-          targets.push({type: 'signal', name, mods: mergedTargetMods});
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; if (!raw) return null; const mi = raw.indexOf('__'); if (mi !== -1) { raw = raw.slice(0, mi); } const name = normalizePath(raw); if (name === null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charCodeAt(i+1) === CC.UNDERSCORE) mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged2 = Object.assign({}, gm, mr[0]); if (merged2.always !== undefined) delete merged2.once; targets.push({type:'signal', name, mods:merged2});
         }
-      } else if (ch === CC.AT) {
-        i++;
-        if (i >= n) return null;
-        const c = s.charCodeAt(i);
-        if (c === CC.UNDERSCORE) {
-          i++;
-          const startTok = i;
-          while (i < n) {
-            const cc = s.charCodeAt(i);
-            if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
-            i++;
-          }
-          const tok = s.slice(startTok, i);
-          if (!tok) return null;
-          let arg = null;
-          if (i < n && s.charCodeAt(i) === CC.DOT) {
-            i++;
-            const startA = i;
-            while (i < n) {
-              const cc = s.charCodeAt(i);
-              if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
-              i++;
-            }
-            arg = s.slice(startA, i) || null;
-          }
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const merged = Object.assign({}, globalMods, modsRes[0]);
-          if (merged.always !== undefined) delete merged.once;
-          triggers.push({type: 'special', name: tok, arg, mods: merged});
-          continue;
-        }
-        if (c === CC.HASH) {
-          i++;
-          const startId = i;
-          while (i < n) {
-            const cc = s.charCodeAt(i);
-            if (cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
-            i++;
-          }
-          const id = s.slice(startId, i);
-          let eventName = null;
-          if (i < n && s.charCodeAt(i) === CC.DOT) {
-            i++;
-            const startE = i;
-            while (i < n) {
-              const cc = s.charCodeAt(i);
-              if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
-              i++;
-            }
-            const raw = s.slice(startE, i) || null;
-            eventName = raw ? normalizePath(raw) : null;
-            if (eventName === null && raw !== null) return null;
-          }
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const merged = Object.assign({}, globalMods, modsRes[0]);
-          if (merged.always !== undefined) delete merged.once;
-          triggers.push({type: 'event', elemId: id, eventName, isCurr: false, mods: merged});
-        } else if (c === CC.DOT) {
-          i++;
-          const startE = i;
-          while (i < n) {
-            const cc = s.charCodeAt(i);
-            if (cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
-            i++;
-          }
-          const raw = s.slice(startE, i) || null;
-          const eventName = raw ? normalizePath(raw) : null;
-          if (eventName === null && raw !== null) return null;
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const merged = Object.assign({}, globalMods, modsRes[0]);
-          if (merged.always !== undefined) delete merged.once;
-          triggers.push({type: 'event', elemId: '', eventName, isCurr: true, mods: merged});
+      } else if (c === '@') {
+        i++; if (i >= n) return null; const c2 = s.charAt(i);
+        if (c2 === '_') {
+          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++; const tok = s.slice(i, j); i = j; if (!tok) return null; let arg = null; if (i < n && s.charAt(i) === '.') { i++; let k = i; while (k < n && ':@_'.indexOf(s[k]) === -1) k++; arg = s.slice(i, k) || null; i = k; } let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged3 = Object.assign({}, gm, mr[0]); if (merged3.always !== undefined) delete merged3.once; triggers.push({type:'special', name:tok, arg, mods:merged3});
+        } else if (c2 === '#') {
+          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++; const id = s.slice(i, j); i = j; let ev = null; if (i < n && s.charAt(i) === '.') { i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++; let raw = s.slice(i, k) || null; ev = raw ? normalizePath(raw) : null; if (ev === null && raw !== null) return null; i = k; } let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged4 = Object.assign({}, gm, mr[0]); if (merged4.always !== undefined) delete merged4.once; triggers.push({type:'event', elemId:id, eventName:ev, isCurr:false, mods:merged4});
+        } else if (c2 === '.') {
+          i++; let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j) || null; i = j; let ev = raw ? normalizePath(raw) : null; if (ev === null && raw !== null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged5 = Object.assign({}, gm, mr[0]); if (merged5.always !== undefined) delete merged5.once; triggers.push({type:'event', elemId:'', eventName:ev, isCurr:true, mods:merged5});
         } else {
-          const start = i;
-          while (i < n) {
-            const cc = s.charCodeAt(i);
-            if (cc === CC.AT || cc === CC.COLON || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
-            i++;
-          }
-          const raw = s.slice(start, i);
-          if (!raw) return null;
-          const name = normalizePath(raw);
-          if (name === null) return null;
-          let modsRes = [ {}, i ];
-          if (i < n && s.charCodeAt(i) === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE) modsRes = parseModsFast(s, i, n);
-          if (modsRes[0] === null) return null;
-          i = modsRes[1];
-          const merged = Object.assign({}, globalMods, modsRes[0]);
-          if (merged.always !== undefined) delete merged.once;
-          triggers.push({type: 'signal', name, mods: merged});
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; if (!raw) return null; let name = normalizePath(raw); if (name === null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged6 = Object.assign({}, gm, mr[0]); if (merged6.always !== undefined) delete merged6.once; triggers.push({type:'signal', name, mods:merged6});
         }
       } else {
         return null;
       }
-      if (i < n && s.charCodeAt(i) !== CC.COLON && s.charCodeAt(i) !== CC.AT) return null;
+      if (i < n && s.charAt(i) !== ':' && s.charAt(i) !== '@') return null;
     }
     if (!targets.length && !triggers.length) return null;
     return {targets, triggers};
@@ -1153,6 +1004,7 @@ Summary:
     // - data-sync:foo@.value     => element.prop -> signal (one-way)
     // - data-sync:foo:.value     => two-way (both directions)
     const parsed = parseDataAttrFast(attr, 9);
+    
     if(!parsed){
       // fallback to old behavior for simple `data-sync:foo` forms
       const colon = attr.indexOf(':');
