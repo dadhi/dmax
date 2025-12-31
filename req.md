@@ -242,3 +242,47 @@ Recommendation
 
 For implementation details refer to the runtime patches plan (will introduce a small request helper that reads `^` tokens, resolves body/params, sets headers, performs fetch, and writes responses to the target signal). 
 
+
+## Shape / Detail semantics (compact)
+
+- Purpose: distinguish structural (shape) changes from value-only (content) updates on nested signals. Shape events describe which keys/indices were added/removed or where values changed; detail modes control whether values are included.
+
+- Emitted detail object (always includes key-summary):
+
+  - `added`: array of keys or numeric indices added to the object/array
+  - `removed`: array of keys or indices removed
+  - `keyChanges`: array of { key, old, new } for keys/indices that changed
+
+  - When values are requested the payload is enriched with:
+    - `addedValues`: { key: value } for added keys/indices
+    - `removedValues`: { key: value } for removed keys/indices
+    - `keyChanges` entries will include `old` and `new` values when available
+
+- Attribute syntax (compact):
+
+  - Keys-only (summary): `data-sub:.@parent__shape="..."`
+  - With values (all): `data-sub:.@parent__shape__detail.values="..."`
+  - Only added values: `__detail.values-added`
+  - Only removed values: `__detail.values-removed`
+  - Only changed entries (old/new): `__detail.values-changed`
+
+- Compiled body function signature and runtime note (compact):
+
+  - `function(dm, el, ev, sg, detail)`
+  - `dm`: plain object mirroring current signals
+  - `el`: the element context (or undefined for signal-only handlers)
+  - `ev`: the original Event when the handler was DOM-event-originated; for *signal-originated* invocations the runtime does NOT pass `ev` (it will be `undefined`) — use `detail` instead
+  - `sg`: signal path string that triggered the handler, if any
+  - `detail`: shape `change` object (see above) when the trigger is a shape mutation; otherwise `undefined`
+
+- Programmatic subscription (compact):
+
+  - `subs.get('parent').push({ fn: handler, mode: 'shape', childPath: 'child', detail: 'values' })`
+  - `detail` accepts: `null`/`undefined` (keys-only), `values`, `values-added`, `values-removed`, `values-changed`
+
+- Runtime guarantees (compact):
+
+  - `detail` always contains the key-level summary (`added`, `removed`, `keyChanges`).
+  - Values are only attached when requested via `__detail.*` (or programmatic `detail` field).
+  - The runtime passes `detail` as the final argument to compiled bodies so expressions can use it directly without reading `ev.detail`.
+

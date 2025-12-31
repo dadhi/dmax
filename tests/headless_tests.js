@@ -329,6 +329,40 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 120));
     if(Number(andVal.textContent.trim() || 0) === 1) pass('Modifiers __and allows when gate true'); else fail('Modifiers __and failed when gate true');
 
+    // --- New tests: fine-grained reactivity __content (default) vs __shape
+    try{
+      const contentSub = doc.getElementById('contentSub');
+      const shapeSub = doc.getElementById('shapeSub');
+      const chgChild = doc.getElementById('chgChild');
+      const addKey = doc.getElementById('addKey');
+      const removeKey = doc.getElementById('removeKey');
+      if(!contentSub || !shapeSub || !chgChild || !addKey || !removeKey) fail('FG reactivity test elements missing');
+      // ensure parent exists first (so content-change is a child-value update)
+      addKey.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+      // ensure a child exists (first chgChild will add the child -> shape)
+      chgChild.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+      // ensure counters reset so next chgChild will be a content-change
+      window.__contentCount = 0; window.__shapeCount = 0;
+
+      // 1) content-change: change parent.child (should notify content subs, not shape subs)
+      chgChild.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+      if(window.__contentCount === 1 && (window.__shapeCount === 0)) pass('FG: content-change notifies content subs only'); else fail('FG: content-change notification mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
+      if(String(contentSub.textContent).trim() === '1') pass('FG: content subscriber received value'); else fail('FG: content subscriber content mismatch');
+
+      // 2) shape-change: add a key on parent (should notify shape subs and also still trigger content subs)
+      addKey.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+      if(window.__shapeCount === 1 && window.__contentCount >= 2) pass('FG: shape-change notifies shape (and content) subs'); else fail('FG: shape-change notification mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
+
+      // 3) shape-change removal
+      removeKey.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+      if(window.__shapeCount >= 2 && window.__contentCount >= 3) pass('FG: shape removal notifies expected subscribers'); else fail('FG: shape removal mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
+    }catch(e){ console.error('FG reactivity test error', e); fail('FG reactivity tests crashed'); }
+
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
   } catch (e) {

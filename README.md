@@ -1,5 +1,23 @@
 # dmax
 
+A tiny data-maximal runtime.
+
+Compact examples
+
+ - Subscribe to parent shape keys only (no values):
+
+  <pre>&lt;pre data-sub:.@parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : ''"&gt;&lt;/pre&gt;</pre>
+
+ - Subscribe and receive values for added/removed/changed:
+
+  <pre>&lt;pre data-sub:.@parent__shape__detail.values="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"&gt;&lt;/pre&gt;</pre>
+
+ - Compiled body signature (compact):
+
+  - `function(dm, el, ev, sg, detail)` — note: when a handler is invoked from a signal change the runtime does not pass `ev` (it will be `undefined`); use `detail` for change info.
+
+# dmax
+
 Dmax is Datastar.js inspired, fast, small, no-build, no-magic, declarative web lib for the page interactivity based on signals and the html native data- attributes, targets modern browsers and w3c standards.
 
 ## TL;DR

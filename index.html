@@ -250,6 +250,8 @@ Summary:
 
 <!-- MVP JS and summary will be tracked here for crosschecking and improvement planning -->
 <script>
+
+
 // dmax MVP logic with new syntax support and modular parsing
 (()=>{
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
@@ -313,13 +315,13 @@ Summary:
       // signature: (dm, el, ev, sg)
       // dm is a plain object built from the internal signal Map (S), so expressions
       // can read values as `dm.foo` or `dm.user.name`.
-      inner = new Function('dm','el','ev','sg', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
+      inner = new Function('dm','el','ev','sg','detail', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
     } catch(e) {
       console.error('Failed to compile expression:', body, e);
       inner = () => undefined;
     }
-    const wrapped = (dm, el, ev, sg) => {
-      try { return inner(dm, el, ev, sg); } catch (e) { return undefined; }
+    const wrapped = (dm, el, ev, sg, detail) => {
+      try { return inner(dm, el, ev, sg, detail); } catch (e) { return undefined; }
     };
     fnCache.set(body, wrapped);
     return wrapped;
@@ -517,7 +519,14 @@ Summary:
     });
 
     const handler = (ev, sg) => {
-      const result = fn(Object.fromEntries(S), el, ev, sg);
+      const detailParam = ev && ev.detail && ev.detail.change ? ev.detail.change : undefined;
+      // If this invocation is signal-originated (sg is a signal path string and
+      // ev is the synthetic shape detail or null), do not pass `ev` into compiled
+      // functions — pass undefined instead; compiled bodies receive the detail
+      // as the last parameter.
+      const isSignalInvocation = (ev == null);
+      const evArg = isSignalInvocation ? undefined : ev;
+      const result = fn(Object.fromEntries(S), el, evArg, sg, detailParam);
       if(!appliers || appliers.length === 0) return;
       try {
         for(const ap of appliers) if(ap) ap(result);
@@ -566,13 +575,26 @@ Summary:
         return decorated;
       };
 
-      if(t.type === 'signal'){
+        if(t.type === 'signal'){
         const root = toCamel(t.name.split('.')[0]);
         if(!subs.has(root)) subs.set(root, []);
         const dec = makeDecorated(handler, t);
-        // allow removal for __once
-        dec.remove = () => { const arr = subs.get(root) || []; subs.set(root, arr.filter(fn => fn !== dec)); };
-        subs.get(root).push(dec);
+        // allow removal for __once and other removals; handle both legacy function entries and object entries
+        dec.remove = () => {
+          const arr = subs.get(root) || [];
+          subs.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
+        };
+        // support __shape modifier: if present, register as subscription object with mode:'shape'
+        let entry = dec;
+        if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
+          const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
+          // detail mode: explicit __detail.<mode> takes precedence
+          const detailMode = t.mods.detail ? String(t.mods.detail) : null;
+          entry = { fn: dec, mode: 'shape', childPath: sval, detail: detailMode };
+        } else if(t.mods && ('content' in t.mods)){
+          entry = { fn: dec, mode: 'content' };
+        }
+        subs.get(root).push(entry);
         listeners.push({type:'signal', root, handler: dec});
         if(!t.mods?.notimmediate) dec(undefined, t.name);
         continue;
@@ -668,7 +690,7 @@ Summary:
             if(l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler);
             if(l.type === 'signal'){
               const arr = subs.get(l.root);
-              if(arr) subs.set(l.root, arr.filter(fn => fn !== l.handler));
+              if(arr) subs.set(l.root, arr.filter(it => (typeof it === 'function' ? it !== l.handler : it.fn !== l.handler)));
             }
             if(l.type === 'interval') clearInterval(l.id);
           }
@@ -963,11 +985,20 @@ Summary:
 
     // Register triggers using parsed.triggers
     for(const t of parsed.triggers){
-      if(t.type === 'signal'){
+        if(t.type === 'signal'){
         const root = toCamel(t.name.split('.')[0]);
         if(!subs.has(root)) subs.set(root, []);
         const handler = () => doRequest(undefined, t.name);
-        subs.get(root).push(handler);
+        // support __shape / __content / __detail modifiers on trigger subscriptions
+        let entry = handler;
+        if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
+          const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
+          const detailMode = t.mods.detail ? String(t.mods.detail) : null;
+          entry = { fn: handler, mode: 'shape', childPath: sval, detail: detailMode };
+        } else if(t.mods && ('content' in t.mods)){
+          entry = { fn: handler, mode: 'content' };
+        }
+        subs.get(root).push(entry);
         if(!t.mods?.notimmediate) handler();
       } else if(t.type === 'event' || t.type === 'special'){
         if(t.type === 'special' && t.name === 'interval'){
@@ -1052,22 +1083,46 @@ Summary:
 
     // subscribe to signal -> element (one-way or part of two-way)
     if(sigTriggers.length > 0 || (sigTargets.length > 0 && evTriggers.length === 0)){
-      // which signals to subscribe: use triggers if present, otherwise targets
-      const subsigs = sigTriggers.length ? sigTriggers.map(t=>t.name) : sigTargets.map(t=>t.name);
-      for(const sname of subsigs){
-        const root = toCamel(String(sname).split('.')[0]);
-        const handler = () => {
-          try{ const v = get(String(sname));
-            // if prop target provided, use its propPath; otherwise default
-            const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
-            applyToElement(v, pt);
-          }catch(e){}
-        };
-        handler();
-        if(!subs.has(root)) subs.set(root, []);
-        subs.get(root).push(handler);
-        let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
-        listeners.push({type:'signal', root, handler});
+      // which signals to subscribe: use triggers (with mods) if present, otherwise targets
+          if(sigTriggers.length){
+        for(const t of sigTriggers){
+          const sname = t.name;
+          const root = toCamel(String(sname).split('.')[0]);
+          const handler = () => {
+            try{ const v = get(String(sname));
+              const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
+              applyToElement(v, pt);
+            }catch(e){}
+          };
+          handler();
+          if(!subs.has(root)) subs.set(root, []);
+          let entry = handler;
+          if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
+            const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
+            const detailMode = t.mods.detail ? String(t.mods.detail) : null;
+            entry = { fn: handler, mode: 'shape', childPath: sval, detail: detailMode };
+          }
+          else if(t.mods && ('content' in t.mods)) entry = { fn: handler, mode: 'content' };
+          subs.get(root).push(entry);
+          let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+          listeners.push({type:'signal', root, handler});
+        }
+      } else {
+        const subsigs = sigTargets.map(t=>t.name);
+        for(const sname of subsigs){
+          const root = toCamel(String(sname).split('.')[0]);
+          const handler = () => {
+            try{ const v = get(String(sname));
+              const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
+              applyToElement(v, pt);
+            }catch(e){}
+          };
+          handler();
+          if(!subs.has(root)) subs.set(root, []);
+          subs.get(root).push(handler);
+          let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
+          listeners.push({type:'signal', root, handler});
+        }
       }
     }
 
@@ -1173,27 +1228,158 @@ Summary:
     for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
     return v;
   };
-  const emit = p => {
+  // Diff helper: compares two objects or arrays shallowly and returns change details
+  const diffValues = (before, after, includeVals = false) => {
+    const out = { added: [], removed: [], keyChanges: [] };
+    if(includeVals){ out.addedValues = {}; out.removedValues = {}; }
+    if(before == null && after == null) return out;
+    if(Array.isArray(before) || Array.isArray(after)){
+      const a = Array.isArray(before) ? before : [];
+      const b = Array.isArray(after) ? after : [];
+      if(b.length > a.length){
+        for(let i = a.length; i < b.length; i++){ out.added.push(i); if(includeVals) out.addedValues[i] = b[i]; }
+      } else if(b.length < a.length){
+        for(let i = b.length; i < a.length; i++){ out.removed.push(i); if(includeVals) out.removedValues[i] = a[i]; }
+      }
+      const len = Math.min(a.length, b.length);
+      for(let i=0;i<len;i++){ if(a[i] !== b[i]) out.keyChanges.push({ key: i, old: a[i], new: b[i] }); }
+      return out;
+    }
+    // objects
+    const bb = before && typeof before === 'object' ? before : {};
+    const aa = after && typeof after === 'object' ? after : {};
+    for(const k in aa){ if(!(k in bb)){ out.added.push(k); if(includeVals) out.addedValues[k] = aa[k]; } }
+    for(const k in bb){ if(!(k in aa)){ out.removed.push(k); if(includeVals) out.removedValues[k] = bb[k]; } }
+    for(const k in aa){ if(k in bb && bb[k] !== aa[k]) out.keyChanges.push({ key: k, old: bb[k], new: aa[k] }); }
+    return out;
+  };
+  const emit = (p, mutation = 'content', info = null) => {
     const root = toCamel(p.split('.')[0]);
     const handlers = subs.get(root);
-    if(handlers) handlers.forEach(fn => fn(undefined, p));
+    const ev = (mutation === 'shape') ? { detail: { path: p, change: info } } : undefined;
+    if(handlers){
+      for(const h of handlers){
+        try{
+          if(typeof h === 'function'){
+            // legacy handler: always call for backward-compat
+            h(undefined, p);
+          } else if(h && typeof h.fn === 'function'){
+            // h.mode: 'content' (default) or 'shape'
+            if(mutation === 'content'){
+              if(h.mode === 'content') h.fn(undefined, p);
+            } else { // mutation === 'shape'
+              // shape-change: provide subscriber-specific change detail
+              if(h.mode === 'shape' || h.mode === 'content'){
+                let change = null;
+                if(info){
+                  const base = info.base || {};
+                  const full = info.full || {};
+                  const mode = h.detail || null;
+                  // Always include the key-level summary
+                  change = { added: base.added || [], removed: base.removed || [], keyChanges: base.keyChanges || [] };
+                  // Enrich with values depending on the detail mode
+                  if(mode === 'values'){
+                    change.addedValues = full.addedValues || {};
+                    change.removedValues = full.removedValues || {};
+                    // ensure keyChanges include old/new
+                    change.keyChanges = full.keyChanges || change.keyChanges;
+                  } else if(mode === 'values-added'){
+                    change.addedValues = full.addedValues || {};
+                  } else if(mode === 'values-removed'){
+                    change.removedValues = full.removedValues || {};
+                  } else if(mode === 'values-changed'){
+                    // replace keyChanges with the detailed one containing old/new
+                    change.keyChanges = full.keyChanges || change.keyChanges;
+                  }
+                }
+                const localEv = { detail: { path: p, change } };
+                h.fn(localEv, p);
+              }
+            }
+          }
+        }catch(e){ console.error('Subscriber handler error', e); }
+      }
+    }
     updateDebug();
   };
+
   const set = (p, v) => {
     const parts = p.split('.');
     const root = toCamel(parts[0]);
     const current = get(p);
-    if (current === v || (current && v && typeof current === 'object' && typeof v === 'object' && JSON.stringify(current) === JSON.stringify(v))) return;
+    // quick equality for primitives and references
+    if (current === v) return;
+    // helper to detect shape vs content
+    const detectMutation = () => {
+      if(parts.length === 1){
+        // root-level assignment: treat object/array assignments as shape (structural)
+        if(v && typeof v === 'object') return 'shape';
+        return 'content';
+      }
+      const parentPath = parts.slice(0, -1).join('.') ;
+      const parent = get(parentPath);
+      const lastRaw = parts[parts.length - 1];
+      const lastIsIndex = /^\d+$/.test(String(lastRaw));
+      const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
+      if(parent == null) return 'shape';
+      if(Array.isArray(parent)){
+        if(lastIsIndex){
+          if(last >= parent.length) return 'shape'; // adding index -> shape
+          return 'content'; // replacing existing index -> content
+        }
+        // non-numeric assignment on array -> shape
+        return 'shape';
+      }
+      // object parent
+      if(Object.prototype.hasOwnProperty.call(parent, last)) return 'content';
+      return 'shape';
+    };
+
+    const mutation = detectMutation();
+
+    // prepare change info for shape mutations
+    let changeInfo = null;
     if(parts.length === 1){
+      const before = S.get(root);
       S.set(root, v);
+      if(mutation === 'shape'){
+        // diff top-level object/array
+        const base = diffValues(before, v, false);
+        const full = diffValues(before, v, true);
+        changeInfo = { base, full };
+      }
     } else {
-      const base = JSON.parse(JSON.stringify(S.get(root)));
+      // structural shallow clone: only clone root object/array and walk path
+      const orig = S.get(root);
+      // compute parent path and before-parent snapshot
+      const parentPath = parts.slice(0, -1).join('.');
+      const beforeParent = get(parentPath);
+      let base;
+      try{ base = Array.isArray(orig) ? orig.slice() : (orig && typeof orig === 'object' ? Object.assign({}, orig) : (typeof orig === 'object' ? {} : {})); }catch(e){ base = {} }
       let t = base;
-      for(let i = 1; i < parts.length - 1; i++) t = t[toCamel(parts[i])];
+      for(let i = 1; i < parts.length - 1; i++){
+        const key = toCamel(parts[i]);
+        if(typeof t[key] !== 'object' || t[key] === null) t[key] = {};
+        // shallow clone child to avoid mutating original reference
+        const child = t[key];
+        t[key] = Array.isArray(child) ? child.slice() : Object.assign({}, child);
+        t = t[key];
+      }
       t[toCamel(parts[parts.length - 1])] = v;
+      // after-parent snapshot
+      const afterParent = (function(){
+        let node = base;
+        for(let i = 1; i < parts.length - 1; i++) node = node[toCamel(parts[i])] || {};
+        return node;
+      })();
       S.set(root, base);
+      if(mutation === 'shape'){
+        const base = diffValues(beforeParent, afterParent, false);
+        const full = diffValues(beforeParent, afterParent, true);
+        changeInfo = { base, full };
+      }
     }
-    emit(p);
+    emit(p, mutation, changeInfo);
   };
 
   // Debug update
@@ -1257,6 +1443,59 @@ Summary:
   window.__getState = () => Object.fromEntries(S);
 })();
 </script>
+
+<!-- Demo: Content vs Shape triggers -->
+<section>
+  <h3>11. Content vs Shape Demo</h3>
+  <div class="page">Demonstrates default (content) subscriptions vs <code>__shape</code> subscriptions.</div>
+  <div style="margin:8px 0;padding:8px;border:1px solid #eee;border-radius:6px">
+    <div>Parent signal preview:</div>
+    <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-sub:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
+    <div style="margin-top:6px">
+      <button id="demoAddKey" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, {addedAt: Date.now()})">Add key (shape)</button>
+      <button id="demoRemoveKey" data-sub:demo-parent@.click="(function(){ const o = Object.assign({}, dm.demoParent || {}); delete o.addedAt; return o; })()">Remove key (shape)</button>
+      <button id="demoChangeChild" data-sub:demo-parent.child@.click="(dm.demoParent && dm.demoParent.child ? dm.demoParent.child + 1 : 1)">Change child (content)</button>
+    </div>
+    <div style="margin-top:8px">
+      <div>Content subscriber (default): <span id="demoContent" data-sub:.@demo-parent.child="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
+      <div>Shape subscriber (<code>__shape</code>): <span id="demoShape" data-sub:.@demo-parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : ''"></span></div>
+      <div style="margin-top:6px">Shape subscriber (with values, <code>__detail.values</code>):
+        <pre id="demoShapeFull" style="background:#fff;padding:6px;border-radius:4px;max-height:120px;overflow:auto" data-sub:.@demo-parent__shape__detail.values="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre>
+      </div>
+
+      <div style="margin-top:10px;padding-top:6px;border-top:1px dashed #eee">
+        <div><strong>Detail variants demo (compact):</strong></div>
+        <div style="margin-top:6px">Added-values only: <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-added="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
+        <div style="margin-top:6px">Removed-values only: <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-removed="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
+        <div style="margin-top:6px">Changed entries (old/new): <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-changed="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+// Helper to render shape change summaries for the demo
+window.formatShapeChange = function(c){
+  if(!c) return '';
+  const ch = c.added || c.removed || c.keyChanges ? c : (c.base || c.full ? c.base || c.full : c);
+  const parts = [];
+  if(ch.added && ch.added.length) parts.push('added: ' + ch.added.join(','));
+  if(ch.removed && ch.removed.length) parts.push('removed: ' + ch.removed.join(','));
+  if(ch.keyChanges && ch.keyChanges.length) parts.push('changed: ' + ch.keyChanges.map(k=>String(k.key)).join(','));
+  if(parts.length === 0) return '';
+  return parts.join(' | ');
+};
+</script>
+
+<!-- Hidden tests for __content / __shape semantics (used by headless tests) -->
+<div id="__fg_reactivity_tests" style="display:none">
+  <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
+  <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
+
+  <button id="chgChild" data-sub:parent.child@.click="(dm.parent && dm.parent.child ? dm.parent.child + 1 : 1)">Change child</button>
+  <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, {added: true})">Add key</button>
+  <button id="removeKey" data-sub:parent@.click="(function(){ const o = Object.assign({}, dm.parent || {}); delete o.added; return o; })()">Remove key</button>
+</div>
 
 </body>
 </html>
