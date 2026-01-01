@@ -102,21 +102,50 @@ A sugar consisting of 0, 1 or 2 targets with the same grammar as in data-sub for
 - No targets is the valid case if the curr element has a name attr, then this nsme will be used for signal.
 
 
-## data-class
+## data-view
 
-data-class.foo.bar@baz='baz + boo.fix > 42'
-data-class.greeting@foo__5
-data-class:.green-button.-gray-button@is-done@#el-id.load
+`data-view` replaces the legacy `data-iter` and provides efficient, keyed rendering for arrays and one-shot rendering for objects.
 
-where:
-  .class-to-add
-  .-class-to-remove
+Syntax examples:
 
-@is-done is a signal trigger
-@#el-id.load is an event trigger
+- `data-view@posts#tpl-post` — render the array signal `posts` using template `#tpl-post`.
+- `data-view@users#tpl-user` — render array `users` with keyed reconciliation when templates supply a `data-key` attr.
+- Inline template: `<div data-view:items><template>...</template></div>` — template may be a child of the host node.
 
-data-class:.foo.bar@baz='baz + boo.fix > 42'
-  (expression value interpreted as boolean)
+Template notes:
+- Inside a template use `$item` and `$index` placeholders in attribute names or values. The runtime substitutes them at clone-time with the concrete signal path (e.g. `posts[3]`) or numeric index (e.g. `3`) so bindings become per-item and compiled expressions reference the correct `dm` path.
+- To output item fields use attribute values like `data-sub:.@$item="String(dm.$item.title)"` — after substitution this becomes `data-sub:.@posts[3]="String(dm.posts[3].title)"` and the binding applies to that cloned node only.
+- For index-only outputs use expressions like `data-sub:.@$index="String($index)"` which will be substituted to `String(3)`.
+
+Template notes:
+- Inside a template use `$item` and `$index` placeholders in attribute names or values. The runtime substitutes them at clone-time with the concrete signal path (e.g. `posts[3]`) or numeric index (e.g. `3`) so bindings become per-item and compiled expressions reference the correct `dm` path.
+- To output item fields use attribute values like `data-sub:.@$item="String(dm.$item.title)"` — after substitution this becomes `data-sub:.@posts[3]="String(dm.posts[3].title)"` and the binding applies to that cloned node only.
+- For index-only outputs use expressions like `data-sub:.@$index="String($index)"` which will be substituted to `String(3)`.
+- Preservation semantics: by default `data-view` preserves transient DOM state when it reuses existing nodes. That includes input/textarea/select values, checked state, selection ranges, and focused element restoration. This prevents user edits from being lost when items are added/removed or reordered.
+  - Controls:
+    - `__preserve` — attribute-level modifier that explicitly marks the attribute/template to favour preservation behavior (example: `data-sub__preserve:...`).
+    - `__renew` — directive-level modifier (opt-out): when present on the `data-view` directive the runtime will not attempt to reuse removed nodes for new items and will always create fresh clones (useful for templates that require a clean initialization). Example: `data-view__renew:posts#tpl-post`.
+  - Notes: preservation is conservative — the runtime only restores state when it can safely map inputs between old and new nodes. Use the `__renew` modifier for deterministic fresh-clone behavior when needed.
+
+Keyed reconciliation:
+- If the template root element has a `data-key` attribute (e.g. `<li data-key="id">...`), `data-view` uses that key to reconcile existing DOM nodes with added/removed items. This preserves node identity (focus, input values, transitions) and avoids full rerenders.
+- If no `data-key` is provided, `data-view` falls back to index-based handling; removals and adds are performed by index and may reuse removed nodes when possible.
+
+Behavior and efficiency:
+- `data-view` subscribes to the array/object signal in `__shape` mode so the runtime receives change summaries and can perform minimal DOM updates.
+- Reconcilation uses `DocumentFragment` and clone-once-per-item plus in-place updates for changed item values (no full list rerender when items update).
+- When possible removed nodes are pooled and reused for newly added items to reduce allocations.
+
+Examples:
+
+```html
+<template id="tpl-post">
+  <li>post <span data-sub:.@$index="String($index)"></span>: <span data-sub:.@$item="String(dm.$item)"></span></li>
+</template>
+<ul data-view:posts#tpl-post></ul>
+```
+
+This design allows per-item bindings and in-place updates without losing focus or editing state when items are added or removed.
 
 data-class:.greeting@foo__5
 data-class:.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee
