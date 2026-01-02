@@ -20,22 +20,20 @@ Core concepts & API (compact)
   - `ev`: DOM Event when event-originated (for signal-originated invocations `ev` is not passed)
   - `sg`: signal path string that triggered the handler, if any
   - `detail`: shape-change payload (see below)
-- Subscriptions: stored in `subs` — entries are either legacy functions or objects `{ fn, mode, childPath, detail }`.
+- Subscriptions: stored in `subs` — entries are either legacy functions or objects `{ fn, mode, detail }`.
 
 Content vs Shape semantics
 - Content mutation: leaf value replacement — not a structural change. Notifies `content` subscribers only.
 - Shape mutation: structural changes (add/remove keys or array length changes) — notifies `shape` subscribers and also `content` subs where applicable.
 
 Shape `detail` payload (guarantees)
-- The runtime always provides a key-level summary with:
+ - The runtime always provides a key-level summary with:
   - `added`: array of keys/indices added
   - `removed`: array of keys/indices removed
-  - `keyChanges`: array of `{ key, old, new }` for modified entries
-- Values are included only when requested via `__detail.*` (or programmatic `detail` field):
-  - `__detail.values` → attach `addedValues` and `removedValues`, and full `keyChanges` with `old/new` values
+ - Values are included only when requested via `__detail.*` (or programmatic `detail` field):
+  - `__detail.values` → attach `addedValues` and `removedValues`
   - `__detail.values-added` → include `addedValues` only
   - `__detail.values-removed` → include `removedValues` only
-  - `__detail.values-changed` → include detailed `keyChanges` entries
 - The `detail` object is passed as the last argument to compiled bodies and also available at `ev.detail.change` for DOM-event-originated handlers.
 
 Recent changes (what I did to get the agent up to speed)

@@ -590,7 +590,7 @@ Summary:
           const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
           // detail mode: explicit __detail.<mode> takes precedence
           const detailMode = t.mods.detail ? String(t.mods.detail) : null;
-          entry = { fn: dec, mode: 'shape', childPath: sval, detail: detailMode };
+          entry = { fn: dec, mode: 'shape', detail: detailMode };
         } else if(t.mods && ('content' in t.mods)){
           entry = { fn: dec, mode: 'content' };
         }
@@ -994,7 +994,7 @@ Summary:
         if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
           const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
           const detailMode = t.mods.detail ? String(t.mods.detail) : null;
-          entry = { fn: handler, mode: 'shape', childPath: sval, detail: detailMode };
+          entry = { fn: handler, mode: 'shape', detail: detailMode };
         } else if(t.mods && ('content' in t.mods)){
           entry = { fn: handler, mode: 'content' };
         }
@@ -1100,7 +1100,7 @@ Summary:
           if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
             const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
             const detailMode = t.mods.detail ? String(t.mods.detail) : null;
-            entry = { fn: handler, mode: 'shape', childPath: sval, detail: detailMode };
+            entry = { fn: handler, mode: 'shape', detail: detailMode };
           }
           else if(t.mods && ('content' in t.mods)) entry = { fn: handler, mode: 'content' };
           subs.get(root).push(entry);
@@ -1229,8 +1229,9 @@ Summary:
     return v;
   };
   // Diff helper: compares two objects or arrays shallowly and returns change details
+  // NOTE: key-level value-change entries were removed: shape diffs only report added/removed keys/indices.
   const diffValues = (before, after, includeVals = false) => {
-    const out = { added: [], removed: [], keyChanges: [] };
+    const out = { added: [], removed: [] };
     if(includeVals){ out.addedValues = {}; out.removedValues = {}; }
     if(before == null && after == null) return out;
     if(Array.isArray(before) || Array.isArray(after)){
@@ -1241,8 +1242,7 @@ Summary:
       } else if(b.length < a.length){
         for(let i = b.length; i < a.length; i++){ out.removed.push(i); if(includeVals) out.removedValues[i] = a[i]; }
       }
-      const len = Math.min(a.length, b.length);
-      for(let i=0;i<len;i++){ if(a[i] !== b[i]) out.keyChanges.push({ key: i, old: a[i], new: b[i] }); }
+      // value changes within existing indices are considered content (not shape) and are not reported here
       return out;
     }
     // objects
@@ -1250,7 +1250,7 @@ Summary:
     const aa = after && typeof after === 'object' ? after : {};
     for(const k in aa){ if(!(k in bb)){ out.added.push(k); if(includeVals) out.addedValues[k] = aa[k]; } }
     for(const k in bb){ if(!(k in aa)){ out.removed.push(k); if(includeVals) out.removedValues[k] = bb[k]; } }
-    for(const k in aa){ if(k in bb && bb[k] !== aa[k]) out.keyChanges.push({ key: k, old: bb[k], new: aa[k] }); }
+    // property value changes are considered content-only and are not included in shape diffs
     return out;
   };
   const emit = (p, mutation = 'content', info = null) => {
@@ -1275,21 +1275,16 @@ Summary:
                   const base = info.base || {};
                   const full = info.full || {};
                   const mode = h.detail || null;
-                  // Always include the key-level summary
-                  change = { added: base.added || [], removed: base.removed || [], keyChanges: base.keyChanges || [] };
-                  // Enrich with values depending on the detail mode
+                  // Always include the key-level summary (added/removed only)
+                  change = { added: base.added || [], removed: base.removed || [] };
+                  // Enrich with values depending on the detail mode (no keyChanges/detail about modified keys)
                   if(mode === 'values'){
                     change.addedValues = full.addedValues || {};
                     change.removedValues = full.removedValues || {};
-                    // ensure keyChanges include old/new
-                    change.keyChanges = full.keyChanges || change.keyChanges;
                   } else if(mode === 'values-added'){
                     change.addedValues = full.addedValues || {};
                   } else if(mode === 'values-removed'){
                     change.removedValues = full.removedValues || {};
-                  } else if(mode === 'values-changed'){
-                    // replace keyChanges with the detailed one containing old/new
-                    change.keyChanges = full.keyChanges || change.keyChanges;
                   }
                 }
                 const localEv = { detail: { path: p, change } };
@@ -1467,7 +1462,6 @@ Summary:
         <div><strong>Detail variants demo (compact):</strong></div>
         <div style="margin-top:6px">Added-values only: <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-added="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
         <div style="margin-top:6px">Removed-values only: <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-removed="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
-        <div style="margin-top:6px">Changed entries (old/new): <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-changed="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
       </div>
     </div>
   </div>
@@ -1477,11 +1471,11 @@ Summary:
 // Helper to render shape change summaries for the demo
 window.formatShapeChange = function(c){
   if(!c) return '';
-  const ch = c.added || c.removed || c.keyChanges ? c : (c.base || c.full ? c.base || c.full : c);
+  const ch = (c && (c.added || c.removed)) ? c : (c && (c.base || c.full) ? c.base || c.full : c);
   const parts = [];
   if(ch.added && ch.added.length) parts.push('added: ' + ch.added.join(','));
   if(ch.removed && ch.removed.length) parts.push('removed: ' + ch.removed.join(','));
-  if(ch.keyChanges && ch.keyChanges.length) parts.push('changed: ' + ch.keyChanges.map(k=>String(k.key)).join(','));
+  // key-level value changes are considered content-only and are not reported in shape summaries
   if(parts.length === 0) return '';
   return parts.join(' | ');
 };

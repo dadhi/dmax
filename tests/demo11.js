@@ -26,7 +26,7 @@ vcon.on('error', msg => console.error('[page error]', msg));
   const demoShapeFull = doc.getElementById('demoShapeFull');
   const addedPre = Array.from(doc.querySelectorAll('pre')).find(p => p.hasAttribute('data-sub') && p.getAttribute('data-sub').includes('values-added'));
   const removedPre = Array.from(doc.querySelectorAll('pre')).find(p => p.hasAttribute('data-sub') && p.getAttribute('data-sub').includes('values-removed'));
-  const changedPre = Array.from(doc.querySelectorAll('pre')).find(p => p.hasAttribute('data-sub') && p.getAttribute('data-sub').includes('values-changed'));
+  // values-changed view was removed from demo; skip searching for it
 
   console.log('elements:', {demoAdd: !!demoAdd, demoRemove: !!demoRemove, demoChange: !!demoChange});
 
@@ -51,7 +51,7 @@ vcon.on('error', msg => console.error('[page error]', msg));
   console.log('demoContent:', demoContent.textContent.trim());
   console.log('demoShape:', demoShape.textContent.trim());
   console.log('demoShapeFull:', demoShapeFull.textContent.trim());
-  console.log('changedPre:', changedPre ? changedPre.textContent.trim() : 'missing');
+  // changedPre output removed in demo
 
   // Click remove key
   demoRemove.dispatchEvent(new window.Event('click', { bubbles: true }));
