@@ -244,42 +244,33 @@ For implementation details refer to the runtime patches plan (will introduce a s
 
 
 ## Shape / Detail semantics (compact)
+ - Purpose: distinguish structural (shape) changes from value-only (content) updates on nested signals. Shape events describe which keys/indices were added or removed.
 
-- Purpose: distinguish structural (shape) changes from value-only (content) updates on nested signals. Shape events describe which keys/indices were added or removed; detail modes control whether values for added/removed entries are included.
-
-- Emitted detail object (always includes key-summary):
+- Emitted change object (guarantees):
 
   - `added`: array of keys or numeric indices added to the object/array
   - `removed`: array of keys or indices removed
 
-  - When values are requested the payload is enriched with:
-    - `addedValues`: { key: value } for added keys/indices
-    - `removedValues`: { key: value } for removed keys/indices
-
 - Attribute syntax (compact):
 
   - Keys-only (summary): `data-sub:.@parent__shape="..."`
-  - With values (all): `data-sub:.@parent__shape__detail.values="..."`
-  - Only added values: `__detail.values-added`
-  - Only removed values: `__detail.values-removed`
 
 - Compiled body function signature and runtime note (compact):
 
   - `function(dm, el, ev, sg, detail)`
   - `dm`: plain object mirroring current signals
   - `el`: the element context (or undefined for signal-only handlers)
-  - `ev`: the original Event when the handler was DOM-event-originated; for *signal-originated* invocations the runtime does NOT pass `ev` (it will be `undefined`) — use `detail` instead
+  - `ev`: the original Event when the handler was DOM-event-originated; for *signal-originated* invocations the runtime does NOT pass `ev` (it will be `undefined`)
   - `sg`: signal path string that triggered the handler, if any
-  - `detail`: shape `change` object (see above) when the trigger is a shape mutation; otherwise `undefined`
+  - `detail`: the shape change summary (see above) when the trigger is a shape mutation; it contains only `added` and `removed` arrays
 
 - Programmatic subscription (compact):
 
-  - `subs.get('parent').push({ fn: handler, mode: 'shape', detail: 'values' })`
-  - `detail` accepts: `null`/`undefined` (keys-only), `values`, `values-added`, `values-removed`
+  - `subs.get('parent').push({ fn: handler, mode: 'shape', childPath: 'child' })`
 
 - Runtime guarantees (compact):
 
-  - `detail` always contains the key-level summary (`added`, `removed`).
-  - Values are only attached when requested via `__detail.*` (or programmatic `detail` field).
-  - The runtime passes `detail` as the final argument to compiled bodies so expressions can use it directly without reading `ev.detail`.
+  - change `detail` always contains the key-level summary (`added`, `removed`).
+  - The runtime does not attach per-key value maps to shape events.
+  - The runtime passes shape change summaries via `ev.detail.change` for DOM-event-originated handlers and as the `detail` arg for compiled bodies when applicable.
 

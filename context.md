@@ -26,15 +26,12 @@ Content vs Shape semantics
 - Content mutation: leaf value replacement — not a structural change. Notifies `content` subscribers only.
 - Shape mutation: structural changes (add/remove keys or array length changes) — notifies `shape` subscribers and also `content` subs where applicable.
 
-Shape `detail` payload (guarantees)
- - The runtime always provides a key-level summary with:
+Shape change payload (guarantees)
+ - The runtime provides a key-level summary for shape mutations:
   - `added`: array of keys/indices added
   - `removed`: array of keys/indices removed
- - Values are included only when requested via `__detail.*` (or programmatic `detail` field):
-  - `__detail.values` → attach `addedValues` and `removedValues`
-  - `__detail.values-added` → include `addedValues` only
-  - `__detail.values-removed` → include `removedValues` only
-- The `detail` object is passed as the last argument to compiled bodies and also available at `ev.detail.change` for DOM-event-originated handlers.
+ - The runtime does not attach per-key value maps to shape events; shape payloads are intentionally minimal to avoid expensive deep copies.
+ - Shape change summaries are available as `ev.detail.change` for DOM-event-originated handlers and as the `detail` argument to compiled bodies when applicable.
 
 Recent changes (what I did to get the agent up to speed)
 - Enforced explicit `dm.*` usage in compiled expressions (no `with`). `compile` now creates functions with five params.
@@ -43,13 +40,12 @@ Recent changes (what I did to get the agent up to speed)
   - `set(p, v)` detects `content` vs `shape` changes.
   - `diffValues(before, after, includeVals)` produces base (keys-only) and full (with values) diffs.
   - `emit(p, mutation, info)` selects per-subscriber `detail` payloads based on subscriber's `detail` field.
-- Added `__detail.*` modifier to request values in the `detail` payload; removed legacy fallback that mapped `__shape.values` implicitly.
-- Adjusted runtime to avoid passing `ev` into compiled functions when invocation is signal-originated (compiled bodies receive `detail` reliably).
-- Demo & tests:
-  - Added Section 11 "Content vs Shape Demo" with `__detail` examples.
+ - Adjusted runtime to avoid passing `ev` into compiled functions when invocation is signal-originated (compiled bodies receive `detail` reliably).
+ - Demo & tests:
+  - Section 11 "Content vs Shape Demo" demonstrates content vs shape semantics.
   - Added headless tests to validate content vs shape behaviors.
   - Fixed demo edge cases (use timestamp `addedAt` so repeated adds produce shape diffs).
-- Documentation: updated `README.md` and `req.md` with `__detail` usage and shape semantics.
+ - Documentation: updated `README.md` and `req.md` to reflect that shape payloads include only `added`/`removed`.
 
 Guidelines for contributors
 - Keep compiled bodies explicit: reference signals via `dm` (e.g., `dm.user.name`).

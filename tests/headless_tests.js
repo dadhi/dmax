@@ -339,27 +339,31 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       if(!contentSub || !shapeSub || !chgChild || !addKey || !removeKey) fail('FG reactivity test elements missing');
       // ensure parent exists first (so content-change is a child-value update)
       addKey.dispatchEvent(new window.Event('click', { bubbles: true }));
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 120));
       // ensure a child exists (first chgChild will add the child -> shape)
       chgChild.dispatchEvent(new window.Event('click', { bubbles: true }));
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 120));
       // ensure counters reset so next chgChild will be a content-change
-      window.__contentCount = 0; window.__shapeCount = 0;
+      window.__contentCount = 0; window.__shapeCount = 0; window.__shapeChild = 0;
 
       // 1) content-change: change parent.child (should notify content subs, not shape subs)
       chgChild.dispatchEvent(new window.Event('click', { bubbles: true }));
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 120));
       if(window.__contentCount === 1 && (window.__shapeCount === 0)) pass('FG: content-change notifies content subs only'); else fail('FG: content-change notification mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
       if(String(contentSub.textContent).trim() === '1') pass('FG: content subscriber received value'); else fail('FG: content subscriber content mismatch');
+      // childPath-specific shape subscriber should NOT trigger on content-change
+      if((window.__shapeChild || 0) === 0) pass('FG: childPath filter not triggered on content-change'); else fail('FG: childPath filter incorrectly triggered on content-change');
 
       // 2) shape-change: add a key on parent (should notify shape subs and also still trigger content subs)
       addKey.dispatchEvent(new window.Event('click', { bubbles: true }));
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 120));
       if(window.__shapeCount === 1 && window.__contentCount >= 2) pass('FG: shape-change notifies shape (and content) subs'); else fail('FG: shape-change notification mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
+      // childPath-specific shape subscriber should be triggered when that key added
+      if((window.__shapeChild || 0) === 1) pass('FG: childPath filter triggered on shape add'); else fail('FG: childPath filter did not trigger on shape add');
 
       // 3) shape-change removal
       removeKey.dispatchEvent(new window.Event('click', { bubbles: true }));
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 120));
       if(window.__shapeCount >= 2 && window.__contentCount >= 3) pass('FG: shape removal notifies expected subscribers'); else fail('FG: shape removal mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
     }catch(e){ console.error('FG reactivity test error', e); fail('FG reactivity tests crashed'); }
 

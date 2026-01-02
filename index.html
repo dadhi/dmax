@@ -119,7 +119,7 @@
       <span id="intervalInfo" data-sub:.@_interval.1000="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' sg:' + (sg || 'no-sg')"></span>
       &nbsp; — automatic @_interval (every 1s)
     </div>
-    <div style="margin:6px 0">
+    <div style="margin:6rem px 0">
       <span id="delayInfoAuto" data-sub:.@_delay.1500="(ev && ev.type) + ' ' + (ev && ev.detail && ev.detail.ms) + ' sg:' + (sg || 'no-sg')"></span>
       &nbsp; — automatic @_delay (one-shot 1.5s)
     </div>
@@ -584,15 +584,11 @@ Summary:
           const arr = subs.get(root) || [];
           subs.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
         };
-        // support __shape modifier: if present, register as subscription object with mode:'shape'
+        // support __shape modifier: register subscription object with optional childPath
         let entry = dec;
-        if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
-          const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
-          // detail mode: explicit __detail.<mode> takes precedence
-          const detailMode = t.mods.detail ? String(t.mods.detail) : null;
-          entry = { fn: dec, mode: 'shape', detail: detailMode };
-        } else if(t.mods && ('content' in t.mods)){
-          entry = { fn: dec, mode: 'content' };
+        if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
+          const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
+          entry = { fn: dec, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
         }
         subs.get(root).push(entry);
         listeners.push({type:'signal', root, handler: dec});
@@ -991,12 +987,9 @@ Summary:
         const handler = () => doRequest(undefined, t.name);
         // support __shape / __content / __detail modifiers on trigger subscriptions
         let entry = handler;
-        if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
-          const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
-          const detailMode = t.mods.detail ? String(t.mods.detail) : null;
-          entry = { fn: handler, mode: 'shape', detail: detailMode };
-        } else if(t.mods && ('content' in t.mods)){
-          entry = { fn: handler, mode: 'content' };
+        if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
+          const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
+          entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
         }
         subs.get(root).push(entry);
         if(!t.mods?.notimmediate) handler();
@@ -1097,12 +1090,10 @@ Summary:
           handler();
           if(!subs.has(root)) subs.set(root, []);
           let entry = handler;
-          if(t.mods && ('shape' in t.mods || 'detail' in t.mods)){
-            const sval = t.mods.shape === true ? null : (t.mods.shape != null ? String(t.mods.shape) : null);
-            const detailMode = t.mods.detail ? String(t.mods.detail) : null;
-            entry = { fn: handler, mode: 'shape', detail: detailMode };
+          if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
+            const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
+            entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
           }
-          else if(t.mods && ('content' in t.mods)) entry = { fn: handler, mode: 'content' };
           subs.get(root).push(entry);
           let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
           listeners.push({type:'signal', root, handler});
@@ -1256,41 +1247,44 @@ Summary:
   const emit = (p, mutation = 'content', info = null) => {
     const root = toCamel(p.split('.')[0]);
     const handlers = subs.get(root);
-    const ev = (mutation === 'shape') ? { detail: { path: p, change: info } } : undefined;
     if(handlers){
       for(const h of handlers){
         try{
+          // Legacy function handlers (fast path) for content and shape
           if(typeof h === 'function'){
-            // legacy handler: always call for backward-compat
             h(undefined, p);
-          } else if(h && typeof h.fn === 'function'){
-            // h.mode: 'content' (default) or 'shape'
-            if(mutation === 'content'){
-              if(h.mode === 'content') h.fn(undefined, p);
-            } else { // mutation === 'shape'
-              // shape-change: provide subscriber-specific change detail
-              if(h.mode === 'shape' || h.mode === 'content'){
-                let change = null;
-                if(info){
-                  const base = info.base || {};
-                  const full = info.full || {};
-                  const mode = h.detail || null;
-                  // Always include the key-level summary (added/removed only)
-                  change = { added: base.added || [], removed: base.removed || [] };
-                  // Enrich with values depending on the detail mode (no keyChanges/detail about modified keys)
-                  if(mode === 'values'){
-                    change.addedValues = full.addedValues || {};
-                    change.removedValues = full.removedValues || {};
-                  } else if(mode === 'values-added'){
-                    change.addedValues = full.addedValues || {};
-                  } else if(mode === 'values-removed'){
-                    change.removedValues = full.removedValues || {};
-                  }
-                }
-                const localEv = { detail: { path: p, change } };
-                h.fn(localEv, p);
-              }
+            continue;
+          }
+          if(!(h && typeof h.fn === 'function')) continue;
+
+          // CONTENT mutation: only call content-mode subscribers (fast path)
+          if(mutation === 'content'){
+            if(h.mode === 'content' && !h.childPath){ h.fn(undefined, p); }
+            continue;
+          }
+
+          // SHAPE mutation: prepare minimal change payload (added/removed only)
+          if(h.mode === 'shape' || h.mode === 'content'){
+            const base = info && info.base ? info.base : { added: [], removed: [] };
+            const change = { added: base.added || [], removed: base.removed || [] };
+
+            // If subscriber requested a childPath filter, only invoke when that key/index was added/removed
+            const cp = h.childPath != null ? String(h.childPath) : null;
+            if(cp){
+              const sval = cp;
+              const svalCamel = toCamel(sval);
+              const makeKeySet = (list) => {
+                const s = new Set();
+                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if(!Number.isNaN(nx)) s.add(String(nx)); });
+                return s;
+              };
+              const addedSet = makeKeySet(change.added);
+              const removedSet = makeKeySet(change.removed);
+              const matches = addedSet.has(sval) || addedSet.has(svalCamel) || removedSet.has(sval) || removedSet.has(svalCamel);
+              if(!matches) continue;
             }
+
+            h.fn({ detail: { path: p, change } }, p);
           }
         }catch(e){ console.error('Subscriber handler error', e); }
       }
@@ -1454,15 +1448,6 @@ Summary:
     <div style="margin-top:8px">
       <div>Content subscriber (default): <span id="demoContent" data-sub:.@demo-parent.child="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
       <div>Shape subscriber (<code>__shape</code>): <span id="demoShape" data-sub:.@demo-parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : ''"></span></div>
-      <div style="margin-top:6px">Shape subscriber (with values, <code>__detail.values</code>):
-        <pre id="demoShapeFull" style="background:#fff;padding:6px;border-radius:4px;max-height:120px;overflow:auto" data-sub:.@demo-parent__shape__detail.values="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre>
-      </div>
-
-      <div style="margin-top:10px;padding-top:6px;border-top:1px dashed #eee">
-        <div><strong>Detail variants demo (compact):</strong></div>
-        <div style="margin-top:6px">Added-values only: <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-added="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
-        <div style="margin-top:6px">Removed-values only: <pre style="display:inline-block;background:#f8f9fb;padding:6px;border-radius:4px;margin-left:6px" data-sub:.@demo-parent__shape__detail.values-removed="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"></pre></div>
-      </div>
     </div>
   </div>
 </section>
@@ -1485,6 +1470,7 @@ window.formatShapeChange = function(c){
 <div id="__fg_reactivity_tests" style="display:none">
   <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
   <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
+  <span id="shapeChild" data-sub:.@parent__shape="(window.__shapeChild = (window.__shapeChild||0) + 1, window.__shapeChild)"></span>
 
   <button id="chgChild" data-sub:parent.child@.click="(dm.parent && dm.parent.child ? dm.parent.child + 1 : 1)">Change child</button>
   <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, {added: true})">Add key</button>

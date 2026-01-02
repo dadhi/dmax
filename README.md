@@ -5,12 +5,9 @@ A tiny data-maximal runtime.
 Compact examples
 
  - Subscribe to parent shape keys only (no values):
+ - Subscribe to parent shape keys only (summary):
 
   <pre>&lt;pre data-sub:.@parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : ''"&gt;&lt;/pre&gt;</pre>
-
- - Subscribe and receive values for added/removed:
-
-  <pre>&lt;pre data-sub:.@parent__shape__detail.values="JSON.stringify(ev && ev.detail && ev.detail.change ? ev.detail.change : {}, null, 2)"&gt;&lt;/pre&gt;</pre>
 
  - Compiled body signature (compact):
 
