@@ -257,11 +257,11 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 80));
     if(window.getComputedStyle(displayBox).display !== 'none') pass('Display box shows when active'); else fail('Display box did not show when active');
 
-      // Section 9: data-view renders posts
-      const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-view') === 0));
+      // Section 9: data-iter renders posts
+      const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter') === 0));
       if(!iterUl) fail('Section9 data-iter element missing');
       // debug: log attributes and template
-      console.log('data-view attributes on page:', Array.from(doc.querySelectorAll('*')).map(el=>Array.from(el.getAttributeNames()).filter(a=>a.indexOf('data-view')===0)).filter(a=>a.length));
+      console.log('data-iter attributes on page:', Array.from(doc.querySelectorAll('*')).map(el=>Array.from(el.getAttributeNames()).filter(a=>a.indexOf('data-iter')===0)).filter(a=>a.length));
       const tpl = doc.getElementById('tpl-post');
       console.log('tpl:', tpl ? tpl.innerHTML.slice(0,200) : 'no tpl');
       console.log('iterUl outerHTML:', iterUl.outerHTML.slice(0,200));
@@ -274,66 +274,13 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       if(items.length === 3) pass('Section9 data-iter rendered 3 items'); else fail('Section9 data-iter rendered wrong number: ' + items.length);
 
       // Section 9b: nested threads rendered with replies
-      const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-view') === 0 && a.indexOf('threads') !== -1));
+      const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter:threads') === 0));
       if(!threadUl) fail('Section9 nested threads element missing');
       const tItems = Array.from(threadUl.children || []);
       if(tItems.length !== 3) fail('Section9 threads count wrong: ' + tItems.length);
       // Check first thread has 2 replies rendered
       const firstReplies = tItems[0].querySelectorAll('ul > li');
       if(firstReplies.length === 2) pass('Section9 nested replies rendered for first thread'); else fail('Section9 nested replies wrong: ' + firstReplies.length);
-
-      // Section 9.c: Edit-preserve behavior (focus/value preserved when adding/removing)
-      try{
-        // debug: show edit list HTML
-        try{ const editUlDebug = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-view') === 0 && a.indexOf('posts#tpl-edit') !== -1)); console.log('DEBUG editUl outerHTML:', editUlDebug ? editUlDebug.outerHTML.slice(0,400) : 'none'); }catch(e){}
-        const inp = doc.querySelector('input.edit-item');
-        if(!inp){
-          try{ console.log('DEBUG: no edit input; section HTML:', addBtn ? addBtn.parentNode.parentNode.innerHTML.slice(0,500) : 'no addBtn'); }catch(e){}
-          fail('No edit inputs found');
-        }
-        const editUl = inp.closest('ul');
-        // set value and focus
-        inp.value = 'EditedValue';
-        inp.dispatchEvent(new window.Event('input', { bubbles: true }));
-        try{ inp.focus(); }catch(e){}
-        // add item
-        const addBtn = doc.getElementById('addItem');
-        if(!addBtn) fail('Add button missing');
-        addBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
-        await new Promise(r => setTimeout(r, 60));
-        const inputsAfter = Array.from(editUl.querySelectorAll('input.edit-item'));
-        if(inputsAfter.length === 0) fail('Inputs missing after add');
-        if(inputsAfter[0].value === 'EditedValue') pass('Edit-preserve value retained after add'); else fail('Edit-preserve value lost after add: ' + inputsAfter[0].value);
-        if(doc.activeElement && doc.activeElement.classList && doc.activeElement.classList.contains('edit-item')) pass('Edit-preserve focus retained after add'); else fail('Edit-preserve focus lost after add');
-        // remove last
-        const remBtn = doc.getElementById('removeItem');
-        if(!remBtn) fail('Remove button missing');
-        remBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
-        await new Promise(r => setTimeout(r, 60));
-        const inputsAfter2 = Array.from(editUl.querySelectorAll('input.edit-item'));
-        if(inputsAfter2[0].value === 'EditedValue') pass('Edit-preserve value retained after remove'); else fail('Edit-preserve value lost after remove: ' + inputsAfter2[0].value);
-      }catch(e){ fail('Edit-preserve test threw: ' + String(e)); }
-
-      // Section 9.d: inline-template demo (template inside list element)
-      try{
-        const tplInline = doc.querySelector('ul > template');
-        if(!tplInline) fail('Inline-template demo missing');
-        const inlineUl = tplInline.parentNode;
-        const inlineItems = Array.from(inlineUl.children || []).filter(n => n.tagName.toLowerCase() !== 'template');
-        if(inlineItems.length === 3) pass('Inline-template rendered posts'); else fail('Inline-template rendered wrong count: ' + inlineItems.length);
-      }catch(e){ fail('Inline-template test threw: ' + String(e)); }
-
-      // Section 9.e: keyed array and single-object demo
-      try{
-        const keyedUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-view') === 0 && a.indexOf('items-with-id') !== -1));
-        if(!keyedUl) fail('Keyed-array demo missing');
-        const keyedItems = Array.from(keyedUl.children || []);
-        if(keyedItems.length === 2) pass('Keyed array rendered 2 items'); else fail('Keyed array wrong count: ' + keyedItems.length);
-        // single-object
-        const singleEl = Array.from(doc.querySelectorAll('*')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-view') === 0 && a.indexOf('single-item') !== -1));
-        if(!singleEl) fail('Single-object demo missing');
-        if(singleEl.children && singleEl.children.length === 1) pass('Single-object rendered'); else fail('Single-object render wrong');
-      }catch(e){ fail('Keyed/single tests threw: ' + String(e)); }
 
     // Section 10: modifiers (once, debounce, throttle, and)
     // Once test

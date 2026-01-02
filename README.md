@@ -34,11 +34,7 @@ Core directives:
 	- Directional forms: `data-sync@signal` (signal -> element one-way), `data-sync:signal@.` (element -> signal one-way), and `data-sync:signal` (default two-way). See `index.html` examples.
  - data-class : conditional add/remove classes
  - data-disp  : show/hide by expression
- - data-view  : array/object rendering via <template>; use `$item` and `$index` placeholders inside template attributes (they are substituted at clone time). Templates may live by id (`#tpl-id`) or inline as a child `<template>`; `data-view` supports keyed reconciliation via `data-key` on the template root.
-   - Use `@` for the directive signal: `data-view@posts#tpl-post`.
- - data-view  : array/object rendering via <template>; use `$item` and `$index` placeholders inside template attributes (they are substituted at clone time). Templates may live by id (`#tpl-id`) or inline as a child `<template>`; `data-view` supports keyed reconciliation via `data-key` on the template root.
-  - Preservation: `data-view` preserves input values and focus by default when reusing DOM nodes (so editing inside an item isn't lost when the list changes). To explicitly opt-in or opt-out you can use attribute-level modifiers on the directive (e.g. `data-view__preserve:posts#tpl-post` or `data-view__renew:posts#tpl-post`). `__preserve` favors reuse/preservation; `__renew` forces fresh clones (no preservation).
-   - Placeholders: `$item` and `$index` are replaced into attribute names and values at clone time so per-item bindings compile to the concrete path (e.g. `posts[2]`).
+ - data-iter  : array rendering via <template>; use `data-$it` (item) and `data-$i` (index); nested iters supported; uses DocumentFragment batching
  - data-get/post/put/patch/delete : declarative HTTP actions (basic wiring; controls TBD)
 
 Notes:
@@ -49,11 +45,10 @@ Notes:
  - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
  - For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev` to compiled expressions: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds.
  - Attribute-level/global mods: you can append modifiers directly after the directive name (e.g. `data-sub__once:...`) to apply them to all triggers on that attribute. Trigger-level modifiers (after a trigger) override attribute-level ones. Use `__always` to override a global `__once` on a specific trigger.
- - `data-view` performs efficient keyed reconciliation (shape subscriptions) to update items in-place without full rerenders.
- - `data-view` performs efficient keyed reconciliation (shape subscriptions) to update items in-place without full rerenders. The runtime attempts to reuse DOM nodes for performance and to preserve transient state (focus/values). Use `data-key` on the template root for stable keyed reconciliation.
+ - `data-iter` precomputes shallow bindings for faster updates.
 
 Short TBD:
- - stable keyed reconciliation for `data-view` is supported via `data-key` on the template root; `$item/$index` placeholders are substituted into cloned attributes/values so bindings are per-item and updates don't re-clone unchanged nodes.
+ - stable keyed reconciliation for `data-iter` (`$key`) — deferred
  - full HTTP control (headers, retry, cancel, timeout)
  - additional trigger mods and batching modes
 

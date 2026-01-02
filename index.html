@@ -27,8 +27,6 @@
   "count": 10,
   "doubled": 20,
   "posts": ["First post","Second post","Third post"],
-  "items-with-id": [{"id":"a","name":"Alpha"},{"id":"b","name":"Beta"}],
-  "single-item": {"title":"Solo","body":"Single object body"},
   "threads": [
     {"title":"Thread A","replies":["A1","A2"]},
     {"title":"Thread B","replies":["B1"]},
@@ -174,7 +172,6 @@
 
 <section>
   <h3>8. Classes & Display (data-class / data-disp)</h3>
-  <div class="page">data-sync:user.ui.is-active, data-class:.active.-inactive@user.ui.is-active, data-disp:.@user.ui.is-active</div>
   <div style="margin:6px 0">
     <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
   </div>
@@ -183,66 +180,25 @@
 </section>
 
 <section>
-  <h3>9. List Rendering (data-view)</h3>
-  <div class="page">data-view@posts#tpl-post, $item/$index substitution, template-binding via data-sub/data-sync</div>
-  <!-- data-view@posts#tpl-post, substitute $item/$index inside template attributes -->
+  <h3>9. List Rendering (data-iter)</h3>
+  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
+  <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
   <template id="tpl-post">
-    <li>post <span data-sub:.@$index="String($index)"></span>: <span data-sub:.@$item="String(dm.$item)"></span></li>
+    <li>post <span data-$i></span>: <span data-$it></span></li>
   </template>
-  <ul data-view__preserve@posts#tpl-post data-view@posts#tpl-post></ul>
+  <ul data-iter:posts#tpl-post></ul>
 
-  <h4>Nested data-view example</h4>
+  <h4>Nested data-iter example</h4>
   <template id="tpl-thread">
-    <li>Thread: <strong data-sub:.@$item="String(dm.$item.title)"></strong>
+    <li>Thread: <strong data-$it></strong>
       <div class="replies-placeholder"></div>
     </li>
   </template>
-  <ul data-view__preserve@threads#tpl-thread data-view@threads#tpl-thread></ul>
-</section>
-
-<section>
-  <h3>9.a Edit-preserve Demo (data-view)</h3>
-  <div class="page">Demonstrates editing an item input without full list rerendering when adding/removing items.</div>
-  <template id="tpl-edit">
-    <li>
-      <input class="edit-item" data-sync:$item="" placeholder="edit item" />
-      <span style="margin-left:8px" data-sub:.@$item="String(dm.$item)"></span>
-    </li>
-  </template>
-  <div style="margin:6px 0">
-    <button id="addItem" data-sub:posts@.click="(dm.posts || []).concat(['New item'])">Add Item</button>
-    <button id="removeItem" data-sub:posts@.click="(dm.posts || []).slice(0, -1)" style="margin-left:8px">Remove Last</button>
-  </div>
-  <ul data-view__preserve@posts#tpl-edit data-view@posts#tpl-edit></ul>
-</section>
-
-<section>
-  <h3>9.b Inline-template demo</h3>
-  <div class="page">Template declared inside the list element (no #tpl-id reference)</div>
-  <ul data-view@posts>
-    <template>
-      <li><span data-sub:.@$item="String(dm.$item)"></span></li>
-    </template>
-  </ul>
-</section>
-
-<section>
-  <h3>9.c Keyed array and single-object demo</h3>
-  <div class="page">`items-with-id` uses `data-key` on template root; `single-item` shows object rendering.</div>
-  <template id="tpl-keyed">
-    <li data-key="id"><span data-sub:.@$item="String(dm.$item.name)"></span></li>
-  </template>
-  <ul data-view__preserve@items-with-id#tpl-keyed data-view@items-with-id#tpl-keyed></ul>
-
-  <template id="tpl-single">
-    <div><strong data-sub:.@$item="String(dm.$item.title)"></strong>: <span data-sub:.@$item="String(dm.$item.body)"></span></div>
-  </template>
-  <div data-view@single-item#tpl-single></div>
+  <ul data-iter:threads#tpl-thread></ul>
 </section>
 
 <section>
   <h3>10. Modifiers demo (once/debounce/throttle/and)</h3>
-  <div class="page">data-sub:mod-once@.click__once, data-sub:mod-deb@.click__debounce.120, data-sub:mod-thr@.click__throttle.120, data-sub:mod-and@.click__and.gate</div>
   <div>
     <button id="onceBtn" data-sub:mod-once@.click__once="(dm.modOnce || 0) + 1">Once</button>
     <span id="onceVal" data-sub:.@mod-once="dm.modOnce"></span>
@@ -267,7 +223,6 @@
 
 <section>
   <h3>11. Actions demo (JSONPlaceholder)</h3>
-  <div class="page">data-get:post-result?busy__busy,err__err@.click, data-post^json+#newTitle.value__body.title+#newUserName.value__body.user.name+#newUserEmail.value__body.user.email:created-post?busy__busy,err__err@.click, data-sub:.@post-result</div>
   <div>
     <button id="loadPost" data-get:post-result?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts/1">Load post #1 (GET)</button>
     <div style="margin-top:8px">Busy: <span data-sub:.@post-result?busy="(dm.postBusy||false)"></span></div>
@@ -288,9 +243,9 @@
 
 <!--
 Summary:
- - data-view renders an array or object using a template for each item (array) or once (object).
- - Usage: <ul data-view@posts#tpl-id></ul> or inline `<div data-view@items><template>...</template></div>`
- - Templates use `$item` and `$index` placeholders inside attributes/values; runtime substitutes them per-clone so bindings are per-item and updates are in-place.
+- data-iter renders a list using a template for each item in the array signal.
+- Usage: <ul data-iter:posts#tpl-id></ul>
+- Template can use data-$it (item) and data-$i (index) for binding.
 -->
 
 <!-- MVP JS and summary will be tracked here for crosschecking and improvement planning -->
@@ -518,14 +473,6 @@ Summary:
     const parsed = parseDataAttrFast(attr, type === 'data-sub' ? 8 : (type === 'data-class' ? 10 : 9));
     if(!parsed) return;
     const {targets, triggers} = parsed;
-    // If no explicit targets were provided, default to the current element for
-    // `data-sub`/`data-class`/`data-disp` so attribute-name trigger-only forms
-    // (e.g. `data-sub@count@#btn.click`) apply to the element itself.
-    if(targets.length === 0){
-      if(type === 'data-sub' || type === 'data-class' || type === 'data-disp'){
-        targets.push({type: 'prop', elemId: '', propPath: null, isCurr: true, mods: {}});
-      }
-    }
     const fn = compile(body);
     // Precompute appliers for targets to minimize work on each trigger
     const appliers = targets.map(t => {
@@ -649,7 +596,7 @@ Summary:
         }
         subs.get(root).push(entry);
         listeners.push({type:'signal', root, handler: dec});
-        if(!t.mods?.notimmediate && !el.__dmax_preserve) dec(undefined, t.name);
+        if(!t.mods?.notimmediate) dec(undefined, t.name);
         continue;
       }
 
@@ -1217,354 +1164,59 @@ Summary:
     }
   }
 
-  // Compact data-view implementation (replaces data-iter)
-  function setupView(el, attr, attrVal) {
-    // minimal: avoid verbose runtime logs in production
-    // Support `data-view:signal#tpl-id`, `data-view@signal#tpl-id`, and inline template child.
-    // Determine the spec string. Support:
-    // - attribute-name embedded forms (e.g. data-view@sig#tpl or data-view__preserve@sig#tpl)
-    // - attribute-value forms (e.g. <ul data-view="@sig#tpl"> or <ul data-view="#tpl@sig">)
-    let rest = '';
-    if(attrVal && String(attrVal).trim()) {
-      rest = String(attrVal).trim();
-    } else {
-      // fall back to parsing the attribute name (legacy/alternate forms)
-      const colon = attr.indexOf(':');
-      const at = attr.indexOf('@');
-      if(colon !== -1) rest = attr.substring(colon + 1);
-      else if(at !== -1) rest = attr.substring(at + 1);
-    }
-
-    // normalize leading punctuation
-    if(rest && (rest[0] === '.' || rest[0] === ':' || rest[0] === '@')) rest = rest.substring(1);
-
-    // parse signal and optional template id (#id) in either order: e.g. `@sig#tpl` or `#tpl@sig` or `sig#tpl`
+  // Compact data-iter implementation
+  function setupIter(el, attr) {
+    // Syntax: data-iter:.signal#tpl-id
+    let i = 9; // 'data-iter'.length
+    if(attr[i] !== ':') return;
+    i++;
     let signal = '', tplId = '';
-    if(!rest) return;
-    const atIndex = rest.indexOf('@');
-    const hashIndex = rest.indexOf('#');
-    if(atIndex !== -1 && hashIndex !== -1){
-      if(atIndex < hashIndex){
-        signal = rest.slice(atIndex + 1, hashIndex).trim();
-        tplId = rest.slice(hashIndex + 1).trim();
-      } else {
-        tplId = rest.slice(hashIndex + 1, atIndex).trim();
-        signal = rest.slice(atIndex + 1).trim();
-      }
-    } else if(atIndex !== -1){
-      signal = rest.slice(atIndex + 1).trim();
-      // allow preceding token before @ to be signal as well (e.g. 'posts@.click')
-      if(!signal){ const before = rest.slice(0, atIndex).trim(); if(before) signal = before; }
-    } else if(hashIndex !== -1){
-      tplId = rest.slice(hashIndex + 1).trim();
-      const before = rest.slice(0, hashIndex).trim(); if(before) signal = before;
+    // support both `:.signal#tpl` and `:signal#tpl` forms
+    if(attr[i] === '.') {
+      i++;
+      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
     } else {
-      // no separators, treat whole rest as signal
-      signal = rest.trim();
+      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
     }
-    if(!signal) return;
-
-    // find template: either by id or inline <template> child
-    let tpl = tplId ? document.getElementById(tplId) : null;
-    if(!tpl){ tpl = el.querySelector('template'); }
-    if(!tpl) return;
-
-    // view state
-    const state = { root: toCamel(signal.split('.')[0]), signal, tpl, keyAttr: null, keyMap: new Map(), order: [], pool: [], preserveByAttr: false, renewByAttr: false };
-    // parse attribute-level mods on the directive name: data-view__preserve__renew:...
-    try{
-      const m = attr.match(/^data-view(__[^:]*)?/);
-      if(m && m[1]){
-        const mods = m[1].substring(2).split('__').map(s=>s.trim()).filter(Boolean);
-        state.preserveByAttr = mods.indexOf('preserve') !== -1;
-        state.renewByAttr = mods.indexOf('renew') !== -1;
-      }
-    }catch(e){}
-    // detect inline template (template declared inside the view container)
-    const inlineTemplate = (!tplId && tpl && tpl.parentElement === el);
-
-    // local getter (avoid using `get` which is declared later)
-    const getVal = (p) => {
-      const parts = p.split('.');
-      let v = S.get(toCamel(parts[0]));
-      for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
-      return v;
-    };
-
-    // detect key attribute on template root element (single-root templates recommended)
-    const sample = tpl.content.firstElementChild;
-    if(sample && sample.hasAttribute && sample.hasAttribute('data-key')) state.keyAttr = sample.getAttribute('data-key');
-
-    // helper: clone template and substitute $item/$index placeholders in attr names/values, then apply bindings
-    const applyBindingsForClone = (clone, idxOrKey, isIndex) => {
-      // compute item path for substitution:
-      // - numeric index -> bracket notation `posts[3]`
-      // - keyed items -> prefer a find expression that resolves the item by key
-      let itemPath;
-      let indexExpr;
-      try{
-        if(isIndex){
-          indexExpr = String(idxOrKey);
-          itemPath = `${signal}[${indexExpr}]`;
-        } else {
-          if(state.keyAttr){
-            indexExpr = `${signal}.findIndex(it=>String(it.${state.keyAttr})===${JSON.stringify(String(idxOrKey))})`;
-            itemPath = `${signal}[${indexExpr}]`;
-          } else {
-            indexExpr = String(state.order.indexOf(idxOrKey));
-            itemPath = `${signal}[${indexExpr}]`;
-          }
-        }
-      }catch(e){ indexExpr = String(idxOrKey); itemPath = `${signal}[${indexExpr}]`; }
-      const walker = [clone];
-      for(let n=0;n<walker.length;n++){
-        const node = walker[n];
-        if(node.attributes) {
-          // collect to avoid live mutation issues
-          const toSet = [];
-          for(const a of Array.from(node.attributes)){
-            try{
-              let name = a.name, val = a.value;
-              if(name.indexOf('$item') !== -1 || name.indexOf('$index') !== -1 || (val && (val.indexOf('$item')!==-1 || val.indexOf('$index')!==-1))){
-                const idxRep = (typeof indexExpr !== 'undefined') ? indexExpr : (isIndex ? String(idxOrKey) : String(state.order.indexOf(idxOrKey)));
-                name = name.replace(/\$item/g, itemPath).replace(/\$index/g, idxRep);
-                val = val ? val.replace(/\$item/g, itemPath).replace(/\$index/g, idxRep) : val;
-                toSet.push([name, val]);
-                try{ node.removeAttribute(a.name); }catch(e){ try{ console.error('removeAttribute failed', a.name, e && e.message); }catch(_){} }
-              }
-            }catch(e){ try{ console.error('Attribute substitution error', e && (e.stack || e.message)); }catch(_){} }
-          }
-          for(const [nname, nval] of toSet){
-            try{ node.setAttribute(nname, nval); }
-            catch(e){ /* suppressed setAttribute error */ }
-          }
-        }
-        node.childNodes && node.childNodes.forEach(c => { if(c.nodeType===1) walker.push(c); });
-      }
-      // run binding setup on clone root and descendants
-      const descendants = clone.querySelectorAll ? [clone].concat(Array.from(clone.querySelectorAll('*'))) : [clone];
-      const isReused = !!clone.parentNode;
-      for(const el2 of descendants){
-        // mark preserve flag on reused nodes to avoid immediate signal->DOM initialization
-        if(isReused) el2.__dmax_preserve = true;
-        for(const a of Array.from(el2.attributes || [])){
-          try{
-            if(a.name.indexOf('data-sync') === 0) setupSync(el2, a.name);
-            else if(a.name.indexOf('data-sub') === 0) setupSub(el2, a.name, a.value);
-            else if(a.name.indexOf('data-class') === 0) setupClass(el2, a.name, a.value);
-            else if(a.name.indexOf('data-disp') === 0) setupDisp(el2, a.name, a.value);
-            else if(a.name.indexOf('data-view') === 0) setupView(el2, a.name, a.value);
-            else if(a.name.indexOf('data-get') === 0 || a.name.indexOf('data-post') === 0 || a.name.indexOf('data-put') === 0 || a.name.indexOf('data-patch') === 0 || a.name.indexOf('data-delete') === 0) setupAction(el2, a.name, a.value);
-          }catch(e){ /* binding setup error suppressed */ }
-        }
-        if(isReused) try{ delete el2.__dmax_preserve; }catch(e){}
-      }
-    };
-
-    // create node from tpl (normalized to single root for easier reconciliation)
-    const createNodeFor = (item, idx, key) => {
-      try{
-        const cloned = tpl.content.cloneNode(true);
-        // Prefer firstElementChild as root node; if multiple roots, wrap in a container
-        let nodeRoot = cloned.firstElementChild && cloned.childElementCount === 1 ? cloned.firstElementChild : (() => { const wrap = document.createElement('div'); wrap.appendChild(cloned); return wrap; })();
-        
-        // substitute placeholders and setup bindings
-        // third arg used by legacy logic (truthy when key present)
-        applyBindingsForClone(nodeRoot, key != null ? key : idx, key != null);
-        // simple nested rendering fallback for `replies` arrays using .replies-placeholder
-        try{
-          const itemVal = item;
-          if(itemVal && Array.isArray(itemVal.replies)){
-            const sub = document.createElement('ul');
-            for(const r of itemVal.replies){ const li = document.createElement('li'); li.textContent = r; sub.appendChild(li); }
-            nodeRoot.querySelectorAll && nodeRoot.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
-          }
-        }catch(e){}
-        return nodeRoot;
-      }catch(err){
-        // createNodeFor suppressed error log during cleanup
-        const fallback = document.createElement('li');
-        fallback.textContent = String(item === undefined ? ('item-'+idx) : (typeof item === 'object' ? JSON.stringify(item) : item));
-        return fallback;
-      }
-    };
-
-    // Render initial full list/object using DocumentFragment and key-based reuse
-    const renderFull = () => {
-      const val = getVal(signal);
-      // fast path: if array with keyAttr, try to reuse existing nodes by key
-      const frag = document.createDocumentFragment();
-      state.order = [];
-      if(Array.isArray(val)){
-        if(state.keyAttr){
-          const newKeyMap = new Map();
-          for(let i=0;i<val.length;i++){
-            const item = val[i];
-            const key = item && item[state.keyAttr] !== undefined ? String(item[state.keyAttr]) : null;
-            let node = null;
-              if(key != null && state.keyMap.has(key)){
-              node = state.keyMap.get(key);
-              try{ if(node.parentNode) node.parentNode.removeChild(node); }catch(e){}
-              // reapply bindings to refresh $index/$item paths
-              try{ applyBindingsForClone(node, key, true); }catch(e){}
-            } else {
-              node = createNodeFor(item, i, key);
-            }
-            frag.appendChild(node);
-            if(key != null) newKeyMap.set(key, node), state.order.push(key); else state.order.push(i);
-          }
-          // replace children but preserve inline template if present
-          if(inlineTemplate){ const keep = tpl; el.innerHTML = ''; el.appendChild(keep); el.appendChild(frag); }
-          else { el.innerHTML = ''; el.appendChild(frag); }
-          state.keyMap = newKeyMap;
-          return;
-        }
-        // non-keyed array: build frag and append
-        // try to reuse existing child nodes by index to preserve input/focus state
-        const allChildren = Array.from(el.children);
-        const existing = allChildren.filter(c => !(inlineTemplate && c.tagName && c.tagName.toLowerCase() === 'template'));
-        // capture active element position to restore focus after reparenting
-        let activeInfo = null;
-        try{
-          const active = (typeof document !== 'undefined') ? document.activeElement : null;
-          if(active){
-            for(let ci=0; ci<existing.length; ci++){
-              if(existing[ci].contains(active)){
-                const inputs = Array.from(existing[ci].querySelectorAll('input,textarea,select,[contenteditable]'));
-                const idx = inputs.indexOf(active);
-                activeInfo = { childIndex: ci, inputIndex: idx };
-                break;
-              }
-            }
-          }
-        // capture current input values per existing node so we can restore after full reparent
-        const existingInputState = existing.map(n => Array.from(n.querySelectorAll('input,textarea,select,[contenteditable]')).map(i=>({ value: i.value, checked: i.checked, selectionStart: i.selectionStart, selectionEnd: i.selectionEnd })) );
-        }catch(e){}
-        for(let i=0;i<val.length;i++){
-          const item = val[i];
-          let node = existing[i] || null;
-          if(node){
-            try{ applyBindingsForClone(node, i, true); }catch(e){}
-          } else {
-            node = createNodeFor(item, i, null);
-          }
-          frag.appendChild(node);
-          state.order.push(i);
-        }
-        if(inlineTemplate){ const keep = tpl; el.innerHTML = ''; el.appendChild(keep); el.appendChild(frag); }
-        else { el.innerHTML = ''; el.appendChild(frag); }
-        // restore focus if it was inside a moved node
-        try{
-          if(activeInfo){
-            const newChildren = Array.from(el.children).filter(c => !(inlineTemplate && c.tagName && c.tagName.toLowerCase() === 'template'));
-            const target = newChildren[activeInfo.childIndex];
-            if(target){ const ins = Array.from(target.querySelectorAll('input,textarea,select,[contenteditable]')); const elToFocus = ins[activeInfo.inputIndex]; if(elToFocus) try{ elToFocus.focus(); }catch(e){} }
-          }
-          // restore user-entered values for inputs to avoid overwriting on rebind
-          try{
-            const newChildren = Array.from(el.children).filter(c => !(inlineTemplate && c.tagName && c.tagName.toLowerCase() === 'template'));
-            for(let ci=0; ci<existingInputState.length && ci<newChildren.length; ci++){
-              const inputs = Array.from(newChildren[ci].querySelectorAll('input,textarea,select,[contenteditable]'));
-              const vals = existingInputState[ci] || [];
-              for(let k=0;k<vals.length && k<inputs.length;k++){
-                try{ if(inputs[k].type === 'checkbox' || inputs[k].type === 'radio') inputs[k].checked = !!vals[k].checked; else inputs[k].value = vals[k].value; if(typeof vals[k].selectionStart === 'number') try{ inputs[k].setSelectionRange(vals[k].selectionStart, vals[k].selectionEnd); }catch(e){} }catch(e){}
-              }
-            }
-          }catch(e){}
-        }catch(e){}
-        return;
-      }
-      if(val && typeof val === 'object'){
-        const node = createNodeFor(val, 0, null);
-        if(inlineTemplate){ const keep = tpl; el.innerHTML = ''; el.appendChild(keep); el.appendChild(node); }
-        else { el.innerHTML = ''; el.appendChild(node); }
-        state.order = ['__object__'];
-        return;
-      }
-      // empty
+    if(attr[i] === '#') { i++; while(i < attr.length) tplId += attr[i++]; }
+    if(!signal || !tplId) return;
+    const render = () => {
+      const arr = get(signal) || [];
       el.innerHTML = '';
-      state.order = [];
-    };
-
-    // efficient shape handler: try to apply deltas if possible, otherwise full render
-    const handler = (ev) => {
-      const change = ev && ev.detail && ev.detail.change ? ev.detail.change : null;
-      const curr = getVal(signal);
-      if(!change || !Array.isArray(curr)) { renderFull(); return; }
-      // handle removals
-      const removed = change.removed || [];
-      const added = change.added || [];
-      // collect removed nodes into pool (store node + captured input state)
-      const removedNodes = [];
-      // remove by index positions (when no keys, removed entries are indices)
-      if(removed.length){
-        // sort descending to remove from DOM by index
-        const remIdx = removed.slice().sort((a,b)=>b-a);
-        for(const ri of remIdx){
-          const node = el.children[ri];
-          if(node){
-            // capture inputs/selects/textarea values and focused element index
-            try{
-              const inputs = Array.from(node.querySelectorAll('input,textarea,select,[contenteditable]'));
-              const values = inputs.map(i => ({ value: i.value, checked: i.checked, selectionStart: i.selectionStart, selectionEnd: i.selectionEnd }));
-              const active = (typeof document !== 'undefined' && document.activeElement && node.contains(document.activeElement)) ? inputs.indexOf(document.activeElement) : -1;
-              // honor directive-level opt-out: if `data-view__renew` was used, do not preserve
-              let preserved = { values, active };
-              try{ const tplRoot = tpl && tpl.content && tpl.content.firstElementChild; if(state.renewByAttr) preserved = null; }catch(e){}
-              removedNodes.push({ node, preserved });
-            }catch(e){ removedNodes.push({ node, preserved:null }); }
-            el.removeChild(node);
-          }
-        }
-      }
-      // insert new items at added indices using pool reuse when possible
-      if(added.length){
-        for(const ai of added){
-          const item = curr[ai];
-          const reuseObj = removedNodes.pop();
-          let node;
-          if(reuseObj && reuseObj.node){
-            node = reuseObj.node;
-            // if reuse, reapply bindings to update $index/path attributes
-            try{ applyBindingsForClone(node, ai, true); }catch(e){}
-            // restore captured values and focus if present
-            if(reuseObj.preserved && reuseObj.preserved.values && reuseObj.preserved.values.length){
-              try{
-                const inputs = Array.from(node.querySelectorAll('input,textarea,select,[contenteditable]'));
-                for(let k=0;k<reuseObj.preserved.values.length && k<inputs.length;k++){
-                  const st = reuseObj.preserved.values[k];
-                  try{
-                    if(inputs[k].type === 'checkbox' || inputs[k].type === 'radio') inputs[k].checked = !!st.checked; else inputs[k].value = st.value;
-                    if(typeof st.selectionStart === 'number') try{ inputs[k].setSelectionRange(st.selectionStart, st.selectionEnd); }catch(e){}
-                  }catch(e){}
-                }
-                if(reuseObj.preserved.active >= 0){ const af = node.querySelectorAll('input,textarea,select,[contenteditable]')[reuseObj.preserved.active]; if(af) try{ af.focus(); }catch(e){} }
-              }catch(e){}
+      const tpl = document.getElementById(tplId);
+      if(!tpl) return;
+      const frag = document.createDocumentFragment();
+      for(let idx=0; idx<arr.length; idx++){
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        // Bind data-$it and data-$i by attribute name check (avoid CSS selector issues with $)
+        if(node.hasAttribute && node.hasAttribute('data-$it')) node.textContent = arr[idx];
+        if(node.hasAttribute && node.hasAttribute('data-$i')) node.textContent = idx;
+        node.querySelectorAll('*').forEach(n => {
+          if(n.hasAttribute && n.hasAttribute('data-$it')) n.textContent = arr[idx];
+          if(n.hasAttribute && n.hasAttribute('data-$i')) n.textContent = idx;
+        });
+        // simple nested rendering: if item has `replies` array, append a small ul
+        try {
+          const item = arr[idx];
+          if(item && Array.isArray(item.replies)){
+            const sub = document.createElement('ul');
+            for(const r of item.replies){
+              const li = document.createElement('li');
+              li.textContent = r;
+              sub.appendChild(li);
             }
-          } else {
-            node = createNodeFor(item, ai, null);
+            node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
           }
-          // insert at position ai (clamp)
-          const ref = el.children[ai] || null;
-          el.insertBefore(node, ref);
-        }
+        } catch(e) { console.error(e); }
+        frag.appendChild(node);
       }
-      // for keyChanges / modified indices, trigger individual updates by reapplying bindings
-      if(change.keyChanges && change.keyChanges.length){
-        for(const ch of change.keyChanges){
-          const idx = ch.key;
-          const node = el.children[idx];
-          if(node) applyBindingsForClone(node, idx, true);
-        }
-      }
+      el.appendChild(frag);
     };
-
-    // subscribe for shape changes on root
-    if(!subs.has(state.root)) subs.set(state.root, []);
-    subs.get(state.root).push({ fn: handler, mode: 'shape' });
-
-    // initial render
-    renderFull();
+    // Subscribe to signal changes
+    const root = toCamel(signal.split('.')[0]);
+    if(!subs.has(root)) subs.set(root, []);
+    subs.get(root).push(render);
+    render();
   }
 
   // --- Modifiers demo helpers: none (logic implemented in setupGeneric above)
@@ -1773,8 +1425,8 @@ Summary:
           setupClass(el, a.name, a.value);
         } else if(a.name.indexOf('data-disp') === 0){
           setupDisp(el, a.name, a.value);
-        } else if(a.name.indexOf('data-view') === 0){
-          setupView(el, a.name, a.value);
+        } else if(a.name.indexOf('data-iter') === 0){
+          setupIter(el, a.name);
         } else if(a.name.indexOf('data-get') === 0 || a.name.indexOf('data-post') === 0 || a.name.indexOf('data-put') === 0 || a.name.indexOf('data-patch') === 0 || a.name.indexOf('data-delete') === 0){
           setupAction(el, a.name, a.value);
         }
