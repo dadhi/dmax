@@ -609,12 +609,11 @@ Summary:
       return null;
     });
 
-    const handler = (ev, sg) => {
-      const detailParam = ev && ev.detail && ev.detail.change ? ev.detail.change : undefined;
-      // If this invocation is signal-originated (sg is a signal path string and
-      // ev is the synthetic shape detail or null), do not pass `ev` into compiled
-      // functions — pass undefined instead; compiled bodies receive the detail
-      // as the last parameter.
+    const handler = (ev, sg, detailArg) => {
+      const detailParam = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
+      // If this invocation is signal-originated (ev is null/undefined), do not
+      // pass `ev` into compiled functions — pass undefined instead; compiled
+      // bodies receive the change info via the `detail` parameter.
       const isSignalInvocation = (ev == null);
       const evArg = isSignalInvocation ? undefined : ev;
       const result = fn(Object.fromEntries(S), el, evArg, sg, detailParam);
@@ -644,7 +643,7 @@ Summary:
         const guardLe = 'le' in mods ? +mods.le : undefined;
         let timer = null;
         let last = 0;
-        const decorated = function(ev, sg){
+        const decorated = function(ev, sg, detailArg){
           if (prevent) ev?.preventDefault?.();
           const run = () => {
             if (andPath && !get(String(andPath))) return;
@@ -656,7 +655,7 @@ Summary:
             if (guardGe !== undefined && !(+subjectVal >= guardGe)) return;
             if (guardLt !== undefined && !(+subjectVal < guardLt)) return;
             if (guardLe !== undefined && !(+subjectVal <= guardLe)) return;
-            try { orig(ev, sg); } catch (e) { console.error('Handler error', e); }
+            try { orig(ev, sg, detailArg); } catch (e) { console.error('Handler error', e); }
             if (once && decorated && decorated.remove) decorated.remove();
           };
           if (debMs != null) { clearTimeout(timer); timer = setTimeout(run, debMs); return; }
@@ -688,7 +687,7 @@ Summary:
         }
         // If trigger uses bracket-index indirection, wrap the handler so it only fires when the resolved path matches
         if(hasBracketIndex(t.name)){
-          const wrapper = function(ev, p){
+          const wrapper = function(ev, p, detailArg){
             try{
               const resolved = resolveBracketPath(t.name);
               // debug trace
@@ -696,12 +695,12 @@ Summary:
               // if invoked because of index/root change (p is one of the extra roots) we should call handler
               const extraRoots = Array.from(collectBracketRoots(t.name));
               if(p && extraRoots.includes(p)){
-                return dec(ev, p);
+                return dec(ev, p, detailArg);
               }
               if(!p) return;
               // if mutation path equals or is under resolved path, invoke
               if(resolved && (p === resolved || p.indexOf(resolved + '.') === 0)){
-                return dec(ev, p);
+                return dec(ev, p, detailArg);
               }
             }catch(e){ }
           };
@@ -1438,7 +1437,11 @@ Summary:
               if(!matches) continue;
             }
 
-            h.fn({ detail: { path: p, change } }, p);
+            // For signal-originated invocations, pass no event object (undefined)
+            // and forward the minimal change summary as a third argument (`detail`).
+            // This makes handlers treat `ev` as undefined (signal source) and
+            // receive the change via the `detail` parameter.
+            h.fn(undefined, p, change);
           }
         }catch(e){ console.error('Subscriber handler error', e); }
       }
@@ -1605,7 +1608,9 @@ Summary:
     </div>
     <div style="margin-top:8px">
       <div>Content subscriber (default): <span id="demoContent" data-sub:.@demo-parent.child="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
-      <div>Shape subscriber (<code>__shape</code>): <span id="demoShape" data-sub:.@demo-parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : ''"></span></div>
+      <div>Shape subscriber (<code>__shape</code>): <span id="demoShape" data-sub:.@demo-parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : (detail ? window.formatShapeChange(detail) : '')"></span></div>
+      <!-- Hidden probe used by headless tests to assert ev/sg/detail for signal-originated shape changes -->
+      <pre id="testShapeProbe" style="display:none" data-sub:.@demo-parent__shape="(function(){ window.__probe_ev = ev; window.__probe_sg = sg; window.__probe_detail = detail; return ''; })()"></pre>
     </div>
   </div>
 </section>

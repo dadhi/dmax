@@ -361,6 +361,17 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       // childPath-specific shape subscriber should be triggered when that key added
       if((window.__shapeChild || 0) === 1) pass('FG: childPath filter triggered on shape add'); else fail('FG: childPath filter did not trigger on shape add');
 
+      // Explicit check: compiled shape subscriber should update DOM using the `detail` parameter
+      try{
+        const demoShapeEl = doc.getElementById('demoShape');
+        const demoAddBtn = doc.getElementById('demoAddKey');
+        // trigger a demo shape add to ensure update
+        if(demoAddBtn) demoAddBtn.dispatchEvent(new window.Event('click', { bubbles: true }));
+        else addKey.dispatchEvent(new window.Event('click', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 120));
+        if(demoShapeEl && String(demoShapeEl.textContent || '').trim() !== '') pass('Signal-originated shape: compiled handler received detail and updated DOM'); else fail('Signal-originated shape did not update demoShape DOM');
+      }catch(e){ console.error('Probe test error', e); fail('Signal-originated DOM probe test crashed'); }
+
       // 3) shape-change removal
       removeKey.dispatchEvent(new window.Event('click', { bubbles: true }));
       await new Promise(r => setTimeout(r, 120));
