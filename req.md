@@ -102,21 +102,62 @@ A sugar consisting of 0, 1 or 2 targets with the same grammar as in data-sub for
 - No targets is the valid case if the curr element has a name attr, then this nsme will be used for signal.
 
 
-## data-class
 
-data-class.foo.bar@baz='baz + boo.fix > 42'
-data-class.greeting@foo__5
-data-class:.green-button.-gray-button@is-done@#el-id.load
+## data-dump
 
-where:
-  .class-to-add
-  .-class-to-remove
+`data-dump` renders arrays or object entries using either a referenced template or an inline `<template>` child. It is a lightweight list/template cloning directive intended for simple append/remove and nested wiring.
 
-@is-done is a signal trigger
-@#el-id.load is an event trigger
+Syntax examples:
 
-data-class:.foo.bar@baz='baz + boo.fix > 42'
-  (expression value interpreted as boolean)
+- `data-dump@posts#tpl-post` — source signal `posts`, template `#tpl-post` (by id/attr)
+- `data-dump#tpl-post@posts` — same as above (order of `@` and `#` is flexible)
+- Inline template:
+
+```html
+<ul data-dump@posts>
+  <template>
+    <li>post <span data-$i></span>: <span data-$it></span></li>
+  </template>
+</ul>
+```
+
+Placeholders and substitution:
+
+- `$item` / `$index`: used at clone-time for attribute *values*; e.g. `data-text="$item.title"` becomes the expression resolved against the cloned item.
+- `$index` may also be used inside attribute *names* for generating per-clone attributes (the runtime rewrites attribute names containing `$index` or `$item` at clone-time to safe keys).
+
+Behavior & guarantees:
+
+- For arrays: the runtime appends or removes clones at the end when the array length changes (simple end-only reconciliation). It does not attempt full keyed reordering unless a keyed reconciliation feature is added later.
+- Cloned nodes are wired: after cloning the template the runtime calls the usual setup routines (`setupSub`, `setupSync`, `setupClass`, `setupDisp`, `setupAction`, and `setupDump` recursively) so `data-*` directives inside the template behave as they would on a static node.
+- Inline `<template>` nodes are detached after being used as the blueprint so they do not appear in the final DOM as empty placeholders.
+- Placeholder substitution occurs at clone-time: attribute NAMES and VALUES containing `$item`/`$index` are rewritten per-clone. Attribute value substitution may create expressions that reference `dm.<signal>[<index>]` or inline literal values depending on context.
+
+Examples:
+
+Template by id:
+
+```html
+<template id="tpl-post">
+  <li data-text="$item.body"></li>
+</template>
+<ul data-dump@posts#tpl-post></ul>
+```
+
+Inline template example:
+
+```html
+<ul data-dump@posts>
+  <template>
+    <li>post <span data-text="$index"></span>: <span data-text="$item.body"></span></li>
+  </template>
+</ul>
+```
+
+Notes/TBD:
+
+- Support for stable keyed reconciliation (`$key`) is planned but deferred.
+- `$item`/`$index` rewriting rules are intentionally conservative; complex expression rewrites should be tested and may require small helper signals.
 
 data-class:.greeting@foo__5
 data-class:.showtime@cool-factor__notimmediate__gt.42__and.baz.boo.bee

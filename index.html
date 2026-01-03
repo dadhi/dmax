@@ -8,6 +8,8 @@
   .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
   .active{border-color:#28a745;background:#eaffea}
   .inactive{opacity:.7;filter:grayscale(.2)}
+  .zebra-even, .zebraEven{background:#ffffff}
+  .zebra-odd, .zebraOdd{background:#f6f6f6}
 </style>
 </head>
 <body>
@@ -194,24 +196,54 @@
   </div>
   <div id="classBox" data-class:.active.-inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
   <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
+  <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active (negated)</p>
 </section>
 
 <section>
-  <h3>9. List Rendering (data-iter)</h3>
-  <div class="page">data-iter:posts#tpl-post, data-$i, data-$it</div>
-  <!-- data-iter:posts#tpl-post, data-$i, data-$it -->
+  <h3>9. List Rendering (data-dump)</h3>
+  <div class="page">data-dump@posts#tpl-post — template as child &lt;template&gt; or reference by id</div>
+  <!-- data-dump@posts#tpl-post, template child or #tpl-id -->
   <template id="tpl-post">
-    <li>post <span data-$i></span>: <span data-$it></span></li>
+    <li data-index="$index" data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
+      <span class="num" data-sub:.@posts="$index + 1"></span>
+      <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
+    </li>
   </template>
-  <ul data-iter:posts#tpl-post></ul>
+  <ul data-dump@posts#tpl-post></ul>
 
-  <h4>Nested data-iter example</h4>
+  <h4>Inline-template data-dump example (no #id)</h4>
+  <ul id="inline-posts" data-dump@posts>
+    <template>
+      <li data-index="$index" data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
+        <span class="num" data-sub:.@posts="$index + 1"></span>
+        <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
+      </li>
+    </template>
+  </ul>
+
+  <div style="margin-top:8px">
+    <button id="addPost" data-sub:posts@.click="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0) ])">Add Post</button>
+    <button id="removeFirst" data-sub:posts@.click="(dm.posts || []).slice(1)">Remove First</button>
+    <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
+    <button id="updateSecond" data-sub:posts@.click="(function(){ if(!(dm.posts && dm.posts.length>1)) return dm.posts; const p = dm.posts.slice(0); p[1] = (p[1] || '') + ' (updated)'; return p })()">Update 2nd</button>
+  </div>
+
+  <h4>Nested data-dump example</h4>
   <template id="tpl-thread">
     <li>Thread: <strong data-$it></strong>
       <div class="replies-placeholder"></div>
     </li>
   </template>
-  <ul data-iter:threads#tpl-thread></ul>
+  <ul data-dump@threads#tpl-thread></ul>
+
+  <h4>Nested inline-template example</h4>
+  <ul id="inline-threads" data-dump@threads>
+    <template>
+      <li>Thread: <strong data-$it></strong>
+        <div class="replies-placeholder"></div>
+      </li>
+    </template>
+  </ul>
 </section>
 
 <section>
@@ -1304,62 +1336,213 @@ Summary:
     }
   }
 
-  // Compact data-iter implementation
-  function setupIter(el, attr) {
-    // Syntax: data-iter:.signal#tpl-id
-    let i = 9; // 'data-iter'.length
-    if(attr[i] !== ':') return;
-    i++;
-    let signal = '', tplId = '';
-    // support both `:.signal#tpl` and `:signal#tpl` forms
-    if(attr[i] === '.') {
-      i++;
-      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
-    } else {
-      while(i < attr.length && attr[i] !== '#') signal += attr[i++];
-    }
-    if(attr[i] === '#') { i++; while(i < attr.length) tplId += attr[i++]; }
-    if(!signal || !tplId) return;
-    const render = () => {
-      const arr = get(signal) || [];
-      el.innerHTML = '';
-      const tpl = document.getElementById(tplId);
-      if(!tpl) return;
-      const frag = document.createDocumentFragment();
-      for(let idx=0; idx<arr.length; idx++){
-        const node = tpl.content.firstElementChild.cloneNode(true);
-        // Bind data-$it and data-$i by attribute name check (avoid CSS selector issues with $)
-        if(node.hasAttribute && node.hasAttribute('data-$it')) node.textContent = arr[idx];
-        if(node.hasAttribute && node.hasAttribute('data-$i')) node.textContent = idx;
-        node.querySelectorAll('*').forEach(n => {
-          if(n.hasAttribute && n.hasAttribute('data-$it')) n.textContent = arr[idx];
-          if(n.hasAttribute && n.hasAttribute('data-$i')) n.textContent = idx;
-        });
-        // simple nested rendering: if item has `replies` array, append a small ul
-        try {
-          const item = arr[idx];
-          if(item && Array.isArray(item.replies)){
-            const sub = document.createElement('ul');
-            for(const r of item.replies){
-              const li = document.createElement('li');
-              li.textContent = r;
-              sub.appendChild(li);
-            }
-            node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
-          }
-        } catch(e) { console.error(e); }
-        frag.appendChild(node);
-      }
-      el.appendChild(frag);
+  // data-dump implementation: clone a template per array item or once for an object
+  function setupDump(el, attrName, attrVal) {
+    // Parse attribute tokens from either the attribute NAME or attribute VALUE
+    // Syntax variations supported:
+    // - data-dump@posts#tpl-id
+    // - data-dump#tpl-id@posts
+    // - <ul data-dump@posts> <template>...</template></ul>
+    const parseDumpAttr = (name, val) => {
+      let sig = null, tplId = null;
+      const scan = (s) => {
+        if(!s) return;
+        const atIdx = s.indexOf('@');
+        const hashIdx = s.indexOf('#');
+        if(atIdx !== -1){ sig = s.slice(atIdx + 1).split('#')[0] || sig; }
+        if(hashIdx !== -1){ tplId = s.slice(hashIdx + 1).split('@')[0] || tplId; }
+        // If string looks like a bare signal name (no @/#), accept it when no sig yet
+        if(sig == null){ const trimmed = s.trim(); if(trimmed && /^[A-Za-z0-9_\.-]+$/.test(trimmed)) sig = sig || trimmed; }
+      };
+      scan(name); scan(val);
+      return { sig, tplId };
     };
-    // Subscribe to signal changes
-    const root = toCamel(signal.split('.')[0]);
-    const rootAlias = sigKey(signal.split('.')[0]);
+
+    const parsed = parseDumpAttr(attrName || '', attrVal || '');
+    // parsed attribute tokens (no debug log)
+    let sig = parsed.sig || null;
+    let tplId = parsed.tplId || null;
+    // if no tplId, look for a child <template>
+    let tpl = null;
+    if(tplId) tpl = document.getElementById(tplId);
+    if(!tpl){ tpl = el.querySelector('template'); }
+    // If template was an inline child, detach it so it doesn't remain as a DOM child
+    if(tpl && tpl.parentNode === el){ tpl.parentNode.removeChild(tpl); }
+    if(!tpl) return; // nothing to render
+    if(!sig) {
+      // try to read a 'data-signal' attribute or the element's value as fallback
+      if(el.getAttribute && el.getAttribute('data-signal')) sig = el.getAttribute('data-signal');
+      if(!sig && attrVal && attrVal.trim()) sig = attrVal.trim();
+      // Additional fallback: scan element attribute NAMES and re-parse the full attribute name
+      if(!sig && el.getAttributeNames){
+        const names = el.getAttributeNames();
+        for(const an of names){
+          if(typeof an === 'string' && an.indexOf('data-dump') === 0){
+            const reparsed = parseDumpAttr(an, el.getAttribute(an));
+            if(reparsed.sig){ sig = reparsed.sig; tplId = tplId || reparsed.tplId; break; }
+          }
+        }
+      }
+      if(!sig) return; // still none
+    }
+
+    // canonical root
+    const root = toCamel(sig.split('.')[0]);
+    const rootAlias = sigKey(sig.split('.')[0]);
+
+    // internal state on element
+    if(!el.__dump) el.__dump = { nodes: [], count: 0, sig: sig };
+
+    const doRender = (ev, p, detail) => {
+      const val = get(sig || '');
+      // If value is an array, render one clone per item; if object, render single
+      if(Array.isArray(val)){
+        const newLen = val.length;
+        const oldLen = el.__dump.count || 0;
+        // remove from end if items removed
+        if(newLen < oldLen){
+          const removeCount = oldLen - newLen;
+          for(let i=0;i<removeCount;i++){
+            const node = el.__dump.nodes.pop();
+            if(node && node.parentNode) node.parentNode.removeChild(node);
+          }
+          el.__dump.count = newLen;
+        }
+        // add new clones at end if increased
+        if(newLen > oldLen){
+          const frag = document.createDocumentFragment();
+          for(let idx = oldLen; idx < newLen; idx++){
+            try{
+              if(!tpl.content || !tpl.content.firstElementChild){ break; }
+              const node = tpl.content.firstElementChild.cloneNode(true);
+            // replace placeholders in attribute NAMES: $item -> sig.idx (e.g. posts.0), $index -> idx
+            const walk = [node].concat(Array.from(node.querySelectorAll('*')));
+            for(const n of walk){
+              const attrs = Array.from(n.attributes || []);
+              for(const a of attrs){
+                const origName = a.name;
+                const origVal = a.value;
+                let name = origName;
+                let value = origVal;
+                // Replace placeholders in attribute NAMES
+                if(name.indexOf('$item') !== -1 || name.indexOf('$index') !== -1){
+                  const newName = name.replace(/\$item/g, sig + '.' + idx).replace(/\$index/g, String(idx));
+                  if(newName !== name){ name = newName; }
+                }
+                // Replace placeholders in attribute VALUES (JS expressions)
+                if(typeof value === 'string' && (value.indexOf('$item') !== -1 || value.indexOf('$index') !== -1)){
+                  value = value.replace(/\$index/g, String(idx)).replace(/\$item/g, ('dm.' + sig + '[' + idx + ']'));
+                }
+                // apply possibly-updated name/value
+                try{
+                  n.removeAttribute(origName);
+                  n.setAttribute(name, value);
+                }catch(e){}
+              }
+            }
+            // Evaluate simple `data-sub` expressions now so clones show initial content
+            try{
+              const dmObj = Object.fromEntries(S);
+              for(const n2 of walk){
+                for(const a2 of Array.from(n2.attributes || [])){
+                  const an2 = a2.name; const v2 = a2.value;
+                  if(an2.indexOf('data-sub') === 0){
+                    try{
+                      const fn = compile(v2);
+                      const res = fn(dmObj, n2, undefined, sig);
+                      // set default property (textContent/value) for the element
+                      try{ setProp(n2, null, res); }catch(e){}
+                    }catch(e){}
+                  }
+                }
+              }
+            }catch(e){}
+            // nested rendering: if item has `replies` array, append a small ul into placeholders
+            try {
+              const item = val[idx];
+              if(item && Array.isArray(item.replies)){
+                const sub = document.createElement('ul');
+                for(const r of item.replies){
+                  const li = document.createElement('li'); li.textContent = r; sub.appendChild(li);
+                }
+                node.querySelectorAll('.replies-placeholder').forEach(ph => ph.appendChild(sub));
+              }
+            } catch(e) {}
+            frag.appendChild(node);
+            el.__dump.nodes.push(node);
+            }catch(e){}
+          }
+          el.appendChild(frag);
+          // After insertion, wire up data-* attributes inside newly added nodes
+          for(const node of el.__dump.nodes.slice(- (newLen - oldLen))){
+            const walk2 = [node].concat(Array.from(node.querySelectorAll('*')));
+            for(const n of walk2){
+              for(const a of Array.from(n.attributes || [])){
+                const an = a.name;
+                const v = a.value;
+                if(an.indexOf('data-sub') === 0) setupSub(n, an, v);
+                else if(an.indexOf('data-sync') === 0) setupSync(n, an);
+                else if(an.indexOf('data-class') === 0) setupClass(n, an, v);
+                else if(an.indexOf('data-disp') === 0) setupDisp(n, an, v);
+                else if(an.indexOf('data-dump') === 0) setupDump(n, an, v);
+                else if(an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) setupAction(n, an, v);
+              }
+            }
+          }
+            
+          el.__dump.count = newLen;
+        }
+      } else if(val && typeof val === 'object'){
+        // object: render once (replace existing)
+        // clear previous nodes
+        while(el.firstChild) el.removeChild(el.firstChild);
+        el.__dump.nodes = [];
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        const walk = [node].concat(Array.from(node.querySelectorAll('*')));
+        for(const n of walk){
+          const attrs = Array.from(n.attributes || []);
+          for(const a of attrs){
+            const origName = a.name; const origVal = a.value;
+            let name = origName; let value = origVal;
+            if(name.indexOf('$item') !== -1) { name = name.replace(/\$item/g, sig); }
+            if(typeof value === 'string' && (value.indexOf('$item') !== -1 || value.indexOf('$index') !== -1)){
+              value = value.replace(/\$index/g, '0').replace(/\$item/g, ('dm.' + sig));
+            }
+            try{ n.removeAttribute(origName); }catch(e){}
+            n.setAttribute(name, value);
+          }
+        }
+        el.appendChild(node);
+        // wire up attributes
+        const walk2 = [node].concat(Array.from(node.querySelectorAll('*')));
+        for(const n of walk2){
+          for(const a of Array.from(n.attributes || [])){
+            const an = a.name; const v = a.value;
+            if(an.indexOf('data-sub') === 0) setupSub(n, an, v);
+            else if(an.indexOf('data-sync') === 0) setupSync(n, an);
+            else if(an.indexOf('data-class') === 0) setupClass(n, an, v);
+            else if(an.indexOf('data-disp') === 0) setupDisp(n, an, v);
+            else if(an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) setupAction(n, an, v);
+          }
+        }
+        el.__dump.count = 1;
+        el.__dump.nodes.push(node);
+      } else {
+        // empty or null: clear
+        while(el.firstChild) el.removeChild(el.firstChild);
+        el.__dump.nodes = []; el.__dump.count = 0;
+      }
+    };
+
+    // subscribe to root signal (shape mode)
     if(!subs.has(root)) subs.set(root, []);
     if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
-    subs.get(root).push(render);
-    if(rootAlias !== root) subs.get(rootAlias).push(render);
-    render();
+    const entry = { fn: doRender, mode: 'shape', childPath: null };
+    subs.get(root).push(entry);
+    if(rootAlias !== root) subs.get(rootAlias).push(entry);
+
+    // initial render
+    try{ doRender(undefined, sig); }catch(e){}
   }
 
   // --- Modifiers demo helpers: none (logic implemented in setupGeneric above)
@@ -1575,13 +1758,25 @@ Summary:
           setupClass(el, a.name, a.value);
         } else if(a.name.indexOf('data-disp') === 0){
           setupDisp(el, a.name, a.value);
-        } else if(a.name.indexOf('data-iter') === 0){
-          setupIter(el, a.name);
+        } else if(a.name.indexOf('data-dump') === 0){
+          setupDump(el, a.name, a.value);
         } else if(a.name.indexOf('data-get') === 0 || a.name.indexOf('data-post') === 0 || a.name.indexOf('data-put') === 0 || a.name.indexOf('data-patch') === 0 || a.name.indexOf('data-delete') === 0){
           setupAction(el, a.name, a.value);
         }
       }
     });
+    // Extra sweep: ensure any elements with attributes named `data-dump*` are initialized
+    try{
+      const all2 = document.querySelectorAll('*');
+      all2.forEach(el => {
+        if(!el.getAttributeNames) return;
+        for(const an of el.getAttributeNames()){
+          if(typeof an === 'string' && an.indexOf('data-dump') === 0){
+            try{ setupDump(el, an, el.getAttribute(an)); }catch(e){}
+          }
+        }
+      });
+    }catch(e){}
     updateDebug();
   };
   if(document.readyState === 'loading'){

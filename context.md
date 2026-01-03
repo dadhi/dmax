@@ -29,73 +29,78 @@ Content vs Shape semantics
 Shape change payload (guarantees)
  - The runtime provides a key-level summary for shape mutations:
   - `added`: array of keys/indices added
-  - `removed`: array of keys/indices removed
- - The runtime does not attach per-key value maps to shape events; shape payloads are intentionally minimal to avoid expensive deep copies.
- - Shape change summaries are available as `ev.detail.change` for DOM-event-originated handlers and as the `detail` argument to compiled bodies when applicable.
+  ```markdown
+  Project: dmax — lightweight single-file reactive runtime (updated)
 
-Recent changes (what I did to get the agent up to speed)
+  Summary
+  - dmax is a tiny, single-file JavaScript runtime embedded in `index.html`. It exposes a simple signal map, compiled expressions, and declarative `data-*` directives for reactive UIs without a virtual DOM.
 
-- Removed legacy `__detail` payload variants and simplified shape-change notifications.
-  - Shape emits now provide a minimal summary object: `{ added: [...], removed: [...] }` (no per-key value maps by default).
-- Reintroduced efficient childPath filtering without per-subscriber wrappers: `subs` entries are either functions or objects `{ fn, mode, childPath }` and centralized matching happens inside `emit`.
-- Added bracket-index (indirection) support in attribute paths (e.g., `postObjs[idx].title`):
-  - New helpers: `hasBracketIndex`, `collectBracketRoots`, and `resolveBracketPath`.
-  - Runtime registers subscriptions for both the base root and any signals referenced inside bracket expressions (so changes to `idx` also trigger appropriate handlers).
-  - Triggers using bracket indirection register a lightweight wrapper that resolves the concrete path at runtime and only invokes the original handler when the resolved path matches or when index-root signals change.
-- Simplified emits and subscription payloads:
-  - `emit(p, mutation, info)` now passes only minimal `change` summaries to shape subscribers and centralizes childPath matching.
-  - For content mutations, only `content`-mode subscribers are invoked (fast-path).
-- Subscription storage/refactor and minor API changes:
-  - Subscriptions are stored keyed by the root signal (canonicalized), and when attribute-parsed names differ (kebab/lowercase), alias keys are registered so both forms match the same signal.
-  - `compile(body)` continues to generate `(dm, el, ev, sg, detail)` functions — compiled bodies reference `dm` explicitly.
-- Bracket-index demo & tests:
-  - Added a dedicated hidden demo/test hooks and a visible separate demo section that exercises `postObjs[idx]` behavior.
-  - Added headless tests in `tests/headless_tests.js` to verify:
-    - subscription triggers when `idx` points to the changed item,
-    - no trigger when a different index item changes,
-    - triggers when `idx` itself changes (index-root subscription),
-    - subsequent changes to the newly indexed item trigger the subscription.
-- Temporary debug instrumentation was used during development (wrapper/emit logs) and then removed; tests pass without debug traces.
-- Tooling: added a quick `serve` script to `package.json` for local static serving (`npx http-server -c-1 -p 8080`).
+  Key files (recently changed)
+  - `index.html` — runtime, compiler, parsers, demo UI and most recent feature work (shape/detail changes, `data-dump`, bracket-index, wiring fixes).
+  - `tests/headless_tests.js` — JSDOM headless tests; extended with `data-dump`, bracket-index and negated `data-disp` tests.
+  - `README.md`, `req.md` — documentation updated to describe `data-dump` and shape/detail semantics.
+  - `package.json` — `serve` script added for local testing (`npx http-server -c-1 -p 8080`).
 
-Why these changes:
+  Core API & runtime notes
+  - Signals: stored in Map `S`, surfaced to compiled expressions via `dm` (`Object.fromEntries(S)`).
+  - Compiled expression signature: `(dm, el, ev, sg, detail)` where:
+    - `dm`: snapshot of signals
+    - `el`: element context (or `undefined` when handler is signal-originated)
+    - `ev`: DOM Event for event-originated triggers (`undefined` for signal-originated)
+    - `sg`: signal path that triggered the evaluation (if any)
+    - `detail`: shape-change summary provided for shape-mode invocations
+  - Subscriptions: stored in `subs` keyed by canonical root; entries are objects `{ fn, mode, childPath }` (or legacy function entries).
 
-- The goal was to remove heavy __detail payloads and simplify semantics while keeping efficient childPath filtering and adding useful HTML-path indirection via brackets.
-- Bracket-index support allows compact declarative bindings like `data-sub:.@postObjs[idx]` while keeping subscriptions efficient and deterministic.
+  Content vs Shape semantics
+  - Content mutation: value replacement — not structural; invokes `content` subscribers only.
+  - Shape mutation: structural changes (object keys added/removed, array length changes) — invokes `shape` subscribers; runtime provides a minimal `change` summary `{ added:[], removed:[] }`.
+  - For DOM-event-originated handlers the shape info is available as `ev.detail.change`; for compiled bodies invoked from signals the `detail` arg receives that same shape summary.
 
-Notes for maintainers
+  New / Recent Work (high level)
+  - `detail` / shape threading: signal-originated handler calls now pass `ev === undefined` and provide the shape summary via `detail` (lightweight `{added, removed}`), matching DOM event semantics.
+  - `data-dump` (replacement for older `data-iter`):
+    - Supports `data-dump@sig#tpl-id`, `data-dump#tpl-id@sig`, and inline `<template>` children.
+    - `$item` / `$index` placeholders supported during clone-time for attribute names and values; attribute-value substitution rewrites to safe references (e.g., `dm.sig[index]`).
+    - Cloned nodes are wired after insertion (calls `setupSub`, `setupSync`, `setupClass`, `setupDisp`, `setupAction`, and recursively `setupDump`) so directives inside templates behave normally.
+    - Append/remove-only reconciliation: clones are appended/removed from the end based on array length changes (stable keyed reconciliation is deferred/TBD).
+    - Inline templates are detached after reading so they don't remain as empty DOM children.
+    - `data-dump` now populates clones immediately by evaluating `data-sub` expressions against current state so initial render shows item content.
+  - Bracket-index indirection (`posts[idx].title`) and helper functions:
+    - `hasBracketIndex`, `collectBracketRoots`, `resolveBracketPath` implemented.
+    - Subscriptions register both the base root and any index-root signals so changing `idx` or the indexed item behaves correctly.
+  - `data-class` / zebra rows:
+    - `data-class` uses sign semantics `.<name>` to add when true and `.-<name>` to mark inverse; code toggles classes accordingly.
+    - Example demo uses `data-class:.zebra-even.-zebra-odd="$index % 2 === 0"` to apply zebra styling per clone.
+  - Demo/UI fixes:
+    - Section 9 (`data-dump`) templates updated to render items (strings or JSON for objects), provide numbering, zebra styling, and per-list demo buttons (Add, Remove First, Remove Last, Update 2nd).
+    - Buttons were wired to update the `posts` signal using `data-sub:posts@.click` so `set()` is used and `data-dump` reacts.
+  - Tests & validation:
+    - Added/updated headless tests for inline templates, nested replies, bracket-index behavior, negated `data-disp` (`!dm.x`) and general regression checks.
+    - Multiple iterative runs ensured all headless tests pass locally (current result: green).
 
-- If you change how signal keys are canonicalized (kebab→camel vs lowercase), ensure subscriptions and data-def keys remain reachable — the runtime currently registers alias keys so both attribute-parsed and data-def forms match.
-- Keep compiled expressions explicit (`dm.*`) to avoid introducing unbound identifier errors in compiled bodies (see recent demo patch that uses `dm.idx` rather than a free `idx`).
+  Implementation notes & trade-offs
+  - `data-dump` performs conservative placeholder rewriting at clone-time (attribute names/values). Complex expression rewrites should be tested; helper signals are recommended when expressions get complex.
+  - `data-dump` uses simple append/remove reconciliation to keep the runtime small and predictable. Keyed stable reordering is a future enhancement.
+  - The runtime evaluates `data-sub` on clones immediately to populate content; this is a pragmatic choice to keep initial render consistent in browsers that don't run the wiring synchronously.
 
-Files touched
+  Files touched (high level)
+  - `index.html` — major edits (setupDump, detail threading, bracket-index, compiler wiring, demo updates)
+  - `tests/headless_tests.js` — new/updated tests (data-dump, negated data-disp, bracket-index)
+  - `README.md`, `req.md` — docs updated to describe `data-dump` semantics and shape/detail notes
+  - `package.json` — `serve` script added
 
-- `index.html` — major edits: emission/refactor, subscription alias handling, bracket-index helpers and wrapper logic, demo/test hooks.
-- `tests/headless_tests.js` — added bracket-index tests and validated FG content/shape tests.
-- `package.json` — added `serve` script for quick local testing.
+  Status
+  - Headless tests pass locally (JSDOM). The demo is interactive and Section 9 demonstrates `data-dump` behavior and the Add/Remove/Update buttons.
 
-Status
+  Next steps (suggested)
+  - Commit and push the changes (branch `main` currently). I can make the commit now if you want.
+  - Add a small helper to pretty-print JSON in a multi-line block per-item, or add per-item action buttons (edit/delete) to the template.
 
-- Headless tests pass locally (JSDOM harness). Temporary debug logs removed; runtime is clean.
+  How to run locally
+  - Start local server: `npm run serve` (serves on port 8080) and open `http://localhost:8080`.
+  - Run headless tests: `node tests/headless_tests.js`.
 
-Next steps (optional)
+  Contact / notes
+  - If you'd like, I can commit the changes and add a brief changelog entry, or I can extract `data-dump` logic into a small helper module for easier testing. Tell me which you prefer.
 
-- Commit & push the changes to the repository (branch `main` currently).  
-- Consider adding a small public API for programmatic subscriptions (e.g., `dmax.subscribe(signal, { mode:'shape', childPath:'x' }, fn)`).
-
-Guidelines for contributors
-- Keep compiled bodies explicit: reference signals via `dm` (e.g., `dm.user.name`).
-- Prefer shallow structural clones in `set` to minimize GC churn.
-- Only include values in shape diffs when requested — avoid expensive deep copies by default.
-- Keep the runtime single-file and minimal unless a clear perf / maintainability tradeoff warrants extraction.
-
-How to run locally
-- Start server: `python3 -m http.server 8000` and open `http://localhost:8000`
-- Run headless tests: `node tests/headless_tests.js`
-- Run e2e action tests: `node tests/actions.e2e.js` and `node tests/actions.resultMods.e2e.js`
-
-Current status
-- Headless tests and e2e action tests pass. The demo Section 11 is interactive and demonstrates `content` vs `shape` semantics and `__detail` usage. Ongoing item: full benchmark and size optimization.
-
-Contact / next steps
-- If you want a smaller public API wrapper for programmatic subscriptions with `detail` control, I can add a small helper (e.g., `dmax.subscribe(signal, { mode:'shape', detail:'values' }, fn)`).
+  ``` 

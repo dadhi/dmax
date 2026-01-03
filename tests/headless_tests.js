@@ -257,11 +257,23 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
     await new Promise(r => setTimeout(r, 80));
     if(window.getComputedStyle(displayBox).display !== 'none') pass('Display box shows when active'); else fail('Display box did not show when active');
 
-      // Section 9: data-iter renders posts
-      const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter') === 0));
-      if(!iterUl) fail('Section9 data-iter element missing');
+    // Extra check: negated data-disp element should be visible when checkbox is OFF and hidden when ON
+    const displayNeg = doc.getElementById('displayNeg');
+    if(!displayNeg) fail('Section8 displayNeg missing');
+    // When checkbox off -> displayNeg should show
+    chkActive.checked = false; chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(window.getComputedStyle(displayNeg).display !== 'none') pass('Negated display shows when inactive'); else fail('Negated display did not show when inactive');
+    // When checkbox on -> displayNeg should hide
+    chkActive.checked = true; chkActive.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 80));
+    if(window.getComputedStyle(displayNeg).display === 'none') pass('Negated display hides when active'); else fail('Negated display did not hide when active');
+
+    // Section 9: data-dump renders posts
+      const iterUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-dump') === 0));
+      if(!iterUl) fail('Section9 data-dump element missing');
       // debug: log attributes and template
-      console.log('data-iter attributes on page:', Array.from(doc.querySelectorAll('*')).map(el=>Array.from(el.getAttributeNames()).filter(a=>a.indexOf('data-iter')===0)).filter(a=>a.length));
+      console.log('data-dump attributes on page:', Array.from(doc.querySelectorAll('*')).map(el=>Array.from(el.getAttributeNames()).filter(a=>a.indexOf('data-dump')===0)).filter(a=>a.length));
       const tpl = doc.getElementById('tpl-post');
       console.log('tpl:', tpl ? tpl.innerHTML.slice(0,200) : 'no tpl');
       console.log('iterUl outerHTML:', iterUl.outerHTML.slice(0,200));
@@ -271,16 +283,32 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       } else console.log('__getState not available');
       // expect number of list items equal to posts in initial data-def (3)
       const items = Array.from(iterUl.children || []);
-      if(items.length === 3) pass('Section9 data-iter rendered 3 items'); else fail('Section9 data-iter rendered wrong number: ' + items.length);
+      if(items.length === 3) pass('Section9 data-dump rendered 3 items'); else fail('Section9 data-dump rendered wrong number: ' + items.length);
 
       // Section 9b: nested threads rendered with replies
-      const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-iter:threads') === 0));
-      if(!threadUl) fail('Section9 nested threads element missing');
+      const threadUl = Array.from(doc.getElementsByTagName('ul')).find(el => Array.from(el.getAttributeNames()).some(a => a.indexOf('data-dump') === 0 && a.indexOf('threads') !== -1));
+      if(!threadUl) fail('Section9 nested data-dump element missing');
       const tItems = Array.from(threadUl.children || []);
       if(tItems.length !== 3) fail('Section9 threads count wrong: ' + tItems.length);
       // Check first thread has 2 replies rendered
       const firstReplies = tItems[0].querySelectorAll('ul > li');
       if(firstReplies.length === 2) pass('Section9 nested replies rendered for first thread'); else fail('Section9 nested replies wrong: ' + firstReplies.length);
+
+      // Section 9c: inline-template data-dump (no #tpl id)
+      const inlineUl = doc.getElementById('inline-posts');
+      if(!inlineUl) fail('Section9 inline data-dump missing');
+      await new Promise(r => setTimeout(r, 60));
+      const inlineItems = Array.from(inlineUl.children || []);
+      if(inlineItems.length === 3) pass('Section9 inline data-dump rendered 3 items'); else fail('Section9 inline data-dump wrong: ' + inlineItems.length);
+
+      // Section 9d: nested inline-template data-dump should render replies inside cloned thread nodes
+      const inlineThreads = doc.getElementById('inline-threads');
+      if(!inlineThreads) fail('Section9 inline-threads missing');
+      await new Promise(r => setTimeout(r, 60));
+      const inlineThreadItems = Array.from(inlineThreads.children || []);
+      if(inlineThreadItems.length !== 3) fail('Section9 inline threads count wrong: ' + inlineThreadItems.length);
+      const firstInlineReplies = inlineThreadItems[0].querySelectorAll('ul > li');
+      if(firstInlineReplies.length === 2) pass('Section9 nested inline replies rendered for first thread'); else fail('Section9 nested inline replies wrong: ' + firstInlineReplies.length);
 
     // Section 10: modifiers (once, debounce, throttle, and)
     // Once test

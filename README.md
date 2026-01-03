@@ -31,7 +31,7 @@ Core directives:
 	- Directional forms: `data-sync@signal` (signal -> element one-way), `data-sync:signal@.` (element -> signal one-way), and `data-sync:signal` (default two-way). See `index.html` examples.
  - data-class : conditional add/remove classes
  - data-disp  : show/hide by expression
- - data-iter  : array rendering via <template>; use `data-$it` (item) and `data-$i` (index); nested iters supported; uses DocumentFragment batching
+ - data-dump  : array/object rendering via a template or inline `<template>`; supports `$item` (item) and `$index` (index) placeholders; cloned nodes are wired for `data-*` directives
  - data-get/post/put/patch/delete : declarative HTTP actions (basic wiring; controls TBD)
 
 Notes:
@@ -42,10 +42,11 @@ Notes:
  - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
  - For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev` to compiled expressions: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds.
  - Attribute-level/global mods: you can append modifiers directly after the directive name (e.g. `data-sub__once:...`) to apply them to all triggers on that attribute. Trigger-level modifiers (after a trigger) override attribute-level ones. Use `__always` to override a global `__once` on a specific trigger.
- - `data-iter` precomputes shallow bindings for faster updates.
+ - `data-dump` precomputes shallow bindings for faster updates and performs simple append/remove reconciliation (clones appended/removed at the end).
 
 Short TBD:
  - stable keyed reconciliation for `data-iter` (`$key`) — deferred
+ - stable keyed reconciliation for `data-dump` (`$key`) — deferred
  - full HTTP control (headers, retry, cancel, timeout)
  - additional trigger mods and batching modes
 
