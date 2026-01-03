@@ -34,18 +34,54 @@ Shape change payload (guarantees)
  - Shape change summaries are available as `ev.detail.change` for DOM-event-originated handlers and as the `detail` argument to compiled bodies when applicable.
 
 Recent changes (what I did to get the agent up to speed)
-- Enforced explicit `dm.*` usage in compiled expressions (no `with`). `compile` now creates functions with five params.
-- Integrated a compact table-FSM parser and switched from prototype char-scanner where beneficial.
-- Implemented fine-grained reactivity:
-  - `set(p, v)` detects `content` vs `shape` changes.
-  - `diffValues(before, after, includeVals)` produces base (keys-only) and full (with values) diffs.
-  - `emit(p, mutation, info)` selects per-subscriber `detail` payloads based on subscriber's `detail` field.
- - Adjusted runtime to avoid passing `ev` into compiled functions when invocation is signal-originated (compiled bodies receive `detail` reliably).
- - Demo & tests:
-  - Section 11 "Content vs Shape Demo" demonstrates content vs shape semantics.
-  - Added headless tests to validate content vs shape behaviors.
-  - Fixed demo edge cases (use timestamp `addedAt` so repeated adds produce shape diffs).
- - Documentation: updated `README.md` and `req.md` to reflect that shape payloads include only `added`/`removed`.
+
+- Removed legacy `__detail` payload variants and simplified shape-change notifications.
+  - Shape emits now provide a minimal summary object: `{ added: [...], removed: [...] }` (no per-key value maps by default).
+- Reintroduced efficient childPath filtering without per-subscriber wrappers: `subs` entries are either functions or objects `{ fn, mode, childPath }` and centralized matching happens inside `emit`.
+- Added bracket-index (indirection) support in attribute paths (e.g., `postObjs[idx].title`):
+  - New helpers: `hasBracketIndex`, `collectBracketRoots`, and `resolveBracketPath`.
+  - Runtime registers subscriptions for both the base root and any signals referenced inside bracket expressions (so changes to `idx` also trigger appropriate handlers).
+  - Triggers using bracket indirection register a lightweight wrapper that resolves the concrete path at runtime and only invokes the original handler when the resolved path matches or when index-root signals change.
+- Simplified emits and subscription payloads:
+  - `emit(p, mutation, info)` now passes only minimal `change` summaries to shape subscribers and centralizes childPath matching.
+  - For content mutations, only `content`-mode subscribers are invoked (fast-path).
+- Subscription storage/refactor and minor API changes:
+  - Subscriptions are stored keyed by the root signal (canonicalized), and when attribute-parsed names differ (kebab/lowercase), alias keys are registered so both forms match the same signal.
+  - `compile(body)` continues to generate `(dm, el, ev, sg, detail)` functions — compiled bodies reference `dm` explicitly.
+- Bracket-index demo & tests:
+  - Added a dedicated hidden demo/test hooks and a visible separate demo section that exercises `postObjs[idx]` behavior.
+  - Added headless tests in `tests/headless_tests.js` to verify:
+    - subscription triggers when `idx` points to the changed item,
+    - no trigger when a different index item changes,
+    - triggers when `idx` itself changes (index-root subscription),
+    - subsequent changes to the newly indexed item trigger the subscription.
+- Temporary debug instrumentation was used during development (wrapper/emit logs) and then removed; tests pass without debug traces.
+- Tooling: added a quick `serve` script to `package.json` for local static serving (`npx http-server -c-1 -p 8080`).
+
+Why these changes:
+
+- The goal was to remove heavy __detail payloads and simplify semantics while keeping efficient childPath filtering and adding useful HTML-path indirection via brackets.
+- Bracket-index support allows compact declarative bindings like `data-sub:.@postObjs[idx]` while keeping subscriptions efficient and deterministic.
+
+Notes for maintainers
+
+- If you change how signal keys are canonicalized (kebab→camel vs lowercase), ensure subscriptions and data-def keys remain reachable — the runtime currently registers alias keys so both attribute-parsed and data-def forms match.
+- Keep compiled expressions explicit (`dm.*`) to avoid introducing unbound identifier errors in compiled bodies (see recent demo patch that uses `dm.idx` rather than a free `idx`).
+
+Files touched
+
+- `index.html` — major edits: emission/refactor, subscription alias handling, bracket-index helpers and wrapper logic, demo/test hooks.
+- `tests/headless_tests.js` — added bracket-index tests and validated FG content/shape tests.
+- `package.json` — added `serve` script for quick local testing.
+
+Status
+
+- Headless tests pass locally (JSDOM harness). Temporary debug logs removed; runtime is clean.
+
+Next steps (optional)
+
+- Commit & push the changes to the repository (branch `main` currently).  
+- Consider adding a small public API for programmatic subscriptions (e.g., `dmax.subscribe(signal, { mode:'shape', childPath:'x' }, fn)`).
 
 Guidelines for contributors
 - Keep compiled bodies explicit: reference signals via `dm` (e.g., `dm.user.name`).
