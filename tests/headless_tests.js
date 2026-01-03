@@ -367,6 +367,40 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       if(window.__shapeCount >= 2 && window.__contentCount >= 3) pass('FG: shape removal notifies expected subscribers'); else fail('FG: shape removal mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
     }catch(e){ console.error('FG reactivity test error', e); fail('FG reactivity tests crashed'); }
 
+    // --- New tests: bracket-index indirection (postObjs[idx])
+    try{
+      const indirectCount = doc.getElementById('indirectCount');
+      const setPost0 = doc.getElementById('setPost0Title');
+      const setPost1 = doc.getElementById('setPost1Title');
+      const setIdx1 = doc.getElementById('setIdx1');
+      if(!indirectCount || !setPost0 || !setPost1 || !setIdx1) fail('Bracket-index test elements missing');
+
+      // ensure counter reset
+      window.__indirectCount = 0;
+      // 1) change postObjs[0].title -> should trigger when idx === 0
+      setPost0.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 120));
+      if((window.__indirectCount || 0) === 1) pass('Bracket: subscription triggered for postObjs[idx] when idx=0'); else fail('Bracket: did not trigger for postObjs[0]');
+
+      // 2) reset counter and change postObjs[1].title -> should NOT trigger while idx===0
+      window.__indirectCount = 0;
+      setPost1.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 120));
+      if((window.__indirectCount || 0) === 0) pass('Bracket: subscription did not trigger for postObjs[1] while idx=0'); else fail('Bracket: incorrectly triggered for postObjs[1] while idx=0');
+
+      // 3) change idx -> subscription should fire (we subscribe to idx indirection)
+      window.__indirectCount = 0;
+      setIdx1.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 120));
+      if((window.__indirectCount || 0) >= 1) pass('Bracket: subscription triggered when idx changed'); else fail('Bracket: did not trigger on idx change');
+
+      // 4) now changing postObjs[1].title should trigger
+      window.__indirectCount = 0;
+      setPost1.dispatchEvent(new window.Event('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 120));
+      if((window.__indirectCount || 0) === 1) pass('Bracket: subscription triggered for postObjs[1] after idx updated'); else fail('Bracket: did not trigger for postObjs[1] after idx update');
+    }catch(e){ console.error('Bracket-index tests crashed', e); fail('Bracket-index tests crashed'); }
+
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
   } catch (e) {

@@ -33,6 +33,8 @@
     {"title":"Thread C","replies":[]}
   ],
   "message": "Hello World",
+  "postObjs": [{"title":"Post A"},{"title":"Post B"}],
+  "idx": 0,
   "once-test": 0,
   "always-test": 0,
   "guard-val": 3,
@@ -65,6 +67,21 @@
     <label>Two-way (default): <input id="twoWay" data-sync:user.name></label>
   </div>
   <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
+</section>
+
+<!-- New: Separate Example Demo -->
+<section id="separate-demo">
+  <h3>Separate Live Demo</h3>
+  <div class="page">This is a standalone demo area to showcase bracket-index and simple bindings.</div>
+  <div style="padding:8px;border:1px solid #ddd;border-radius:6px;margin:8px 0">
+    <label>Index (idx): <input id="demoIdx" type="number" min="0" value="0" data-sync:idx></label>
+    <div style="margin-top:8px">
+      <button id="demoSet0" data-sub:postObjs.0.title@.click="'DemoPost0'">Set Post 0 Title</button>
+      <button id="demoSet1" data-sub:postObjs.1.title@.click="'DemoPost1'">Set Post 1 Title</button>
+      <button id="demoSetIndirect" data-sub:.@postObjs[idx]="dm.postObjs && dm.postObjs[dm.idx] && dm.postObjs[dm.idx].title">Show current indexed title</button>
+    </div>
+    <div style="margin-top:8px">Indexed title preview: <strong id="demoIndexedPreview" data-sub:.@postObjs[idx]="(dm.postObjs && dm.postObjs[dm.idx]) ? dm.postObjs[dm.idx].title : ''"></strong></div>
+  </div>
 </section>
 
 <section>
@@ -276,6 +293,11 @@ Summary:
     keyCache.set(s, result);
     return result;
   };
+  // Canonical signal key used for Map lookups - normalize toCamel and lowercase
+  const sigKey = s => {
+    if(!s) return s;
+    return toCamel(String(s)).toLowerCase();
+  };
 
   // Default property for element (consistent, compact)
   const getAutoProp = el =>
@@ -303,6 +325,65 @@ Summary:
       (t === 'LI') ? 'list-item' :
       (t === 'UL' || t === 'OL' || t === 'NAV' || t === 'SECTION' || t === 'DIV') ? 'block' :
       'block';
+  };
+
+  // Dynamic path helpers: support bracket-indexing like posts[indexs[0]].title
+  const hasBracketIndex = s => typeof s === 'string' && s.indexOf('[') !== -1;
+  // Collect root signal names referenced inside bracket expressions, used to subscribe to indirection signals
+  const collectBracketRoots = s => {
+    const roots = new Set();
+    if(!s || s.indexOf('[') === -1) return roots;
+    // find all bracket contents
+    const re = /\[([^\]]+)\]/g; let m;
+    while((m = re.exec(s)) !== null){
+      const inner = m[1].trim();
+      // inner may be like 'indexs[0]' or 'someSignal' or 'some.path'
+      const base = inner.split(/[\.\[]/)[0];
+      if(base) roots.add(toCamel(base));
+    }
+    return roots;
+  };
+
+  // Resolve a path with bracket expressions into a concrete dotted path using `get` to evaluate signals
+  const resolveBracketPath = (raw) => {
+    if(!hasBracketIndex(raw)) return raw;
+    const parts = [];
+    // split on dots but keep bracketed segments together
+    let buf = '';
+    for(let i=0;i<raw.length;i++){
+      const ch = raw[i];
+      if(ch === '.'){
+        if(buf !== ''){ parts.push(buf); buf = ''; } else parts.push('');
+        continue;
+      }
+      buf += ch;
+    }
+    if(buf !== '') parts.push(buf);
+    const out = [];
+    for(const p of parts){
+      if(!p) continue;
+      const m = p.match(/^([^\[]+)\[(.+)\]$/);
+      if(!m){ out.push(toCamel(p)); continue; }
+      const base = m[1];
+      const inner = m[2];
+      out.push(toCamel(base));
+      // evaluate inner: support patterns like `indexs[0]` or `idx` or numeric literal
+      const innerMatch = inner.match(/^([^\[]+)\[(\d+)\]$/);
+      if(innerMatch){
+        // inner is like foo[0] -> get('foo')[0]
+        const sig = innerMatch[1]; const idx = Number(innerMatch[2]);
+        const arr = get(String(sig));
+        const val = (Array.isArray(arr) && arr.length > idx) ? arr[idx] : undefined;
+        out.push(String(val));
+        continue;
+      }
+      // inner numeric literal
+      if(/^\d+$/.test(inner)) { out.push(String(Number(inner))); continue; }
+      // inner is signal path -> get it and if it's array-like and numeric index access not present, use as-is
+      const val = get(String(inner));
+      out.push(String(val));
+    }
+    return out.join('.');
   };
 
   // Compile JS expression with caching
@@ -479,7 +560,17 @@ Summary:
       const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
       if(!targetEl) return null;
       if(type === 'data-sub'){
-        if(t.type === 'signal') return res => set(t.name, res);
+        if(t.type === 'signal'){
+          if(hasBracketIndex(t.name)){
+            return res => {
+              try{ const resolved = resolveBracketPath(t.name); if(resolved) set(resolved, res); }catch(e){}
+            };
+          }
+          return (res, isSignalInvocation) => {
+            try{ }catch(e){}
+            if(isSignalInvocation) set(t.name, res); else set(t.name, res, true);
+          };
+        }
         const prop = t.propPath || null;
         return res => setProp(targetEl, prop, res);
       }
@@ -529,7 +620,7 @@ Summary:
       const result = fn(Object.fromEntries(S), el, evArg, sg, detailParam);
       if(!appliers || appliers.length === 0) return;
       try {
-        for(const ap of appliers) if(ap) ap(result);
+        for(const ap of appliers) if(ap) ap(result, isSignalInvocation);
       } catch(e) { console.error('Applier error', e); }
     };
     // Track listeners for cleanup
@@ -576,13 +667,18 @@ Summary:
       };
 
         if(t.type === 'signal'){
-        const root = toCamel(t.name.split('.')[0]);
+        const rootRaw = String(t.name).split('.')[0];
+        const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
+        const root = toCamel(rootBase);
+        const rootAlias = sigKey(rootBase);
         if(!subs.has(root)) subs.set(root, []);
+        if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
         const dec = makeDecorated(handler, t);
         // allow removal for __once and other removals; handle both legacy function entries and object entries
         dec.remove = () => {
           const arr = subs.get(root) || [];
           subs.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
+          if(rootAlias !== root){ const arr2 = subs.get(rootAlias) || []; subs.set(rootAlias, arr2.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec))); }
         };
         // support __shape modifier: register subscription object with optional childPath
         let entry = dec;
@@ -590,8 +686,37 @@ Summary:
           const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
           entry = { fn: dec, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
         }
-        subs.get(root).push(entry);
+        // If trigger uses bracket-index indirection, wrap the handler so it only fires when the resolved path matches
+        if(hasBracketIndex(t.name)){
+          const wrapper = function(ev, p){
+            try{
+              const resolved = resolveBracketPath(t.name);
+              // debug trace
+              console.log('WRAPPER', t.name, 'resolved->', resolved, 'p->', p);
+              // if invoked because of index/root change (p is one of the extra roots) we should call handler
+              const extraRoots = Array.from(collectBracketRoots(t.name));
+              if(p && extraRoots.includes(p)){
+                return dec(ev, p);
+              }
+              if(!p) return;
+              // if mutation path equals or is under resolved path, invoke
+              if(resolved && (p === resolved || p.indexOf(resolved + '.') === 0)){
+                return dec(ev, p);
+              }
+            }catch(e){ }
+          };
+          const wrappedEntry = { fn: wrapper, mode: (t.mods && ('shape' in t.mods) ? 'shape' : 'content'), childPath: null };
+          subs.get(root).push(wrappedEntry);
+          if(rootAlias !== root) subs.get(rootAlias).push(wrappedEntry);
+          // also subscribe wrapper to bracket roots (idx signals)
+          const extraRoots = collectBracketRoots(t.name);
+          for(const er of extraRoots){ if(er !== root){ if(!subs.has(er)) subs.set(er, []); subs.get(er).push(wrappedEntry); } }
+        } else {
+          subs.get(root).push(entry);
+          if(rootAlias !== root) subs.get(rootAlias).push(entry);
+        }
         listeners.push({type:'signal', root, handler: dec});
+        if(rootAlias !== root) listeners.push({type:'signal', root: rootAlias, handler: dec});
         if(!t.mods?.notimmediate) dec(undefined, t.name);
         continue;
       }
@@ -981,17 +1106,27 @@ Summary:
 
     // Register triggers using parsed.triggers
     for(const t of parsed.triggers){
-        if(t.type === 'signal'){
-        const root = toCamel(t.name.split('.')[0]);
+      if(t.type === 'signal'){
+      const rootRaw = String(t.name).split('.')[0];
+      const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
+      const root = toCamel(rootBase);
+      const rootAlias = sigKey(rootBase);
         if(!subs.has(root)) subs.set(root, []);
+        if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
         const handler = () => doRequest(undefined, t.name);
-        // support __shape / __content / __detail modifiers on trigger subscriptions
+        // support __shape / __content modifiers on trigger subscriptions
         let entry = handler;
         if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
           const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
           entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
         }
         subs.get(root).push(entry);
+        if(rootAlias !== root) subs.get(rootAlias).push(entry);
+        // Extra subscriptions when trigger uses bracket indirection
+        if(hasBracketIndex(t.name)){
+          const extraRoots = collectBracketRoots(t.name);
+          for(const er of extraRoots){ if(er !== root){ if(!subs.has(er)) subs.set(er, []); subs.get(er).push(entry); } }
+        }
         if(!t.mods?.notimmediate) handler();
       } else if(t.type === 'event' || t.type === 'special'){
         if(t.type === 'special' && t.name === 'interval'){
@@ -1032,6 +1167,7 @@ Summary:
       const path = colon === -1 ? '' : attr.substring(colon + 1);
       if(!path) return;
       const root = toCamel(path.split('.')[0]);
+      const rootAlias = sigKey(path.split('.')[0]);
       const update = () => {
         const val = get(path);
         const prop = getAutoProp(el);
@@ -1043,7 +1179,9 @@ Summary:
       };
       update();
       if(!subs.has(root)) subs.set(root, []);
+      if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
       subs.get(root).push(update);
+      if(rootAlias !== root) subs.get(rootAlias).push(update);
       let listeners = cleanupMap.get(el);
       if(!listeners) listeners = [], cleanupMap.set(el, listeners);
       listeners.push({type:'signal', root, handler: update});
@@ -1080,7 +1218,9 @@ Summary:
           if(sigTriggers.length){
         for(const t of sigTriggers){
           const sname = t.name;
-          const root = toCamel(String(sname).split('.')[0]);
+          const rootRaw = String(sname).split('.')[0];
+          const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
+          const root = toCamel(rootBase);
           const handler = () => {
             try{ const v = get(String(sname));
               const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
@@ -1089,19 +1229,25 @@ Summary:
           };
           handler();
           if(!subs.has(root)) subs.set(root, []);
+          const rootAlias = sigKey(rootBase);
+          if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
           let entry = handler;
           if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
             const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
             entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
           }
           subs.get(root).push(entry);
+          if(rootAlias !== root) subs.get(rootAlias).push(entry);
           let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
           listeners.push({type:'signal', root, handler});
+          if(rootAlias !== root) listeners.push({type:'signal', root: rootAlias, handler});
         }
       } else {
         const subsigs = sigTargets.map(t=>t.name);
         for(const sname of subsigs){
-          const root = toCamel(String(sname).split('.')[0]);
+          const rootRaw = String(sname).split('.')[0];
+          const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
+          const root = toCamel(rootBase);
           const handler = () => {
             try{ const v = get(String(sname));
               const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
@@ -1110,9 +1256,13 @@ Summary:
           };
           handler();
           if(!subs.has(root)) subs.set(root, []);
+          const rootAlias = sigKey(rootBase);
+          if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
           subs.get(root).push(handler);
+          if(rootAlias !== root) subs.get(rootAlias).push(handler);
           let listeners = cleanupMap.get(el); if(!listeners) listeners = [], cleanupMap.set(el, listeners);
           listeners.push({type:'signal', root, handler});
+          if(rootAlias !== root) listeners.push({type:'signal', root: rootAlias, handler});
         }
       }
     }
@@ -1205,8 +1355,11 @@ Summary:
     };
     // Subscribe to signal changes
     const root = toCamel(signal.split('.')[0]);
+    const rootAlias = sigKey(signal.split('.')[0]);
     if(!subs.has(root)) subs.set(root, []);
+    if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
     subs.get(root).push(render);
+    if(rootAlias !== root) subs.get(rootAlias).push(render);
     render();
   }
 
@@ -1247,6 +1400,7 @@ Summary:
   const emit = (p, mutation = 'content', info = null) => {
     const root = toCamel(p.split('.')[0]);
     const handlers = subs.get(root);
+    
     if(handlers){
       for(const h of handlers){
         try{
@@ -1292,12 +1446,12 @@ Summary:
     updateDebug();
   };
 
-  const set = (p, v) => {
+  const set = (p, v, force = false) => {
     const parts = p.split('.');
     const root = toCamel(parts[0]);
     const current = get(p);
     // quick equality for primitives and references
-    if (current === v) return;
+  if (!force && current === v) return;
     // helper to detect shape vs content
     const detectMutation = () => {
       if(parts.length === 1){
@@ -1331,6 +1485,7 @@ Summary:
     if(parts.length === 1){
       const before = S.get(root);
       S.set(root, v);
+      try{ const alias = sigKey(root); if(alias !== root) S.set(alias, v); }catch(e){}
       if(mutation === 'shape'){
         // diff top-level object/array
         const base = diffValues(before, v, false);
@@ -1362,6 +1517,7 @@ Summary:
         return node;
       })();
       S.set(root, base);
+      try{ const alias = sigKey(root); if(alias !== root) S.set(alias, base); }catch(e){}
       if(mutation === 'shape'){
         const base = diffValues(beforeParent, afterParent, false);
         const full = diffValues(beforeParent, afterParent, true);
@@ -1397,9 +1553,11 @@ Summary:
               console.error('Reserved signal name:', k); continue;
             }
             S.set(camelK, o[k]);
+            try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
           }
         } else {
           S.set(camelName, Function('return ' + a.value)());
+          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, Function('return ' + a.value)()); }catch(e){}
         }
       }
     });
@@ -1471,6 +1629,12 @@ window.formatShapeChange = function(c){
   <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
   <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
   <span id="shapeChild" data-sub:.@parent__shape="(window.__shapeChild = (window.__shapeChild||0) + 1, window.__shapeChild)"></span>
+
+  <!-- Indirection / bracket-index tests -->
+  <span id="indirectCount" data-sub:.@postObjs[idx]="(window.__indirectCount=(window.__indirectCount||0)+1,window.__indirectCount)"></span>
+  <button id="setPost0Title" data-sub:postObjs.0.title@.click="'NewP0Title'">Set post0 title</button>
+  <button id="setPost1Title" data-sub:postObjs.1.title@.click="'NewP1Title'">Set post1 title</button>
+  <button id="setIdx1" data-sub:idx@.click="1">Set idx to 1</button>
 
   <button id="chgChild" data-sub:parent.child@.click="(dm.parent && dm.parent.child ? dm.parent.child + 1 : 1)">Change child</button>
   <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, {added: true})">Add key</button>

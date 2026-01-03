@@ -3,6 +3,7 @@
     "jsdom": "^27.4.0"
   }
   ,"scripts":{
-    "test:actions":"node tests/actions.e2e.js"
+    "test:actions":"node tests/actions.e2e.js",
+    "serve":"npx http-server -c-1 -p 8080"
   }
 }
