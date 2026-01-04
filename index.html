@@ -692,6 +692,57 @@ Summary:
   // Track all event listeners and signal handlers for cleanup
   const cleanupMap = new WeakMap();
 
+  // Applier factories for Phase 3b
+  const createSubApplier = (target, targetEl) => {
+    if(target.type === 'signal'){
+      if(hasBracketIndex(target.name)){
+        return res => {
+          try{ const resolved = resolveBracketPath(target.name); if(resolved) set(resolved, res); }catch(e){}
+        };
+      }
+      return (res, isSignalInvocation) => {
+        try{ }catch(e){}
+        if(isSignalInvocation) set(target.name, res); else set(target.name, res, true);
+      };
+    }
+    const prop = target.propPath || null;
+    return res => setProp(targetEl, prop, res);
+  };
+
+  const createClassApplier = (target, targetEl) => {
+    const classes = (target.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
+    return res => {
+      for(const c of classes){
+        if(c.remove){
+          if(res) targetEl.classList.remove(c.name);
+          else targetEl.classList.add(c.name);
+        } else {
+          if(res) targetEl.classList.add(c.name);
+          else targetEl.classList.remove(c.name);
+        }
+      }
+    };
+  };
+
+  const createDispApplier = (targetEl) => {
+    // Cache original display and whether it was an inline style
+    const inline = targetEl.style && targetEl.style.display ? targetEl.style.display : '';
+    const computed = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+    const hadInline = inline !== '';
+    const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
+    return res => {
+      if(res){
+        if(hadInline) targetEl.style.display = originalDisplay;
+        else {
+          const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+          if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
+        }
+      } else {
+        targetEl.style.display = 'none';
+      }
+    };
+  };
+
   // Generic setup for data-sub, data-class, data-disp
   function setupGeneric(type, el, attr, body) {
     const parsed = parseDataAttrFast(attr, type === 'data-sub' ? 8 : (type === 'data-class' ? 10 : 9));
@@ -705,53 +756,9 @@ Summary:
     const appliers = targets.map(t => {
       const targetEl = t.elemId ? getElById(t.elemId, attr) : el;
       if(!targetEl) return null;
-      if(type === 'data-sub'){
-        if(t.type === 'signal'){
-          if(hasBracketIndex(t.name)){
-            return res => {
-              try{ const resolved = resolveBracketPath(t.name); if(resolved) set(resolved, res); }catch(e){}
-            };
-          }
-          return (res, isSignalInvocation) => {
-            try{ }catch(e){}
-            if(isSignalInvocation) set(t.name, res); else set(t.name, res, true);
-          };
-        }
-        const prop = t.propPath || null;
-        return res => setProp(targetEl, prop, res);
-      }
-      if(type === 'data-class'){
-        const classes = (t.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
-        return res => {
-          for(const c of classes){
-            if(c.remove){
-              if(res) targetEl.classList.remove(c.name);
-              else targetEl.classList.add(c.name);
-            } else {
-              if(res) targetEl.classList.add(c.name);
-              else targetEl.classList.remove(c.name);
-            }
-          }
-        };
-      }
-      if(type === 'data-disp'){
-        // Cache original display and whether it was an inline style
-        const inline = targetEl.style && targetEl.style.display ? targetEl.style.display : '';
-        const computed = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
-        const hadInline = inline !== '';
-        const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
-        return res => {
-          if(res){
-            if(hadInline) targetEl.style.display = originalDisplay;
-            else {
-              const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
-              if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
-            }
-          } else {
-            targetEl.style.display = 'none';
-          }
-        };
-      }
+      if(type === 'data-sub') return createSubApplier(t, targetEl);
+      if(type === 'data-class') return createClassApplier(t, targetEl);
+      if(type === 'data-disp') return createDispApplier(targetEl);
       return null;
     });
 
