@@ -295,63 +295,50 @@ class FuzzTestRunner {
     }
     
     try {
-      const { window } = this.dom;
-      const { document } = window;
-      
-      // Create test element
-      const el = document.createElement('div');
-      el.id = `fuzz-test-${this.results.total}`;
-      el.setAttribute(attr, expr);
-      document.body.appendChild(el);
-      
-      // Give runtime time to process
-      await new Promise(r => setTimeout(r, 50));
-      
-      // Check for console errors
-      const hadError = this.errors.length > 0;
-      this.errors.length = 0; // Clear for next test
-      
-      // Validate outcome
+      // Read base HTML and inject test element so the runtime wires it on init
+      const html = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
+      // escape attribute value
+      const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const testId = `fuzz-test-${this.results.total}`;
+      const fixtures = `\n<!-- fuzz fixtures: provide referenced elements and safe dm -->\n<div id="elem"></div>\n<div id="other"></div>\n<button id="btn"></button>\n<input id="input" value="hello"/>\n<div id="src"></div>\n<div id="dest"></div>\n<div id="posts"></div>\n<template id="tpl-post"><div class="post"></div></template>\n<script>window.dm = window.dm || { foo:0, bar:0, user:{themeColor:'',fontSize:'',isActive:false}, posts:[], items:[], idx:0, parent:{}, result:{} }; window.sg = window.sg || {}; window.__fuzz_injected = true;</script>\n`;
+      const insertEl = `<div id="${testId}" ${attr}="${esc(expr)}"></div>`;
+      const modified = html.replace('</body>', `${fixtures}${insertEl}\n</body>`);
+
+      const localErrors = [];
+      const vconsole = new VirtualConsole();
+      vconsole.on('error', (...args) => localErrors.push(args.join(' ')));
+
+      const dom = new JSDOM(modified, {
+        runScripts: 'dangerously',
+        resources: 'usable',
+        url: 'http://localhost/',
+        virtualConsole: vconsole
+      });
+      // Wait for runtime to initialize
+      await new Promise(r => setTimeout(r, 250));
+
+      const hadError = localErrors.length > 0;
+
       if (valid && hadError) {
-        // Expected valid but got error
         this.results.failed++;
         this.results.categories[category].failed++;
-        this.results.errors.push({
-          attr,
-          category,
-          expected: 'valid',
-          actual: 'error',
-          error: hadError
-        });
+        this.results.errors.push({ attr, category, expected: 'valid', actual: 'error', error: localErrors.slice(0,3) });
         console.error(`✗ FAIL: ${attr} (${category}) - Expected valid but got error`);
       } else if (!valid && !hadError) {
-        // Expected error but didn't get one
         this.results.failed++;
         this.results.categories[category].failed++;
-        this.results.errors.push({
-          attr,
-          category,
-          expected: 'error',
-          actual: 'valid'
-        });
+        this.results.errors.push({ attr, category, expected: 'error', actual: 'valid' });
         console.error(`✗ FAIL: ${attr} (${category}) - Expected error but validated`);
       } else {
         this.results.passed++;
         this.results.categories[category].passed++;
         console.log(`✓ PASS: ${attr} (${category})`);
       }
-      
-      // Cleanup
-      el.remove();
-      
+
     } catch (e) {
       this.results.failed++;
       this.results.categories[category].failed++;
-      this.results.errors.push({
-        attr,
-        category,
-        error: e.message
-      });
+      this.results.errors.push({ attr, category, error: e.message });
       console.error(`✗ ERROR: ${attr} (${category}) - ${e.message}`);
     }
   }
