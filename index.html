@@ -490,13 +490,13 @@ Summary:
   const validateParsedItem = (item, context) => {
     if (item.type === 'signal') {
       if (!isValidSignalName(item.name)) {
-        console.warn(`[dmax] Invalid signal name in ${context}: "${item.name}"`);
+        console.error(`[dmax] Invalid signal name in ${context}: "${item.name}"`);
         return false;
       }
     } else if (item.type === 'prop') {
       // propPath can be null for auto-detection
       if (item.propPath && !isValidPropName(item.propPath)) {
-        console.warn(`[dmax] Invalid property name in ${context}: "${item.propPath}"`);
+        console.error(`[dmax] Invalid property name in ${context}: "${item.propPath}"`);
         return false;
       }
     } else if (item.type === 'special' || item.type === 'event') {
@@ -507,7 +507,7 @@ Summary:
     const mods = item.mods || {};
     for (const modName of Object.keys(mods)) {
       if (!isValidModifier(modName)) {
-        console.warn(`[dmax] Invalid modifier in ${context}: "__${modName}"`);
+        console.error(`[dmax] Invalid modifier in ${context}: "__${modName}"`);
         return false;
       }
     }
@@ -670,7 +670,10 @@ Summary:
   // Generic setup for data-sub, data-class, data-disp
   function setupGeneric(type, el, attr, body) {
     const parsed = parseDataAttrFast(attr, type === 'data-sub' ? 8 : (type === 'data-class' ? 10 : 9));
-    if(!parsed) return;
+    if(!parsed) {
+      console.error(`[dmax] Failed to parse ${type} attribute: "${attr}"`);
+      return;
+    }
     const {targets, triggers} = parsed;
     const fn = compile(body);
     // Precompute appliers for targets to minimize work on each trigger

@@ -307,6 +307,7 @@ class FuzzTestRunner {
       const localErrors = [];
       const vconsole = new VirtualConsole();
       vconsole.on('error', (...args) => localErrors.push(args.join(' ')));
+      vconsole.on('warn', (...args) => localErrors.push(args.join(' ')));
 
       const dom = new JSDOM(modified, {
         runScripts: 'dangerously',
