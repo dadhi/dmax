@@ -1902,7 +1902,8 @@ Summary:
           continue;
         }
         // Check directive handlers table
-        const prefix = attrName.split(/[_:@]/)[0];
+        // For action attributes (data-get/post/etc), extract base before any modifier chars
+        const prefix = attrName.split(/[_:@^+?]/)[0];
         const handler = DIRECTIVE_HANDLERS[prefix];
         if(handler){
           directives.push([el, attrName, a.value, handler]);
