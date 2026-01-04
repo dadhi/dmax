@@ -446,11 +446,6 @@ Summary:
     return wrapped;
   };
 
-  
-
-  // Fast, compact parser (char-scanning) for data-* attribute names
-  // (uses `toCamel` above which is cached)
-
   // Phase 1.1: Validation helpers
   const RESERVED_NAMES = ['ev', 'el', 'sg', 'dm', 'detail'];
   const VALID_MODIFIERS = ['immediate', 'notimmediate', 'once', 'always', 'debounce', 'throttle', 'prevent', 'and', 'notand', 'gt', 'lt', 'eq', 'gte', 'lte', 'neq', 'shape', 'content'];
