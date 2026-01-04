@@ -304,6 +304,17 @@ Summary:
 // dmax MVP logic with new syntax support and modular parsing
 (()=>{
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  
+  // Phase 2.1: Proxy for dm - eliminates Object.fromEntries allocations
+  const dmProxy = new Proxy({}, {
+    get: (_, key) => S.get(key),
+    set: (_, key, val) => { set(key, val); return true; },
+    has: (_, key) => S.has(key),
+    ownKeys: () => Array.from(S.keys()),
+    getOwnPropertyDescriptor: (_, key) => 
+      S.has(key) ? { value: S.get(key), enumerable: true, configurable: true } : undefined
+  });
+  
   // Common character-code constants used by parsers
   const CC = { DOT: 46, COLON: 58, AT: 64, UNDERSCORE: 95, HASH: 35 };
   const debug=document.querySelector('[data-debug]');
@@ -643,8 +654,22 @@ Summary:
   };
 
   // Set property (fast, supports nested)
+  // Phase 2.2: Fast-path for single-level properties (90% of cases)
   const setProp = (el, path, val) => {
     if(!path) path = getAutoProp(el);
+    
+    // Fast path: no nested access
+    if(path.indexOf('.') === -1) {
+      const key = toCamel(path);
+      try {
+        if(el[key] !== val) el[key] = val;
+      } catch(e) {
+        console.error('Failed to set property', path, 'on', el, e);
+      }
+      return;
+    }
+    
+    // Nested path (slower)
     const parts = path.split('.');
     let t = el;
     try {
@@ -737,7 +762,7 @@ Summary:
       // bodies receive the change info via the `detail` parameter.
       const isSignalInvocation = (ev == null);
       const evArg = isSignalInvocation ? undefined : ev;
-      const result = fn(Object.fromEntries(S), el, evArg, sg, detailParam);
+      const result = fn(dmProxy, el, evArg, sg, detailParam);
       if(!appliers || appliers.length === 0) return;
       try {
         for(const ap of appliers) if(ap) ap(result, isSignalInvocation);
@@ -1531,14 +1556,13 @@ Summary:
             }
             // Evaluate simple `data-sub` expressions now so clones show initial content
             try{
-              const dmObj = Object.fromEntries(S);
               for(const n2 of walk){
                 for(const a2 of Array.from(n2.attributes || [])){
                   const an2 = a2.name; const v2 = a2.value;
                   if(an2.indexOf('data-sub') === 0){
                     try{
                       const fn = compile(v2);
-                      const res = fn(dmObj, n2, undefined, sig);
+                      const res = fn(dmProxy, n2, undefined, sig);
                       // set default property (textContent/value) for the element
                       try{ setProp(n2, null, res); }catch(e){}
                     }catch(e){}
