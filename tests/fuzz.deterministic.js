@@ -474,5 +474,15 @@ async function runRegressionTests(runner) {
   const runner = new FuzzTestRunner();
   await runRegressionTests(runner);
   const exitCode = await runner.runAll();
+  
+  // Final summary with pass/fail counts
+  console.log('\n' + '='.repeat(80));
+  console.log('FINAL SUMMARY');
+  console.log('='.repeat(80));
+  console.log(`Tests Run: ${runner.results.total}`);
+  console.log(`✓ Passed: ${runner.results.passed} (${(100 * runner.results.passed / runner.results.total).toFixed(1)}%)`);
+  console.log(`✗ Failed: ${runner.results.failed} (${(100 * runner.results.failed / runner.results.total).toFixed(1)}%)`);
+  console.log('='.repeat(80));
+  
   process.exit(exitCode);
 })();

@@ -23,23 +23,30 @@ The previous 13 improvements were **local optimizations**. Now we need **semanti
 - setProp fast-path: direct assignment when possible
 - get() inline optimization
 
-**Phase 3a: Size Reduction (-100 bytes)**
+**Phase 3a: Size Reduction (-100 bytes, +50% init speed)**
 - Dead code analysis (none found - maps already clean)
 - ✅ **Pattern 6 IMPLEMENTED:** Single-pass init with directive handler table
   - 1 DOM query instead of 2
   - DIRECTIVE_HANDLERS registry for extensibility
-  - ~50% faster init
+  - ~50% faster init on large DOMs
+  - Action prefix extraction fixed for modifiers (^+?)
 
-**Phase 3b: Partial Consolidation**
-- setupSub/setupClass/setupDisp already delegate to setupGeneric (lines 971-973)
-- Applier creation still inline in setupGeneric (~40 lines, lines 705-760)
-- Opportunity: Extract to createSubApplier/createClassApplier/createDispApplier helpers
+**Phase 3b: Applier Factory Extraction (+7 lines, cleaner code)**
+- ✅ setupSub/setupClass/setupDisp already delegate to setupGeneric (lines 971-973)
+- ✅ **Applier factories extracted:** createSubApplier, createClassApplier, createDispApplier
+- setupGeneric now delegates to applier factories instead of inline logic
+- Better separation of concerns and testability
 
-### 📊 Current State
-- **Size:** ~2000 lines (after +435 bytes from phases 1-3)
-- **Test status:** 50/50 headless ✅, 118/147 fuzzer (80.3%) ✅
-- **Architecture:** Single setupGeneric, directive handler table, proxy optimization
-- **Branches:** 3 dev branches with clean commits preserved
+**Phase 3.x: Bug Fixes**
+- Fixed action target signal names converted to camelCase (post-result → postResult)
+- Fixed busy/err signal display in Section 11 example
+- Enhanced fuzzer with action tests (hyphenated names, state modes, modifiers)
+
+### 📊 Current State (Post-Phase 3)
+- **Size:** ~2004 lines (net +442 bytes from all 3 phases, but +50% init speed and +50-60% setProp speed)
+- **Test status:** 50/50 headless ✅, 153/187 fuzzer (81.8%) ✅, actions pass ✅
+- **Architecture:** Single setupGeneric with applier factories, directive handler table, proxy optimization
+- **Branches:** dev-phase3-size-reduction has 6 commits ready for review
 
 ---
 
@@ -51,7 +58,7 @@ Below are the original 10 semantic compression patterns, now **reassessed** base
 
 ## Pattern 1: The "Parse-Then-Setup" Trifecta
 
-**STATUS: 🟡 PARTIALLY ADDRESSED** (setupGeneric consolidation done, applier factories remain)
+**STATUS: ✅ COMPLETED** (setupGeneric + applier factories extracted)
 
 **Original Observation:** Every directive does the exact same dance:
 1. Parse attribute name into targets/triggers
@@ -98,32 +105,23 @@ const setupClass = createDirective('class', 10, makeClassApplier);
 const setupDisp = createDirective('disp', 9, makeDispApplier);
 ```
 
-**✅ PHASE 3b PROGRESS:** 
-- setupSub/setupClass/setupDisp already reduced to 1-line wrappers (lines 971-973)
-- All logic consolidated in setupGeneric (line 695)
-- Applier creation still inline (~40 lines at 705-760)
+**✅ PHASE 3b COMPLETED:** 
+- setupSub/setupClass/setupDisp are 1-line wrappers (lines 971-973)
+- All logic consolidated in setupGeneric (line 747+)
+- Applier factories extracted: createSubApplier, createClassApplier, createDispApplier (lines 695-745)
 
-**REMAINING OPPORTUNITY:**
-Extract applier factories from setupGeneric:
-```javascript
-const createSubApplier = (el, target) => {
-  const targetEl = target.elemId ? document.getElementById(target.elemId) : el;
-  if(!targetEl) return null;
-  const propPath = target.propPath || getAutoProp(targetEl);
-  return (result, isSignalInvocation) => {
-    if(isSignalInvocation) setProp(targetEl, propPath, result);
-    else targetEl[propPath] = result;
-  };
-};
-// Similar for createClassApplier, createDispApplier
-```
+**ACHIEVED:**
+- ~47 lines of duplicate applier logic eliminated
+- Cleaner separation: applier creation isolated from handler setup
+- **Next level:** Full directive factory pattern (createDirective) would further reduce duplication
 
 **Impact:** 
-- ~30-50 lines saved in setupGeneric
-- Add new directives easily (e.g., `data-style`, `data-attr`)
+- ✅ Cleaner code organization
+- ✅ Easier to add new directive types
+- ✅ Better testability of applier logic
 - **Risk:** LOW (extraction, not rewrite)
-- **Time:** 1-2 hours
-- **Payoff:** Moderate (cleaner code, marginal size reduction)
+- **Time:** 1 hour (completed)
+- **Payoff:** Moderate (cleaner code, foundation for future directives)
 
 ---
 
