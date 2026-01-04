@@ -1849,53 +1849,72 @@ Summary:
     if(debug) debug.textContent = JSON.stringify(Object.fromEntries(S), null, 2);
   };
 
-  // Init: definitions and subscriptions
+  // Phase 3a.2: setupDef extracted for single-pass init
+  function setupDef(el, attr, value) {
+    const colonIdx = attr.indexOf(':');
+    const name = colonIdx === -1 ? '' : attr.substring(colonIdx + 1);
+    const camelName = toCamel(name);
+    if(camelName === 'ev' || camelName === 'el'){
+      console.error('Reserved signal name:', name); return;
+    }
+    if(!name){
+      const o = JSON.parse(value);
+      for(let k in o){
+        const camelK = toCamel(k);
+        if(camelK === 'ev' || camelK === 'el'){
+          console.error('Reserved signal name:', k); continue;
+        }
+        S.set(camelK, o[k]);
+        try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+      }
+    } else {
+      S.set(camelName, Function('return ' + value)());
+      try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, Function('return ' + value)()); }catch(e){}
+    }
+  }
+
+  // Directive handler registry for extensibility
+  const DIRECTIVE_HANDLERS = {
+    'data-def': setupDef,
+    'data-sync': setupSync,
+    'data-sub': setupSub,
+    'data-class': setupClass,
+    'data-disp': setupDisp,
+    'data-dump': setupDump,
+    'data-get': setupAction,
+    'data-post': setupAction,
+    'data-put': setupAction,
+    'data-patch': setupAction,
+    'data-delete': setupAction
+  };
+
+  // Init: single-pass DOM traversal with directive table
   const init = () => {
-    const all = document.querySelectorAll('*');
-    // PHASE 1: Definitions
-    all.forEach(el => {
-      for(let a of el.attributes){
-        if(a.name !== 'data-def' && a.name.indexOf('data-def:') !== 0) continue;
-        const colonIdx = a.name.indexOf(':');
-        const name = colonIdx === -1 ? '' : a.name.substring(colonIdx + 1);
-        const camelName = toCamel(name);
-        if(camelName === 'ev' || camelName === 'el'){
-          console.error('Reserved signal name:', name); continue;
+    const defs = [], directives = [];
+    
+    // Single DOM query and attribute scan
+    document.querySelectorAll('*').forEach(el => {
+      for(const a of el.attributes){
+        const attrName = a.name;
+        // Check for data-def first (needs to run before others)
+        if(attrName === 'data-def' || attrName.indexOf('data-def:') === 0){
+          defs.push([el, attrName, a.value]);
+          continue;
         }
-        if(!name){
-          const o = JSON.parse(a.value);
-          for(let k in o){
-            const camelK = toCamel(k);
-            if(camelK === 'ev' || camelK === 'el'){
-              console.error('Reserved signal name:', k); continue;
-            }
-            S.set(camelK, o[k]);
-            try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
-          }
-        } else {
-          S.set(camelName, Function('return ' + a.value)());
-          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, Function('return ' + a.value)()); }catch(e){}
+        // Check directive handlers table
+        const prefix = attrName.split(/[_:@]/)[0];
+        const handler = DIRECTIVE_HANDLERS[prefix];
+        if(handler){
+          directives.push([el, attrName, a.value, handler]);
         }
       }
     });
-    // PHASE 2: Subscriptions
-    all.forEach(el => {
-      for(let a of el.attributes){
-        if(a.name.indexOf('data-sync') === 0){
-          setupSync(el, a.name);
-        } else if(a.name.indexOf('data-sub') === 0){
-          setupSub(el, a.name, a.value);
-        } else if(a.name.indexOf('data-class') === 0){
-          setupClass(el, a.name, a.value);
-        } else if(a.name.indexOf('data-disp') === 0){
-          setupDisp(el, a.name, a.value);
-        } else if(a.name.indexOf('data-dump') === 0){
-          setupDump(el, a.name, a.value);
-        } else if(a.name.indexOf('data-get') === 0 || a.name.indexOf('data-post') === 0 || a.name.indexOf('data-put') === 0 || a.name.indexOf('data-patch') === 0 || a.name.indexOf('data-delete') === 0){
-          setupAction(el, a.name, a.value);
-        }
-      }
-    });
+    
+    // Execute definitions first
+    defs.forEach(([el, attr, value]) => setupDef(el, attr, value));
+    
+    // Execute directives
+    directives.forEach(([el, attr, value, handler]) => handler(el, attr, value));
     // Extra sweep: ensure any elements with attributes named `data-dump*` are initialized
     try{
       const all2 = document.querySelectorAll('*');
