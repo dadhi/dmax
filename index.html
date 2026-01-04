@@ -425,16 +425,22 @@ Summary:
     if(fnCache.has(body)) return fnCache.get(body);
     let inner;
     try {
-      // signature: (dm, el, ev, sg)
+      // signature: (dm, el, ev, sg, detail)
       // dm is a plain object built from the internal signal Map (S), so expressions
       // can read values as `dm.foo` or `dm.user.name`.
       inner = new Function('dm','el','ev','sg','detail', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
     } catch(e) {
-      console.error('Failed to compile expression:', body, e);
+      console.error('[dmax] Failed to compile expression:', body.slice(0, 50) + (body.length > 50 ? '...' : ''), e);
       inner = () => undefined;
     }
+    // Phase 1.4: Error boundary with expression context
     const wrapped = (dm, el, ev, sg, detail) => {
-      try { return inner(dm, el, ev, sg, detail); } catch (e) { return undefined; }
+      try { 
+        return inner(dm, el, ev, sg, detail); 
+      } catch (e) { 
+        console.error('[dmax] Expression failed:', body.slice(0, 60) + (body.length > 60 ? '...' : ''), e);
+        return undefined; 
+      }
     };
     fnCache.set(body, wrapped);
     return wrapped;
@@ -445,7 +451,73 @@ Summary:
   // Fast, compact parser (char-scanning) for data-* attribute names
   // (uses `toCamel` above which is cached)
 
+  // Phase 1.1: Validation helpers
+  const RESERVED_NAMES = ['ev', 'el', 'sg', 'dm', 'detail'];
+  const VALID_MODIFIERS = ['immediate', 'notimmediate', 'once', 'always', 'debounce', 'throttle', 'prevent', 'and', 'notand', 'gt', 'lt', 'eq', 'gte', 'lte', 'neq', 'shape', 'content'];
   
+  const isValidSignalName = (name) => {
+    if (!name || typeof name !== 'string') return false;
+    // Strip trailing state modifiers (?busy, ?err, etc.) for validation
+    const cleanName = name.split('?')[0];
+    // Check if starts with reserved name
+    const firstPart = cleanName.split('.')[0].split('[')[0];
+    if (RESERVED_NAMES.includes(firstPart)) return false;
+    // Must start with letter, contain only alphanumeric/underscore/hyphen/brackets/dots
+    if (!/^[a-z][a-zA-Z0-9_\-.\[\]]*$/.test(cleanName)) return false;
+    // Check for malformed patterns
+    if (cleanName.startsWith('.') || cleanName.endsWith('.')) return false;
+    if (cleanName.includes('..')) return false;
+    if (/^\d/.test(firstPart)) return false; // Can't start with number
+    return true;
+  };
+
+  const isValidPropName = (name) => {
+    if (!name || typeof name !== 'string') return false;
+    // Properties must be kebab-case OR already camelCase (internal)
+    // Allow leading dash for inverse classes
+    const normalized = name.startsWith('-') ? name.slice(1) : name;
+    // Allow both kebab-case and camelCase (since this checks after normalizePath)
+    if (!/^[a-z][a-zA-Z0-9\-._]*$/.test(normalized)) return false;
+    // Check for malformed patterns
+    if (normalized.startsWith('.') || normalized.endsWith('.') || normalized.endsWith('-')) return false;
+    if (normalized.includes('..') || normalized.includes('--')) return false;
+    // NOTE: We don't reject camelCase here because propPath may already be normalized
+    return true;
+  };
+
+  const isValidModifier = (modName) => {
+    if (!modName) return false;
+    // Modifier can have a dot+value (e.g., debounce.100, gt.5)
+    const baseMod = modName.split('.')[0];
+    return VALID_MODIFIERS.includes(baseMod);
+  };
+
+  const validateParsedItem = (item, context) => {
+    if (item.type === 'signal') {
+      if (!isValidSignalName(item.name)) {
+        console.warn(`[dmax] Invalid signal name in ${context}: "${item.name}"`);
+        return false;
+      }
+    } else if (item.type === 'prop') {
+      // propPath can be null for auto-detection
+      if (item.propPath && !isValidPropName(item.propPath)) {
+        console.warn(`[dmax] Invalid property name in ${context}: "${item.propPath}"`);
+        return false;
+      }
+    } else if (item.type === 'special' || item.type === 'event') {
+      // Don't validate special/event names (window, document, click, etc.)
+      // These have different patterns
+    }
+    // Validate modifiers
+    const mods = item.mods || {};
+    for (const modName of Object.keys(mods)) {
+      if (!isValidModifier(modName)) {
+        console.warn(`[dmax] Invalid modifier in ${context}: "__${modName}"`);
+        return false;
+      }
+    }
+    return true;
+  };
 
   function parseModsFast(s, i, n) {
     const mods = {};
@@ -553,8 +625,27 @@ Summary:
       if (i < n && s.charAt(i) !== ':' && s.charAt(i) !== '@') return null;
     }
     if (!targets.length && !triggers.length) return null;
+    
+    // Phase 1.1: Validate all parsed targets and triggers
+    for (const target of targets) {
+      if (!validateParsedItem(target, attr)) return null;
+    }
+    for (const trigger of triggers) {
+      if (!validateParsedItem(trigger, attr)) return null;
+    }
+    
     return {targets, triggers};
   }
+
+  // Phase 1.3: Element resolution with warnings
+  const getElById = (id, context = 'element reference') => {
+    if (!id) return null;
+    const el = document.getElementById(id);
+    if (!el) {
+      console.warn(`[dmax] Element #${id} not found in ${context}`);
+    }
+    return el;
+  };
 
   // Set property (fast, supports nested)
   const setProp = (el, path, val) => {
@@ -589,7 +680,7 @@ Summary:
     const fn = compile(body);
     // Precompute appliers for targets to minimize work on each trigger
     const appliers = targets.map(t => {
-      const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+      const targetEl = t.elemId ? getElById(t.elemId, attr) : el;
       if(!targetEl) return null;
       if(type === 'data-sub'){
         if(t.type === 'signal'){
@@ -759,7 +850,7 @@ Summary:
 
       // Case: explicit element id — no legacy mappings, require real element id
       if(t.elemId){
-        targetEl = document.getElementById(t.elemId);
+        targetEl = getElById(t.elemId, attr);
         if(!targetEl){ console.error('Element not found for id:', t.elemId); }
       }
 
@@ -989,7 +1080,7 @@ Summary:
           const raw = inp.raw || '';
           // element reference
           if(raw[0] === '#'){
-            const parts = raw.slice(1).split('.'); const elem = document.getElementById(parts[0]); const prop = parts.slice(1).join('.') || getAutoProp(elem);
+            const parts = raw.slice(1).split('.'); const elem = getElById(parts[0], attr); const prop = parts.slice(1).join('.') || getAutoProp(elem);
             const val = elem ? (elem[toCamel(prop)] ?? elem.value ?? null) : null;
             // decide where to place val based on mods or default
             if(inp.mods['query']){
@@ -1172,7 +1263,7 @@ Summary:
         } else if(t.type === 'special' && t.name === 'window'){
           const evName = t.arg || 'resize'; window.addEventListener(evName, doRequest); let listeners = cleanupMap.get(window); if(!listeners) listeners = [], cleanupMap.set(window, listeners); listeners.push({type:'event', targetEl: window, eventName: evName, handler: doRequest});
         } else {
-          const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+          const targetEl = t.elemId ? getElById(t.elemId, attr) : el;
           if(!targetEl) continue;
           const evName = t.eventName || getAutoEvent(targetEl);
           targetEl.addEventListener(evName, doRequest);
@@ -1307,7 +1398,7 @@ Summary:
         const evs = evTriggers.length ? evTriggers : [{type:'event', elemId:'', eventName: null, isCurr:true}];
         for(const ev of evs){
           // attach to current element or specific element
-          const targetEl = ev.elemId ? document.getElementById(ev.elemId) : el;
+          const targetEl = ev.elemId ? getElById(ev.elemId, attr) : el;
           if(!targetEl) continue;
           // If the trigger's eventName looks like a property (e.g. 'value' or 'checked')
           // treat it as a prop selector and listen on the element's default event instead.
@@ -1364,7 +1455,7 @@ Summary:
     let tplId = parsed.tplId || null;
     // if no tplId, look for a child <template>
     let tpl = null;
-    if(tplId) tpl = document.getElementById(tplId);
+    if(tplId) tpl = getElById(tplId, attrName);
     if(!tpl){ tpl = el.querySelector('template'); }
     // If template was an inline child, detach it so it doesn't remain as a DOM child
     if(tpl && tpl.parentNode === el){ tpl.parentNode.removeChild(tpl); }
@@ -1632,7 +1723,25 @@ Summary:
     updateDebug();
   };
 
+  // Phase 1.2: Infinite loop guard for set()
+  let syncDepth = 0;
+  const MAX_SYNC_DEPTH = 10;
+
   const set = (p, v, force = false) => {
+    // Phase 1.2: Guard against infinite loops
+    if (syncDepth > MAX_SYNC_DEPTH) {
+      console.error(`[dmax] Infinite loop detected for signal: ${p} (depth > ${MAX_SYNC_DEPTH})`);
+      return;
+    }
+    syncDepth++;
+    try {
+      return setImpl(p, v, force);
+    } finally {
+      syncDepth--;
+    }
+  };
+
+  const setImpl = (p, v, force = false) => {
     const parts = p.split('.');
     const root = toCamel(parts[0]);
     const current = get(p);
