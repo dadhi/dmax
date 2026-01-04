@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>dmax v0.3 MVP Copy</title>
-<!-- Styling is intentionally minimal for MVP tracking -->
+
 <style>
   .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
   .active{border-color:#28a745;background:#eaffea}
@@ -14,8 +14,8 @@
 </head>
 <body>
 
-<!-- MVP HTML Example and Summary for Crosschecking -->
-<!-- Copied from index.html, keep this section updated for test tracking -->
+
+
 <div data-def='{
   "user": {
     "name": "Alice",
@@ -44,10 +44,10 @@
 }'></div>
 
 
-<!-- data-iter section moved below (after section 7) -->
+
   <h3>1. Deep Nested Signal Sync</h3>
   <div class="page">data-sync:user.name, data-sync:user.age</div>
-  <!-- data-sync:user.name, data-sync:user.age -->
+  
   <label>User Name (nested path):</label>
   <input type="text" data-sync:user.name>
   <p>Hello, <strong data-sync:user.name></strong>!</p>
@@ -71,7 +71,7 @@
   <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
 </section>
 
-<!-- New: Separate Example Demo -->
+
 <section id="separate-demo">
   <h3>Separate Live Demo</h3>
   <div class="page">This is a standalone demo area to showcase bracket-index and simple bindings.</div>
@@ -89,7 +89,7 @@
 <section>
   <h3>2. Style & Boolean Deep Sync</h3>
   <div class="page">data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active</div>
-  <!-- data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active -->
+  
   <label>Theme Color:</label>
   <input type="color" data-sync:user.ui.theme-color>
   <div class="preview" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">This text color syncs to theme-color signal!</div>
@@ -103,7 +103,7 @@
 <section>
   <h3>3. Multiple Triggers & Targets</h3>
   <div class="page">data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count</div>
-  <!-- data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count -->
+  
   <button data-sub:count@.click="dm.count + 1">+1</button>
   <button data-sub:count@.click="dm.count - 1">-1</button>
   <button data-sub:count@.click="0">Reset</button>
@@ -112,7 +112,7 @@
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
 
-  <!-- Global-modifiers examples -->
+  
   <div style="margin-top:8px">
     <button id="gOnceBtn" data-sub__once:once-test@.click="dm.onceTest + 1">GlobalOnce +1</button>
     <span id="gOnceDisplay" data-sub:.@once-test="dm.onceTest"></span>
@@ -152,7 +152,7 @@
 <section>
   <h3>4. Side Effects & Multiple Triggers</h3>
   <div class="page">data-sub@count@#btn1.click@#btn2.click, data-sub:#@count@#btn1.click@#btn2.click</div>
-  <!-- data-sub@count@.btn1.click@.btn2.click, data-sub:.@count@.btn1.click@.btn2.click -->
+  
   <button id="btn1">Button 1</button>
   <button id="btn2">Button 2</button>
   <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
@@ -162,7 +162,7 @@
 <section>
   <h3>5. Cross-Element Property Sync</h3>
   <div class="page">data-sync:message, data-sub:.@#src.input, data-sub:.value@#src.input</div>
-  <!-- data-sync:message, data-sub:.@.src.input, data-sub:.value@.src.input -->
+  
   <label>Source Input:</label>
   <input id="src" placeholder="Type here..." data-sync:message>
   <label>Mirror (via data-sub):</label>
@@ -174,7 +174,7 @@
 <section>
   <h3>6. Window Events & Intervals</h3>
   <div class="page">data-sub:.@_window.resize, data-sub:.@_interval.1000</div>
-  <!-- data-sub:.@_window.resize, data-sub:.@_interval.1000 -->
+  
   <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
   <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
 </section>
@@ -182,7 +182,7 @@
 <section>
   <h3>7. Default Props & Events</h3>
   <div class="page">data-sub:.@#inp1, data-sub:.@#btn3</div>
-  <!-- data-sub:.@#inp1, data-sub:.@#btn3 -->
+  
   <input id="inp1" placeholder="Default event (input)">
   <p>Mirror using @.: <span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
   <button id="btn3">Click me</button>
@@ -202,7 +202,7 @@
 <section>
   <h3>9. List Rendering (data-dump)</h3>
   <div class="page">data-dump@posts#tpl-post — template as child &lt;template&gt; or reference by id</div>
-  <!-- data-dump@posts#tpl-post, template child or #tpl-id -->
+  
   <template id="tpl-post">
     <li data-index="$index" data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
       <span class="num" data-sub:.@posts="$index + 1"></span>
@@ -290,14 +290,8 @@
   </div>
 </section>
 
-<!--
-Summary:
-- data-iter renders a list using a template for each item in the array signal.
-- Usage: <ul data-iter:posts#tpl-id></ul>
-- Template can use data-$it (item) and data-$i (index) for binding.
--->
 
-<!-- MVP JS and summary will be tracked here for crosschecking and improvement planning -->
+
 <script>
 
 
@@ -1948,7 +1942,7 @@ Summary:
 })();
 </script>
 
-<!-- Demo: Content vs Shape triggers -->
+
 <section>
   <h3>11. Content vs Shape Demo</h3>
   <div class="page">Demonstrates default (content) subscriptions vs <code>__shape</code> subscriptions.</div>
@@ -1963,7 +1957,7 @@ Summary:
     <div style="margin-top:8px">
       <div>Content subscriber (default): <span id="demoContent" data-sub:.@demo-parent.child="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
       <div>Shape subscriber (<code>__shape</code>): <span id="demoShape" data-sub:.@demo-parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : (detail ? window.formatShapeChange(detail) : '')"></span></div>
-      <!-- Hidden probe used by headless tests to assert ev/sg/detail for signal-originated shape changes -->
+      
       <pre id="testShapeProbe" style="display:none" data-sub:.@demo-parent__shape="(function(){ window.__probe_ev = ev; window.__probe_sg = sg; window.__probe_detail = detail; return ''; })()"></pre>
     </div>
   </div>
@@ -1983,13 +1977,13 @@ window.formatShapeChange = function(c){
 };
 </script>
 
-<!-- Hidden tests for __content / __shape semantics (used by headless tests) -->
+
 <div id="__fg_reactivity_tests" style="display:none">
   <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
   <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
   <span id="shapeChild" data-sub:.@parent__shape="(window.__shapeChild = (window.__shapeChild||0) + 1, window.__shapeChild)"></span>
 
-  <!-- Indirection / bracket-index tests -->
+  
   <span id="indirectCount" data-sub:.@postObjs[idx]="(window.__indirectCount=(window.__indirectCount||0)+1,window.__indirectCount)"></span>
   <button id="setPost0Title" data-sub:postObjs.0.title@.click="'NewP0Title'">Set post0 title</button>
   <button id="setPost1Title" data-sub:postObjs.1.title@.click="'NewP1Title'">Set post1 title</button>
