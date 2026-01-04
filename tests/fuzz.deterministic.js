@@ -224,6 +224,19 @@ function* generateDataActionCombinations() {
     yield { attr: `data-${method}^json:result@#.click`, valid: true, category: `${method}-json` };
     yield { attr: `data-${method}+#input.value:result@#.click`, valid: true, category: `${method}-input` };
     yield { attr: `data-${method}:result?busy,err@#.click`, valid: true, category: `${method}-state` };
+    // Test hyphenated signal names (must convert to camelCase)
+    yield { attr: `data-${method}:post-result@#.click`, valid: true, category: `${method}-hyphenated-target` };
+    yield { attr: `data-${method}:user-profile@user-id`, valid: true, category: `${method}-hyphenated-full` };
+    // Test state signals with different modes
+    yield { attr: `data-${method}:result?busy__busy,err__err,done__done@#.click`, valid: true, category: `${method}-state-modes` };
+    yield { attr: `data-${method}:result?status__all@#.click`, valid: true, category: `${method}-state-all` };
+    // Test header shortcuts and combinations
+    yield { attr: `data-${method}^json^auth.Bearer+token:result@#.click`, valid: true, category: `${method}-multi-headers` };
+    // Test body modifiers
+    yield { attr: `data-${method}+#title.value__body.title+#user.value__body.user.name:result@#.click`, valid: true, category: `${method}-nested-body` };
+    // Test result modifiers
+    yield { attr: `data-${method}__append:items@#.click`, valid: true, category: `${method}-append-modifier` };
+    yield { attr: `data-${method}__prepend:items@#.click`, valid: true, category: `${method}-prepend-modifier` };
   }
   
   // Invalid
