@@ -274,7 +274,7 @@
   <h3>11. Actions demo (JSONPlaceholder)</h3>
   <div>
     <button id="loadPost" data-get:post-result?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts/1">Load post #1 (GET)</button>
-    <div style="margin-top:8px">Busy: <span data-sub:.@post-result?busy="(dm.postBusy||false)"></span></div>
+    <div style="margin-top:8px">Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span></div>
     <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
   </div>
 
@@ -1204,22 +1204,23 @@ Summary:
         if(target && target.type === 'signal'){
           // handle result modifier: replace (default), append, prepend
           const mod = info.resultMod || 'replace';
+          const targetSignal = toCamel(target.name);
           try{
             if(mod === 'replace'){
-              set(target.name, payload);
+              set(targetSignal, payload);
             } else if(mod === 'append' || mod === 'prepend'){
-              const curr = get(target.name);
+              const curr = get(targetSignal);
               const items = Array.isArray(payload) ? payload.slice() : [payload];
               let base = Array.isArray(curr) ? curr.slice() : (curr == null ? [] : [curr]);
               let out;
               if(mod === 'append') out = base.concat(items);
               else out = items.concat(base);
-              set(target.name, out);
+              set(targetSignal, out);
             } else {
               // unknown modifier: fallback to replace
-              set(target.name, payload);
+              set(targetSignal, payload);
             }
-          }catch(e){ console.error('Failed applying result modifier', e); set(target.name, payload); }
+          }catch(e){ console.error('Failed applying result modifier', e); set(targetSignal, payload); }
         }
         // update state signals on success
         for(const s of stateMap){
