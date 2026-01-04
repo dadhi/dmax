@@ -92,6 +92,19 @@ Shape change payload (guarantees)
   Status
   - Headless tests pass locally (JSDOM). The demo is interactive and Section 9 demonstrates `data-dump` behavior and the Add/Remove/Update buttons.
 
+  Improvements (suggested)
+
+  - Cache Template: Cache the parsed template node/content so `setupDump` doesn't re-query/parse the template on each render. Store a `tplFirst` reference and reuse for cloning.
+  - Batch DOM Inserts: Build clones into a `DocumentFragment` and append once to reduce reflows and layout thrashing.
+  - Precompile Expressions: Compile attribute expressions (placeholders, `detail.item`, `detail.index`) into JS functions once per template and reuse for each clone.
+  - Single-Pass Placeholder Rewrite: Replace multiple DOM attribute/value passes with a single regex-driven rewrite that returns a list of setter ops (name/value) to apply per clone.
+  - Keyed Reconciliation: Add optional `$key` support and reconcile by key to preserve DOM nodes and minimize removals/insertions.
+  - Cache Bracket Resolvers: Precompute and memoize bracket-index dependency resolvers (roots + accessors) to avoid reparsing strings on every signal/emit.
+  - Wire Clones via Walk, Not Query: After cloning, run a single DOM-walk that calls existing `setup*` functions on each node rather than repeated `querySelectorAll` calls for each directive.
+  - Safe Attribute API: Use direct properties (`el.classList`, `el.style`, `el.dataset`) when possible and sanitize attribute names before `setAttribute` to avoid runtime exceptions.
+  - Batch/Coalesce Updates: Debounce rapid shape changes and apply DOM updates in a single microtask/requestAnimationFrame to coalesce multiple emits into one update cycle.
+  - Improve Observability & Errors: Add warning logs and defensive checks when templates are missing, placeholder parsing fails, or bracket roots can't be resolved; include small perf metrics for slow templates.
+
   Next steps (suggested)
   - Commit and push the changes (branch `main` currently). I can make the commit now if you want.
   - Add a small helper to pretty-print JSON in a multi-line block per-item, or add per-item action buttons (edit/delete) to the template.
