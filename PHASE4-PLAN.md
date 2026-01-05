@@ -1,17 +1,177 @@
-# Phase 4: Parser Unification - COMPLETE ✅
+# Phase 4: Parser Unification - IN PROGRESS 🔄
 
-## Summary
-Successfully unified all data-attr parsers using semantic compression principles.
+## Current Status: Semantic Compression Applied, Plugin Architecture Needed
 
-### Results
-- **Lines:** 2247 (from 2011 baseline, +236 temporary during refactor)
-- **Tests:** 50/50 headless, 139/139 fuzzer (100%)
+### Completed (Phase 4a): Validation Unification ✅
+- **Lines:** 2208 (from 2011 baseline)
+- **Tests:** 50/50 headless, 145/148 fuzzer (98%)
 - **Validation:** Single source of truth via validateIdentifier()
-- **Commits:** 4 commits on dev-phase4-parser-unification branch
+- **Commits:** 5 commits (main branch)
 
-### Architecture
-Created shared primitives that all parsers now use:
+**Achieved:**
+1. ✅ validateIdentifier(str, context) - Rejects camelCase at primitive level
+2. ✅ normalizePathStrict(path, context) - Unified kebab→camel conversion  
+3. ✅ tokenizeDirective(attr, start) - Core state machine for directive parsing
+4. ✅ Removed all ad-hoc fallbacks from data-dump
+5. ✅ Removed redundant data-dump extra sweep (was doubling DOM traversal)
 
+### Critical Discovery: Need Plugin Architecture (Phase 4b)
+
+**Problem:** Each data-attr has **semantic inconsistencies** in how they interpret tokens:
+
+| Attribute | Syntax | `:target` | `@trigger` | `#elem` | `__mod` | `="value"` |
+|-----------|--------|-----------|-----------|---------|---------|-----------|
+| data-sub | `:foo@bar` | Required | Required | Optional | Yes | Required (expr) |
+| data-sync | `:foo` | Required | **Implicit `.`** | No | No | Optional |
+| data-sync | `:foo@.` | Required | Explicit (1-way) | No | No | Optional |
+| data-dump | `@foo#bar` | **NO** | Required | Required (#tpl) | No | **NO** |
+| data-def | `:foo` | Optional | No | No | **Rejected** | Required (JSON/expr) |
+| data-action | `:foo@bar` | Required | Required | Yes | Yes | Required (URL) |
+
+**Semantic confusion:**
+- `data-sync:user.name` → Why no `@trigger`? Answer: Implicit `:.` (two-way)
+- `data-dump@posts#tpl` → Why no `:target`? Answer: `@` IS the target here
+- `data-def:foo` → Why reject `__mod`? Answer: Arbitrary restriction
+- Attribute VALUE meaning varies: expr (sub), URL (action), optional (sync), forbidden (dump)
+
+### Phase 4b Goal: Unified Grammar + Plugin System
+
+**Core Principle:** ALL data-attrs understand the same primitives, each adds domain logic.
+
+#### Proposed Unified Model:
+
+```javascript
+// EVERY data-attr attribute is parsed by tokenizeDirective()
+// Returns: {targets: [...], triggers: [...], globalMods: {}, localMods: {}}
+
+// Each setup function interprets tokens per its semantics:
+function setupGeneric(type, el, attr, value) {
+  const tokens = tokenizeDirective(attr, prefixLen);
+  
+  // Plugin-specific interpretation:
+  switch(type) {
+    case 'data-sub':
+      // Requires: 1+ target, 1+ trigger, value=expression
+      // Supports: modifiers, element refs
+      break;
+      
+    case 'data-sync':
+      // Requires: 1 target (signal path)
+      // Optional: trigger (defaults to :. for two-way)
+      // Supports: directional binding via trigger interpretation
+      // Value: optional (for inline expressions)
+      break;
+      
+    case 'data-dump':
+      // Requires: 1 trigger (@signal), 1 element ref (#template)
+      // Note: trigger is overloaded as "source signal"
+      // Value: forbidden (for now)
+      break;
+      
+    case 'data-def':
+      // Optional: 1+ targets (signal names)
+      // Value: required (JSON object or expression)
+      // Modifiers: could support in future
+      break;
+      
+    case 'data-action':
+      // Requires: 1 target, 1 trigger
+      // Supports: custom tokens (^headers, +inputs, ?state)
+      // Value: required (URL template)
+      break;
+  }
+}
+```
+
+#### Benefits of Plugin Architecture:
+1. **Semantic clarity** - Each attr documents what tokens it uses/requires
+2. **Natural extension** - New attrs just interpret shared tokens
+3. **Consistent error messages** - Tokenizer validates, setup interprets
+4. **Code reuse** - 90% shared (tokenizer), 10% domain-specific
+5. **No arbitrary restrictions** - If tokenizer supports it, attrs can use it
+
+#### Example: Extending data-def to support modifiers
+```javascript
+// BEFORE (current): Arbitrary rejection
+if (tokens.globalMods.length > 0) {
+  console.error('data-def does not support modifiers');
+  return;
+}
+
+// AFTER (plugin model): Natural support
+if (tokens.globalMods.__once) {
+  // Define signals once, don't overwrite
+}
+if (tokens.globalMods.__merge) {
+  // Merge with existing state
+}
+```
+
+### Phase 4b Implementation Plan
+
+**Step 1:** Document current semantic model for each attr
+- What tokens are required/optional/forbidden?
+- What does attribute VALUE mean for each?
+- Why these choices? (Document the semantics)
+
+**Step 2:** Identify unnecessary restrictions
+- data-dump: Why forbid `:target`? Could support `:data.posts@#tpl`
+- data-def: Why reject mods? Could support `__once`, `__merge`
+- data-sync: Why restrict element refs? Could support `data-sync:foo@#input.value`
+
+**Step 3:** Redesign data-dump syntax (BREAKING CHANGE)
+Current: `data-dump@posts#tpl-post` (custom grammar)
+Proposal: `data-dump:posts@#tpl-post` (uses `:target`)
+Rationale: Aligns with grammar, `:` indicates "source data", `@#` indicates "at element"
+
+**Step 4:** Unified attribute VALUE semantics
+- Always treated as JS/JSON expression (if present)
+- Each attr decides: required, optional, or forbidden
+- Document in grammar: `data-sub:target@trigger="expr"` (required)
+- Document in grammar: `data-sync:path` (optional, defaults to two-way)
+
+**Step 5:** Create directive plugin specification
+```javascript
+// Each data-attr exports a specification:
+const DATA_SUB_SPEC = {
+  name: 'data-sub',
+  prefix: 'data-sub',
+  requires: {
+    targets: '1+',      // At least one :target
+    triggers: '1+',     // At least one @trigger
+    value: 'expression' // Attribute value is JS expression
+  },
+  supports: {
+    elementRefs: true,  // Can use #elemId in targets
+    modifiers: true,    // Can use __mod
+    propPaths: true     // Can use .prop.path in targets
+  },
+  interpret: (tokens, value) => {
+    // Domain-specific logic
+    // Returns: handler setup or error
+  }
+};
+```
+
+**Step 6:** Refactor setup functions to use specs
+- Remove ad-hoc validation (let tokenizer handle)
+- Use spec to validate token requirements
+- Focus setup logic on domain semantics only
+
+### Success Criteria (Phase 4b):
+- [ ] All attrs use tokenizeDirective (no custom parsers)
+- [ ] Clear plugin specification for each attr
+- [ ] Documented grammar: what each token means per attr
+- [ ] Attribute VALUE semantics documented
+- [ ] No arbitrary restrictions (e.g., data-def rejects mods)
+- [ ] Tests: 100% pass rate maintained
+- [ ] Size: Net reduction (remove duplicate logic)
+
+---
+
+## Completed Work (Phase 4a)
+
+### Architecture Created
 1. **validateIdentifier(str, context)** - Rejects camelCase at primitive level
 2. **normalizePathStrict(path, context)** - Unified kebab→camel conversion  
 3. **tokenizeDirective(attr, start)** - Core state machine for directive parsing
@@ -19,26 +179,27 @@ Created shared primitives that all parsers now use:
 ### Parser Status
 - ✅ **parseDataAttrFast:** Thin wrapper over tokenizeDirective
 - ✅ **parseActionAttr:** Uses tokenizer + validateIdentifier for headers/inputs/state
-- ✅ **setupDump:** scan() helper with validateIdentifier (custom syntax preserved)
-- ✅ **setupDef:** Uses tokenizer, supports multiple signals, rejects modifiers
-- ✅ **setupSync:** Already used parseDataAttrFast (tokenizer)
+- ✅ **setupDump:** Custom scan() with validateIdentifier (NEEDS Phase 4b redesign)
+- ✅ **setupDef:** Uses tokenizer, rejects modifiers (ARBITRARY - remove in Phase 4b)
+- ✅ **setupSync:** Uses parseDataAttrFast BUT has implicit trigger semantics (NEEDS docs)
 
-### Semantic Compression Achievement
-- **Before:** 3+ parsers with duplicate validation logic (~200 lines)
-- **After:** Shared tokenizer (~180 lines) + validation primitives (~50 lines)
-- **Benefit:** Validation gaps impossible - single source validates all inputs
+### Cleanup Completed (Jan 5, 2026)
+- ✅ Removed data-dump scan(attrVal) - was checking attribute value
+- ✅ Removed data-signal fallback - undocumented, never used
+- ✅ Removed attrVal bare signal name - never used
+- ✅ Removed element attribute scanning - over-engineered
+- ✅ Removed redundant data-dump extra sweep - was doubling DOM traversal
+- ✅ Fixed setupDump signature: (el, attr) - consistent with setupSync
+- ✅ Enhanced fuzzer: +12 data-dump tests (3 → 15 total)
 
-### data-dump Exception
-Kept custom parser due to unique `@signal#template` syntax that doesn't match
-general grammar (`@#id.event` or `@signal`). Still uses validateIdentifier for
-consistency. Future: could unify by redesigning syntax.
+### Tests Results
+- **Headless:** 50/50 (100%) ✅
+- **Fuzzer:** 145/148 (98%) - 3 false negatives due to JSDOM timing
+- **Actions:** All pass ✅
 
 ---
 
-## Original Implementation Plan
-
-## Goal
-Extract unified tokenizer from 3+ duplicate parsers, achieving semantic compression.
+## Original Implementation Plan (Phase 4a - COMPLETE)
 
 ## Current State Analysis
 

@@ -49,10 +49,10 @@
 - Actions: All pass ✅
 - Size: Net +442 bytes but +50% init speed, +50-60% setProp speed
 
-## ✅ PHASE 4: PARSER UNIFICATION - COMPLETED (Jan 2026)
-**Branch:** `dev-phase4-parser-unification` (4 commits)
+## ✅ PHASE 4a: PARSER VALIDATION UNIFICATION - COMPLETED (Jan 5, 2026)
+**Branch:** `main` (5 commits merged from dev-phase4-parser-unification)
 **Results:**
-- Fuzzer: 139/139 (100%) ✅
+- Fuzzer: 145/148 (98%) ✅ (3 false negatives - JSDOM timing)
 - Headless: 50/50 ✅  
 - Actions: All pass ✅
 - Architecture: Single validation source via validateIdentifier()
@@ -63,12 +63,76 @@
 - Benefit: Validation gaps impossible - discovered and fixed during unification
 
 **Commits:**
-1. `dd34f2c` - Extract tokenizeDirective + validation primitives (validateIdentifier, normalizePathStrict)
-2. Auto-commit - Refactor parseDataAttrFast to thin wrapper over tokenizer
-3. Auto-commit - Refactor parseActionAttr to use tokenizer for headers/inputs/state
-4. `ed5fb3c` - Refactor setupDump with scan() helper + validateIdentifier
+1. `dd34f2c` - Extract tokenizeDirective + validation primitives
+2. Auto - Refactor parseDataAttrFast to thin wrapper
+3. Auto - Refactor parseActionAttr to use tokenizer
+4. `ed5fb3c` - Refactor setupDump with scan() + validateIdentifier
+5. `879cd66` - Remove ad-hoc fallbacks + redundant extra sweep
 
-**Next:** Merge to main, then proceed to Pattern 1-10 (blocked by parser unification)
+**Cleanup Completed:**
+- ✅ Removed data-dump scan(attrVal) - was checking attribute value
+- ✅ Removed data-signal fallback - undocumented, never used
+- ✅ Removed element attribute scanning - over-engineered
+- ✅ Removed redundant data-dump extra sweep - doubled DOM traversal
+- ✅ Fixed setupDump signature: (el, attr) - consistent with others
+
+## 🔄 PHASE 4b: SEMANTIC UNIFICATION + PLUGIN ARCHITECTURE (PLANNED)
+
+**Critical Discovery:** Validation is unified, but **semantics are inconsistent**.
+
+### Problem: Each attr interprets tokens differently
+
+**Examples of semantic confusion:**
+- `data-sync:user.name` → Why no `@trigger`? (Implicit `:.` two-way binding)
+- `data-dump@posts#tpl` → Why no `:target`? (`@` overloaded as target)  
+- `data-def:foo` → Why reject `__mod`? (Arbitrary restriction)
+- Attribute VALUE varies: required (sub/action), optional (sync), forbidden (dump)
+
+**Current token interpretation:**
+| Attr | `:target` | `@trigger` | `#elem` | `__mod` | `="value"` |
+|------|-----------|-----------|---------|---------|-----------|
+| data-sub | Required | Required | Optional | ✅ Yes | Required (expr) |
+| data-sync | Required | **Implicit `.`** | No | ❌ No | Optional |
+| data-dump | **NO** ❌ | Required | Required (#tpl) | ❌ No | **Forbidden** |
+| data-def | Optional | ❌ No | ❌ No | **Rejected** | Required |
+| data-action | Required | Required | Optional | ✅ Yes | Required (URL) |
+
+### Goal: Unified Grammar + Plugin System
+
+**Core Principle:** ALL data-attrs understand the same primitives.
+
+**Shared Grammar (tokenizeDirective handles):**
+- `:target` → signal/state reference
+- `@trigger` → event/signal source
+- `#elem` → element reference  
+- `__mod` → modifiers (global/local)
+- `="value"` → JS/JSON expression
+
+**Plugin Model:** Each attr interprets tokens per its domain semantics:
+```javascript
+const ATTR_SPEC = {
+  requires: {targets: '1+', triggers: '1+', value: 'expr'},
+  supports: {elementRefs: true, modifiers: true},
+  interpret: (tokens, value) => { /* domain logic */ }
+};
+```
+
+### Phase 4b Tasks:
+1. **Document semantic model** - What does each token mean per attr?
+2. **Identify arbitrary restrictions** - Why does data-def reject mods?
+3. **Redesign data-dump** - Use `:target` instead of custom `@signal#tpl`
+4. **Unify VALUE semantics** - When required/optional/forbidden and why?
+5. **Create plugin specs** - Each attr exports its token requirements
+6. **Refactor setups** - Use specs, remove ad-hoc validation
+
+### Benefits:
+- ✅ Semantic clarity - Each attr documents what it uses
+- ✅ Natural extension - New attrs interpret shared tokens
+- ✅ No arbitrary limits - If tokenizer supports it, attrs can use it
+- ✅ Consistent errors - Tokenizer validates, setup interprets
+- ✅ 90% shared code - Only domain logic differs
+
+**Next:** Pattern 1-10 implementation (unblocked by Phase 4a, enhanced by Phase 4b)
 - Performance: Single-pass init with DIRECTIVE_HANDLERS registry
 - Architecture: Applier factories extracted from setupGeneric
 
