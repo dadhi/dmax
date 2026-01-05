@@ -436,6 +436,81 @@ Local modifiers apply only to the specific target or trigger they're attached to
 - **Target modifiers**: `replace`, `append`, `prepend`, `content` (all local only in current implementation)
 
 
+### Special Data Attribute Behaviors
+
+#### `data-def` — Signal Definition
+
+Unlike other directives, `data-def` has flexible target and value combinations:
+
+**Syntax:**
+```
+data-def[__mods][:target1,target2,...]="value"
+```
+
+**Note:** `data-def` does **not** support triggers (`@trigger`) — it only supports targets and value.
+
+**Behavior depends on targets and value presence:**
+
+1. **Value present, no targets** — Define signals from object fields:
+   ```html
+   <div data-def="{counter: 0, user: {name: 'John'}}">
+   <!-- Creates dm.counter = 0 and dm.user = {name: 'John'} -->
+   ```
+   - **Requirement**: Value must evaluate to an object (not a number, array, string, etc.)
+   - **Error**: `data-def="42"` or `data-def="[1,2,3]"` is invalid
+   - Each object field becomes a signal in the global `dm` store
+
+2. **Value present, targets present** — Set evaluated value to all targets:
+   ```html
+   <div data-def:counter,total="42">
+   <!-- Sets dm.counter = 42 and dm.total = 42 -->
+   
+   <div data-def:user="{ name: 'Jane', age: 30 }">
+   <!-- Sets dm.user = { name: 'Jane', age: 30 } -->
+   ```
+   - The evaluated JavaScript result is assigned to each listed target signal
+   - All targets receive the same value
+
+3. **No value, targets present** — Set all targets to `null`:
+   ```html
+   <div data-def:counter,user,items>
+   <!-- Sets dm.counter = null, dm.user = null, dm.items = null -->
+   ```
+   - Useful for declaring signals without initial values
+   - Explicitly initializes signals as `null`
+
+**Targets:**
+- `data-def` may contain **0 or more targets** (`:target1,target2,...`)
+- No triggers or other primitives are supported
+
+**Examples:**
+```html
+<!-- Define multiple signals from object -->
+<div data-def="{
+  counter: 0,
+  user: {name: 'John', email: 'john@example.com'},
+  items: []
+}">
+</div>
+
+<!-- Set same value to multiple signals -->
+<div data-def:loading,busy,processing="false">
+</div>
+
+<!-- Null initialization -->
+<div data-def:data,error,response>
+</div>
+
+<!-- Computed value assigned to target -->
+<div data-def:total="dm.price * dm.quantity">
+</div>
+
+<!-- Complex expression with multiple targets -->
+<div data-def:x,y,z="dm.items.length">
+</div>
+```
+
+
 ---
 
 ## Grammar Reference: Data-Attribute Primitives (Source of Truth)
