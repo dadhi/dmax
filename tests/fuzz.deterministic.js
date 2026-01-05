@@ -181,13 +181,27 @@ function* generateDataDispCombinations() {
 }
 
 function* generateDataDumpCombinations() {
-  // Valid
+  // Valid - standard patterns
   yield { attr: 'data-dump@posts#tpl-post', valid: true, category: 'with-template' };
   yield { attr: 'data-dump#tpl-post@posts', valid: true, category: 'reversed-order' };
   yield { attr: 'data-dump@posts', valid: true, category: 'inline-template' };
   
-  // Invalid - parser returns null
-  // Note: Parser doesn't fail on missing signal, only on syntax errors
+  // Valid - dotted signal paths
+  yield { attr: 'data-dump@user.posts#tpl-post', valid: true, category: 'dotted-signal' };
+  yield { attr: 'data-dump@app.data.items#tpl-item', valid: true, category: 'deep-dotted' };
+  
+  // Valid - bare signal name (no @ or #)
+  yield { attr: 'data-dump-posts', valid: true, category: 'bare-signal' };
+  yield { attr: 'data-dump-user.items', valid: true, category: 'bare-dotted' };
+  
+  // Invalid - camelCase should be rejected
+  yield { attr: 'data-dump@myPosts#tpl-post', valid: false, category: 'camelCase-signal' };
+  yield { attr: 'data-dump@posts#tplPost', valid: false, category: 'camelCase-template' };
+  yield { attr: 'data-dump@user.userName#tpl', valid: false, category: 'camelCase-in-path' };
+  
+  // Invalid - no signal at all (signal is required)
+  yield { attr: 'data-dump#tpl-post', valid: false, category: 'template-only' };
+  yield { attr: 'data-dump', valid: false, category: 'empty' };
 }
 
 function* generateDataActionCombinations() {
@@ -288,8 +302,14 @@ class FuzzTestRunner {
       // escape attribute value
       const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const testId = `fuzz-test-${this.results.total}`;
-      const fixtures = `\n<!-- fuzz fixtures: provide referenced elements and safe dm -->\n<div id="elem"></div>\n<div id="other"></div>\n<button id="btn"></button>\n<input id="input" value="hello"/>\n<div id="src"></div>\n<div id="dest"></div>\n<div id="posts"></div>\n<template id="tpl-post"><div class="post"></div></template>\n<script>window.dm = window.dm || { foo:0, bar:0, user:{themeColor:'',fontSize:'',isActive:false}, posts:[], items:[], idx:0, parent:{}, result:{} }; window.sg = window.sg || {}; window.__fuzz_injected = true;</script>\n`;
-      const insertEl = `<div id="${testId}" ${attr}="${esc(expr)}"></div>`;
+      const fixtures = `\n<!-- fuzz fixtures: provide referenced elements and safe dm -->\n<div id="elem"></div>\n<div id="other"></div>\n<button id="btn"></button>\n<input id="input" value="hello"/>\n<div id="src"></div>\n<div id="dest"></div>\n<div id="posts"></div>\n<template id="tpl-post"><div class="post"></div></template>\n<template id="tpl-item"><div class="item"></div></template>\n<template id="tpl"><div class="generic"></div></template>\n<script>window.dm = window.dm || { foo:0, bar:0, user:{themeColor:'',fontSize:'',isActive:false,items:[],posts:[]}, posts:[], items:[], idx:0, parent:{}, result:{}, app:{data:{items:[]}} }; window.sg = window.sg || {}; window.__fuzz_injected = true;</script>\n`;
+      
+      // For inline-template tests, add a child <template>
+      const needsInlineTemplate = category === 'inline-template' || category === 'bare-signal' || category === 'bare-dotted';
+      const insertEl = needsInlineTemplate 
+        ? `<div id="${testId}" ${attr}="${esc(expr)}"><template><div class="inline-item"></div></template></div>`
+        : `<div id="${testId}" ${attr}="${esc(expr)}"></div>`;
+      
       const modified = html.replace('</body>', `${fixtures}${insertEl}\n</body>`);
 
       const localErrors = [];
@@ -303,6 +323,14 @@ class FuzzTestRunner {
         url: 'http://localhost/',
         virtualConsole: vconsole
       });
+      
+      // Patch window.console.error to capture all errors
+      const origError = dom.window.console.error;
+      dom.window.console.error = (...args) => {
+        localErrors.push(args.join(' '));
+        origError.apply(dom.window.console, args);
+      };
+      
       // Wait for runtime to initialize
       await new Promise(r => setTimeout(r, 250));
 

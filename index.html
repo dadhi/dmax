@@ -1616,10 +1616,10 @@
   }
 
   // data-dump implementation: clone a template per array item or once for an object
-  function setupDump(el, attrName, attrVal) {
+  function setupDump(el, attr) {
     // Parse: data-dump@signal#template or data-dump#template@signal or data-dump@signal
     // Note: data-dump has unique syntax (@signal#template) that doesn't match general grammar
-    const dumpIdx = (attrName || '').indexOf('data-dump');
+    const dumpIdx = (attr || '').indexOf('data-dump');
     if(dumpIdx === -1) return;
     
     let sig = null, tplId = null;
@@ -1634,15 +1634,16 @@
         const afterAt = s.slice(atIdx + 1);
         const sigEnd = afterAt.indexOf('#');
         const extracted = (sigEnd !== -1 ? afterAt.slice(0, sigEnd) : afterAt).trim();
-        if(extracted && validateIdentifier(extracted.split('.').join(''), attrName)){
-          sig = sig || extracted;
+        if(extracted){
+          const isValid = validateIdentifier(extracted.split('.').join(''), attr);
+          if(isValid){ sig = sig || extracted; }
         }
       }
       if(hashIdx !== -1){
         const afterHash = s.slice(hashIdx + 1);
         const tplEnd = afterHash.indexOf('@');
         const extracted = (tplEnd !== -1 ? afterHash.slice(0, tplEnd) : afterHash).trim();
-        if(extracted && validateIdentifier(extracted, attrName)){
+        if(extracted && validateIdentifier(extracted, attr)){
           tplId = tplId || extracted;
         }
       }
@@ -1650,51 +1651,29 @@
       // Bare signal name fallback: if no @/# found and no sig yet
       if(sig == null){
         const trimmed = s.trim();
-        if(trimmed && /^[a-z0-9_\.-]+$/i.test(trimmed) && validateIdentifier(trimmed.split('.').join(''), attrName)){
+        if(trimmed && /^[a-z0-9_\.-]+$/i.test(trimmed) && validateIdentifier(trimmed.split('.').join(''), attr)){
           sig = sig || trimmed;
         }
       }
     };
     
-    // Scan both attribute name (after 'data-dump') and attribute value
-    let name = attrName.slice(dumpIdx + 9);
+    // Scan attribute name only (after 'data-dump')
+    let name = attr.slice(dumpIdx + 9);
     scan(name);
-    scan(attrVal);
     
     // if no tplId, look for a child <template>
     let tpl = null;
-    if(tplId) tpl = getElById(tplId, attrName);
+    if(tplId) tpl = getElById(tplId, attr);
     if(!tpl){ tpl = el.querySelector('template'); }
     // If template was an inline child, detach it so it doesn't remain as a DOM child
     if(tpl && tpl.parentNode === el){ tpl.parentNode.removeChild(tpl); }
-    if(!tpl) return; // nothing to render
-    if(!sig) {
-      // try to read a 'data-signal' attribute or the element's value as fallback
-      if(el.getAttribute && el.getAttribute('data-signal')){
-        sig = el.getAttribute('data-signal');
-        if(!validateIdentifier(sig.split('.').join(''), attrName)) return;
-      }
-      if(!sig && attrVal && attrVal.trim()){
-        sig = attrVal.trim();
-        if(!validateIdentifier(sig.split('.').join(''), attrName)) return;
-      }
-      // Additional fallback: scan element attribute NAMES
-      if(!sig && el.getAttributeNames){
-        const names = el.getAttributeNames();
-        for(const an of names){
-          if(typeof an === 'string' && an.indexOf('data-dump') === 0){
-            // Re-parse this attribute name
-            let fallbackStr = an.slice(9); // remove 'data-dump'
-            if(fallbackStr && fallbackStr[0] === '@'){
-              const atIdx = fallbackStr.indexOf('@');
-              sig = fallbackStr.slice(atIdx + 1).split('#')[0];
-              if(sig && !validateIdentifier(sig.split('.').join(''), an)) continue;
-              if(sig) break;
-            }
-          }
-        }
-      }
-      if(!sig) return; // still none
+    if(!tpl) { 
+      console.error('[dmax] data-dump: template not found for', attr); 
+      return;
+    }
+    if(!sig) { 
+      console.error('[dmax] data-dump: signal is required for', attr); 
+      return;
     }
 
     // canonical root
@@ -1794,7 +1773,7 @@
                 else if(an.indexOf('data-sync') === 0) setupSync(n, an);
                 else if(an.indexOf('data-class') === 0) setupClass(n, an, v);
                 else if(an.indexOf('data-disp') === 0) setupDisp(n, an, v);
-                else if(an.indexOf('data-dump') === 0) setupDump(n, an, v);
+                else if(an.indexOf('data-dump') === 0) setupDump(n, an);
                 else if(an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) setupAction(n, an, v);
               }
             }
@@ -2167,18 +2146,6 @@
     
     // Execute directives
     directives.forEach(([el, attr, value, handler]) => handler(el, attr, value));
-    // Extra sweep: ensure any elements with attributes named `data-dump*` are initialized
-    try{
-      const all2 = document.querySelectorAll('*');
-      all2.forEach(el => {
-        if(!el.getAttributeNames) return;
-        for(const an of el.getAttributeNames()){
-          if(typeof an === 'string' && an.indexOf('data-dump') === 0){
-            try{ setupDump(el, an, el.getAttribute(an)); }catch(e){}
-          }
-        }
-      });
-    }catch(e){}
     updateDebug();
   };
   if(document.readyState === 'loading'){
