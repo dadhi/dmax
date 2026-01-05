@@ -91,6 +91,11 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 - `__shape` — signals only: subscribe to shape changes (keys added/removed), not value changes
 - `__content` — signals only: subscribe to content/value changes (explicit, this is default)
 
+**❌ NOT YET IMPLEMENTED:**
+- `!` prefix (negation shorthand) — use as signal/prop name prefix to trigger only when value is falsy
+  - Example: `@!is-loading` is equivalent to `@is-loading__eq.false`
+  - Future: `!!signal` may mean trigger when value is truthy (positive assertion)
+
 **Note on Constants:**
 - Constants inherit `__immediate __once` by default (execute once, never re-trigger)
 - No additional modifiers typically needed for constants since they represent immutable trigger values
