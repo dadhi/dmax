@@ -82,6 +82,43 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 - Constants inherit `__immediate __once` by default (execute once, never re-trigger)
 - No additional modifiers typically needed for constants since they represent immutable trigger values
 
+### Target Types
+
+Targets (denoted with `:target`) specify what to update when a reactive expression executes:
+
+**✅ Signals** — reactive state stored in the global signal map
+- May be nested with dot notation (e.g., `:user.name`, `:user.profile.email`)
+- Used in: `data-sub`, `data-def`, `data-sync`, `data-action`
+- Example: `data-sub:count@.click="dm.count + 1"`
+
+**✅ Props** — element properties to update
+- May be nested for deep property access (e.g., `:style.color`, `:#output.value`)
+- Element reference syntax: `:#id.property` for other elements, `:property` or `:.property` for current element
+- Used in: `data-sub`, `data-class` (class names only), `data-disp` (implicit current element)
+- Example: `data-sub:.textContent@count="dm.count"`, `data-sub:#output.value@input="dm.result"`
+
+### Target Modifiers
+
+Modifiers (denoted with prefix `__`) control how values are applied to targets:
+
+**✅ IMPLEMENTED (data-action only):**
+- `__replace` — replace the entire value (default for all targets)
+- `__append` — append to array signal (arrays only)
+- `__prepend` — prepend to array signal (arrays only)
+
+**❌ NOT IMPLEMENTED:**
+- `__merge` — merge objects (would be for object signals only)
+- Target modifiers for `data-sub` (currently only supported on `data-action` directives)
+
+**Examples:**
+- `data-post:items__append@.click="url"` — append response to items array
+- `data-post:items__prepend@.click="url"` — prepend response to items array
+- `data-get:result__replace@.click="url"` — replace result with response (default)
+
+**Note:** 
+- Props only support `__replace` semantics (direct assignment)
+- Array modifiers (`__append`, `__prepend`) work by reading current signal value, creating new array, and replacing
+
 
 ---
 
