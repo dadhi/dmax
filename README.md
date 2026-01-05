@@ -199,6 +199,50 @@ Modifiers (prefix `__`) control where input values are placed in the HTTP reques
 - `data-post+token__header.Authorization+#data.value:result@.click="url"`
   - Sends custom header and body field
 
+### State Tracking Signals (data-action only)
+
+State tracking signals (denoted with `?`) monitor the HTTP request/response cycle in `data-action` directives:
+
+**Concept:**
+- Special kind of **target signals** that automatically track request state
+- Syntax: `?signalName__mode` where mode defines what to track
+- Multiple trackers can be specified: `?busy__busy,err__err` or `?status__all`
+- **Auto-created:** tracker signals are automatically initialized if they don't exist
+
+**✅ Tracker Modes:**
+- `__busy` (default) — `true` while request is in-flight, `false` when response returns
+  - Initial value: `false`
+  - Example: `?loading__busy` or `?loading` (busy is default)
+- `__done` — opposite of `busy`, `false` during request, `true` after response
+  - Initial value: `false`
+- `__ok` — `true` if response has OK status code (2xx), `false` otherwise
+  - Initial value: `true`
+- `__err` — `true` if response has error status code or request failed, `false` on success
+  - Initial value: `false`
+- `__code` — the HTTP response status code number
+  - Initial value: `null`
+- `__all` — signal becomes an object with all tracking fields
+  - Initial value: `{busy: false, done: false, err: false, ok: true, code: null}`
+  - Updates to: `{busy: true, done: false, err: false, ok: true, code: null}` during request
+  - Success: `{busy: false, done: true, err: false, ok: true, code: 200}`
+  - Error: `{busy: false, done: false, err: true, ok: false, code: 404}`
+
+**Examples:**
+- `data-get:result?loading__busy@.click="url"`
+  - Tracks loading state in `loading` signal (true during request)
+- `data-post:data?busy__busy,error__err@.click="url"`
+  - Tracks both busy and error states separately
+- `data-get:items?state__all@.click="url"`
+  - Tracks all states in one `state` object signal
+- Use in templates:
+  ```html
+  <button data-get:posts?loading__busy@.click="api/posts">Load</button>
+  <span data-sub:.@loading="dm.loading ? 'Loading...' : ''"></span>
+  <div data-disp:.@error="dm.error">Error occurred!</div>
+  ```
+
+**Note:** Tracker signals are only available in `data-action` directives (`data-get`, `data-post`, `data-put`, `data-patch`, `data-delete`)
+
 
 ---
 
