@@ -65,7 +65,7 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 - `__and.SIGNAL` — conditional: only execute if signal is truthy
 - `__andnot.SIGNAL` — conditional: only execute if signal is falsy
 - `__eq.VALUE` — guard: only execute if trigger signal/value equals VALUE
-- `__ne.VALUE` — guard: only execute if trigger signal/value not equals VALUE (note: implementation uses `ne`, not `neq`)
+- `__ne.VALUE` — guard: only execute if trigger signal/value not equals VALUE
 - `__gt.VALUE` — guard: only execute if trigger signal/value > VALUE
 - `__ge.VALUE` — guard: only execute if trigger signal/value >= VALUE
 - `__lt.VALUE` — guard: only execute if trigger signal/value < VALUE
