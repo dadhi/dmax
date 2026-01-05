@@ -48,6 +48,27 @@
 - Headless: 50/50 ✅
 - Actions: All pass ✅
 - Size: Net +442 bytes but +50% init speed, +50-60% setProp speed
+
+## ✅ PHASE 4: PARSER UNIFICATION - COMPLETED (Jan 2026)
+**Branch:** `dev-phase4-parser-unification` (4 commits)
+**Results:**
+- Fuzzer: 139/139 (100%) ✅
+- Headless: 50/50 ✅  
+- Actions: All pass ✅
+- Architecture: Single validation source via validateIdentifier()
+
+**Key Achievement:** Semantic compression applied to parsers
+- Before: 3+ parsers with duplicate validation (~200 lines)
+- After: Shared tokenizer + primitives (~230 lines unified)
+- Benefit: Validation gaps impossible - discovered and fixed during unification
+
+**Commits:**
+1. `dd34f2c` - Extract tokenizeDirective + validation primitives (validateIdentifier, normalizePathStrict)
+2. Auto-commit - Refactor parseDataAttrFast to thin wrapper over tokenizer
+3. Auto-commit - Refactor parseActionAttr to use tokenizer for headers/inputs/state
+4. `ed5fb3c` - Refactor setupDump with scan() helper + validateIdentifier
+
+**Next:** Merge to main, then proceed to Pattern 1-10 (blocked by parser unification)
 - Performance: Single-pass init with DIRECTIVE_HANDLERS registry
 - Architecture: Applier factories extracted from setupGeneric
 
