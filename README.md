@@ -63,7 +63,7 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 - `__throttle.MS` — throttle handler by milliseconds
 - `__prevent` — call `preventDefault()` on events (events/props only)
 - `__and.SIGNAL` — conditional: only execute if signal is truthy
-- `__notand.SIGNAL` — conditional: only execute if signal is falsy (note: implementation uses `notand`, not `andnot`)
+- `__andnot.SIGNAL` — conditional: only execute if signal is falsy
 - `__eq.VALUE` — guard: only execute if trigger signal/value equals VALUE
 - `__ne.VALUE` — guard: only execute if trigger signal/value not equals VALUE (note: implementation uses `ne`, not `neq`)
 - `__gt.VALUE` — guard: only execute if trigger signal/value > VALUE
