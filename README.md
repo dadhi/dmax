@@ -33,6 +33,19 @@ See `index.html` for live examples and detailed grammar reference below.
 
 Triggers (denoted with `@`) specify when a reactive expression should execute:
 
+**✅ Default Trigger (`@.`)** — context-dependent shorthand for default element behavior
+- **In `data-sub`, `data-action`**: represents the default **event** of the element
+  - Button: `click`, Input/Textarea: `input`, Select: `change`, Checkbox/Radio: `change`, Form: `submit`
+  - Example: `data-sub:count@.="dm.count + 1"` on a button → triggers on click
+  - Example: `data-get:result@.="url"` on a button → triggers on click
+- **In `data-sync`, `data-class`, `data-disp`**: represents the default **prop** of the element with change notification via default event
+  - Input/Textarea/Select: `value` property (via `input` or `change` event)
+  - Checkbox/Radio: `checked` property (via `change` event)
+  - Other elements: `textContent` property
+  - Example: `data-sync:user.name@.` on an input → syncs `value` property via `input` event
+- **Never** interpreted as a signal trigger
+- Can be extended with explicit event/prop: `@.click`, `@.value`, `@.checked`
+
 **✅ Signals** — may be nested with dot notation (e.g., `@user.name`)
 - Default behavior: `__immediate` (execute on init)
 
@@ -86,6 +99,15 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 
 Targets (denoted with `:target`) specify what to update when a reactive expression executes:
 
+**✅ Default Target (`:.` or `:`)** — shorthand for default prop on current element
+- Always represents the default **property** of the data attribute's element
+- Input/Textarea/Select: `value` property
+- Checkbox/Radio: `checked` property  
+- Other elements: `textContent` property
+- Example: `data-sub:.@count="dm.count"` on a `<span>` → updates `textContent`
+- Example: `data-sub:.@result="dm.result"` on an `<input>` → updates `value`
+- Can be extended with explicit prop: `:.style.color`, `:.className`, `:.disabled`
+
 **✅ Signals** — reactive state stored in the global signal map
 - May be nested with dot notation (e.g., `:user.name`, `:user.profile.email`)
 - Used in: `data-sub`, `data-def`, `data-sync`, `data-action`
@@ -93,7 +115,7 @@ Targets (denoted with `:target`) specify what to update when a reactive expressi
 
 **✅ Props** — element properties to update
 - May be nested for deep property access (e.g., `:style.color`, `:#output.value`)
-- Element reference syntax: `:#id.property` for other elements, `:property` or `:.property` for current element
+- Element reference syntax: `:#id.property` for other elements, `:.property` for current element
 - Used in: `data-sub`, `data-class` (class names only), `data-disp` (implicit current element)
 - Example: `data-sub:.textContent@count="dm.count"`, `data-sub:#output.value@input="dm.result"`
 
