@@ -244,6 +244,49 @@ State tracking signals (denoted with `?`) monitor the HTTP request/response cycl
 **Note:** Tracker signals are only available in `data-action` directives (`data-get`, `data-post`, `data-put`, `data-patch`, `data-delete`)
 
 
+### HTTP Headers (`^`)
+
+HTTP headers for `data-action` directives are specified with the `^` prefix. Headers must use **constant string values only** — for dynamic header values, use input parameters with the `__header` modifier.
+
+**Syntax:**
+- `^name.value` — custom header with constant value
+  - Example: `^cache-control.no-cache` sets `Cache-Control: no-cache`
+  - Example: `^authorization.Bearer_token123` sets `Authorization: Bearer token123`
+  - Multiple headers: `^x-api-key.abc123,^x-request-id.xyz789`
+
+**Header Shortcuts:**
+Predefined shortcuts for common headers:
+- ✅ `^json` — sets `Content-Type: application/json` and `Accept: application/json`
+- ❌ `^html` — sets `Content-Type: text/html` (**NOT YET IMPLEMENTED**)
+- ❌ `^js` — sets `Content-Type: application/javascript` (**NOT YET IMPLEMENTED**)
+- ❌ `^sse` — sets `Accept: text/event-stream` for Server-Sent Events (**NOT YET IMPLEMENTED**)
+- ❌ `^no-cache` — sets `Cache-Control: no-cache` (**NOT YET IMPLEMENTED**)
+
+**Examples:**
+```html
+<!-- JSON request with custom header -->
+<button data-post:result^json,^x-api-key.secret123+body@.click="api/data">
+  Submit
+</button>
+
+<!-- Multiple custom headers -->
+<form data-post^cache-control.no-cache,^x-request-id.abc123+body@.submit="api/form">
+  ...
+</form>
+
+<!-- Combining headers with inputs and state tracking -->
+<button data-get:items^json?loading__busy+query@.click="api/search">
+  Search
+</button>
+```
+
+**Note:** For dynamic header values (e.g., from signals), use input parameters:
+```html
+<!-- Use __header modifier for dynamic headers -->
+<button data-post+apiKey__header.x-api-key@.click="api/data">Send</button>
+```
+
+
 ---
 
 ## Grammar Reference: Data-Attribute Primitives (Source of Truth)
