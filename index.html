@@ -280,12 +280,12 @@
 
   <div style="margin-top:12px">
     <label>New post title:</label>
-    <input id="newTitle" placeholder="Title" />
+    <input id="new-title" placeholder="Title" />
     <label style="margin-left:8px">Author name:</label>
-    <input id="newUserName" placeholder="Name" />
+    <input id="new-user-name" placeholder="Name" />
     <label style="margin-left:8px">Author email:</label>
-    <input id="newUserEmail" placeholder="Email" />
-    <button id="createPost" data-post^json+#newTitle.value__body.title+#newUserName.value__body.user.name+#newUserEmail.value__body.user.email:created-post?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
+    <input id="new-user-email" placeholder="Email" />
+    <button id="create-post" data-post^json+#new-title.value__body.title+#new-user-name.value__body.user.name+#new-user-email.value__body.user.email:created-post?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
     <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
   </div>
 </section>
@@ -1027,6 +1027,18 @@
           i++; const mvstart = i; while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_') && s[i] !== '?') i++; mval = s.slice(mvstart, i) || true;
         }
         input.mods[mname] = mval;
+      }
+      // Validate input: reject camelCase in element IDs and property names
+      if(raw[0] === '#'){
+        const parts = raw.slice(1).split('.');
+        const elemId = parts[0];
+        if(/[A-Z]/.test(elemId)){ console.error('CamelCase in element ID is invalid:', attr); return null; }
+        const propPath = parts.slice(1).join('.');
+        if(propPath && /[A-Z]/.test(propPath)){ console.error('CamelCase in property name is invalid:', attr); return null; }
+      } else {
+        // signal reference - validate signal name
+        const sigName = raw.replace(/^\./,'');
+        if(/[A-Z]/.test(sigName)){ console.error('CamelCase in signal name is invalid:', attr); return null; }
       }
       inputs.push(input);
     }
