@@ -379,6 +379,63 @@ Values are evaluated as JavaScript function bodies with access to these paramete
 - Some directives don't require values (e.g., `data-dump` gets data from `@trigger`, not value)
 
 
+### Modifiers: Global vs Local (`__`)
+
+Modifiers use the `__` prefix and can be applied at different levels:
+
+**Global Modifiers** (on the data attribute itself):
+```html
+<div data-sub__once:target@trigger="value">
+     ^^^^^^^^ global modifier applies to entire directive
+```
+
+Global modifiers can be:
+1. **Unique modifiers** — specific to that data attribute's behavior (**none supported yet**)
+2. **Trigger modifiers** — shared by all triggers (including default trigger), but can be overridden at trigger level
+   - Example: `data-sub__debounce.300:result@signal1,signal2="..."`
+     - Both `@signal1` and `@signal2` inherit 300ms debounce
+     - Can override: `@signal1__debounce.100` uses 100ms instead
+3. **Target modifiers** — shared by all targets, but can be overridden at target level
+   - Example: `data-sub__append:target1,target2@trigger="..."`
+     - Both `:target1` and `:target2` use append mode
+     - Can override: `:target1__replace` uses replace instead
+
+**Local Modifiers** (on specific targets/triggers):
+```html
+<div data-sub:target1__once,target2__debounce.100@trigger="value">
+                    ^^^^^^              ^^^^^^^^^^^^^^^^ local modifiers
+```
+
+Local modifiers apply only to the specific target or trigger they're attached to and override any global modifiers of the same type.
+
+**Examples:**
+```html
+<!-- Global trigger mod: debounce all triggers -->
+<div data-sub__debounce.300:result@input,change="dm.query">
+  <!-- Both @input and @change debounced by 300ms -->
+</div>
+
+<!-- Override global mod at trigger level -->
+<div data-sub__debounce.300:result@input__debounce.100,change="dm.query">
+  <!-- @input uses 100ms, @change uses 300ms -->
+</div>
+
+<!-- Global target mod: append to all targets -->
+<div data-sub__append:log1,log2@trigger="dm.message">
+  <!-- Both :log1 and :log2 use append mode -->
+</div>
+
+<!-- Mix global and local mods -->
+<div data-sub__once:target1,target2__throttle.100@signal="dm.data">
+  <!-- :target1 executes once, :target2 throttles at 100ms (once overridden) -->
+</div>
+```
+
+**Available Modifiers:**
+- **Trigger modifiers**: `once`, `debounce.MS`, `throttle.MS`, `prevent`, `immediate`, `notimmediate`, `and.signal`, `notand.signal`, `gt.N`, `lt.N`, `eq.N`, `gte.N`, `lte.N`, `neq.N`, `shape`
+- **Target modifiers**: `replace`, `append`, `prepend`, `content` (all local only in current implementation)
+
+
 ---
 
 ## Grammar Reference: Data-Attribute Primitives (Source of Truth)
