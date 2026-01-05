@@ -76,63 +76,92 @@
 - ✅ Removed redundant data-dump extra sweep - doubled DOM traversal
 - ✅ Fixed setupDump signature: (el, attr) - consistent with others
 
-## 🔄 PHASE 4b: SEMANTIC UNIFICATION + PLUGIN ARCHITECTURE (PLANNED)
+## 🔄 PHASE 4b: TOKEN SPECIFICATION SYSTEM (PLANNED)
 
-**Critical Discovery:** Validation is unified, but **semantics are inconsistent**.
+**Critical Discovery:** Grammar is ALREADY unified! The issue is **token requirements**.
 
-### Problem: Each attr interprets tokens differently
+### Semantic Analysis: `@` Token is CONSISTENT!
 
-**Examples of semantic confusion:**
-- `data-sync:user.name` → Why no `@trigger`? (Implicit `:.` two-way binding)
-- `data-dump@posts#tpl` → Why no `:target`? (`@` overloaded as target)  
-- `data-def:foo` → Why reject `__mod`? (Arbitrary restriction)
-- Attribute VALUE varies: required (sub/action), optional (sync), forbidden (dump)
+The `@` token means **"SOURCE"** across ALL directives:
 
-**Current token interpretation:**
-| Attr | `:target` | `@trigger` | `#elem` | `__mod` | `="value"` |
-|------|-----------|-----------|---------|---------|-----------|
-| data-sub | Required | Required | Optional | ✅ Yes | Required (expr) |
-| data-sync | Required | **Implicit `.`** | No | ❌ No | Optional |
-| data-dump | **NO** ❌ | Required | Required (#tpl) | ❌ No | **Forbidden** |
-| data-def | Optional | ❌ No | ❌ No | **Rejected** | Required |
-| data-action | Required | Required | Optional | ✅ Yes | Required (URL) |
+**data-sub:**
+- `data-sub:.@user.name` → Update element WHEN **source** user.name changes
+- `data-sub:foo@.click` → Update foo WHEN **source** is click event
+- Pattern: `target@SOURCE`
 
-### Goal: Unified Grammar + Plugin System
+**data-sync:**
+- `data-sync:user.name@.` → Sync from element (element is **source**)
+- `data-sync@user.name` → Sync from signal (signal is **source**)
+- Pattern: `signal@SOURCE_DIRECTION`
 
-**Core Principle:** ALL data-attrs understand the same primitives.
+**data-dump:**
+- `data-dump@posts#tpl` → Render from **source** posts signal
+- Pattern: `@SOURCE#template` (target is implicit `.`)
 
-**Shared Grammar (tokenizeDirective handles):**
-- `:target` → signal/state reference
-- `@trigger` → event/signal source
-- `#elem` → element reference  
-- `__mod` → modifiers (global/local)
-- `="value"` → JS/JSON expression
+**Key Insight:** `@` always indicates WHERE data/trigger comes FROM.
 
-**Plugin Model:** Each attr interprets tokens per its domain semantics:
+### Why data-dump uses `@signal` (CORRECT!)
+
+data-dump has:
+- **Implicit target:** `.` (current element's children)
+- **Explicit source:** `@posts` (data to iterate)
+- **Explicit template:** `#tpl-post` (what to clone)
+
+So `data-dump@posts#tpl` is semantically `data-dump:.@posts#tpl` with implicit target.
+
+**Grammar tokens are consistent:**
+- `:` = target/destination/what
+- `@` = source/trigger/when/from  
+- `#` = element/template reference
+- `__` = modifiers
+
+### The REAL Issue: Token REQUIREMENTS Vary
+
+| Directive | Required | Optional | Implicit |
+|-----------|----------|----------|----------|
+| data-sub | `:target`, `@source` | `#elem`, `__mod` | None |
+| data-sync | `:signal` | `@direction` | `@.` if no @ |
+| data-dump | `@source`, `#template` | None | `:.` (target) |
+| data-def | `:signal` OR value | `__mod` (rejected!) | None |
+
+**Problem:** Each attr has ad-hoc validation of token requirements.
+
+### Goal: Specification-Based Validation
+
+**Core Principle:** Tokenizer parses ALL tokens. Each attr declares SPEC.
+
 ```javascript
-const ATTR_SPEC = {
-  requires: {targets: '1+', triggers: '1+', value: 'expr'},
-  supports: {elementRefs: true, modifiers: true},
-  interpret: (tokens, value) => { /* domain logic */ }
+const DIRECTIVE_SPECS = {
+  'data-dump': {
+    requires: {triggers: '1', templateRef: '1'}, // @signal #template
+    implicit: {target: '.'},  // Target is current element
+    value: {required: false}
+  },
+  'data-def': {
+    requires: {targets: '0+', value: true}, // :signals OR value
+    optional: {modifiers: true}, // ALLOW mods (was rejected)
+    value: {required: true, type: 'json|expression'}
+  }
+  // ... etc
 };
 ```
 
 ### Phase 4b Tasks:
-1. **Document semantic model** - What does each token mean per attr?
-2. **Identify arbitrary restrictions** - Why does data-def reject mods?
-3. **Redesign data-dump** - Use `:target` instead of custom `@signal#tpl`
-4. **Unify VALUE semantics** - When required/optional/forbidden and why?
-5. **Create plugin specs** - Each attr exports its token requirements
-6. **Refactor setups** - Use specs, remove ad-hoc validation
+1. ✅ **Analyze `@` semantics** - DONE! Consistent = SOURCE
+2. **Create DIRECTIVE_SPECS** - Token requirements per attr
+3. **Build spec validator** - Generic token requirement checker
+4. **Refactor setups** - Use spec validator vs ad-hoc checks
+5. **Remove restrictions** - data-def should accept `__once`, `__merge`
+6. **Document implicits** - data-sync:foo → @., data-dump → :.
 
 ### Benefits:
-- ✅ Semantic clarity - Each attr documents what it uses
-- ✅ Natural extension - New attrs interpret shared tokens
-- ✅ No arbitrary limits - If tokenizer supports it, attrs can use it
-- ✅ Consistent errors - Tokenizer validates, setup interprets
-- ✅ 90% shared code - Only domain logic differs
+- ✅ Grammar already unified (no changes needed!)
+- ✅ Specifications explicit (documentable, testable)
+- ✅ Natural extension (new attrs define spec)
+- ✅ Remove arbitrary limits (e.g., data-def rejects mods)
+- ✅ Consistent error messages
 
-**Next:** Pattern 1-10 implementation (unblocked by Phase 4a, enhanced by Phase 4b)
+**Next:** Pattern 1-10 implementation (unblocked by Phase 4a)
 - Performance: Single-pass init with DIRECTIVE_HANDLERS registry
 - Architecture: Applier factories extracted from setupGeneric
 

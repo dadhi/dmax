@@ -17,118 +17,142 @@
 
 ### Critical Discovery: Need Plugin Architecture (Phase 4b)
 
-**Problem:** Each data-attr has **semantic inconsistencies** in how they interpret tokens:
+**Problem:** Each data-attr has **semantic inconsistencies** in how they interpret tokens.
 
-| Attribute | Syntax | `:target` | `@trigger` | `#elem` | `__mod` | `="value"` |
-|-----------|--------|-----------|-----------|---------|---------|-----------|
-| data-sub | `:foo@bar` | Required | Required | Optional | Yes | Required (expr) |
-| data-sync | `:foo` | Required | **Implicit `.`** | No | No | Optional |
-| data-sync | `:foo@.` | Required | Explicit (1-way) | No | No | Optional |
-| data-dump | `@foo#bar` | **NO** | Required | Required (#tpl) | No | **NO** |
-| data-def | `:foo` | Optional | No | No | **Rejected** | Required (JSON/expr) |
-| data-action | `:foo@bar` | Required | Required | Yes | Yes | Required (URL) |
+**WAIT - Deeper Analysis of `@` Semantics:**
 
-**Semantic confusion:**
-- `data-sync:user.name` → Why no `@trigger`? Answer: Implicit `:.` (two-way)
-- `data-dump@posts#tpl` → Why no `:target`? Answer: `@` IS the target here
-- `data-def:foo` → Why reject `__mod`? Answer: Arbitrary restriction
-- Attribute VALUE meaning varies: expr (sub), URL (action), optional (sync), forbidden (dump)
+Let me analyze what `@` actually MEANS across directives:
 
-### Phase 4b Goal: Unified Grammar + Plugin System
+#### Semantic Analysis of `@` Token:
 
-**Core Principle:** ALL data-attrs understand the same primitives, each adds domain logic.
+**data-sub** - `@` = "triggered by" (source of change)
+```html
+data-sub:.@user.name          → Update element WHEN user.name changes
+data-sub:.style.color@user.ui.theme-color → Update style.color WHEN theme-color changes
+data-sub:postObjs.0.title@.click → Update signal WHEN element is clicked
+```
+Pattern: `target@SOURCE` where SOURCE triggers the update
 
-#### Proposed Unified Model:
+**data-sync** - `@` = "source direction" (one-way binding)
+```html
+data-sync:user.name           → Two-way (implicit :.@. + @.:)
+data-sync:user.name@.         → Element -> Signal (WHEN element changes)
+data-sync@user.name           → Signal -> Element (WHEN signal changes)
+```
+Pattern: `signal@SOURCE` where SOURCE is what triggers sync
+
+**data-dump** - `@` = "data source signal"
+```html
+data-dump@posts#tpl-post      → Render FROM posts signal using template
+data-dump@threads             → Render FROM threads signal (inline template)
+```
+Pattern: `@SOURCE#template` where SOURCE is the data to iterate
+
+#### Key Insight: `@` Always Means "SOURCE"!
+
+The `@` token is **semantically consistent** across all directives:
+- `@` = "from/source/origin/when"
+- It always indicates WHERE the data/trigger comes from
+- It's the **reactive dependency** - what causes this directive to activate
+
+**Why data-dump uses `@signal` NOT `:target`:**
+
+In data-dump, there IS no explicit `:target` because:
+1. **Target is implicit:** The element itself (its children get populated)
+2. **Source is explicit:** `@posts` - the signal to watch and iterate over
+3. **Template is explicit:** `#tpl-post` - what to clone per item
+
+So `data-dump@posts#tpl` is actually:
+```
+data-dump[implicit :.]@posts#tpl
+          ^^^^^^^^  ^^^^^^  ^^^^
+          target    source  template
+          (this el) (data)  (clone)
+```
+
+This is CORRECT and consistent with the grammar!
+
+#### Corrected Understanding:
+
+| Directive | `:target` | `@source` | `#template` | Semantics |
+|-----------|-----------|-----------|-------------|-----------|
+| data-sub | What to update | What triggers update | Element ref (optional) | `target@SOURCE` |
+| data-sync | Signal to sync | Which side triggers | N/A | `signal@DIRECTION` |
+| data-dump | **Implicit `.`** | Data signal | Template to clone | `@SOURCE#template` |
+| data-def | Signal(s) to define | N/A | N/A | `:signals` |
+| data-action | Where to store result | Event trigger | Element ref (optional) | `target@trigger` |
+
+**Semantic Model is Actually CONSISTENT!**
+- `:` = target/destination/what
+- `@` = source/trigger/when/from
+- `#` = element/template reference
+
+**The "inconsistency" isn't in grammar - it's in REQUIRED vs OPTIONAL tokens:**
+
+**The "inconsistency" isn't in grammar - it's in REQUIRED vs OPTIONAL tokens:**
+
+| Directive | Required Tokens | Optional Tokens | Implicit Tokens |
+|-----------|----------------|-----------------|-----------------|
+| data-sub | `:target`, `@source` | `#elem`, `__mod` | None |
+| data-sync | `:signal` | `@direction` | `@.` (two-way) if no @ |
+| data-dump | `@source`, `#template` | None | `:. (target)` |
+| data-def | `:signal` OR value | value OR `:signal` | None |
+| data-action | `:target`, `@trigger` | `#elem`, `__mod`, `^header`, `+input`, `?state` | None |
+
+**Revised Phase 4b Goal:** Not grammar unification (it's already consistent!), but:
+
+### Phase 4b Goal: Token Requirement Specification System
+
+The grammar IS unified. The issue is: **Each attr has different requirements**.
+
+**Core Principle:** Tokenizer parses ALL tokens. Each attr specifies what it needs.
 
 ```javascript
-// EVERY data-attr attribute is parsed by tokenizeDirective()
-// Returns: {targets: [...], triggers: [...], globalMods: {}, localMods: {}}
-
-// Each setup function interprets tokens per its semantics:
-function setupGeneric(type, el, attr, value) {
-  const tokens = tokenizeDirective(attr, prefixLen);
+const DIRECTIVE_SPECS = {
+  'data-sub': {
+    requires: {targets: '1+', triggers: '1+'},
+    optional: {elementRefs: true, modifiers: true},
+    implicit: {},
+    value: {required: true, type: 'expression'}
+  },
   
-  // Plugin-specific interpretation:
-  switch(type) {
-    case 'data-sub':
-      // Requires: 1+ target, 1+ trigger, value=expression
-      // Supports: modifiers, element refs
-      break;
-      
-    case 'data-sync':
-      // Requires: 1 target (signal path)
-      // Optional: trigger (defaults to :. for two-way)
-      // Supports: directional binding via trigger interpretation
-      // Value: optional (for inline expressions)
-      break;
-      
-    case 'data-dump':
-      // Requires: 1 trigger (@signal), 1 element ref (#template)
-      // Note: trigger is overloaded as "source signal"
-      // Value: forbidden (for now)
-      break;
-      
-    case 'data-def':
-      // Optional: 1+ targets (signal names)
-      // Value: required (JSON object or expression)
-      // Modifiers: could support in future
-      break;
-      
-    case 'data-action':
-      // Requires: 1 target, 1 trigger
-      // Supports: custom tokens (^headers, +inputs, ?state)
-      // Value: required (URL template)
-      break;
+  'data-sync': {
+    requires: {targets: '1'},  // :signal
+    optional: {triggers: '1'}, // @. or @signal
+    implicit: {trigger: '.' },  // If no @, assume @.
+    value: {required: false, type: 'expression'}
+  },
+  
+  'data-dump': {
+    requires: {triggers: '1', templateRef: '1'}, // @signal #template
+    optional: {},
+    implicit: {target: '.'},  // Target is always current element
+    value: {required: false}  // No value needed (for now)
+  },
+  
+  'data-def': {
+    requires: {targets: '0+', value: true}, // Either :signals OR value or both
+    optional: {modifiers: true},  // REMOVE arbitrary rejection!
+    implicit: {},
+    value: {required: true, type: 'json|expression'}
   }
-}
+};
 ```
 
-#### Benefits of Plugin Architecture:
-1. **Semantic clarity** - Each attr documents what tokens it uses/requires
-2. **Natural extension** - New attrs just interpret shared tokens
-3. **Consistent error messages** - Tokenizer validates, setup interprets
-4. **Code reuse** - 90% shared (tokenizer), 10% domain-specific
-5. **No arbitrary restrictions** - If tokenizer supports it, attrs can use it
+**Key insight:** The inconsistency isn't SEMANTIC, it's SPECIFICATION.
+- Grammar is unified ✅
+- Validation is unified ✅  
+- **Specification is ad-hoc** ❌ (each attr hardcodes requirements)
 
-#### Example: Extending data-def to support modifiers
-```javascript
-// BEFORE (current): Arbitrary rejection
-if (tokens.globalMods.length > 0) {
-  console.error('data-def does not support modifiers');
-  return;
-}
+### Phase 4b Tasks (REVISED):
 
-// AFTER (plugin model): Natural support
-if (tokens.globalMods.__once) {
-  // Define signals once, don't overwrite
-}
-if (tokens.globalMods.__merge) {
-  // Merge with existing state
-}
-```
-
-### Phase 4b Implementation Plan
-
-**Step 1:** Document current semantic model for each attr
-- What tokens are required/optional/forbidden?
-- What does attribute VALUE mean for each?
-- Why these choices? (Document the semantics)
-
-**Step 2:** Identify unnecessary restrictions
-- data-dump: Why forbid `:target`? Could support `:data.posts@#tpl`
-- data-def: Why reject mods? Could support `__once`, `__merge`
-- data-sync: Why restrict element refs? Could support `data-sync:foo@#input.value`
-
-**Step 3:** Redesign data-dump syntax (BREAKING CHANGE)
-Current: `data-dump@posts#tpl-post` (custom grammar)
-Proposal: `data-dump:posts@#tpl-post` (uses `:target`)
-Rationale: Aligns with grammar, `:` indicates "source data", `@#` indicates "at element"
-
-**Step 4:** Unified attribute VALUE semantics
-- Always treated as JS/JSON expression (if present)
-- Each attr decides: required, optional, or forbidden
-- Document in grammar: `data-sub:target@trigger="expr"` (required)
-- Document in grammar: `data-sync:path` (optional, defaults to two-way)
+1. ✅ **Analyze `@` semantics** - DONE! It's consistent (SOURCE)
+2. **Create DIRECTIVE_SPECS table** - Document token requirements per attr
+3. **Build spec validator** - Generic function that checks tokens against spec
+4. **Refactor setup functions** - Use spec validator instead of ad-hoc checks
+5. **Remove arbitrary restrictions** - data-def should accept modifiers (per spec)
+6. **Document implicit tokens** - data-sync:foo implies @., data-dump implies :.
+7. **Unify error messages** - "data-X requires :target" vs ad-hoc errors
 
 **Step 5:** Create directive plugin specification
 ```javascript
