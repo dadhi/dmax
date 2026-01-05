@@ -48,7 +48,12 @@ Triggers (denoted with `@`) specify when a reactive expression should execute:
 - Default behavior: `__notimmediate` (do not execute on init)
 - For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev`: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds
 
-**❌ Constants** — NOT IMPLEMENTED (special triggers with `__immediate __once` semantic would be future feature)
+**✅ Constants** — literal values used as triggers (e.g., numeric indices)
+- Primarily used in `data-dump` templates where `$index` placeholders are substituted with numeric constants (e.g., `0`, `1`, `2`)
+- Example: In template `data-sub:.@$index`, becomes `data-sub:.@0` for first item, `data-sub:.@1` for second item, etc.
+- Acts as a trigger that references a non-existent signal, effectively running only once on init
+- Default behavior: `__immediate __once` (execute once on init, never fires again since the "signal" never changes)
+- Useful for establishing one-time bindings in list item templates
 
 ### Trigger Modifiers
 
@@ -73,8 +78,9 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 - `__shape` — signals only: subscribe to shape changes (keys added/removed), not value changes
 - `__content` — signals only: subscribe to content/value changes (explicit, this is default)
 
-**❌ NOT IMPLEMENTED:**
-- Constants as trigger type
+**Note on Constants:**
+- Constants inherit `__immediate __once` by default (execute once, never re-trigger)
+- No additional modifiers typically needed for constants since they represent immutable trigger values
 
 
 ---
