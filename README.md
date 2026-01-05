@@ -23,30 +23,58 @@ Notes:
  - Attributes use kebab-case; runtime converts to camelCase for JS access.
  - Expressions are compiled & cached; signals stored in a small `Map` (`S`).
  - Compiled expressions receive four arguments: `dm` (the global state object containing signals), `el` (the element), `ev` (the triggering Event, if any), and `sg` (the signal path string that triggered the evaluation, if any). Expressions should reference signals explicitly via `dm`, e.g. `dm.count` or `dm.user.name`.
- - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
- - Special/global triggers use the `_` prefix: `@_window`, `@_document`, `@_interval`, `@_delay`.
- - For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev` to compiled expressions: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds.
  - Attribute-level/global mods: you can append modifiers directly after the directive name (e.g. `data-sub__once:...`) to apply them to all triggers on that attribute. Trigger-level modifiers (after a trigger) override attribute-level ones. Use `__always` to override a global `__once` on a specific trigger.
  - `data-dump` precomputes shallow bindings for faster updates and performs simple append/remove reconciliation (clones appended/removed at the end).
 
-Short TBD:
- - stable keyed reconciliation for `data-iter` (`$key`) — deferred
- - stable keyed reconciliation for `data-dump` (`$key`) — deferred
- - full HTTP control (headers, retry, cancel, timeout)
- - additional trigger mods and batching modes
-
-See `index.html` for live examples and `req.md` for detailed grammar.
+See `index.html` for live examples and detailed grammar reference below.
 ```
 
-Supported trigger modifiers:
- - `__immediate` — run handler immediately for signal triggers
- - `__notimmediate` — avoid immediate run for event triggers
- - `__once` — run only once then remove subscription
- - `__debounce.<ms>` — debounce handler by milliseconds
- - `__throttle.<ms>` — throttle handler by milliseconds
- - `__prevent` — call `preventDefault()` for DOM events
- - `__and.<signal>` — conditional AND modifier (TBD semantics)
- - comparator mods (TBD): `__eq.<v>`, `__gt.<v>`, `__lt.<v>`
+### Trigger Types
+
+Triggers (denoted with `@`) specify when a reactive expression should execute:
+
+**✅ Signals** — may be nested with dot notation (e.g., `@user.name`)
+- Default behavior: `__immediate` (execute on init)
+
+**✅ Props** — element properties with change notification via default element event
+- May be nested like `@#input.value`, `@.style.color`
+- Props are based on events but provide the value like signals
+- Default behavior: `__immediate` (execute on init)
+
+**✅ Events** — DOM events from elements, window, or document
+- Element events: `@.click`, `@#btn.submit`
+- Special targets: `@_window.resize`, `@_document.visibilitychange`, `@_form.submit`
+- Synthetic events: `@_interval.1000`, `@_delay.500`
+- Default behavior: `__notimmediate` (do not execute on init)
+- For `_interval` and `_delay`, the runtime passes a CustomEvent as `ev`: `ev.type` is `'interval'` or `'delay'` and `ev.detail.ms` contains the configured milliseconds
+
+**❌ Constants** — NOT IMPLEMENTED (special triggers with `__immediate __once` semantic would be future feature)
+
+### Trigger Modifiers
+
+Modifiers (denoted with prefix `__`) control trigger behavior:
+
+**✅ IMPLEMENTED:**
+- `__immediate` — run handler immediately on init (default for signals, props)
+- `__notimmediate` — do not run on init (default for events)
+- `__once` — run only once then remove subscription
+- `__always` — override global `__once` for specific trigger
+- `__debounce.MS` — debounce handler by milliseconds
+- `__throttle.MS` — throttle handler by milliseconds
+- `__prevent` — call `preventDefault()` on events (events/props only)
+- `__and.SIGNAL` — conditional: only execute if signal is truthy
+- `__notand.SIGNAL` — conditional: only execute if signal is falsy (note: implementation uses `notand`, not `andnot`)
+- `__eq.VALUE` — guard: only execute if trigger signal/value equals VALUE
+- `__ne.VALUE` — guard: only execute if trigger signal/value not equals VALUE (note: implementation uses `ne`, not `neq`)
+- `__gt.VALUE` — guard: only execute if trigger signal/value > VALUE
+- `__ge.VALUE` — guard: only execute if trigger signal/value >= VALUE
+- `__lt.VALUE` — guard: only execute if trigger signal/value < VALUE
+- `__le.VALUE` — guard: only execute if trigger signal/value <= VALUE
+- `__shape` — signals only: subscribe to shape changes (keys added/removed), not value changes
+- `__content` — signals only: subscribe to content/value changes (explicit, this is default)
+
+**❌ NOT IMPLEMENTED:**
+- Constants as trigger type
 
 
 ---
