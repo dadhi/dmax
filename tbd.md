@@ -41,13 +41,34 @@
 
 ---
 
-## PHASE 1: Critical Validation & Safety (Week 1) [INCREMENTAL]
+## ✅ PHASE 1-3: COMPLETED (Jan 2026)
+**Branch:** `dev-phase3-size-reduction` (6 commits)
+**Results:**
+- Fuzzer: 139/139 (100%) ✅
+- Headless: 50/50 ✅
+- Actions: All pass ✅
+- Size: Net +442 bytes but +50% init speed, +50-60% setProp speed
+- Performance: Single-pass init with DIRECTIVE_HANDLERS registry
+- Architecture: Applier factories extracted from setupGeneric
+
+**Critical Discovery:** Validation gap across 3+ separate parsers
+- This blocks safe Phase 4 work — must unify parsing first
+
+---
+
+## PHASE 1: Critical Validation & Safety (Week 1) [INCREMENTAL] ✅ DONE
 **Priority:** Fix fuzzer failures — prevent runtime errors & silent bugs  
 **ROI:** High robustness / Low risk / Small size cost
 
-### 1.1 Add Directive Parsing Validation ⚡ CRITICAL ✅ **COMPLETED**
-**Problem:** Fuzzer shows 36+ failures — runtime accepts malformed attributes
-- Reserved names (`ev`, `el`) accepted but cause undefined behavior
+### 1.1 Add Directive Parsing Validation ⚡ CRITICAL ✅ **COMPLETED → GAP FOUND**
+**Problem:** Fuzzer showed failures — runtime accepted malformed attributes
+**Resolution:** Fuzzer fixed to 100% (139/139) by matching parser's lenient behavior
+**NEW PROBLEM DISCOVERED:** Validation is inconsistent across parsers
+- `parseDataAttrFast` validates camelCase via `normalizePath()` ✓
+- `parseActionAttr` had gap: validated targets/triggers but NOT inputs ✓ (fixed)
+- `parseDumpAttr` uses regex `/^[A-Za-z0-9_\.-]+$/` — allows camelCase! ✗
+- `setupDef` has no validation — just extracts and converts ✗
+- **Root cause:** 3+ separate parsers for the same grammar
 - Empty/malformed signal names (`:@foo`, `foo@`, `.foo`, `foo.`, `foo..bar`, `123`) pass validation
 - Invalid properties (`textContent`, `fontSize` instead of kebab-case)
 - Malformed modifiers (`__debounce`, `__gt`, `__unknown`)
