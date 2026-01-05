@@ -548,41 +548,78 @@
     return [mods, i];
   }
 
-  function parseDataAttrFast(attr, prefixLen) {
+  // ============================================================================
+  // Core Parsing Primitives (Phase 4: Semantic Compression)
+  // ============================================================================
+  
+  // Validate identifier: reject camelCase, reserved names
+  function validateIdentifier(str, context) {
+    if (!str) return true; // empty is handled elsewhere
+    if (/[A-Z]/.test(str)) {
+      console.error('CamelCase in identifier is invalid:', context, 'token:', str);
+      return false;
+    }
+    return true;
+  }
+  
+  // Normalize path: validate + convert kebab-case to camelCase
+  function normalizePathStrict(path, context) {
+    if (!path) return null;
+    const parts = path.split('.');
+    const out = [];
+    for (let j = 0; j < parts.length; ++j) {
+      const seg = parts[j];
+      if (/[A-Z]/.test(seg)) {
+        console.error('CamelCase in attr name is invalid:', context);
+        return null;
+      }
+      if (seg.indexOf('-') === -1) {
+        if (seg === '') return null;
+        out.push(seg);
+        continue;
+      }
+      const leading = seg[0] === '-';
+      const pieces = seg.split('-');
+      let idx = 0;
+      if (pieces[0] === '') idx = 1;
+      if (idx >= pieces.length) {
+        console.error('Invalid kebab segment in attr name:', context);
+        return null;
+      }
+      if (pieces[pieces.length - 1] === '') {
+        console.error('Trailing hyphen in attr name is invalid:', context);
+        return null;
+      }
+      for (let k = idx; k < pieces.length; ++k) {
+        if (pieces[k] === '') {
+          console.error('Consecutive hyphens in attr name are invalid:', context);
+          return null;
+        }
+      }
+      const segToConvert = pieces.slice(idx).join('-');
+      const camel = toCamel(segToConvert);
+      out.push(leading ? ('-' + camel) : camel);
+    }
+    return out.join('.');
+  }
+
+  // Core tokenizer: unified parsing for all directives
+  function tokenizeDirective(attr, start) {
     const s = attr;
     const n = s.length;
-    let i = prefixLen;
+    let i = start;
     let gm = {};
+    
+    // Parse global modifiers at start
     if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') {
       const r = parseModsFast(s, i, n);
       if (r[0] === null) return null;
       gm = r[0];
       i = r[1];
     }
+    
     const targets = [];
     const triggers = [];
-
-    function normalizePath(path) {
-      if (!path) return null;
-      const parts = path.split('.');
-      const out = [];
-      for (let j = 0; j < parts.length; ++j) {
-        const seg = parts[j];
-        if (/[A-Z]/.test(seg)) { console.error('CamelCase in attr name is invalid:', attr); return null; }
-        if (seg.indexOf('-') === -1) { if (seg === '') return null; out.push(seg); continue; }
-        const leading = seg[0] === '-';
-        const pieces = seg.split('-');
-        let idx = 0;
-        if (pieces[0] === '') idx = 1;
-        if (idx >= pieces.length) { console.error('Invalid kebab segment in attr name:', attr); return null; }
-        if (pieces[pieces.length - 1] === '') { console.error('Trailing hyphen in attr name is invalid:', attr); return null; }
-        for (let k = idx; k < pieces.length; ++k) if (pieces[k] === '') { console.error('Consecutive hyphens in attr name are invalid:', attr); return null; }
-        const segToConvert = pieces.slice(idx).join('-');
-        const camel = toCamel(segToConvert);
-        out.push(leading ? ('-' + camel) : camel);
-      }
-      return out.join('.');
-    }
 
     while (i < n) {
       const c = s.charAt(i);
@@ -591,50 +628,150 @@
         if (i >= n) return null;
         const c2 = s.charAt(i);
         if (c2 === '#') {
+          // :# -> prop target on element
           i++;
           let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
-          const id = s.slice(i, j); i = j;
+          const id = s.slice(i, j);
+          if (!validateIdentifier(id, attr)) return null;
+          i = j;
           let prop = null;
           if (i < n && s.charAt(i) === '.') {
-            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++; let raw = s.slice(i, k); if (raw) { const mi = raw.indexOf('__'); if (mi !== -1) { raw = raw.slice(0, mi); } } prop = raw ? normalizePath(raw) : null; if (prop === null && raw !== null) return null; i = k;
+            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++;
+            let raw = s.slice(i, k);
+            if (raw) {
+              const mi = raw.indexOf('__');
+              if (mi !== -1) raw = raw.slice(0, mi);
+            }
+            prop = raw ? normalizePathStrict(raw, attr) : null;
+            if (prop === null && raw !== null) return null;
+            i = k;
           }
           let mr = [ {}, i ];
           if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
           if (mr[0] === null) return null; i = mr[1];
-          const merged0 = Object.assign({}, gm, mr[0]); if (merged0.always !== undefined) delete merged0.once;
+          const merged0 = Object.assign({}, gm, mr[0]);
+          if (merged0.always !== undefined) delete merged0.once;
           targets.push({type:'prop', elemId:id, propPath:prop, isCurr:false, mods:merged0});
         } else if (c2 === '.') {
-          i++; let j = i; while (j < n && ':@'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; let nm = raw || null; if (nm) { const mi = nm.indexOf('__'); if (mi !== -1) nm = nm.slice(0, mi); } const prop = nm ? normalizePath(nm) : null; if (prop === null && nm !== null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged1 = Object.assign({}, gm, mr[0]); if (merged1.always !== undefined) delete merged1.once; targets.push({type:'prop', elemId:'', propPath:prop, isCurr:true, mods:merged1});
+          // :. -> prop target on current element
+          i++; let j = i; while (j < n && ':@'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j; let nm = raw || null;
+          if (nm) {
+            const mi = nm.indexOf('__');
+            if (mi !== -1) nm = nm.slice(0, mi);
+          }
+          const prop = nm ? normalizePathStrict(nm, attr) : null;
+          if (prop === null && nm !== null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged1 = Object.assign({}, gm, mr[0]);
+          if (merged1.always !== undefined) delete merged1.once;
+          targets.push({type:'prop', elemId:'', propPath:prop, isCurr:true, mods:merged1});
         } else {
-          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; if (!raw) return null; const mi = raw.indexOf('__'); if (mi !== -1) { raw = raw.slice(0, mi); } const name = normalizePath(raw); if (name === null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charCodeAt(i+1) === CC.UNDERSCORE) mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged2 = Object.assign({}, gm, mr[0]); if (merged2.always !== undefined) delete merged2.once; targets.push({type:'signal', name, mods:merged2});
+          // :name -> signal target
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j;
+          if (!raw) return null;
+          const mi = raw.indexOf('__');
+          if (mi !== -1) raw = raw.slice(0, mi);
+          const name = normalizePathStrict(raw, attr);
+          if (name === null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charCodeAt(i+1) === CC.UNDERSCORE) mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged2 = Object.assign({}, gm, mr[0]);
+          if (merged2.always !== undefined) delete merged2.once;
+          targets.push({type:'signal', name, mods:merged2});
         }
       } else if (c === '@') {
         i++; if (i >= n) return null; const c2 = s.charAt(i);
         if (c2 === '_') {
-          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++; const tok = s.slice(i, j); i = j; if (!tok) return null; let arg = null; if (i < n && s.charAt(i) === '.') { i++; let k = i; while (k < n && ':@_'.indexOf(s[k]) === -1) k++; arg = s.slice(i, k) || null; i = k; } let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged3 = Object.assign({}, gm, mr[0]); if (merged3.always !== undefined) delete merged3.once; triggers.push({type:'special', name:tok, arg, mods:merged3});
+          // @_ -> special trigger
+          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
+          const tok = s.slice(i, j); i = j;
+          if (!tok) return null;
+          if (!validateIdentifier(tok, attr)) return null;
+          let arg = null;
+          if (i < n && s.charAt(i) === '.') {
+            i++; let k = i; while (k < n && ':@_'.indexOf(s[k]) === -1) k++;
+            arg = s.slice(i, k) || null; i = k;
+          }
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged3 = Object.assign({}, gm, mr[0]);
+          if (merged3.always !== undefined) delete merged3.once;
+          triggers.push({type:'special', name:tok, arg, mods:merged3});
         } else if (c2 === '#') {
-          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++; const id = s.slice(i, j); i = j; let ev = null; if (i < n && s.charAt(i) === '.') { i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++; let raw = s.slice(i, k) || null; ev = raw ? normalizePath(raw) : null; if (ev === null && raw !== null) return null; i = k; } let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged4 = Object.assign({}, gm, mr[0]); if (merged4.always !== undefined) delete merged4.once; triggers.push({type:'event', elemId:id, eventName:ev, isCurr:false, mods:merged4});
+          // @#id.event -> event trigger on element
+          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
+          const id = s.slice(i, j);
+          if (!validateIdentifier(id, attr)) return null;
+          i = j; let ev = null;
+          if (i < n && s.charAt(i) === '.') {
+            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++;
+            let raw = s.slice(i, k) || null;
+            ev = raw ? normalizePathStrict(raw, attr) : null;
+            if (ev === null && raw !== null) return null;
+            i = k;
+          }
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged4 = Object.assign({}, gm, mr[0]);
+          if (merged4.always !== undefined) delete merged4.once;
+          triggers.push({type:'event', elemId:id, eventName:ev, isCurr:false, mods:merged4});
         } else if (c2 === '.') {
-          i++; let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j) || null; i = j; let ev = raw ? normalizePath(raw) : null; if (ev === null && raw !== null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged5 = Object.assign({}, gm, mr[0]); if (merged5.always !== undefined) delete merged5.once; triggers.push({type:'event', elemId:'', eventName:ev, isCurr:true, mods:merged5});
+          // @.event -> event trigger on current element
+          i++; let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j) || null; i = j;
+          let ev = raw ? normalizePathStrict(raw, attr) : null;
+          if (ev === null && raw !== null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged5 = Object.assign({}, gm, mr[0]);
+          if (merged5.always !== undefined) delete merged5.once;
+          triggers.push({type:'event', elemId:'', eventName:ev, isCurr:true, mods:merged5});
         } else {
-          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; if (!raw) return null; let name = normalizePath(raw); if (name === null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged6 = Object.assign({}, gm, mr[0]); if (merged6.always !== undefined) delete merged6.once; triggers.push({type:'signal', name, mods:merged6});
+          // @name -> signal trigger
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j;
+          if (!raw) return null;
+          let name = normalizePathStrict(raw, attr);
+          if (name === null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged6 = Object.assign({}, gm, mr[0]);
+          if (merged6.always !== undefined) delete merged6.once;
+          triggers.push({type:'signal', name, mods:merged6});
         }
       } else {
         return null;
       }
       if (i < n && s.charAt(i) !== ':' && s.charAt(i) !== '@') return null;
     }
+    
     if (!targets.length && !triggers.length) return null;
+    return {targets, triggers};
+  }
+
+  // parseDataAttrFast: now a thin wrapper over tokenizer
+  function parseDataAttrFast(attr, prefixLen) {
+    const tokens = tokenizeDirective(attr, prefixLen);
+    if (!tokens) return null;
     
     // Phase 1.1: Validate all parsed targets and triggers
-    for (const target of targets) {
+    for (const target of tokens.targets) {
       if (!validateParsedItem(target, attr)) return null;
     }
-    for (const trigger of triggers) {
+    for (const trigger of tokens.triggers) {
       if (!validateParsedItem(trigger, attr)) return null;
     }
     
-    return {targets, triggers};
+    return tokens;
   }
 
   // Phase 1.3: Element resolution with warnings
