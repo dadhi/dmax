@@ -99,7 +99,7 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 
 Targets (denoted with `:target`) specify what to update when a reactive expression executes:
 
-**✅ Default Target (`:.` or `:`)** — shorthand for default prop on current element
+**✅ Default Target (`:.`)** — shorthand for default prop on current element
 - Always represents the default **property** of the data attribute's element
 - Input/Textarea/Select: `value` property
 - Checkbox/Radio: `checked` property  
