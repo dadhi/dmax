@@ -314,7 +314,7 @@ Values are evaluated as JavaScript function bodies with access to these paramete
 - **`ev`** — the event that triggered evaluation (or `undefined` for non-event triggers)
 - **`sg`** — the signal value that triggered evaluation (or `undefined` for event triggers)
 - **`detail`** — additional context data associated with the trigger:
-  - **Currently supported**: `detail.change.added`, `detail.change.removed` for signals with `__shape` modifier triggered in `data-dump`
+  - **Currently supported**: `detail.change.added`, `detail.change.removed` when using `@signal__shape` trigger in `data-dump` (modifier on the trigger, not the directive)
   - **Future**: May support `detail.item`, `detail.index` for data attributes evaluated inside `data-dump` template clones for specific array items
 
 **Examples by Directive:**
