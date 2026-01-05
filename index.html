@@ -1617,30 +1617,50 @@
 
   // data-dump implementation: clone a template per array item or once for an object
   function setupDump(el, attrName, attrVal) {
-    // Parse attribute tokens from either the attribute NAME or attribute VALUE
-    // Syntax variations supported:
-    // - data-dump@posts#tpl-id
-    // - data-dump#tpl-id@posts
-    // - <ul data-dump@posts> <template>...</template></ul>
-    const parseDumpAttr = (name, val) => {
-      let sig = null, tplId = null;
-      const scan = (s) => {
-        if(!s) return;
-        const atIdx = s.indexOf('@');
-        const hashIdx = s.indexOf('#');
-        if(atIdx !== -1){ sig = s.slice(atIdx + 1).split('#')[0] || sig; }
-        if(hashIdx !== -1){ tplId = s.slice(hashIdx + 1).split('@')[0] || tplId; }
-        // If string looks like a bare signal name (no @/#), accept it when no sig yet
-        if(sig == null){ const trimmed = s.trim(); if(trimmed && /^[A-Za-z0-9_\.-]+$/.test(trimmed)) sig = sig || trimmed; }
-      };
-      scan(name); scan(val);
-      return { sig, tplId };
+    // Parse: data-dump@signal#template or data-dump#template@signal or data-dump@signal
+    // Note: data-dump has unique syntax (@signal#template) that doesn't match general grammar
+    const dumpIdx = (attrName || '').indexOf('data-dump');
+    if(dumpIdx === -1) return;
+    
+    let sig = null, tplId = null;
+    
+    // Scan a string for @signal and #template tokens, with bare signal name fallback
+    const scan = (s) => {
+      if(!s) return;
+      const atIdx = s.indexOf('@');
+      const hashIdx = s.indexOf('#');
+      
+      if(atIdx !== -1){
+        const afterAt = s.slice(atIdx + 1);
+        const sigEnd = afterAt.indexOf('#');
+        const extracted = (sigEnd !== -1 ? afterAt.slice(0, sigEnd) : afterAt).trim();
+        if(extracted && validateIdentifier(extracted.split('.').join(''), attrName)){
+          sig = sig || extracted;
+        }
+      }
+      if(hashIdx !== -1){
+        const afterHash = s.slice(hashIdx + 1);
+        const tplEnd = afterHash.indexOf('@');
+        const extracted = (tplEnd !== -1 ? afterHash.slice(0, tplEnd) : afterHash).trim();
+        if(extracted && validateIdentifier(extracted, attrName)){
+          tplId = tplId || extracted;
+        }
+      }
+      
+      // Bare signal name fallback: if no @/# found and no sig yet
+      if(sig == null){
+        const trimmed = s.trim();
+        if(trimmed && /^[a-z0-9_\.-]+$/i.test(trimmed) && validateIdentifier(trimmed.split('.').join(''), attrName)){
+          sig = sig || trimmed;
+        }
+      }
     };
-
-    const parsed = parseDumpAttr(attrName || '', attrVal || '');
-    // parsed attribute tokens (no debug log)
-    let sig = parsed.sig || null;
-    let tplId = parsed.tplId || null;
+    
+    // Scan both attribute name (after 'data-dump') and attribute value
+    let name = attrName.slice(dumpIdx + 9);
+    scan(name);
+    scan(attrVal);
+    
     // if no tplId, look for a child <template>
     let tpl = null;
     if(tplId) tpl = getElById(tplId, attrName);
@@ -1650,15 +1670,27 @@
     if(!tpl) return; // nothing to render
     if(!sig) {
       // try to read a 'data-signal' attribute or the element's value as fallback
-      if(el.getAttribute && el.getAttribute('data-signal')) sig = el.getAttribute('data-signal');
-      if(!sig && attrVal && attrVal.trim()) sig = attrVal.trim();
-      // Additional fallback: scan element attribute NAMES and re-parse the full attribute name
+      if(el.getAttribute && el.getAttribute('data-signal')){
+        sig = el.getAttribute('data-signal');
+        if(!validateIdentifier(sig.split('.').join(''), attrName)) return;
+      }
+      if(!sig && attrVal && attrVal.trim()){
+        sig = attrVal.trim();
+        if(!validateIdentifier(sig.split('.').join(''), attrName)) return;
+      }
+      // Additional fallback: scan element attribute NAMES
       if(!sig && el.getAttributeNames){
         const names = el.getAttributeNames();
         for(const an of names){
           if(typeof an === 'string' && an.indexOf('data-dump') === 0){
-            const reparsed = parseDumpAttr(an, el.getAttribute(an));
-            if(reparsed.sig){ sig = reparsed.sig; tplId = tplId || reparsed.tplId; break; }
+            // Re-parse this attribute name
+            let fallbackStr = an.slice(9); // remove 'data-dump'
+            if(fallbackStr && fallbackStr[0] === '@'){
+              const atIdx = fallbackStr.indexOf('@');
+              sig = fallbackStr.slice(atIdx + 1).split('#')[0];
+              if(sig && !validateIdentifier(sig.split('.').join(''), an)) continue;
+              if(sig) break;
+            }
           }
         }
       }
@@ -2016,25 +2048,79 @@
 
   // Phase 3a.2: setupDef extracted for single-pass init
   function setupDef(el, attr, value) {
-    const colonIdx = attr.indexOf(':');
-    const name = colonIdx === -1 ? '' : attr.substring(colonIdx + 1);
-    const camelName = toCamel(name);
-    if(camelName === 'ev' || camelName === 'el'){
-      console.error('Reserved signal name:', name); return;
+    // Parse using tokenizer to support:
+    // - data-def (no signal) + JSON body → multiple signals
+    // - data-def:signal="expr" → one signal from expression
+    // - data-def:foo:bar:baz="expr" → multiple signals (future: each gets same value)
+    // - data-def__mod:signal → reject mods for now
+    
+    // Extract any leading modifiers and signal names after 'data-def'
+    const defIdx = attr.indexOf('data-def');
+    if(defIdx === -1) return;
+    const rest = attr.slice(defIdx + 8); // 'data-def'.length = 8
+    
+    // Check for modifiers (reject for now)
+    if(rest.startsWith('__')){
+      const modEnd = rest.indexOf(':');
+      const modName = modEnd === -1 ? rest.slice(2) : rest.slice(2, modEnd);
+      console.error('data-def does not support modifier:', modName, 'in', attr);
+      return;
     }
-    if(!name){
-      const o = JSON.parse(value);
-      for(let k in o){
-        const camelK = toCamel(k);
-        if(camelK === 'ev' || camelK === 'el'){
-          console.error('Reserved signal name:', k); continue;
+    
+    // Parse signal targets using tokenizer if there's a ':'
+    let signalNames = [];
+    if(rest && rest[0] === ':'){
+      const tokens = tokenizeDirective(rest, 0);
+      if(tokens && tokens.targets.length > 0){
+        // Extract signal names from targets
+        signalNames = tokens.targets
+          .filter(t => t.type === 'signal')
+          .map(t => t.name);
+        
+        // Reject modifiers on targets
+        for(const t of tokens.targets){
+          const modKeys = Object.keys(t.mods || {});
+          if(modKeys.length > 0){
+            console.error('data-def does not support modifier:', modKeys[0], 'in', attr);
+            return;
+          }
         }
-        S.set(camelK, o[k]);
-        try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+      }
+    }
+    
+    // Initialize signals
+    if(signalNames.length === 0){
+      // No signal names: parse body as JSON object, init multiple signals
+      try{
+        const o = JSON.parse(value);
+        for(let k in o){
+          const camelK = toCamel(k);
+          if(camelK === 'ev' || camelK === 'el'){
+            console.error('Reserved signal name:', k, 'in', attr);
+            continue;
+          }
+          S.set(camelK, o[k]);
+          try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+        }
+      }catch(e){
+        console.error('data-def JSON parse error:', e.message, 'in', attr);
       }
     } else {
-      S.set(camelName, Function('return ' + value)());
-      try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, Function('return ' + value)()); }catch(e){}
+      // One or more signal names: eval expression and set all signals to result
+      try{
+        const result = Function('return ' + value)();
+        for(const sigName of signalNames){
+          const camelName = toCamel(sigName);
+          if(camelName === 'ev' || camelName === 'el'){
+            console.error('Reserved signal name:', sigName, 'in', attr);
+            continue;
+          }
+          S.set(camelName, result);
+          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, result); }catch(e){}
+        }
+      }catch(e){
+        console.error('data-def expression eval error:', e.message, 'in', attr);
+      }
     }
   }
 
