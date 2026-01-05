@@ -1114,96 +1114,110 @@
   function parseActionAttr(attr) {
     // attr is full attribute name, e.g. 'data-post^json+#src.value:result?busy,err@.click'
     const s = attr;
-    const methods = ['data-get','data-post','data-put','data-patch','data-delete'];
+    const methods = ['data-get','data-post','data-post','data-put','data-patch','data-delete'];
     let method = null;
     for(const m of methods) if(s.indexOf(m) === 0) { method = m.substring(5); break; }
     if(!method) return null;
-    let i = attr.indexOf('data-' + method);
-    if(i !== 0) i = 0; // defensive
-    i = ('data-' + method).length;
+    
+    let i = ('data-' + method).length;
     const headers = {};
     const headerShortcuts = [];
     const inputs = [];
-    // parse optional result modifier immediately after `data-<method>` (e.g. __append/__prepend/__replace)
     let resultMod = null;
+    
+    // Parse optional result modifier (__append/__prepend/__replace)
     while(i + 1 < s.length && s[i] === '_' && s[i+1] === '_'){
-      // read modifier name (stop at separators: ^ + : @)
       i += 2;
       const startMod = i;
       while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_')) i++;
       const modRaw = s.slice(startMod, i).split('.')[0] || '';
-      if(modRaw) {
-        if(modRaw === 'append' || modRaw === 'prepend' || modRaw === 'replace') resultMod = modRaw;
-        // else: ignore unknown mods here (could be input-level or header-level later)
-      }
+      if(modRaw === 'append' || modRaw === 'prepend' || modRaw === 'replace') resultMod = modRaw;
     }
-    // parse ^ tokens
+    
+    // Parse ^ headers
     while(i < s.length && s[i] === '^'){
-      i++; const start = i; while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?') i++;
+      i++; const start = i;
+      while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?') i++;
       const raw = s.slice(start, i);
       if(!raw) return null;
+      if(!validateIdentifier(raw.split('.')[0], attr)) return null;
       headerShortcuts.push(raw);
-      // simple mapping for json: handled at runtime; other name.value -> header
-      if(raw.indexOf('.') !== -1){ const p = raw.split('.'); const name = p[0]; const val = p.slice(1).join('.'); headers[name.toLowerCase()] = val; }
+      if(raw.indexOf('.') !== -1){
+        const p = raw.split('.');
+        headers[p[0].toLowerCase()] = p.slice(1).join('.');
+      }
     }
-    // parse + inputs (support per-input mods e.g. +sig__query.qname or +#id.prop__body)
+    
+    // Parse + inputs with validation
     while(i < s.length && s[i] === '+'){
       i++; const start = i;
-      // read raw token until separator or start of mods
       while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?' && !(s[i] === '_' && s[i+1] === '_')) i++;
       const raw = s.slice(start, i).trim();
       const input = {raw, mods:{}};
-      // parse trailing mods for this input
+      
+      // Parse mods for this input
       while(i < s.length && s[i] === '_' && s[i+1] === '_'){
         i += 2;
         const mstart = i;
-        while(i < s.length){ const cc = s.charCodeAt(i); if(cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break; i++; }
+        while(i < s.length){
+          const cc = s.charCodeAt(i);
+          if(cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
+          i++;
+        }
         const mname = s.slice(mstart, i);
         let mval = true;
         if(i < s.length && s[i] === '.'){
-          i++; const mvstart = i; while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_') && s[i] !== '?') i++; mval = s.slice(mvstart, i) || true;
+          i++; const mvstart = i;
+          while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_') && s[i] !== '?') i++;
+          mval = s.slice(mvstart, i) || true;
         }
         input.mods[mname] = mval;
       }
-      // Validate input: reject camelCase in element IDs and property names
+      
+      // Validate input using shared primitives
       if(raw[0] === '#'){
         const parts = raw.slice(1).split('.');
-        const elemId = parts[0];
-        if(/[A-Z]/.test(elemId)){ console.error('CamelCase in element ID is invalid:', attr); return null; }
+        if(!validateIdentifier(parts[0], attr)) return null;
         const propPath = parts.slice(1).join('.');
-        if(propPath && /[A-Z]/.test(propPath)){ console.error('CamelCase in property name is invalid:', attr); return null; }
+        if(propPath && !validateIdentifier(propPath.split('.').join(''), attr)) return null;
       } else {
-        // signal reference - validate signal name
         const sigName = raw.replace(/^\./,'');
-        if(/[A-Z]/.test(sigName)){ console.error('CamelCase in signal name is invalid:', attr); return null; }
+        if(!validateIdentifier(sigName.split('.').join(''), attr)) return null;
       }
       inputs.push(input);
     }
-    // now the rest may contain :target?stateList and triggers
+    
+    // Parse :target?stateList@triggers using tokenizer
     const rest = s.slice(i);
-    // find where triggers (@) start
     const atIdx = rest.indexOf('@');
     let targetPart = rest;
     let triggerPart = '';
-    if(atIdx !== -1){ targetPart = rest.slice(0, atIdx); triggerPart = rest.slice(atIdx); }
-    // split targetPart on ? to extract state signals
+    if(atIdx !== -1){
+      targetPart = rest.slice(0, atIdx);
+      triggerPart = rest.slice(atIdx);
+    }
+    
+    // Extract state specs
     let targetSpec = targetPart;
     let stateSpecs = [];
     const qIdx = targetPart.indexOf('?');
     if(qIdx !== -1){
       targetSpec = targetPart.slice(0, qIdx);
       const st = targetPart.slice(qIdx+1);
-      // parse state specs: allow mod suffix like name__busy
       stateSpecs = st.split(',').map(x=>x.trim()).filter(Boolean).map(sx => {
         const parts = sx.split('__');
+        if(!validateIdentifier(parts[0], attr)) return null;
         return {name: parts[0], mode: parts[1] || 'busy'};
-      });
+      }).filter(Boolean);
     }
-    // Build a parseable string for parseDataAttrFast: ensure it starts with ':' or '@'
+    
+    // Use tokenizer for :target@trigger part
+    // Use tokenizer for :target@trigger part
     let parseStr = (targetSpec || '') + (triggerPart || '');
     if(parseStr && parseStr[0] !== ':' && parseStr[0] !== '@') parseStr = ':' + parseStr;
-    const parsed = parseDataAttrFast(parseStr, 0);
+    const parsed = tokenizeDirective(parseStr, 0);
     if(!parsed) return null;
+    
     return {method, headers, headerShortcuts, inputs, stateSpecs, parsed, resultMod};
   }
 
