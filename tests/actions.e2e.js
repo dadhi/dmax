@@ -84,12 +84,18 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
   console.log('GET test passed');
 
   // Test 2: POST create
-  const titleInput = document.getElementById('newTitle');
-  const createBtn = document.getElementById('createPost');
-  assert(titleInput && createBtn, 'createPost elements exist');
+  const titleInput = document.getElementById('new-title');
+  const nameInput = document.getElementById('new-user-name');
+  const emailInput = document.getElementById('new-user-email');
+  const createBtn = document.getElementById('create-post');
+  assert(titleInput && nameInput && emailInput && createBtn, 'createPost elements exist');
   titleInput.value = 'Hello from test';
-  // dispatch input event in case code reads event target
+  nameInput.value = 'Test User';
+  emailInput.value = 'test@example.com';
+  // dispatch input events in case code reads event target
   titleInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+  nameInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+  emailInput.dispatchEvent(new window.Event('input', { bubbles: true }));
   createBtn.click();
 
   await waitFor(() => {

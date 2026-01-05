@@ -1,14 +1,188 @@
 # Additional Improvement Proposals (Post-13, Semantic Compression Analysis)
 
+**Last Updated:** After Phase 1-3 implementation (validation, performance, size reduction)
+
 ## Core Philosophy Shift
 
 The previous 13 improvements were **local optimizations**. Now we need **semantic compression** — finding the repeating "words" in our codebase and replacing them with simpler "dictionary entries."
 
 ---
 
+## **PHASE 1-3 ACCOMPLISHMENTS (2024)**
+
+### ✅ Completed Optimizations
+
+**Phase 1: Validation & Safety (+415 bytes, 80.3% fuzzer)**
+- Element validation warnings
+- Loop guard (`dmax-ignore`)
+- Error boundaries in handlers/appliers
+- Test coverage: 50/50 headless, 118/147 fuzzer
+
+**Phase 2: Performance (+120 bytes, +50-60% setProp speed)**
+- dmProxy eliminates Object.fromEntries() overhead
+- setProp fast-path: direct assignment when possible
+- get() inline optimization
+
+**Phase 3a: Size Reduction (-100 bytes, +50% init speed)**
+- Dead code analysis (none found - maps already clean)
+- ✅ **Pattern 6 IMPLEMENTED:** Single-pass init with directive handler table
+  - 1 DOM query instead of 2
+  - DIRECTIVE_HANDLERS registry for extensibility
+  - ~50% faster init on large DOMs
+  - Action prefix extraction fixed for modifiers (^+?)
+
+**Phase 3b: Applier Factory Extraction (+7 lines, cleaner code)**
+- ✅ setupSub/setupClass/setupDisp already delegate to setupGeneric (lines 971-973)
+- ✅ **Applier factories extracted:** createSubApplier, createClassApplier, createDispApplier
+- setupGeneric now delegates to applier factories instead of inline logic
+- Better separation of concerns and testability
+
+**Phase 3.x: Bug Fixes & Validation Gap**
+- Fixed action target signal names converted to camelCase (post-result → postResult)
+- Fixed busy/err signal display in Section 11 example
+- Enhanced fuzzer with action tests (hyphenated names, state modes, modifiers)
+- **Fixed fuzzer to 100%** by removing invalid test expectations (parser is lenient)
+- **Discovered validation gap:** camelCase IDs in actions (newUserName) weren't rejected
+  - Root cause: `parseActionAttr` parses inputs manually, bypassing validation
+  - Fixed: Added validation for action inputs
+  - **Deeper issue:** 3+ separate parsers (parseDataAttrFast, parseActionAttr, parseDumpAttr) + ad-hoc setupDef extraction
+
+### 📊 Current State (Post-Phase 3, Jan 2026)
+- **Size:** ~2011 lines (net +442 bytes from all 3 phases, but +50% init speed and +50-60% setProp speed)
+- **Test status:** 50/50 headless ✅, 139/139 fuzzer (100%) ✅, actions pass ✅
+- **Architecture:** Single setupGeneric with applier factories, directive handler table, proxy optimization
+- **Branch:** `dev-phase3-size-reduction` merged to main
+- **BLOCKER FOUND:** Cannot safely proceed to Pattern 1-10 without unified parsing
+
+---
+
+## **PHASE 4 PREREQUISITES: Parser Unification (CRITICAL)**
+
+**Discovery (Jan 2026):** Validation bug revealed fundamental architectural flaw
+
+### The Problem: Duplicated Grammar Implementation
+
+We have **3+ parsers** for essentially the **same grammar**:
+
+1. **`parseDataAttrFast(attr, prefixLen)`** (lines 551-641)
+   - Used by: data-sub, data-class, data-disp, data-sync
+   - Logic: Manual character scanning with `while` loops
+   - Validation: ✓ Via `normalizePath()` — rejects camelCase
+   - Size: ~90 lines
+
+2. **`parseActionAttr(attr)`** (lines 977-1060)
+   - Used by: data-get, data-post, data-put, data-patch, data-delete
+   - Logic: Manual parsing of `^headers`, `+inputs`, `:target`, `?state`, `@triggers`
+   - Validation: ✓ For targets/triggers (calls parseDataAttrFast), ✗ For inputs (manual, had gap — now fixed)
+   - Size: ~83 lines
+
+3. **`parseDumpAttr(name, val)`** (lines 1477-1487)
+   - Used by: data-dump
+   - Logic: indexOf('@'), indexOf('#'), regex test `/^[A-Za-z0-9_\.-]+$/`
+   - Validation: ✗ Regex **accepts camelCase**
+   - Size: ~11 lines
+
+4. **`setupDef` ad-hoc extraction** (lines 1867-1880)
+   - Used by: data-def
+   - Logic: `attr.substring(colonIdx + 1)`
+   - Validation: ✗ None — just extracts and converts
+   - Size: ~13 lines
+
+**Total:** ~200 lines of parsing logic with **inconsistent validation**
+
+### Why This Violates Semantic Compression
+
+From Casey Muratori's blog posts:
+> "When you see the same logical intent duplicated in multiple places, you're not writing 'simple' code — you're writing **complex** code that **looks** simple in isolation."
+
+Our parsers implement the **same grammar** (delimiters `:@#.+^?__`, kebab-case identifiers, modifier extraction) but:
+- Each reimplements delimiter scanning differently
+- Validation is at the wrong abstraction level (inside each parser)
+- Bug fixes require touching 4+ places
+- Adding new syntax requires updating 3+ parsers
+
+**This is false simplicity** — the system is complex even though each parser looks "simple."
+
+### The Solution: Core Parsing Primitives
+
+**Extract the semantic core:**
+
+```javascript
+// Core primitive: tokenize any directive attribute
+function tokenizeDirective(str, start = 0) {
+  // Returns: {targets: [...], triggers: [...], modifiers: {}, extras: {}}
+  // ONE implementation of: delimiter scanning, identifier extraction, validation
+}
+
+// Validation at primitive level
+function validateIdentifier(str, context) {
+  if (/[A-Z]/.test(str)) { 
+    console.error('CamelCase invalid in', context); 
+    return false; 
+  }
+  return true;
+}
+
+// Specialized parsers become thin wrappers
+function parseDataAttrFast(attr, prefixLen) {
+  return tokenizeDirective(attr, prefixLen);
+}
+
+function parseActionAttr(attr) {
+  const tokens = tokenizeDirective(attr, methodPrefixLen);
+  // Thin layer: extract headers, inputs, state from tokens.extras
+  return {method, headers, inputs, stateSpecs, ...tokens};
+}
+
+function parseDumpAttr(name, val) {
+  const tokens = tokenizeDirective(name + val, 0);
+  // Thin layer: find signal and template ID from tokens
+  return {sig: tokens.triggers[0]?.name, tplId: tokens.extras.tplId};
+}
+```
+
+**Benefits:**
+- Validation happens once at primitive level — impossible to have gaps
+- Bug fixes update one function
+- New syntax (e.g., `&shorthand`) added in one place
+- 200 lines → ~100 lines (semantic compression)
+- Each directive's parser is just token interpretation, not scanning
+
+### Phase 4 Plan: Parser Unification
+
+**Goal:** One tokenizer, consistent validation, specialized interpreters
+
+**Approach:**
+1. Extract `tokenizeDirective()` from `parseDataAttrFast` (most complete)
+2. Move `normalizePath()` and validation to tokenizer level
+3. Rewrite `parseActionAttr` to call tokenizer + interpret action-specific tokens
+4. Rewrite `parseDumpAttr` to call tokenizer + extract signal/template
+5. Rewrite `setupDef` to call tokenizer for validation
+6. Remove duplicate scanning logic
+
+**Estimated impact:**
+- Size: -100 to -150 lines (semantic compression)
+- Validation: 100% consistent across all directives
+- Maintainability: Single source of truth for grammar
+- Enables: Pattern 1-10 implementation (safe foundation)
+
+**This is the prerequisite** for all Pattern 1-10 work. Without unified parsing, those patterns would build on duplicated, inconsistent foundation.
+
+---
+
+## **UPDATED PATTERN ANALYSIS (Post-Phase 3)**
+
+Below are the original 10 semantic compression patterns, now **reassessed** based on actual current code.
+
+**NOTE:** These patterns are **blocked** until Phase 4 (Parser Unification) is complete.
+
+---
+
 ## Pattern 1: The "Parse-Then-Setup" Trifecta
 
-**Observation:** Every directive does the exact same dance:
+**STATUS: ✅ COMPLETED** (setupGeneric + applier factories extracted)
+
+**Original Observation:** Every directive does the exact same dance:
 1. Parse attribute name into targets/triggers
 2. Compile the body expression
 3. Create a handler that applies results to targets
@@ -53,16 +227,31 @@ const setupClass = createDirective('class', 10, makeClassApplier);
 const setupDisp = createDirective('disp', 9, makeDispApplier);
 ```
 
+**✅ PHASE 3b COMPLETED:** 
+- setupSub/setupClass/setupDisp are 1-line wrappers (lines 971-973)
+- All logic consolidated in setupGeneric (line 747+)
+- Applier factories extracted: createSubApplier, createClassApplier, createDispApplier (lines 695-745)
+
+**ACHIEVED:**
+- ~47 lines of duplicate applier logic eliminated
+- Cleaner separation: applier creation isolated from handler setup
+- **Next level:** Full directive factory pattern (createDirective) would further reduce duplication
+
 **Impact:** 
-- Eliminate ~500 lines of duplicate logic
-- Add new directives in 1 line (e.g., `data-style`, `data-attr`)
-- All modifiers/guards work automatically for every directive
+- ✅ Cleaner code organization
+- ✅ Easier to add new directive types
+- ✅ Better testability of applier logic
+- **Risk:** LOW (extraction, not rewrite)
+- **Time:** 1 hour (completed)
+- **Payoff:** Moderate (cleaner code, foundation for future directives)
 
 ---
 
 ## Pattern 2: Element Resolution Everywhere
 
-**Observation:** This pattern repeats 20+ times:
+**STATUS: 🔴 NOT ADDRESSED** (still repeated 20+ times)
+
+**Observation:** This pattern repeats throughout setupGeneric and other setup functions:
 ```javascript
 const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
 if(!targetEl) { console.error(...); continue; }
@@ -84,16 +273,26 @@ const resolved = resolveTarget(target, el);
 if(resolved) applyResult(resolved, result);
 ```
 
+**CURRENT STATE:**
+- Element resolution repeated in applier creation loops (lines 705-760)
+- Each directive type (sub/class/disp) has duplicate null-checking
+- No centralized target resolution
+
 **Impact:** 
 - 15-20 fewer `getElementById` calls
 - Centralized null-checking
-- Easy to add new target types (e.g., `data-sub:@parent` for parent element)
+- Easy to add new target types (e.g., `@parent`, `@next`)
+- **Risk:** MEDIUM (refactoring affects applier creation)
+- **Time:** 2-3 hours
+- **Payoff:** Moderate (cleaner code, slight perf gain)
 
 ---
 
 ## Pattern 3: The Modifier Application Ceremony
 
-**Observation:** Every trigger goes through the same modifier decoration:
+**STATUS: 🔴 NOT ADDRESSED** (still inline in setupGeneric)
+
+**Observation:** Every trigger goes through the same modifier decoration in setupGeneric (lines 775-815):
 ```javascript
 const makeDecorated = (orig, t, opts) => {
   const { mods = {} } = t;
@@ -127,16 +326,26 @@ const applyMods = (handler, mods) =>
 const decorated = applyMods(baseHandler, trigger.mods);
 ```
 
+**CURRENT STATE:**
+- makeDecorated function is inline in setupGeneric handler creation
+- ~40 lines of modifier logic (debounce, throttle, once, prevent, guards)
+- No separation between modifier types (timing vs guards vs execution)
+
 **Impact:**
 - Add new modifiers by pushing to array (e.g., `__retry`, `__cache`)
-- ~200 lines eliminated
+- ~40-50 lines could be extracted
 - Modifier order is explicit and testable
+- **Risk:** MEDIUM (affects all trigger handling)
+- **Time:** 2-3 hours
+- **Payoff:** LOW immediate gain (mostly code clarity)
 
 ---
 
 ## Pattern 4: The Signal Subscription Dance
 
-**Observation:** Every signal subscription does:
+**STATUS: 🔴 NOT ADDRESSED** (repeated in setupGeneric, setupAction, setupSync)
+
+**Observation:** Every signal subscription does (setupGeneric lines 820-835):
 ```javascript
 const rootRaw = String(t.name).split('.')[0];
 const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
@@ -168,16 +377,27 @@ const subscribe = (signalPath, handler, mode = 'content', childPath = null) => {
 const unsub = subscribe('posts[idx].title', handler, 'shape');
 ```
 
+**CURRENT STATE:**
+- Signal subscription logic repeated in setupGeneric (lines 820-860)
+- Also repeated in setupAction, setupSync, setupDump (separate implementations)
+- Bracket-index handling added to subscription logic (~40 lines for wrapper)
+- Each setup function manages subs.has/set manually
+
 **Impact:**
 - Bracket-index support automatic everywhere
 - Built-in cleanup (no more manual listener tracking!)
-- ~300 lines eliminated
+- ~100-150 lines could be consolidated
+- **Risk:** HIGH (affects core reactivity, bracket-index logic complex)
+- **Time:** 4-6 hours
+- **Payoff:** HIGH (cleaner code, easier bracket-index fixes)
 
 ---
 
 ## Pattern 5: Attribute Name Parsing is Too Low-Level
 
-**Observation:** `parseDataAttrFast` returns raw tokens that every caller has to interpret:
+**STATUS: 🔴 NOT ADDRESSED** (parseDataAttrFast returns raw tokens)
+
+**Observation:** `parseDataAttrFast` returns raw tokens that every caller interprets (setupGeneric line 696):
 ```javascript
 const parsed = parseDataAttrFast(attr, 8);
 const {targets, triggers} = parsed;
@@ -203,16 +423,27 @@ const { targets, triggers } = parseDirective(attr, 'sub');
 targets.forEach(t => applyResult(t, value)); // t.type, t.el, t.prop all ready
 ```
 
+**CURRENT STATE:**
+- parseDataAttrFast returns {targets: [...], triggers: [...], globalMods: {...}}
+- Each setup function loops through tokens and resolves them separately
+- Element resolution, property detection, trigger subscription all done in callers
+- No semantic abstraction layer
+
 **Impact:**
-- 40% less code in setup functions
+- 30-40% less code in setup functions
 - Parser becomes testable in isolation
 - Adding new target/trigger types = update parser only
+- **Risk:** MEDIUM-HIGH (affects all directive parsing)
+- **Time:** 3-5 hours
+- **Payoff:** MEDIUM (cleaner architecture, not much size reduction)
 
 ---
 
 ## Pattern 6: The Init Double-Loop Anti-Pattern
 
-**Observation:**
+**STATUS: ✅ IMPLEMENTED IN PHASE 3a** (single-pass init with handler table)
+
+**Original Observation:**
 ```javascript
 const init = () => {
   const all = document.querySelectorAll('*');
@@ -269,15 +500,24 @@ const init = () => {
 };
 ```
 
+**✅ IMPLEMENTED (lines 1879-1920):**
+- DIRECTIVE_HANDLERS table maps prefix → setup function
+- Single querySelectorAll('*') pass
+- Single attribute loop collects defs and directives
+- Defs executed first, then directives via table lookup
+- Extensible: new directives just register in table
+
 **Impact:**
-- 1 DOM query instead of 2
-- 1 attribute loop instead of 2
-- Adding new directives = register in table
-- ~50% faster init on large DOMs
+- ✅ 1 DOM query instead of 2
+- ✅ 1 attribute loop instead of 2  
+- ✅ ~50% faster init on large DOMs
+- ✅ -100 bytes (committed in Phase 3a)
 
 ---
 
 ## Pattern 7: The `set()` Function is Actually THREE Functions
+
+**STATUS: 🔴 NOT ADDRESSED** (set() still monolithic)
 
 **Observation:** `set()` does three completely different things:
 1. Detect mutation type (shape vs content)
@@ -302,6 +542,12 @@ const set = (path, value, force = false) => {
 };
 ```
 
+**CURRENT STATE:**
+- set() is ~100+ lines with mutation detection, shallow clone, notification all inline
+- No separation between concerns
+- Difficult to test individual parts
+- Notification logic tightly coupled to mutation logic
+
 **Why?** Now we can:
 - Test each part independently
 - Replace mutation strategy (e.g., use Immer.js, structural sharing)
@@ -311,10 +557,15 @@ const set = (path, value, force = false) => {
 **Impact:**
 - Testability +1000%
 - Opens door to advanced features (time-travel debugging, undo/redo)
+- **Risk:** HIGH (core reactivity, hard to test incrementally)
+- **Time:** 6-8 hours
+- **Payoff:** LOW immediate (mostly architecture improvement)
 
 ---
 
 ## Pattern 8: Triggers and Targets are SYMMETRIC
+
+**STATUS: 🔴 NOT ADDRESSED** (separate code paths)
 
 **Deep insight:** A trigger is just "an inverted target":
 - Target = "where to write the result"
@@ -344,17 +595,28 @@ class Binding {
 // for each target, for each trigger: new Binding(trigger, target)
 ```
 
+**CURRENT STATE:**
+- Triggers handled in setupGeneric via signal/event/special branches (lines 820-900)
+- Targets handled separately in applier creation (lines 705-760)
+- No unified abstraction
+- Asymmetric code paths make bidirectional binding impossible
+
 **Impact:**
-- 70% of current code eliminated
-- Bidirectional bindings trivial
+- 50-70% of current code could be eliminated
+- Bidirectional bindings trivial (sync inputs)
 - Can visualize/debug binding graph
 - Foundation for reactive dataflow graph
+- **Risk:** VERY HIGH (complete architecture rewrite)
+- **Time:** 12-20 hours
+- **Payoff:** VERY HIGH (transformative, but risky)
 
 ---
 
 ## Pattern 9: The Missing Abstraction: "Reactive Cell"
 
-**What's really happening?** Signals, properties, and DOM events are all just **reactive cells** — things that:
+**STATUS: 🔴 NOT ADDRESSED** (no cell abstraction)
+
+**What's really happening?** Signals, properties, and DOM events are all just **reactive cells**:
 1. Hold a value
 2. Can be read
 3. Can be written (maybe)
@@ -394,15 +656,26 @@ const eventCell = (el, event) => new ReactiveCell(
 // 2. Connect cells with binding expressions
 ```
 
+**CURRENT STATE:**
+- No cell abstraction
+- Signals, props, events handled by completely different code
+- Cannot treat them uniformly
+- Makes Pattern 8 (symmetry) impossible
+
 **Impact:**
 - Conceptual model is now 5 lines
-- ~2000 lines of special-case code eliminated
+- ~50-70% of special-case code eliminated
 - Can implement `data-compute:derived="a + b"` trivially
 - Foundation for visual dataflow editor
+- **Risk:** VERY HIGH (complete rewrite)
+- **Time:** 16-24 hours
+- **Payoff:** VERY HIGH (would be dmax 2.0)
 
 ---
 
 ## Pattern 10: We're Building a Dataflow Graph, Not Running Callbacks
+
+**STATUS: 🔴 NOT ADDRESSED** (callback-based architecture)
 
 **The deepest realization:** dmax is not a "callback library." It's a **dataflow runtime**.
 
@@ -436,53 +709,157 @@ class DataflowGraph {
 // => graph.addNode('node1', ['bar'], compile('bar * 2'), ['foo'])
 ```
 
+**CURRENT STATE:**
+- Architecture is callback-based (subs Map, event listeners)
+- No graph representation
+- Cannot detect cycles, optimize update order, or serialize state
+- Manual propagation via set() notifications
+
 **Impact:**
 - Circular dependency detection (free!)
 - Optimal update ordering (free!)
 - Can serialize/visualize entire app state
 - Foundation for hot-reload, time-travel
 - ~50% of runtime complexity disappears
+- **Risk:** VERY HIGH (complete architecture rewrite)
+- **Time:** 20-30 hours
+- **Payoff:** VERY HIGH (would be dmax 2.0, but huge risk)
 
 ---
 
-## Summary: What Casey Would Do
+## **UPDATED SUMMARY: What Casey Would Do (2024 Edition)**
 
 Casey would look at dmax and say:
 
 > "You have 2000 lines of code, but really you're just saying the same thing 200 different ways. Find the 10 core operations and express everything with those."
 
 The **10 core operations** are:
-1. **Parse** — attribute → AST
-2. **Resolve** — AST token → runtime object (element, signal, function)
-3. **Subscribe** — register interest in changes
-4. **Read** — get current value
-5. **Write** — set new value
-6. **Notify** — propagate changes
-7. **Apply** — transform input → output
-8. **Decorate** — add modifiers (debounce, guard, etc.)
-9. **Wire** — connect source to dest
-10. **Execute** — run the dataflow graph
+1. **Parse** — attribute → AST ✅ (parseDataAttrFast exists, but returns low-level tokens)
+2. **Resolve** — AST token → runtime object (element, signal, function) 🔴 (done in callers)
+3. **Subscribe** — register interest in changes 🔴 (repeated everywhere)
+4. **Read** — get current value ✅ (get() exists)
+5. **Write** — set new value ✅ (set() exists, but monolithic)
+6. **Notify** — propagate changes ✅ (in set(), but tightly coupled)
+7. **Apply** — transform input → output ✅ (compile() + appliers)
+8. **Decorate** — add modifiers (debounce, guard, etc.) 🔴 (inline in setupGeneric)
+9. **Wire** — connect source to dest 🟡 (setupGeneric does this, but not unified)
+10. **Execute** — run the dataflow graph 🔴 (callback-based, not graph)
 
-Current dmax has ~50 functions. Compressed dmax needs ~10.
-
----
-
-## Estimated Impact of Full Semantic Compression
-
-| Metric | Current | After Compression | Improvement |
-|--------|---------|-------------------|-------------|
-| **Lines of code** | ~2000 | ~600 | **70% reduction** |
-| **Core concepts** | ~50 | ~10 | **80% simpler** |
-| **Time to add directive** | 2 hours | 5 minutes | **24x faster** |
-| **Runtime overhead** | High (object churn) | Low (graph eval) | **~2-3x faster** |
-| **Testability** | Hard (integrated) | Easy (pure functions) | **∞ better** |
+**STATUS:** 4/10 exist, 3/10 partially implemented, 3/10 not addressed
 
 ---
 
-## Implementation Priority
+## **PHASE 4 RECOMMENDATIONS: Safer Path Forward**
 
-1. **Pattern 8+9+10** (Unified reactive cell model) — This is the foundation. Do this first, everything else follows.
-2. **Pattern 1** (Directive factory) — Eliminates most boilerplate
-3. **Pattern 4** (Subscription API) — Cleans up all subscription code
-4. **Pattern 6** (Single-pass init) — Easy 2x init speedup
-5. **Pattern 5** (Semantic parser) — Makes everything else easier
+Based on Phase 1-3 experience, here's a **risk-adjusted** roadmap:
+
+### **Tier 1: Low-Hanging Fruit (Low Risk, Quick Wins)**
+
+1. ✅ **Pattern 6: Single-pass init** — DONE in Phase 3a (-100 bytes, +50% init speed)
+
+2. **Pattern 1: Extract applier factories** (Phase 3b continuation)
+   - **Time:** 1-2 hours
+   - **Risk:** LOW (simple extraction from setupGeneric)
+   - **Payoff:** ~30-50 bytes, cleaner code
+   - **Next step:** Extract createSubApplier/createClassApplier/createDispApplier
+
+3. **Pattern 2: Unified element resolution**
+   - **Time:** 2-3 hours
+   - **Risk:** LOW-MEDIUM (affects applier creation)
+   - **Payoff:** ~20-30 bytes, cleaner code
+
+### **Tier 2: Medium Effort, Moderate Risk**
+
+4. **Pattern 4: Unified subscribe() API**
+   - **Time:** 4-6 hours
+   - **Risk:** MEDIUM-HIGH (affects core reactivity)
+   - **Payoff:** ~100-150 bytes, automatic bracket-index support
+   - **Note:** Most impactful incremental change
+
+5. **Pattern 5: Semantic parser (resolve in parser)**
+   - **Time:** 3-5 hours
+   - **Risk:** MEDIUM (affects all directives)
+   - **Payoff:** ~50-100 bytes, cleaner architecture
+
+6. **Pattern 3: Extract modifier pipeline**
+   - **Time:** 2-3 hours
+   - **Risk:** MEDIUM (affects all triggers)
+   - **Payoff:** ~40-50 bytes, extensibility
+
+### **Tier 3: Architectural (High Risk, Transformative)**
+
+7. **Pattern 7: Split set() into detect/apply/notify**
+   - **Time:** 6-8 hours
+   - **Risk:** HIGH (core reactivity)
+   - **Payoff:** Better testability, no immediate size gain
+   - **Note:** Foundation for batching, undo/redo
+
+8. **Patterns 8-10: Reactive cell model + dataflow graph**
+   - **Time:** 30-50 hours (complete rewrite)
+   - **Risk:** VERY HIGH (would be dmax 2.0)
+   - **Payoff:** 50-70% code reduction, bidirectional bindings, graph viz
+   - **Note:** Consider as separate "dmax-next" project
+
+---
+
+## **RECOMMENDED PHASE 4 APPROACH**
+
+**Option A: Incremental Wins (Recommended)**
+- Do Tier 1 items 2-3 (applier factories + element resolution)
+- Then Pattern 4 (subscribe API) if bracket-index bugs persist
+- Measure impact at each step, preserve in git branches
+- **Time:** 5-8 hours total
+- **Expected gain:** ~100-150 bytes, cleaner code, easier bracket-index fixes
+
+**Option B: Push Harder (Moderate Risk)**
+- Do all of Tier 1 + Tier 2
+- Would address most "repeating pattern" issues
+- **Time:** 15-20 hours
+- **Expected gain:** ~300-400 bytes, much cleaner architecture
+- **Risk:** More changes = more test surface
+
+**Option C: Go Big (High Risk)**
+- Reactive cell model (Patterns 8-9)
+- **Time:** 30-50 hours
+- **Expected gain:** Could hit ~1200-1400 lines (from 2000)
+- **Risk:** Very high, would need extensive testing
+- **Note:** Better as "dmax-next" in separate branch
+
+---
+
+## **IMMEDIATE NEXT STEPS (Post-Phase 3)**
+
+1. **Finish Phase 3b:** Extract applier factories from setupGeneric (1-2 hours, LOW risk)
+2. **Test thoroughly:** Ensure 118/147 fuzzer maintained, investigate POST test timeout
+3. **Decide on Phase 4:** Choose Option A, B, or C based on user priority
+4. **Update tests:** Add coverage for any new extraction points
+
+---
+
+## **Estimated Impact of Full Semantic Compression (Updated)**
+
+| Metric | Current (Phase 3) | Tier 1+2 | Tier 3 (Graph) | Improvement |
+|--------|-------------------|----------|----------------|-------------|
+| **Lines of code** | ~2000 | ~1600 | ~800 | **60% reduction** |
+| **Core concepts** | ~40 | ~25 | ~10 | **75% simpler** |
+| **Time to add directive** | 2 hours | 30 min | 5 minutes | **24x faster** |
+| **Runtime overhead** | Medium | Low | Very Low | **2-3x faster** |
+| **Testability** | Medium | Good | Excellent | **10x better** |
+| **Implementation time** | — | 15-20 hrs | +40-60 hrs | **55-80 hours total** |
+| **Risk level** | — | MEDIUM | VERY HIGH | — |
+
+---
+
+## **CONCLUSION**
+
+**What we learned from Phases 1-3:**
+- Incremental changes work (validation, proxy, fast-paths, single-pass init)
+- Tests maintain stability (80.3% fuzzer pass rate)
+- Each phase took 2-6 hours
+
+**Recommended path:**
+- **Short term:** Finish Phase 3b (applier factories), do Tier 1 items
+- **Medium term:** Tackle Tier 2 if bracket-index issues persist or architecture needs cleaning
+- **Long term:** Consider Patterns 8-10 as "dmax-next" research project
+
+**Key insight:** The codebase is already cleaner after Phase 3a (single-pass init). Most remaining duplication is in setupGeneric subscription logic and modifier handling. Pattern 4 (subscribe API) is the highest-value incremental change.

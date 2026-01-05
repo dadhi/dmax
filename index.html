@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>dmax v0.3 MVP Copy</title>
-<!-- Styling is intentionally minimal for MVP tracking -->
+
 <style>
   .preview{padding:12px;border:2px solid #ddd;margin:8px 0;border-radius:6px;font-weight:bold}
   .active{border-color:#28a745;background:#eaffea}
@@ -14,8 +14,8 @@
 </head>
 <body>
 
-<!-- MVP HTML Example and Summary for Crosschecking -->
-<!-- Copied from index.html, keep this section updated for test tracking -->
+
+
 <div data-def='{
   "user": {
     "name": "Alice",
@@ -44,10 +44,10 @@
 }'></div>
 
 
-<!-- data-iter section moved below (after section 7) -->
+
   <h3>1. Deep Nested Signal Sync</h3>
   <div class="page">data-sync:user.name, data-sync:user.age</div>
-  <!-- data-sync:user.name, data-sync:user.age -->
+  
   <label>User Name (nested path):</label>
   <input type="text" data-sync:user.name>
   <p>Hello, <strong data-sync:user.name></strong>!</p>
@@ -71,7 +71,7 @@
   <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
 </section>
 
-<!-- New: Separate Example Demo -->
+
 <section id="separate-demo">
   <h3>Separate Live Demo</h3>
   <div class="page">This is a standalone demo area to showcase bracket-index and simple bindings.</div>
@@ -89,7 +89,7 @@
 <section>
   <h3>2. Style & Boolean Deep Sync</h3>
   <div class="page">data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active</div>
-  <!-- data-sync:user.ui.theme-color, data-sub:.style.color@user.ui.theme-color, data-sync:user.ui.font-size, data-sub:.style.font-size@user.ui.font-size, data-sync:user.ui.is-active, data-sub:.@user.ui.is-active -->
+  
   <label>Theme Color:</label>
   <input type="color" data-sync:user.ui.theme-color>
   <div class="preview" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">This text color syncs to theme-color signal!</div>
@@ -103,7 +103,7 @@
 <section>
   <h3>3. Multiple Triggers & Targets</h3>
   <div class="page">data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count</div>
-  <!-- data-sub:count@.click, data-sub:.@count, data-sub:.:doubled@count -->
+  
   <button data-sub:count@.click="dm.count + 1">+1</button>
   <button data-sub:count@.click="dm.count - 1">-1</button>
   <button data-sub:count@.click="0">Reset</button>
@@ -112,7 +112,7 @@
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
 
-  <!-- Global-modifiers examples -->
+  
   <div style="margin-top:8px">
     <button id="gOnceBtn" data-sub__once:once-test@.click="dm.onceTest + 1">GlobalOnce +1</button>
     <span id="gOnceDisplay" data-sub:.@once-test="dm.onceTest"></span>
@@ -152,7 +152,7 @@
 <section>
   <h3>4. Side Effects & Multiple Triggers</h3>
   <div class="page">data-sub@count@#btn1.click@#btn2.click, data-sub:#@count@#btn1.click@#btn2.click</div>
-  <!-- data-sub@count@.btn1.click@.btn2.click, data-sub:.@count@.btn1.click@.btn2.click -->
+  
   <button id="btn1">Button 1</button>
   <button id="btn2">Button 2</button>
   <p>Side effect logs: <span data-sub@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
@@ -162,7 +162,7 @@
 <section>
   <h3>5. Cross-Element Property Sync</h3>
   <div class="page">data-sync:message, data-sub:.@#src.input, data-sub:.value@#src.input</div>
-  <!-- data-sync:message, data-sub:.@.src.input, data-sub:.value@.src.input -->
+  
   <label>Source Input:</label>
   <input id="src" placeholder="Type here..." data-sync:message>
   <label>Mirror (via data-sub):</label>
@@ -174,7 +174,7 @@
 <section>
   <h3>6. Window Events & Intervals</h3>
   <div class="page">data-sub:.@_window.resize, data-sub:.@_interval.1000</div>
-  <!-- data-sub:.@_window.resize, data-sub:.@_interval.1000 -->
+  
   <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
   <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
 </section>
@@ -182,7 +182,7 @@
 <section>
   <h3>7. Default Props & Events</h3>
   <div class="page">data-sub:.@#inp1, data-sub:.@#btn3</div>
-  <!-- data-sub:.@#inp1, data-sub:.@#btn3 -->
+  
   <input id="inp1" placeholder="Default event (input)">
   <p>Mirror using @.: <span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
   <button id="btn3">Click me</button>
@@ -202,7 +202,7 @@
 <section>
   <h3>9. List Rendering (data-dump)</h3>
   <div class="page">data-dump@posts#tpl-post — template as child &lt;template&gt; or reference by id</div>
-  <!-- data-dump@posts#tpl-post, template child or #tpl-id -->
+  
   <template id="tpl-post">
     <li data-index="$index" data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
       <span class="num" data-sub:.@posts="$index + 1"></span>
@@ -274,36 +274,41 @@
   <h3>11. Actions demo (JSONPlaceholder)</h3>
   <div>
     <button id="loadPost" data-get:post-result?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts/1">Load post #1 (GET)</button>
-    <div style="margin-top:8px">Busy: <span data-sub:.@post-result?busy="(dm.postBusy||false)"></span></div>
+    <div style="margin-top:8px">Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span></div>
     <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
   </div>
 
   <div style="margin-top:12px">
     <label>New post title:</label>
-    <input id="newTitle" placeholder="Title" />
+    <input id="new-title" placeholder="Title" />
     <label style="margin-left:8px">Author name:</label>
-    <input id="newUserName" placeholder="Name" />
+    <input id="new-user-name" placeholder="Name" />
     <label style="margin-left:8px">Author email:</label>
-    <input id="newUserEmail" placeholder="Email" />
-    <button id="createPost" data-post^json+#newTitle.value__body.title+#newUserName.value__body.user.name+#newUserEmail.value__body.user.email:created-post?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
+    <input id="new-user-email" placeholder="Email" />
+    <button id="create-post" data-post^json+#new-title.value__body.title+#new-user-name.value__body.user.name+#new-user-email.value__body.user.email:created-post?busy__busy,err__err@.click="https://jsonplaceholder.typicode.com/posts">Create post (POST ^json)</button>
     <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
   </div>
 </section>
 
-<!--
-Summary:
-- data-iter renders a list using a template for each item in the array signal.
-- Usage: <ul data-iter:posts#tpl-id></ul>
-- Template can use data-$it (item) and data-$i (index) for binding.
--->
 
-<!-- MVP JS and summary will be tracked here for crosschecking and improvement planning -->
+
 <script>
 
 
 // dmax MVP logic with new syntax support and modular parsing
 (()=>{
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  
+  // Phase 2.1: Proxy for dm - eliminates Object.fromEntries allocations
+  const dmProxy = new Proxy({}, {
+    get: (_, key) => S.get(key),
+    set: (_, key, val) => { set(key, val); return true; },
+    has: (_, key) => S.has(key),
+    ownKeys: () => Array.from(S.keys()),
+    getOwnPropertyDescriptor: (_, key) => 
+      S.has(key) ? { value: S.get(key), enumerable: true, configurable: true } : undefined
+  });
+  
   // Common character-code constants used by parsers
   const CC = { DOT: 46, COLON: 58, AT: 64, UNDERSCORE: 95, HASH: 35 };
   const debug=document.querySelector('[data-debug]');
@@ -425,27 +430,94 @@ Summary:
     if(fnCache.has(body)) return fnCache.get(body);
     let inner;
     try {
-      // signature: (dm, el, ev, sg)
+      // signature: (dm, el, ev, sg, detail)
       // dm is a plain object built from the internal signal Map (S), so expressions
       // can read values as `dm.foo` or `dm.user.name`.
       inner = new Function('dm','el','ev','sg','detail', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
     } catch(e) {
-      console.error('Failed to compile expression:', body, e);
+      console.error('[dmax] Failed to compile expression:', body.slice(0, 50) + (body.length > 50 ? '...' : ''), e);
       inner = () => undefined;
     }
+    // Phase 1.4: Error boundary with expression context
     const wrapped = (dm, el, ev, sg, detail) => {
-      try { return inner(dm, el, ev, sg, detail); } catch (e) { return undefined; }
+      try { 
+        return inner(dm, el, ev, sg, detail); 
+      } catch (e) { 
+        console.error('[dmax] Expression failed:', body.slice(0, 60) + (body.length > 60 ? '...' : ''), e);
+        return undefined; 
+      }
     };
     fnCache.set(body, wrapped);
     return wrapped;
   };
 
+  // Phase 1.1: Validation helpers
+  const RESERVED_NAMES = ['ev', 'el', 'sg', 'dm', 'detail'];
+  const VALID_MODIFIERS = ['immediate', 'notimmediate', 'once', 'always', 'debounce', 'throttle', 'prevent', 'and', 'notand', 'gt', 'lt', 'eq', 'gte', 'lte', 'neq', 'shape', 'content'];
   
+  const isValidSignalName = (name) => {
+    if (!name || typeof name !== 'string') return false;
+    // Strip trailing state modifiers (?busy, ?err, etc.) for validation
+    const cleanName = name.split('?')[0];
+    // Check if starts with reserved name
+    const firstPart = cleanName.split('.')[0].split('[')[0];
+    if (RESERVED_NAMES.includes(firstPart)) return false;
+    // Must start with letter, contain only alphanumeric/underscore/hyphen/brackets/dots
+    if (!/^[a-z][a-zA-Z0-9_\-.\[\]]*$/.test(cleanName)) return false;
+    // Check for malformed patterns
+    if (cleanName.startsWith('.') || cleanName.endsWith('.')) return false;
+    if (cleanName.includes('..')) return false;
+    if (/^\d/.test(firstPart)) return false; // Can't start with number
+    return true;
+  };
 
-  // Fast, compact parser (char-scanning) for data-* attribute names
-  // (uses `toCamel` above which is cached)
+  const isValidPropName = (name) => {
+    if (!name || typeof name !== 'string') return false;
+    // Properties must be kebab-case OR already camelCase (internal)
+    // Allow leading dash for inverse classes
+    const normalized = name.startsWith('-') ? name.slice(1) : name;
+    // Allow both kebab-case and camelCase (since this checks after normalizePath)
+    if (!/^[a-z][a-zA-Z0-9\-._]*$/.test(normalized)) return false;
+    // Check for malformed patterns
+    if (normalized.startsWith('.') || normalized.endsWith('.') || normalized.endsWith('-')) return false;
+    if (normalized.includes('..') || normalized.includes('--')) return false;
+    // NOTE: We don't reject camelCase here because propPath may already be normalized
+    return true;
+  };
 
-  
+  const isValidModifier = (modName) => {
+    if (!modName) return false;
+    // Modifier can have a dot+value (e.g., debounce.100, gt.5)
+    const baseMod = modName.split('.')[0];
+    return VALID_MODIFIERS.includes(baseMod);
+  };
+
+  const validateParsedItem = (item, context) => {
+    if (item.type === 'signal') {
+      if (!isValidSignalName(item.name)) {
+        console.error(`[dmax] Invalid signal name in ${context}: "${item.name}"`);
+        return false;
+      }
+    } else if (item.type === 'prop') {
+      // propPath can be null for auto-detection
+      if (item.propPath && !isValidPropName(item.propPath)) {
+        console.error(`[dmax] Invalid property name in ${context}: "${item.propPath}"`);
+        return false;
+      }
+    } else if (item.type === 'special' || item.type === 'event') {
+      // Don't validate special/event names (window, document, click, etc.)
+      // These have different patterns
+    }
+    // Validate modifiers
+    const mods = item.mods || {};
+    for (const modName of Object.keys(mods)) {
+      if (!isValidModifier(modName)) {
+        console.error(`[dmax] Invalid modifier in ${context}: "__${modName}"`);
+        return false;
+      }
+    }
+    return true;
+  };
 
   function parseModsFast(s, i, n) {
     const mods = {};
@@ -476,41 +548,78 @@ Summary:
     return [mods, i];
   }
 
-  function parseDataAttrFast(attr, prefixLen) {
+  // ============================================================================
+  // Core Parsing Primitives (Phase 4: Semantic Compression)
+  // ============================================================================
+  
+  // Validate identifier: reject camelCase, reserved names
+  function validateIdentifier(str, context) {
+    if (!str) return true; // empty is handled elsewhere
+    if (/[A-Z]/.test(str)) {
+      console.error('CamelCase in identifier is invalid:', context, 'token:', str);
+      return false;
+    }
+    return true;
+  }
+  
+  // Normalize path: validate + convert kebab-case to camelCase
+  function normalizePathStrict(path, context) {
+    if (!path) return null;
+    const parts = path.split('.');
+    const out = [];
+    for (let j = 0; j < parts.length; ++j) {
+      const seg = parts[j];
+      if (/[A-Z]/.test(seg)) {
+        console.error('CamelCase in attr name is invalid:', context);
+        return null;
+      }
+      if (seg.indexOf('-') === -1) {
+        if (seg === '') return null;
+        out.push(seg);
+        continue;
+      }
+      const leading = seg[0] === '-';
+      const pieces = seg.split('-');
+      let idx = 0;
+      if (pieces[0] === '') idx = 1;
+      if (idx >= pieces.length) {
+        console.error('Invalid kebab segment in attr name:', context);
+        return null;
+      }
+      if (pieces[pieces.length - 1] === '') {
+        console.error('Trailing hyphen in attr name is invalid:', context);
+        return null;
+      }
+      for (let k = idx; k < pieces.length; ++k) {
+        if (pieces[k] === '') {
+          console.error('Consecutive hyphens in attr name are invalid:', context);
+          return null;
+        }
+      }
+      const segToConvert = pieces.slice(idx).join('-');
+      const camel = toCamel(segToConvert);
+      out.push(leading ? ('-' + camel) : camel);
+    }
+    return out.join('.');
+  }
+
+  // Core tokenizer: unified parsing for all directives
+  function tokenizeDirective(attr, start) {
     const s = attr;
     const n = s.length;
-    let i = prefixLen;
+    let i = start;
     let gm = {};
+    
+    // Parse global modifiers at start
     if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') {
       const r = parseModsFast(s, i, n);
       if (r[0] === null) return null;
       gm = r[0];
       i = r[1];
     }
+    
     const targets = [];
     const triggers = [];
-
-    function normalizePath(path) {
-      if (!path) return null;
-      const parts = path.split('.');
-      const out = [];
-      for (let j = 0; j < parts.length; ++j) {
-        const seg = parts[j];
-        if (/[A-Z]/.test(seg)) { console.error('CamelCase in attr name is invalid:', attr); return null; }
-        if (seg.indexOf('-') === -1) { if (seg === '') return null; out.push(seg); continue; }
-        const leading = seg[0] === '-';
-        const pieces = seg.split('-');
-        let idx = 0;
-        if (pieces[0] === '') idx = 1;
-        if (idx >= pieces.length) { console.error('Invalid kebab segment in attr name:', attr); return null; }
-        if (pieces[pieces.length - 1] === '') { console.error('Trailing hyphen in attr name is invalid:', attr); return null; }
-        for (let k = idx; k < pieces.length; ++k) if (pieces[k] === '') { console.error('Consecutive hyphens in attr name are invalid:', attr); return null; }
-        const segToConvert = pieces.slice(idx).join('-');
-        const camel = toCamel(segToConvert);
-        out.push(leading ? ('-' + camel) : camel);
-      }
-      return out.join('.');
-    }
 
     while (i < n) {
       const c = s.charAt(i);
@@ -519,46 +628,179 @@ Summary:
         if (i >= n) return null;
         const c2 = s.charAt(i);
         if (c2 === '#') {
+          // :# -> prop target on element
           i++;
           let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
-          const id = s.slice(i, j); i = j;
+          const id = s.slice(i, j);
+          if (!validateIdentifier(id, attr)) return null;
+          i = j;
           let prop = null;
           if (i < n && s.charAt(i) === '.') {
-            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++; let raw = s.slice(i, k); if (raw) { const mi = raw.indexOf('__'); if (mi !== -1) { raw = raw.slice(0, mi); } } prop = raw ? normalizePath(raw) : null; if (prop === null && raw !== null) return null; i = k;
+            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++;
+            let raw = s.slice(i, k);
+            if (raw) {
+              const mi = raw.indexOf('__');
+              if (mi !== -1) raw = raw.slice(0, mi);
+            }
+            prop = raw ? normalizePathStrict(raw, attr) : null;
+            if (prop === null && raw !== null) return null;
+            i = k;
           }
           let mr = [ {}, i ];
           if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
           if (mr[0] === null) return null; i = mr[1];
-          const merged0 = Object.assign({}, gm, mr[0]); if (merged0.always !== undefined) delete merged0.once;
+          const merged0 = Object.assign({}, gm, mr[0]);
+          if (merged0.always !== undefined) delete merged0.once;
           targets.push({type:'prop', elemId:id, propPath:prop, isCurr:false, mods:merged0});
         } else if (c2 === '.') {
-          i++; let j = i; while (j < n && ':@'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; let nm = raw || null; if (nm) { const mi = nm.indexOf('__'); if (mi !== -1) nm = nm.slice(0, mi); } const prop = nm ? normalizePath(nm) : null; if (prop === null && nm !== null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged1 = Object.assign({}, gm, mr[0]); if (merged1.always !== undefined) delete merged1.once; targets.push({type:'prop', elemId:'', propPath:prop, isCurr:true, mods:merged1});
+          // :. -> prop target on current element
+          i++; let j = i; while (j < n && ':@'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j; let nm = raw || null;
+          if (nm) {
+            const mi = nm.indexOf('__');
+            if (mi !== -1) nm = nm.slice(0, mi);
+          }
+          const prop = nm ? normalizePathStrict(nm, attr) : null;
+          if (prop === null && nm !== null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged1 = Object.assign({}, gm, mr[0]);
+          if (merged1.always !== undefined) delete merged1.once;
+          targets.push({type:'prop', elemId:'', propPath:prop, isCurr:true, mods:merged1});
         } else {
-          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; if (!raw) return null; const mi = raw.indexOf('__'); if (mi !== -1) { raw = raw.slice(0, mi); } const name = normalizePath(raw); if (name === null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charCodeAt(i+1) === CC.UNDERSCORE) mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged2 = Object.assign({}, gm, mr[0]); if (merged2.always !== undefined) delete merged2.once; targets.push({type:'signal', name, mods:merged2});
+          // :name -> signal target
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j;
+          if (!raw) return null;
+          const mi = raw.indexOf('__');
+          if (mi !== -1) raw = raw.slice(0, mi);
+          const name = normalizePathStrict(raw, attr);
+          if (name === null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charCodeAt(i+1) === CC.UNDERSCORE) mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged2 = Object.assign({}, gm, mr[0]);
+          if (merged2.always !== undefined) delete merged2.once;
+          targets.push({type:'signal', name, mods:merged2});
         }
       } else if (c === '@') {
         i++; if (i >= n) return null; const c2 = s.charAt(i);
         if (c2 === '_') {
-          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++; const tok = s.slice(i, j); i = j; if (!tok) return null; let arg = null; if (i < n && s.charAt(i) === '.') { i++; let k = i; while (k < n && ':@_'.indexOf(s[k]) === -1) k++; arg = s.slice(i, k) || null; i = k; } let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged3 = Object.assign({}, gm, mr[0]); if (merged3.always !== undefined) delete merged3.once; triggers.push({type:'special', name:tok, arg, mods:merged3});
+          // @_ -> special trigger
+          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
+          const tok = s.slice(i, j); i = j;
+          if (!tok) return null;
+          if (!validateIdentifier(tok, attr)) return null;
+          let arg = null;
+          if (i < n && s.charAt(i) === '.') {
+            i++; let k = i; while (k < n && ':@_'.indexOf(s[k]) === -1) k++;
+            arg = s.slice(i, k) || null; i = k;
+          }
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged3 = Object.assign({}, gm, mr[0]);
+          if (merged3.always !== undefined) delete merged3.once;
+          triggers.push({type:'special', name:tok, arg, mods:merged3});
         } else if (c2 === '#') {
-          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++; const id = s.slice(i, j); i = j; let ev = null; if (i < n && s.charAt(i) === '.') { i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++; let raw = s.slice(i, k) || null; ev = raw ? normalizePath(raw) : null; if (ev === null && raw !== null) return null; i = k; } let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged4 = Object.assign({}, gm, mr[0]); if (merged4.always !== undefined) delete merged4.once; triggers.push({type:'event', elemId:id, eventName:ev, isCurr:false, mods:merged4});
+          // @#id.event -> event trigger on element
+          i++; let j = i; while (j < n && '.:@_'.indexOf(s[j]) === -1) j++;
+          const id = s.slice(i, j);
+          if (!validateIdentifier(id, attr)) return null;
+          i = j; let ev = null;
+          if (i < n && s.charAt(i) === '.') {
+            i++; let k = i; while (k < n && ':@'.indexOf(s[k]) === -1) k++;
+            let raw = s.slice(i, k) || null;
+            ev = raw ? normalizePathStrict(raw, attr) : null;
+            if (ev === null && raw !== null) return null;
+            i = k;
+          }
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged4 = Object.assign({}, gm, mr[0]);
+          if (merged4.always !== undefined) delete merged4.once;
+          triggers.push({type:'event', elemId:id, eventName:ev, isCurr:false, mods:merged4});
         } else if (c2 === '.') {
-          i++; let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j) || null; i = j; let ev = raw ? normalizePath(raw) : null; if (ev === null && raw !== null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged5 = Object.assign({}, gm, mr[0]); if (merged5.always !== undefined) delete merged5.once; triggers.push({type:'event', elemId:'', eventName:ev, isCurr:true, mods:merged5});
+          // @.event -> event trigger on current element
+          i++; let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j) || null; i = j;
+          let ev = raw ? normalizePathStrict(raw, attr) : null;
+          if (ev === null && raw !== null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged5 = Object.assign({}, gm, mr[0]);
+          if (merged5.always !== undefined) delete merged5.once;
+          triggers.push({type:'event', elemId:'', eventName:ev, isCurr:true, mods:merged5});
         } else {
-          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++; let raw = s.slice(i, j); i = j; if (!raw) return null; let name = normalizePath(raw); if (name === null) return null; let mr = [ {}, i ]; if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n); if (mr[0] === null) return null; i = mr[1]; const merged6 = Object.assign({}, gm, mr[0]); if (merged6.always !== undefined) delete merged6.once; triggers.push({type:'signal', name, mods:merged6});
+          // @name -> signal trigger
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j;
+          if (!raw) return null;
+          let name = normalizePathStrict(raw, attr);
+          if (name === null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged6 = Object.assign({}, gm, mr[0]);
+          if (merged6.always !== undefined) delete merged6.once;
+          triggers.push({type:'signal', name, mods:merged6});
         }
       } else {
         return null;
       }
       if (i < n && s.charAt(i) !== ':' && s.charAt(i) !== '@') return null;
     }
+    
     if (!targets.length && !triggers.length) return null;
     return {targets, triggers};
   }
 
+  // parseDataAttrFast: now a thin wrapper over tokenizer
+  function parseDataAttrFast(attr, prefixLen) {
+    const tokens = tokenizeDirective(attr, prefixLen);
+    if (!tokens) return null;
+    
+    // Phase 1.1: Validate all parsed targets and triggers
+    for (const target of tokens.targets) {
+      if (!validateParsedItem(target, attr)) return null;
+    }
+    for (const trigger of tokens.triggers) {
+      if (!validateParsedItem(trigger, attr)) return null;
+    }
+    
+    return tokens;
+  }
+
+  // Phase 1.3: Element resolution with warnings
+  const getElById = (id, context = 'element reference') => {
+    if (!id) return null;
+    const el = document.getElementById(id);
+    if (!el) {
+      console.warn(`[dmax] Element #${id} not found in ${context}`);
+    }
+    return el;
+  };
+
   // Set property (fast, supports nested)
+  // Phase 2.2: Fast-path for single-level properties (90% of cases)
   const setProp = (el, path, val) => {
     if(!path) path = getAutoProp(el);
+    
+    // Fast path: no nested access
+    if(path.indexOf('.') === -1) {
+      const key = toCamel(path);
+      try {
+        if(el[key] !== val) el[key] = val;
+      } catch(e) {
+        console.error('Failed to set property', path, 'on', el, e);
+      }
+      return;
+    }
+    
+    // Nested path (slower)
     const parts = path.split('.');
     let t = el;
     try {
@@ -581,63 +823,73 @@ Summary:
   // Track all event listeners and signal handlers for cleanup
   const cleanupMap = new WeakMap();
 
+  // Applier factories for Phase 3b
+  const createSubApplier = (target, targetEl) => {
+    if(target.type === 'signal'){
+      if(hasBracketIndex(target.name)){
+        return res => {
+          try{ const resolved = resolveBracketPath(target.name); if(resolved) set(resolved, res); }catch(e){}
+        };
+      }
+      return (res, isSignalInvocation) => {
+        try{ }catch(e){}
+        if(isSignalInvocation) set(target.name, res); else set(target.name, res, true);
+      };
+    }
+    const prop = target.propPath || null;
+    return res => setProp(targetEl, prop, res);
+  };
+
+  const createClassApplier = (target, targetEl) => {
+    const classes = (target.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
+    return res => {
+      for(const c of classes){
+        if(c.remove){
+          if(res) targetEl.classList.remove(c.name);
+          else targetEl.classList.add(c.name);
+        } else {
+          if(res) targetEl.classList.add(c.name);
+          else targetEl.classList.remove(c.name);
+        }
+      }
+    };
+  };
+
+  const createDispApplier = (targetEl) => {
+    // Cache original display and whether it was an inline style
+    const inline = targetEl.style && targetEl.style.display ? targetEl.style.display : '';
+    const computed = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+    const hadInline = inline !== '';
+    const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
+    return res => {
+      if(res){
+        if(hadInline) targetEl.style.display = originalDisplay;
+        else {
+          const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
+          if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
+        }
+      } else {
+        targetEl.style.display = 'none';
+      }
+    };
+  };
+
   // Generic setup for data-sub, data-class, data-disp
   function setupGeneric(type, el, attr, body) {
     const parsed = parseDataAttrFast(attr, type === 'data-sub' ? 8 : (type === 'data-class' ? 10 : 9));
-    if(!parsed) return;
+    if(!parsed) {
+      console.error(`[dmax] Failed to parse ${type} attribute: "${attr}"`);
+      return;
+    }
     const {targets, triggers} = parsed;
     const fn = compile(body);
     // Precompute appliers for targets to minimize work on each trigger
     const appliers = targets.map(t => {
-      const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+      const targetEl = t.elemId ? getElById(t.elemId, attr) : el;
       if(!targetEl) return null;
-      if(type === 'data-sub'){
-        if(t.type === 'signal'){
-          if(hasBracketIndex(t.name)){
-            return res => {
-              try{ const resolved = resolveBracketPath(t.name); if(resolved) set(resolved, res); }catch(e){}
-            };
-          }
-          return (res, isSignalInvocation) => {
-            try{ }catch(e){}
-            if(isSignalInvocation) set(t.name, res); else set(t.name, res, true);
-          };
-        }
-        const prop = t.propPath || null;
-        return res => setProp(targetEl, prop, res);
-      }
-      if(type === 'data-class'){
-        const classes = (t.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
-        return res => {
-          for(const c of classes){
-            if(c.remove){
-              if(res) targetEl.classList.remove(c.name);
-              else targetEl.classList.add(c.name);
-            } else {
-              if(res) targetEl.classList.add(c.name);
-              else targetEl.classList.remove(c.name);
-            }
-          }
-        };
-      }
-      if(type === 'data-disp'){
-        // Cache original display and whether it was an inline style
-        const inline = targetEl.style && targetEl.style.display ? targetEl.style.display : '';
-        const computed = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
-        const hadInline = inline !== '';
-        const originalDisplay = hadInline ? inline : (computed === 'none' ? defaultDisplayForTag(targetEl) : computed);
-        return res => {
-          if(res){
-            if(hadInline) targetEl.style.display = originalDisplay;
-            else {
-              const now = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(targetEl).display : '';
-              if(now === 'none') targetEl.style.display = originalDisplay; else targetEl.style.removeProperty('display');
-            }
-          } else {
-            targetEl.style.display = 'none';
-          }
-        };
-      }
+      if(type === 'data-sub') return createSubApplier(t, targetEl);
+      if(type === 'data-class') return createClassApplier(t, targetEl);
+      if(type === 'data-disp') return createDispApplier(targetEl);
       return null;
     });
 
@@ -648,7 +900,7 @@ Summary:
       // bodies receive the change info via the `detail` parameter.
       const isSignalInvocation = (ev == null);
       const evArg = isSignalInvocation ? undefined : ev;
-      const result = fn(Object.fromEntries(S), el, evArg, sg, detailParam);
+      const result = fn(dmProxy, el, evArg, sg, detailParam);
       if(!appliers || appliers.length === 0) return;
       try {
         for(const ap of appliers) if(ap) ap(result, isSignalInvocation);
@@ -759,7 +1011,7 @@ Summary:
 
       // Case: explicit element id — no legacy mappings, require real element id
       if(t.elemId){
-        targetEl = document.getElementById(t.elemId);
+        targetEl = getElById(t.elemId, attr);
         if(!targetEl){ console.error('Element not found for id:', t.elemId); }
       }
 
@@ -862,84 +1114,110 @@ Summary:
   function parseActionAttr(attr) {
     // attr is full attribute name, e.g. 'data-post^json+#src.value:result?busy,err@.click'
     const s = attr;
-    const methods = ['data-get','data-post','data-put','data-patch','data-delete'];
+    const methods = ['data-get','data-post','data-post','data-put','data-patch','data-delete'];
     let method = null;
     for(const m of methods) if(s.indexOf(m) === 0) { method = m.substring(5); break; }
     if(!method) return null;
-    let i = attr.indexOf('data-' + method);
-    if(i !== 0) i = 0; // defensive
-    i = ('data-' + method).length;
+    
+    let i = ('data-' + method).length;
     const headers = {};
     const headerShortcuts = [];
     const inputs = [];
-    // parse optional result modifier immediately after `data-<method>` (e.g. __append/__prepend/__replace)
     let resultMod = null;
+    
+    // Parse optional result modifier (__append/__prepend/__replace)
     while(i + 1 < s.length && s[i] === '_' && s[i+1] === '_'){
-      // read modifier name (stop at separators: ^ + : @)
       i += 2;
       const startMod = i;
       while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_')) i++;
       const modRaw = s.slice(startMod, i).split('.')[0] || '';
-      if(modRaw) {
-        if(modRaw === 'append' || modRaw === 'prepend' || modRaw === 'replace') resultMod = modRaw;
-        // else: ignore unknown mods here (could be input-level or header-level later)
-      }
+      if(modRaw === 'append' || modRaw === 'prepend' || modRaw === 'replace') resultMod = modRaw;
     }
-    // parse ^ tokens
+    
+    // Parse ^ headers
     while(i < s.length && s[i] === '^'){
-      i++; const start = i; while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?') i++;
+      i++; const start = i;
+      while(i < s.length && s[i] !== '^' && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?') i++;
       const raw = s.slice(start, i);
       if(!raw) return null;
+      if(!validateIdentifier(raw.split('.')[0], attr)) return null;
       headerShortcuts.push(raw);
-      // simple mapping for json: handled at runtime; other name.value -> header
-      if(raw.indexOf('.') !== -1){ const p = raw.split('.'); const name = p[0]; const val = p.slice(1).join('.'); headers[name.toLowerCase()] = val; }
+      if(raw.indexOf('.') !== -1){
+        const p = raw.split('.');
+        headers[p[0].toLowerCase()] = p.slice(1).join('.');
+      }
     }
-    // parse + inputs (support per-input mods e.g. +sig__query.qname or +#id.prop__body)
+    
+    // Parse + inputs with validation
     while(i < s.length && s[i] === '+'){
       i++; const start = i;
-      // read raw token until separator or start of mods
       while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && s[i] !== '?' && !(s[i] === '_' && s[i+1] === '_')) i++;
       const raw = s.slice(start, i).trim();
       const input = {raw, mods:{}};
-      // parse trailing mods for this input
+      
+      // Parse mods for this input
       while(i < s.length && s[i] === '_' && s[i+1] === '_'){
         i += 2;
         const mstart = i;
-        while(i < s.length){ const cc = s.charCodeAt(i); if(cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break; i++; }
+        while(i < s.length){
+          const cc = s.charCodeAt(i);
+          if(cc === CC.DOT || cc === CC.COLON || cc === CC.AT || (cc === CC.UNDERSCORE && s.charCodeAt(i+1) === CC.UNDERSCORE)) break;
+          i++;
+        }
         const mname = s.slice(mstart, i);
         let mval = true;
         if(i < s.length && s[i] === '.'){
-          i++; const mvstart = i; while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_') && s[i] !== '?') i++; mval = s.slice(mvstart, i) || true;
+          i++; const mvstart = i;
+          while(i < s.length && s[i] !== '+' && s[i] !== ':' && s[i] !== '@' && !(s[i] === '_' && s[i+1] === '_') && s[i] !== '?') i++;
+          mval = s.slice(mvstart, i) || true;
         }
         input.mods[mname] = mval;
       }
+      
+      // Validate input using shared primitives
+      if(raw[0] === '#'){
+        const parts = raw.slice(1).split('.');
+        if(!validateIdentifier(parts[0], attr)) return null;
+        const propPath = parts.slice(1).join('.');
+        if(propPath && !validateIdentifier(propPath.split('.').join(''), attr)) return null;
+      } else {
+        const sigName = raw.replace(/^\./,'');
+        if(!validateIdentifier(sigName.split('.').join(''), attr)) return null;
+      }
       inputs.push(input);
     }
-    // now the rest may contain :target?stateList and triggers
+    
+    // Parse :target?stateList@triggers using tokenizer
     const rest = s.slice(i);
-    // find where triggers (@) start
     const atIdx = rest.indexOf('@');
     let targetPart = rest;
     let triggerPart = '';
-    if(atIdx !== -1){ targetPart = rest.slice(0, atIdx); triggerPart = rest.slice(atIdx); }
-    // split targetPart on ? to extract state signals
+    if(atIdx !== -1){
+      targetPart = rest.slice(0, atIdx);
+      triggerPart = rest.slice(atIdx);
+    }
+    
+    // Extract state specs
     let targetSpec = targetPart;
     let stateSpecs = [];
     const qIdx = targetPart.indexOf('?');
     if(qIdx !== -1){
       targetSpec = targetPart.slice(0, qIdx);
       const st = targetPart.slice(qIdx+1);
-      // parse state specs: allow mod suffix like name__busy
       stateSpecs = st.split(',').map(x=>x.trim()).filter(Boolean).map(sx => {
         const parts = sx.split('__');
+        if(!validateIdentifier(parts[0], attr)) return null;
         return {name: parts[0], mode: parts[1] || 'busy'};
-      });
+      }).filter(Boolean);
     }
-    // Build a parseable string for parseDataAttrFast: ensure it starts with ':' or '@'
+    
+    // Use tokenizer for :target@trigger part
+    // Use tokenizer for :target@trigger part
     let parseStr = (targetSpec || '') + (triggerPart || '');
     if(parseStr && parseStr[0] !== ':' && parseStr[0] !== '@') parseStr = ':' + parseStr;
-    const parsed = parseDataAttrFast(parseStr, 0);
+    const parsed = tokenizeDirective(parseStr, 0);
     if(!parsed) return null;
+    
     return {method, headers, headerShortcuts, inputs, stateSpecs, parsed, resultMod};
   }
 
@@ -989,7 +1267,7 @@ Summary:
           const raw = inp.raw || '';
           // element reference
           if(raw[0] === '#'){
-            const parts = raw.slice(1).split('.'); const elem = document.getElementById(parts[0]); const prop = parts.slice(1).join('.') || getAutoProp(elem);
+            const parts = raw.slice(1).split('.'); const elem = getElById(parts[0], attr); const prop = parts.slice(1).join('.') || getAutoProp(elem);
             const val = elem ? (elem[toCamel(prop)] ?? elem.value ?? null) : null;
             // decide where to place val based on mods or default
             if(inp.mods['query']){
@@ -1090,22 +1368,23 @@ Summary:
         if(target && target.type === 'signal'){
           // handle result modifier: replace (default), append, prepend
           const mod = info.resultMod || 'replace';
+          const targetSignal = toCamel(target.name);
           try{
             if(mod === 'replace'){
-              set(target.name, payload);
+              set(targetSignal, payload);
             } else if(mod === 'append' || mod === 'prepend'){
-              const curr = get(target.name);
+              const curr = get(targetSignal);
               const items = Array.isArray(payload) ? payload.slice() : [payload];
               let base = Array.isArray(curr) ? curr.slice() : (curr == null ? [] : [curr]);
               let out;
               if(mod === 'append') out = base.concat(items);
               else out = items.concat(base);
-              set(target.name, out);
+              set(targetSignal, out);
             } else {
               // unknown modifier: fallback to replace
-              set(target.name, payload);
+              set(targetSignal, payload);
             }
-          }catch(e){ console.error('Failed applying result modifier', e); set(target.name, payload); }
+          }catch(e){ console.error('Failed applying result modifier', e); set(targetSignal, payload); }
         }
         // update state signals on success
         for(const s of stateMap){
@@ -1172,7 +1451,7 @@ Summary:
         } else if(t.type === 'special' && t.name === 'window'){
           const evName = t.arg || 'resize'; window.addEventListener(evName, doRequest); let listeners = cleanupMap.get(window); if(!listeners) listeners = [], cleanupMap.set(window, listeners); listeners.push({type:'event', targetEl: window, eventName: evName, handler: doRequest});
         } else {
-          const targetEl = t.elemId ? document.getElementById(t.elemId) : el;
+          const targetEl = t.elemId ? getElById(t.elemId, attr) : el;
           if(!targetEl) continue;
           const evName = t.eventName || getAutoEvent(targetEl);
           targetEl.addEventListener(evName, doRequest);
@@ -1307,7 +1586,7 @@ Summary:
         const evs = evTriggers.length ? evTriggers : [{type:'event', elemId:'', eventName: null, isCurr:true}];
         for(const ev of evs){
           // attach to current element or specific element
-          const targetEl = ev.elemId ? document.getElementById(ev.elemId) : el;
+          const targetEl = ev.elemId ? getElById(ev.elemId, attr) : el;
           if(!targetEl) continue;
           // If the trigger's eventName looks like a property (e.g. 'value' or 'checked')
           // treat it as a prop selector and listen on the element's default event instead.
@@ -1338,48 +1617,80 @@ Summary:
 
   // data-dump implementation: clone a template per array item or once for an object
   function setupDump(el, attrName, attrVal) {
-    // Parse attribute tokens from either the attribute NAME or attribute VALUE
-    // Syntax variations supported:
-    // - data-dump@posts#tpl-id
-    // - data-dump#tpl-id@posts
-    // - <ul data-dump@posts> <template>...</template></ul>
-    const parseDumpAttr = (name, val) => {
-      let sig = null, tplId = null;
-      const scan = (s) => {
-        if(!s) return;
-        const atIdx = s.indexOf('@');
-        const hashIdx = s.indexOf('#');
-        if(atIdx !== -1){ sig = s.slice(atIdx + 1).split('#')[0] || sig; }
-        if(hashIdx !== -1){ tplId = s.slice(hashIdx + 1).split('@')[0] || tplId; }
-        // If string looks like a bare signal name (no @/#), accept it when no sig yet
-        if(sig == null){ const trimmed = s.trim(); if(trimmed && /^[A-Za-z0-9_\.-]+$/.test(trimmed)) sig = sig || trimmed; }
-      };
-      scan(name); scan(val);
-      return { sig, tplId };
+    // Parse: data-dump@signal#template or data-dump#template@signal or data-dump@signal
+    // Note: data-dump has unique syntax (@signal#template) that doesn't match general grammar
+    const dumpIdx = (attrName || '').indexOf('data-dump');
+    if(dumpIdx === -1) return;
+    
+    let sig = null, tplId = null;
+    
+    // Scan a string for @signal and #template tokens, with bare signal name fallback
+    const scan = (s) => {
+      if(!s) return;
+      const atIdx = s.indexOf('@');
+      const hashIdx = s.indexOf('#');
+      
+      if(atIdx !== -1){
+        const afterAt = s.slice(atIdx + 1);
+        const sigEnd = afterAt.indexOf('#');
+        const extracted = (sigEnd !== -1 ? afterAt.slice(0, sigEnd) : afterAt).trim();
+        if(extracted && validateIdentifier(extracted.split('.').join(''), attrName)){
+          sig = sig || extracted;
+        }
+      }
+      if(hashIdx !== -1){
+        const afterHash = s.slice(hashIdx + 1);
+        const tplEnd = afterHash.indexOf('@');
+        const extracted = (tplEnd !== -1 ? afterHash.slice(0, tplEnd) : afterHash).trim();
+        if(extracted && validateIdentifier(extracted, attrName)){
+          tplId = tplId || extracted;
+        }
+      }
+      
+      // Bare signal name fallback: if no @/# found and no sig yet
+      if(sig == null){
+        const trimmed = s.trim();
+        if(trimmed && /^[a-z0-9_\.-]+$/i.test(trimmed) && validateIdentifier(trimmed.split('.').join(''), attrName)){
+          sig = sig || trimmed;
+        }
+      }
     };
-
-    const parsed = parseDumpAttr(attrName || '', attrVal || '');
-    // parsed attribute tokens (no debug log)
-    let sig = parsed.sig || null;
-    let tplId = parsed.tplId || null;
+    
+    // Scan both attribute name (after 'data-dump') and attribute value
+    let name = attrName.slice(dumpIdx + 9);
+    scan(name);
+    scan(attrVal);
+    
     // if no tplId, look for a child <template>
     let tpl = null;
-    if(tplId) tpl = document.getElementById(tplId);
+    if(tplId) tpl = getElById(tplId, attrName);
     if(!tpl){ tpl = el.querySelector('template'); }
     // If template was an inline child, detach it so it doesn't remain as a DOM child
     if(tpl && tpl.parentNode === el){ tpl.parentNode.removeChild(tpl); }
     if(!tpl) return; // nothing to render
     if(!sig) {
       // try to read a 'data-signal' attribute or the element's value as fallback
-      if(el.getAttribute && el.getAttribute('data-signal')) sig = el.getAttribute('data-signal');
-      if(!sig && attrVal && attrVal.trim()) sig = attrVal.trim();
-      // Additional fallback: scan element attribute NAMES and re-parse the full attribute name
+      if(el.getAttribute && el.getAttribute('data-signal')){
+        sig = el.getAttribute('data-signal');
+        if(!validateIdentifier(sig.split('.').join(''), attrName)) return;
+      }
+      if(!sig && attrVal && attrVal.trim()){
+        sig = attrVal.trim();
+        if(!validateIdentifier(sig.split('.').join(''), attrName)) return;
+      }
+      // Additional fallback: scan element attribute NAMES
       if(!sig && el.getAttributeNames){
         const names = el.getAttributeNames();
         for(const an of names){
           if(typeof an === 'string' && an.indexOf('data-dump') === 0){
-            const reparsed = parseDumpAttr(an, el.getAttribute(an));
-            if(reparsed.sig){ sig = reparsed.sig; tplId = tplId || reparsed.tplId; break; }
+            // Re-parse this attribute name
+            let fallbackStr = an.slice(9); // remove 'data-dump'
+            if(fallbackStr && fallbackStr[0] === '@'){
+              const atIdx = fallbackStr.indexOf('@');
+              sig = fallbackStr.slice(atIdx + 1).split('#')[0];
+              if(sig && !validateIdentifier(sig.split('.').join(''), an)) continue;
+              if(sig) break;
+            }
           }
         }
       }
@@ -1442,14 +1753,13 @@ Summary:
             }
             // Evaluate simple `data-sub` expressions now so clones show initial content
             try{
-              const dmObj = Object.fromEntries(S);
               for(const n2 of walk){
                 for(const a2 of Array.from(n2.attributes || [])){
                   const an2 = a2.name; const v2 = a2.value;
                   if(an2.indexOf('data-sub') === 0){
                     try{
                       const fn = compile(v2);
-                      const res = fn(dmObj, n2, undefined, sig);
+                      const res = fn(dmProxy, n2, undefined, sig);
                       // set default property (textContent/value) for the element
                       try{ setProp(n2, null, res); }catch(e){}
                     }catch(e){}
@@ -1632,7 +1942,25 @@ Summary:
     updateDebug();
   };
 
+  // Phase 1.2: Infinite loop guard for set()
+  let syncDepth = 0;
+  const MAX_SYNC_DEPTH = 10;
+
   const set = (p, v, force = false) => {
+    // Phase 1.2: Guard against infinite loops
+    if (syncDepth > MAX_SYNC_DEPTH) {
+      console.error(`[dmax] Infinite loop detected for signal: ${p} (depth > ${MAX_SYNC_DEPTH})`);
+      return;
+    }
+    syncDepth++;
+    try {
+      return setImpl(p, v, force);
+    } finally {
+      syncDepth--;
+    }
+  };
+
+  const setImpl = (p, v, force = false) => {
     const parts = p.split('.');
     const root = toCamel(parts[0]);
     const current = get(p);
@@ -1718,53 +2046,127 @@ Summary:
     if(debug) debug.textContent = JSON.stringify(Object.fromEntries(S), null, 2);
   };
 
-  // Init: definitions and subscriptions
-  const init = () => {
-    const all = document.querySelectorAll('*');
-    // PHASE 1: Definitions
-    all.forEach(el => {
-      for(let a of el.attributes){
-        if(a.name !== 'data-def' && a.name.indexOf('data-def:') !== 0) continue;
-        const colonIdx = a.name.indexOf(':');
-        const name = colonIdx === -1 ? '' : a.name.substring(colonIdx + 1);
-        const camelName = toCamel(name);
-        if(camelName === 'ev' || camelName === 'el'){
-          console.error('Reserved signal name:', name); continue;
-        }
-        if(!name){
-          const o = JSON.parse(a.value);
-          for(let k in o){
-            const camelK = toCamel(k);
-            if(camelK === 'ev' || camelK === 'el'){
-              console.error('Reserved signal name:', k); continue;
-            }
-            S.set(camelK, o[k]);
-            try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+  // Phase 3a.2: setupDef extracted for single-pass init
+  function setupDef(el, attr, value) {
+    // Parse using tokenizer to support:
+    // - data-def (no signal) + JSON body → multiple signals
+    // - data-def:signal="expr" → one signal from expression
+    // - data-def:foo:bar:baz="expr" → multiple signals (future: each gets same value)
+    // - data-def__mod:signal → reject mods for now
+    
+    // Extract any leading modifiers and signal names after 'data-def'
+    const defIdx = attr.indexOf('data-def');
+    if(defIdx === -1) return;
+    const rest = attr.slice(defIdx + 8); // 'data-def'.length = 8
+    
+    // Check for modifiers (reject for now)
+    if(rest.startsWith('__')){
+      const modEnd = rest.indexOf(':');
+      const modName = modEnd === -1 ? rest.slice(2) : rest.slice(2, modEnd);
+      console.error('data-def does not support modifier:', modName, 'in', attr);
+      return;
+    }
+    
+    // Parse signal targets using tokenizer if there's a ':'
+    let signalNames = [];
+    if(rest && rest[0] === ':'){
+      const tokens = tokenizeDirective(rest, 0);
+      if(tokens && tokens.targets.length > 0){
+        // Extract signal names from targets
+        signalNames = tokens.targets
+          .filter(t => t.type === 'signal')
+          .map(t => t.name);
+        
+        // Reject modifiers on targets
+        for(const t of tokens.targets){
+          const modKeys = Object.keys(t.mods || {});
+          if(modKeys.length > 0){
+            console.error('data-def does not support modifier:', modKeys[0], 'in', attr);
+            return;
           }
-        } else {
-          S.set(camelName, Function('return ' + a.value)());
-          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, Function('return ' + a.value)()); }catch(e){}
+        }
+      }
+    }
+    
+    // Initialize signals
+    if(signalNames.length === 0){
+      // No signal names: parse body as JSON object, init multiple signals
+      try{
+        const o = JSON.parse(value);
+        for(let k in o){
+          const camelK = toCamel(k);
+          if(camelK === 'ev' || camelK === 'el'){
+            console.error('Reserved signal name:', k, 'in', attr);
+            continue;
+          }
+          S.set(camelK, o[k]);
+          try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+        }
+      }catch(e){
+        console.error('data-def JSON parse error:', e.message, 'in', attr);
+      }
+    } else {
+      // One or more signal names: eval expression and set all signals to result
+      try{
+        const result = Function('return ' + value)();
+        for(const sigName of signalNames){
+          const camelName = toCamel(sigName);
+          if(camelName === 'ev' || camelName === 'el'){
+            console.error('Reserved signal name:', sigName, 'in', attr);
+            continue;
+          }
+          S.set(camelName, result);
+          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, result); }catch(e){}
+        }
+      }catch(e){
+        console.error('data-def expression eval error:', e.message, 'in', attr);
+      }
+    }
+  }
+
+  // Directive handler registry for extensibility
+  const DIRECTIVE_HANDLERS = {
+    'data-def': setupDef,
+    'data-sync': setupSync,
+    'data-sub': setupSub,
+    'data-class': setupClass,
+    'data-disp': setupDisp,
+    'data-dump': setupDump,
+    'data-get': setupAction,
+    'data-post': setupAction,
+    'data-put': setupAction,
+    'data-patch': setupAction,
+    'data-delete': setupAction
+  };
+
+  // Init: single-pass DOM traversal with directive table
+  const init = () => {
+    const defs = [], directives = [];
+    
+    // Single DOM query and attribute scan
+    document.querySelectorAll('*').forEach(el => {
+      for(const a of el.attributes){
+        const attrName = a.name;
+        // Check for data-def first (needs to run before others)
+        if(attrName === 'data-def' || attrName.indexOf('data-def:') === 0){
+          defs.push([el, attrName, a.value]);
+          continue;
+        }
+        // Check directive handlers table
+        // For action attributes (data-get/post/etc), extract base before any modifier chars
+        const prefix = attrName.split(/[_:@^+?]/)[0];
+        const handler = DIRECTIVE_HANDLERS[prefix];
+        if(handler){
+          directives.push([el, attrName, a.value, handler]);
         }
       }
     });
-    // PHASE 2: Subscriptions
-    all.forEach(el => {
-      for(let a of el.attributes){
-        if(a.name.indexOf('data-sync') === 0){
-          setupSync(el, a.name);
-        } else if(a.name.indexOf('data-sub') === 0){
-          setupSub(el, a.name, a.value);
-        } else if(a.name.indexOf('data-class') === 0){
-          setupClass(el, a.name, a.value);
-        } else if(a.name.indexOf('data-disp') === 0){
-          setupDisp(el, a.name, a.value);
-        } else if(a.name.indexOf('data-dump') === 0){
-          setupDump(el, a.name, a.value);
-        } else if(a.name.indexOf('data-get') === 0 || a.name.indexOf('data-post') === 0 || a.name.indexOf('data-put') === 0 || a.name.indexOf('data-patch') === 0 || a.name.indexOf('data-delete') === 0){
-          setupAction(el, a.name, a.value);
-        }
-      }
-    });
+    
+    // Execute definitions first
+    defs.forEach(([el, attr, value]) => setupDef(el, attr, value));
+    
+    // Execute directives
+    directives.forEach(([el, attr, value, handler]) => handler(el, attr, value));
     // Extra sweep: ensure any elements with attributes named `data-dump*` are initialized
     try{
       const all2 = document.querySelectorAll('*');
@@ -1789,7 +2191,7 @@ Summary:
 })();
 </script>
 
-<!-- Demo: Content vs Shape triggers -->
+
 <section>
   <h3>11. Content vs Shape Demo</h3>
   <div class="page">Demonstrates default (content) subscriptions vs <code>__shape</code> subscriptions.</div>
@@ -1804,7 +2206,7 @@ Summary:
     <div style="margin-top:8px">
       <div>Content subscriber (default): <span id="demoContent" data-sub:.@demo-parent.child="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
       <div>Shape subscriber (<code>__shape</code>): <span id="demoShape" data-sub:.@demo-parent__shape="(ev && ev.detail && ev.detail.change) ? window.formatShapeChange(ev.detail.change) : (detail ? window.formatShapeChange(detail) : '')"></span></div>
-      <!-- Hidden probe used by headless tests to assert ev/sg/detail for signal-originated shape changes -->
+      
       <pre id="testShapeProbe" style="display:none" data-sub:.@demo-parent__shape="(function(){ window.__probe_ev = ev; window.__probe_sg = sg; window.__probe_detail = detail; return ''; })()"></pre>
     </div>
   </div>
@@ -1824,13 +2226,13 @@ window.formatShapeChange = function(c){
 };
 </script>
 
-<!-- Hidden tests for __content / __shape semantics (used by headless tests) -->
+
 <div id="__fg_reactivity_tests" style="display:none">
   <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
   <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
   <span id="shapeChild" data-sub:.@parent__shape="(window.__shapeChild = (window.__shapeChild||0) + 1, window.__shapeChild)"></span>
 
-  <!-- Indirection / bracket-index tests -->
+  
   <span id="indirectCount" data-sub:.@postObjs[idx]="(window.__indirectCount=(window.__indirectCount||0)+1,window.__indirectCount)"></span>
   <button id="setPost0Title" data-sub:postObjs.0.title@.click="'NewP0Title'">Set post0 title</button>
   <button id="setPost1Title" data-sub:postObjs.1.title@.click="'NewP1Title'">Set post1 title</button>
