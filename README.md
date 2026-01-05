@@ -150,6 +150,55 @@ Modifiers (denoted with prefix `__`) control how values are applied to targets:
 - Props only support `__replace` semantics (direct assignment)
 - Array modifiers (`__append`, `__prepend`) work by reading current signal value, creating new array, and replacing
 
+### Input Parameters (data-action only)
+
+Input parameters (denoted with `+`) specify values to send with HTTP requests in `data-action` directives:
+
+**✅ Signals** — send signal values
+- Nested paths supported: `+user.name`, `+settings.api.key`
+- Example: `data-post+userId+payload:result@.click="url"`
+
+**✅ Props** — send element property values
+- Current element: `+.value`, `+.checked`, `+.textContent`
+- Other elements: `+#input.value`, `+#checkbox.checked`
+- Example: `data-post+#title.value+#content.value:result@.click="url"`
+
+**✅ Default Input (`+.`)** — shorthand for default prop of current element
+- Sends the default property value (same logic as default target `:.`)
+- Input/Textarea/Select → `value`, Checkbox/Radio → `checked`, Others → `textContent`
+- Example: `data-post+.:result@.click="url"` on an input → sends `value` property
+
+### Input Modifiers
+
+Modifiers (prefix `__`) control where input values are placed in the HTTP request:
+
+**✅ IMPLEMENTED:**
+- `__query.NAME` — send as URL query parameter (default for GET, DELETE)
+  - Name optional, defaults to last part of signal/prop chain
+  - Example: `+user.name__query.username` → `?username=value`
+  - Example: `+user.name__query` → `?name=value` (uses "name" from chain)
+- `__body.NAME` — send in request body as JSON field (default for POST, PUT, PATCH)
+  - Name optional, defaults to last part of signal/prop chain
+  - Supports nested paths: `__body.user.name` → `{"user": {"name": "value"}}`
+  - Example: `+#title.value__body.title` → `{"title": "value"}`
+  - Example: `+#title.value__body` → `{"value": "value"}` (uses "value" from chain)
+- `__header.NAME` — send as HTTP header
+  - Name optional, defaults to `x-dmax-{lastPart}`
+  - Example: `+token__header.Authorization` → `Authorization: value`
+  - Example: `+token__header` → `x-dmax-token: value`
+
+**Default behavior (when no modifier specified):**
+- GET, DELETE methods → `__query` (URL query parameter)
+- POST, PUT, PATCH methods → `__body` (JSON body field)
+
+**Examples:**
+- `data-post^json+#title.value__body.title+#name.value__body.author:result@.click="url"`
+  - Sends `{"title": "...", "author": "..."}` as JSON body
+- `data-get+query__query.q+page__query:results@.click="url"`
+  - Sends `?q=...&page=...` as query params
+- `data-post+token__header.Authorization+#data.value:result@.click="url"`
+  - Sends custom header and body field
+
 
 ---
 
