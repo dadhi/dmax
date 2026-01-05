@@ -5,7 +5,7 @@ A tiny data-maximal runtime.
 ## Quick Start
 
 ```text
-dmax v0.2 (~3kb unzipped, ~1.3kb min+gzip)
+dmax v0.1
 ------------------------------------------
 Subscription engine: explicit reactivity, tiny runtime, no virtual DOM.
 
