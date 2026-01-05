@@ -287,6 +287,98 @@ Predefined shortcuts for common headers:
 ```
 
 
+### Data Attribute Values (`="..."`)
+
+Data attributes may or may not have a value depending on the specific directive. When defined, the value contains valid JavaScript that can be put in a function body — the library evaluates it and uses the result based on the directive type.
+
+**Value Types:**
+
+1. **JSON Values** (literals):
+   - Strings: `"hello"` or `` `template ${dm.signal}` `` (templated strings use backticks)
+   - Numbers: `42`, `3.14`
+   - Booleans: `true`, `false`
+   - Objects: `{key: 'value', count: dm.counter}`
+   - Arrays: `[1, 2, 3]`
+
+2. **JavaScript Statements**:
+   - Single expression: `dm.count + 1`
+   - Multiple statements (split by `;`): `const x = dm.count; x * 2; return x + 10`
+   - May return a value or not, depending on directive needs
+
+**Evaluation Context:**
+
+Values are evaluated as JavaScript function bodies with access to these parameters:
+
+- **`dm`** — global store for dmax signals (e.g., `dm.userName`, `dm.counter`)
+- **`el`** — the DOM element where the attribute is defined
+- **`ev`** — the event that triggered evaluation (or `undefined` for non-event triggers)
+- **`sg`** — the signal value that triggered evaluation (or `undefined` for event triggers)
+- **`detail`** — additional context data associated with the trigger:
+  - **Currently supported**: `detail.change.added`, `detail.change.removed` for signals with `__shape` modifier triggered in `data-dump`
+  - **Future**: May support `detail.item`, `detail.index` for data attributes evaluated inside `data-dump` template clones for specific array items
+
+**Examples by Directive:**
+
+```html
+<!-- data-sub: JS expression returning value to set -->
+<span data-sub:.textContent@userName="dm.userName.toUpperCase()"></span>
+<input data-sub:.value@count="dm.count * 2">
+
+<!-- data-sync: optional inline value for initialization -->
+<input data-sync:userName="'Default Name'">
+<input data-sync:count="0">
+
+<!-- data-def: JSON object or JS expression defining signals -->
+<div data-def="{ counter: 0, user: { name: 'John' } }">
+<div data-def="{ items: dm.posts.filter(p => p.active) }">
+
+<!-- data-disp: JS expression returning boolean for visibility -->
+<div data-disp:.@error="dm.error !== null">
+<span data-disp:.@loading="dm.loading && dm.count > 0">
+
+<!-- data-class: Boolean expression per class -->
+<div data-class:active@isActive="dm.isActive">
+<div data-class:loading@busy="dm.busy">
+
+<!-- data-action: URL template with signal interpolation -->
+<button data-get:result@.click="api/users/${dm.userId}">Fetch</button>
+<form data-post:response+body@.submit="api/items">Submit</form>
+
+<!-- data-dump: no value used (template is specified via #elem) -->
+<ul data-dump:.@items#itemTemplate></ul>
+
+<!-- Complex expressions with multiple statements -->
+<button data-sub:.textContent@count="
+  const doubled = dm.count * 2;
+  const result = doubled + 10;
+  return `Count: ${result}`;
+">
+</button>
+
+<!-- Accessing evaluation context params -->
+<div data-sub:.textContent@.click="
+  console.log('Element:', el);
+  console.log('Event:', ev);
+  return 'Clicked!';
+">
+</div>
+
+<!-- Shape changes with detail.change -->
+<div data-dump:.@items__shape#tpl="
+  console.log('Added:', detail.change.added);
+  console.log('Removed:', detail.change.removed);
+">
+</div>
+```
+
+**Notes:**
+- Templated strings must use backticks: `` `Hello ${dm.name}` ``
+- Regular strings use quotes: `"Hello"` or `'Hello'`
+- Multi-statement expressions automatically get wrapped in a function body
+- Return value usage depends on directive (e.g., `data-sub` uses it for assignment, `data-disp` for visibility)
+- Some directives don't require values (e.g., `data-dump` gets data from `@trigger`, not value)
+
+
 ---
 
 ## Grammar Reference: Data-Attribute Primitives (Source of Truth)
