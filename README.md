@@ -92,9 +92,13 @@ Modifiers (denoted with prefix `__`) control trigger behavior:
 - `__content` — signals only: subscribe to content/value changes (explicit, this is default)
 
 **❌ NOT YET IMPLEMENTED:**
-- `!` prefix (negation shorthand) — use as signal/prop name prefix to trigger only when value is falsy
+- `!` prefix on trigger name (negation shorthand) — use as signal/prop name prefix to trigger only when value is falsy
   - Example: `@!is-loading` is equivalent to `@is-loading__eq.false`
   - Future: `!!signal` may mean trigger when value is truthy (positive assertion)
+- `!` prefix inside guard values (value negation) — negate the guard comparison value
+  - Example: `@signal__eq.!signal2` means "trigger when signal equals NOT signal2 (falsy value of signal2)"
+  - Can be used with: `__and.!signal`, `__notand.!signal`, `__eq.!signal`, `__ne.!signal`, etc.
+  - Evaluates the signal after `!` and uses its negated (falsy) value for comparison
 
 **Note on Constants:**
 - Constants inherit `__immediate __once` by default (execute once, never re-trigger)
