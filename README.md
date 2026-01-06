@@ -596,6 +596,94 @@ data-sub[__mods][:target1,target2,...][@trigger1,trigger2,...]="value"
 
 **Note:** The value expression is **always required** in `data-sub`, unlike `data-def` where it's optional.
 
+#### `data-sync` — Simplified Synchronization
+
+The `data-sync` directive is a simplified version of `data-sub` for reactive synchronization between signals and properties. It always involves **two actors**: either both as targets (2-way sync), or one as trigger and one as target (1-way sync).
+
+**Syntax:**
+```
+data-sync[__mods][:target1:target2]="value"           <!-- 2-way sync -->
+data-sync[__mods][:target][@trigger]="value"          <!-- 1-way sync -->
+data-sync[__mods][@trigger]="value"                    <!-- 1-way sync -->
+```
+
+**Components:**
+- **Targets**: 0, 1, or 2 — signals or props (e.g., `:userName`, `:.value`)
+- **Trigger**: 0 or 1 — signal or prop (e.g., `@userName`, `@.value`)
+- **Value**: Optional — initial value or transformation expression
+
+**Key Rule:**
+If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **always the default target property** `:.` of the element where `data-sync` is defined.
+
+**Modes:**
+
+1. **Two-way sync** (2 targets, no trigger):
+   ```html
+   <input data-sync:userName:.value>
+   <!-- Signal dm.userName ↔ element's value property -->
+   <!-- Changes in either update the other -->
+   ```
+   - Two targets specified: `:signal:prop` or `:signal1:signal2`
+   - No trigger — both actors sync bidirectionally
+
+2. **One-way sync** (1 target + 1 trigger):
+   ```html
+   <span data-sync:.textContent@userName>
+   <!-- Signal dm.userName → element's textContent -->
+   ```
+   - Trigger value flows to target
+   - Explicit target and trigger specified
+
+3. **One-way sync with implicit default target** (1 trigger only):
+   ```html
+   <input data-sync@userName>
+   <!-- Equivalent to: data-sync:.@userName -->
+   <!-- Signal dm.userName → element's default property (.value for input) -->
+   ```
+   - Only trigger specified
+   - Other actor is implicitly `:.` (default target property)
+
+4. **One-way sync with implicit default target** (1 target only):
+   ```html
+   <input data-sync:userName>
+   <!-- Equivalent to: data-sync:userName@. -->
+   <!-- Element's default property (.value) → signal dm.userName -->
+   ```
+   - Only target specified
+   - Other actor is implicitly `:.` (default target property as trigger)
+
+**Examples:**
+```html
+<!-- 2-way: signal ↔ input value -->
+<input data-sync:userName:.value>
+
+<!-- 1-way: signal → input (implicit :.) -->
+<input data-sync@userName>
+
+<!-- 1-way: input → signal (implicit @.) -->
+<input data-sync:userName>
+
+<!-- 1-way: signal → span textContent -->
+<span data-sync:.textContent@displayName></span>
+
+<!-- 1-way: signal → default prop (implicit :.) -->
+<span data-sync@displayName></span>
+
+<!-- With initial value -->
+<input data-sync:userName:.value="'John Doe'">
+
+<!-- With transformation -->
+<span data-sync:.textContent@count="dm.count * 2"></span>
+```
+
+**Key Simplification:**
+`data-sync` always operates on exactly **two actors**, and when only 1 trigger or target is specified, the other is always the element's default target property `:.`
+
+**Comparison with data-sub:**
+- `data-sync` is sugar for simple signal ↔ property synchronization
+- `data-sub` is more flexible (multiple targets/triggers, side effects, events)
+- Use `data-sync` for straightforward bindings, `data-sub` for complex logic
+
 
 ---
 
