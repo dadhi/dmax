@@ -843,3 +843,144 @@ data-disp[__mods]@trigger1,trigger2,...="value"     <!-- Implicit :. target -->
 ```
 
 **Note:** Unlike `data-class` which can have multiple class targets, `data-disp` always operates on a single implicit target (the element itself), making the `:.` prefix optional in the syntax.
+
+#### `data-dump` — List and Template Rendering
+
+The `data-dump` directive renders a template for each item in an array or once for an object value. It subscribes to signal changes and efficiently updates the DOM by adding/removing clones as needed.
+
+**Syntax:**
+```
+data-dump[__mods]:.@signal#templateId
+data-dump[__mods]@signal#templateId         <!-- Implicit :. target -->
+data-dump[__mods]@signal                     <!-- Inline template -->
+data-dump-signal                             <!-- Shorthand: bare signal name -->
+```
+
+**Components:**
+- **Target**: Always `:.` (the element itself, implicit)
+- **Trigger**: 1 signal — the data source to iterate (e.g., `@posts`, `@user.items`)
+  - **Note**: `@` has special meaning in `data-dump` — it's the **data source**, not a reactive trigger
+- **Element**: `#templateId` (external template) or inline `<template>` child (optional)
+- **Value**: **Not supported** — data comes from the trigger signal
+
+**Template Sources:**
+1. **External template** (by ID): `data-dump@posts#tpl-post`
+   - References a `<template id="tpl-post">` elsewhere in the document
+2. **Inline template** (child): `data-dump@posts`
+   - Uses a `<template>` element as direct child of the element
+   - Template is automatically removed from DOM after extraction
+3. **Shorthand syntax**: `data-dump-posts`
+   - Bare signal name in attribute, uses inline template
+
+**Behavior:**
+
+1. **Array rendering**: Clones template once per array item
+   - Adds clones when array grows
+   - Removes clones from end when array shrinks
+   - Updates are efficient (only changes needed clones)
+
+2. **Object rendering**: Clones template once for the object value
+
+3. **Placeholder replacement** in cloned templates:
+   - **`$index`** → array index (e.g., `0`, `1`, `2`)
+   - **`$item`** → signal path to item (e.g., `posts.0`, `posts.1`)
+   - Replacements work in both attribute names and values
+
+**Examples:**
+
+```html
+<!-- External template -->
+<template id="tpl-post">
+  <li>
+    <span data-sub:.@posts>$index + 1</span>
+    <span data-sub:.@posts>dm.posts[$index]</span>
+  </li>
+</template>
+<ul data-dump@posts#tpl-post></ul>
+
+<!-- Inline template -->
+<ul data-dump@posts>
+  <template>
+    <li>
+      <span data-sub:.@posts>$index + 1</span>
+      <span data-sub:.@posts>dm.posts[$index]</span>
+    </li>
+  </template>
+</ul>
+
+<!-- Shorthand with bare signal name -->
+<ul data-dump-posts>
+  <template>
+    <li data-sub:.@posts>dm.posts[$index]</li>
+  </template>
+</ul>
+
+<!-- Nested signal path -->
+<ul data-dump@user.items#tpl-item></ul>
+
+<!-- Using placeholders in attributes -->
+<template id="tpl-item">
+  <li data-index="$index" data-class:.even.-odd="$index % 2 === 0">
+    <span data-sub:.@items>dm.items[$index].name</span>
+  </li>
+</template>
+
+<!-- Zebra striping with placeholders -->
+<template id="tpl-row">
+  <tr data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
+    <td data-sub:.@rows>$index + 1</td>
+    <td data-sub:.@rows>dm.rows[$index].title</td>
+  </tr>
+</template>
+<table>
+  <tbody data-dump@rows#tpl-row></tbody>
+</table>
+
+<!-- Nested data-dump -->
+<template id="tpl-thread">
+  <li>
+    Thread: <strong data-sub:.@threads>dm.threads[$index].title</strong>
+    <ul data-dump@threads.$index.replies#tpl-reply></ul>
+  </li>
+</template>
+<ul data-dump@threads#tpl-thread></ul>
+```
+
+**Placeholder Usage:**
+```html
+<template>
+  <!-- $index in attribute VALUE (replaced in JS expressions) -->
+  <li data-sub:.@posts="dm.posts[$index].title">
+  
+  <!-- $index in attribute NAME (replaced literally) -->
+  <li data-index="$index">
+  
+  <!-- $item in attribute VALUE (replaced with signal path) -->
+  <span data-sub:.@posts="$item.name">
+  <!-- After replacement becomes: dm.posts[0].name -->
+</template>
+```
+
+**Shape Change Tracking:**
+```html
+<!-- React only when array keys change (items added/removed), not value changes -->
+<ul data-dump@posts__shape#tpl-post></ul>
+
+<!-- Access change details in template via detail.change -->
+<template id="tpl-post">
+  <li data-sub:.@posts__shape="
+    console.log('Added:', detail.change.added);
+    console.log('Removed:', detail.change.removed);
+    return dm.posts[$index];
+  "></li>
+</template>
+```
+
+**Key Features:**
+- **Efficient updates**: Only adds/removes clones as needed, doesn't re-render entire list
+- **Automatic cleanup**: Removed clones are properly disposed
+- **Nested rendering**: Templates can contain nested `data-dump` directives
+- **Context preservation**: Each clone maintains its own `$index` context
+- **Flexible templates**: External or inline, reusable or specific
+
+**Note:** The `@` symbol has a special semantic meaning in `data-dump` — it denotes the **data source** (where data comes from), not a reactive trigger (when to update). This is the main syntactic exception in dmax's otherwise unified grammar.
