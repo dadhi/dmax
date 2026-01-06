@@ -598,19 +598,19 @@ data-sub[__mods][:target1,target2,...][@trigger1,trigger2,...]="value"
 
 #### `data-sync` — Simplified Synchronization
 
-The `data-sync` directive is a simplified version of `data-sub` for reactive synchronization between signals and properties. It always involves **two actors**: either both as targets (2-way sync), or one as trigger and one as target (1-way sync).
+The `data-sync` directive is a simplified version of `data-sub` for reactive synchronization between signals and properties. It always involves **two actors**: either both as targets (2-way sync), or one as trigger and one as target (1-way sync). **No value is allowed** — the target is set to the value of the triggered signal or property.
 
 **Syntax:**
 ```
-data-sync[__mods][:target1:target2]="value"           <!-- 2-way sync -->
-data-sync[__mods][:target][@trigger]="value"          <!-- 1-way sync -->
-data-sync[__mods][@trigger]="value"                    <!-- 1-way sync -->
+data-sync[__mods][:target1:target2]           <!-- 2-way sync -->
+data-sync[__mods][:target][@trigger]          <!-- 1-way sync -->
+data-sync[__mods][@trigger]                    <!-- 1-way sync -->
 ```
 
 **Components:**
 - **Targets**: 0, 1, or 2 — signals or props (e.g., `:userName`, `:.value`)
 - **Trigger**: 0 or 1 — signal or prop (e.g., `@userName`, `@.value`)
-- **Value**: Optional — initial value or transformation expression
+- **Value**: **Not supported** — target receives the trigger's value directly
 
 **Key Rule:**
 If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **always the default target property** `:.` of the element where `data-sync` is defined.
@@ -630,6 +630,7 @@ If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **alway
    ```html
    <span data-sync:.textContent@userName>
    <!-- Signal dm.userName → element's textContent -->
+   <!-- Target receives the value of dm.userName -->
    ```
    - Trigger value flows to target
    - Explicit target and trigger specified
@@ -668,18 +669,91 @@ If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **alway
 
 <!-- 1-way: signal → default prop (implicit :.) -->
 <span data-sync@displayName></span>
-
-<!-- With initial value -->
-<input data-sync:userName:.value="'John Doe'">
-
-<!-- With transformation -->
-<span data-sync:.textContent@count="dm.count * 2"></span>
 ```
 
 **Key Simplification:**
-`data-sync` always operates on exactly **two actors**, and when only 1 trigger or target is specified, the other is always the element's default target property `:.`
+`data-sync` always operates on exactly **two actors**, and when only 1 trigger or target is specified, the other is always the element's default target property `:.`. Unlike `data-sub`, no value expression is supported — targets receive trigger values directly.
 
 **Comparison with data-sub:**
-- `data-sync` is sugar for simple signal ↔ property synchronization
-- `data-sub` is more flexible (multiple targets/triggers, side effects, events)
-- Use `data-sync` for straightforward bindings, `data-sub` for complex logic
+- `data-sync` is sugar for simple signal ↔ property synchronization (no value expression)
+- `data-sub` is more flexible (multiple targets/triggers, side effects, events, computed values)
+- Use `data-sync` for straightforward 1:1 bindings, `data-sub` for complex logic or transformations
+
+#### `data-class` — Conditional CSS Classes
+
+The `data-class` directive adds or removes CSS classes on the element reactively based on trigger values interpreted as booleans. **No value is allowed** — classes are toggled based on trigger truthiness.
+
+**Syntax (Current):**
+```
+data-class[__mods]:.className,.-invertedClassName,...@trigger1,trigger2,...
+```
+
+**Components:**
+- **Targets**: 1 or many — class names with `.` prefix (e.g., `:.active`, `:.-inactive`)
+- **Triggers**: 1 or many — signals or props (e.g., `@isLoading`, `@.checked`)
+- **Value**: **Not supported** — classes toggle based on trigger boolean values
+
+**Current Class Notation:**
+- **`.className`** — Add class when trigger is **true**, remove when **false**
+- **`.-className`** — Remove class when trigger is **true**, add when **false** (inverted)
+
+**Trigger Inversion:**
+- **`@!trigger`** — Inverts the trigger's boolean interpretation
+- Example: `@!isLoading` treats `false` as `true` and vice versa
+
+**Behavior:**
+When a trigger fires:
+1. Trigger value is interpreted as boolean
+2. For `.className` targets: add class if true, remove if false
+3. For `.-className` targets: remove class if true, add if false (inverted behavior)
+4. Multiple triggers: each trigger can affect all classes independently
+
+**Examples (Current Syntax):**
+```html
+<!-- Add .inactive when dm.isLoading is true, remove when false -->
+<div data-class:.inactive@isLoading>
+
+<!-- Remove .active when dm.isLoading is true, add when false -->
+<div data-class:.-active@isLoading>
+
+<!-- Multiple classes with different behaviors -->
+<div data-class:.inactive,.-active@isLoading>
+<!-- When isLoading = true: add .inactive, remove .active -->
+<!-- When isLoading = false: remove .inactive, add .active -->
+</div>
+
+<!-- Inverted trigger -->
+<div data-class:.ready@!isLoading>
+<!-- When isLoading = false: add .ready -->
+<!-- When isLoading = true: remove .ready -->
+</div>
+
+<!-- Multiple triggers -->
+<div data-class:.highlight@isActive,isFocused>
+<!-- Add .highlight when either dm.isActive or dm.isFocused is true -->
+</div>
+
+<!-- Property trigger -->
+<input data-class:.checked@.checked>
+<!-- Add .checked class when input's checked property is true -->
+</input>
+```
+
+**Known Issue:**
+The current `.` and `-.` notation conflicts with the parser because `.` and `-` can be part of signal names (e.g., `user-name`, `item.count`).
+
+**Future Syntax (Planned):**
+```
+data-class[__mods]:+className,~invertedClassName@trigger
+```
+- **`+className`** — Add class when trigger is true (replaces `.className`)
+- **`~className`** — Remove class when trigger is true (replaces `.-className`)
+
+**Future Examples:**
+```html
+<!-- Add/remove with clearer syntax -->
+<div data-class:+inactive,~active@isLoading>
+
+<!-- No ambiguity with signal names -->
+<div data-class:+highlight@user-active>
+```
