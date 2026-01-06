@@ -757,3 +757,89 @@ data-class[__mods]:+className,~invertedClassName@trigger
 <!-- No ambiguity with signal names -->
 <div data-class:+highlight@user-active>
 ```
+
+#### `data-disp` — Conditional Visibility
+
+The `data-disp` directive shows or hides an element by toggling its `display` CSS property based on trigger values interpreted as booleans. The directive has an implicit target (always the element itself, `:.`).
+
+**Syntax:**
+```
+data-disp[__mods]:.@trigger1,trigger2,...="value"
+data-disp[__mods]@trigger1,trigger2,...="value"     <!-- Implicit :. target -->
+```
+
+**Components:**
+- **Target**: Always `:.` (the element itself, can be implicit)
+- **Triggers**: 1 or many — signals or props (e.g., `@isVisible`, `@.checked`)
+- **Value**: **Required** — JavaScript expression evaluated as boolean to determine visibility
+
+**Behavior:**
+1. When trigger fires, the value expression is evaluated
+2. If result is truthy: element is shown (display set to original/default value)
+3. If result is falsy: element is hidden (`display: none`)
+4. The original `display` value is preserved and restored when showing
+
+**Display Preservation:**
+- Caches the element's original display value (from inline style or computed style)
+- When showing: restores the cached display value
+- When hiding: sets `display: none`
+- Handles both inline styles and CSS-defined display values
+
+**Examples:**
+```html
+<!-- Show element when signal is true -->
+<p data-disp:.@isActive="dm.isActive">
+  Visible when active
+</p>
+
+<!-- Implicit :. target -->
+<p data-disp@isActive="dm.isActive">
+  Visible when active
+</p>
+
+<!-- Negated condition -->
+<p data-disp:.@isActive="!dm.isActive">
+  Visible only when NOT active
+</p>
+
+<!-- Complex expression -->
+<div data-disp@count,threshold="dm.count > dm.threshold">
+  Shows when count exceeds threshold
+</div>
+
+<!-- Property trigger -->
+<div data-disp@.checked="el.checked">
+  Visible when checkbox is checked
+</div>
+
+<!-- Multiple triggers with logic -->
+<span data-disp@user,isLoggedIn="dm.user && dm.isLoggedIn">
+  Visible when user exists AND logged in
+</span>
+
+<!-- Conditional visibility with signal path -->
+<p data-disp@user.ui.is-active="dm.user.ui.isActive">
+  Visible based on nested signal
+</p>
+```
+
+**Common Patterns:**
+```html
+<!-- Loading spinner -->
+<div data-disp@loading="dm.loading">Loading...</div>
+
+<!-- Error message -->
+<div data-disp@error="dm.error !== null">Error: <span data-sub:.@error="dm.error"></span></div>
+
+<!-- Empty state -->
+<div data-disp@items="!dm.items || dm.items.length === 0">
+  No items to display
+</div>
+
+<!-- Conditional sections -->
+<section data-disp@isPremium="dm.isPremium">
+  Premium content
+</section>
+```
+
+**Note:** Unlike `data-class` which can have multiple class targets, `data-disp` always operates on a single implicit target (the element itself), making the `:.` prefix optional in the syntax.
