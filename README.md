@@ -20,9 +20,12 @@ Core directives:
  - data-get/post/put/patch/delete : declarative HTTP actions (basic wiring; controls TBD)
 
 Notes:
+ - **Naming Convention**: Signal, property, event, and class names must use **kebab-case** (converted to camelCase in JS/expressions) or **snake_case** (unchanged). **Never use camelCase** in data attribute names — DOM operations lowercase all attribute names, losing camelCase information.
+   - ✅ Correct: `@user-name`, `@is_active`, `:user-data`
+   - ❌ Wrong: `@userName`, `@isActive`, `:userData` (will become `@username`, `@isactive`, `:userdata`)
  - Attributes use kebab-case; runtime converts to camelCase for JS access.
  - Expressions are compiled & cached; signals stored in a small `Map` (`S`).
- - Compiled expressions receive four arguments: `dm` (the global state object containing signals), `el` (the element), `ev` (the triggering Event, if any), and `sg` (the signal path string that triggered the evaluation, if any). Expressions should reference signals explicitly via `dm`, e.g. `dm.count` or `dm.user.name`.
+ - Compiled expressions receive four arguments: `dm` (the global state object containing signals), `el` (the element), `ev` (the triggering Event, if any), and `sg` (the signal path string that triggered the evaluation, if any). Expressions should reference signals explicitly via `dm`, e.g. `dm.count` or `dm.userName`.
  - Attribute-level/global mods: you can append modifiers directly after the directive name (e.g. `data-sub__once:...`) to apply them to all triggers on that attribute. Trigger-level modifiers (after a trigger) override attribute-level ones. Use `__always` to override a global `__once` on a specific trigger.
  - `data-dump` precomputes shallow bindings for faster updates and performs simple append/remove reconciliation (clones appended/removed at the end).
 
@@ -230,7 +233,7 @@ State tracking signals (denoted with `?`) monitor the HTTP request/response cycl
 **Examples:**
 - `data-get:result?loading__busy@.click="url"`
   - Tracks loading state in `loading` signal (true during request)
-- `data-post:data?busy__busy,error__err@.click="url"`
+- `data-post:data?busy__busy?error__err@.click="url"`
   - Tracks both busy and error states separately
 - `data-get:items?state__all@.click="url"`
   - Tracks all states in one `state` object signal
@@ -265,12 +268,12 @@ Predefined shortcuts for common headers:
 **Examples:**
 ```html
 <!-- JSON request with custom header -->
-<button data-post:result^json,^x-api-key.secret123+body@.click="api/data">
+<button data-post:result^json^x-api-key.secret123+body@.click="api/data">
   Submit
 </button>
 
 <!-- Multiple custom headers -->
-<form data-post^cache-control.no-cache,^x-request-id.abc123+body@.submit="api/form">
+<form data-post^cache-control.no-cache^x-request-id.abc123+body@.submit="api/form">
   ...
 </form>
 
@@ -283,7 +286,7 @@ Predefined shortcuts for common headers:
 **Note:** For dynamic header values (e.g., from signals), use input parameters:
 ```html
 <!-- Use __header modifier for dynamic headers -->
-<button data-post+apiKey__header.x-api-key@.click="api/data">Send</button>
+<button data-post+api-key__header.x-api-key@.click="api/data">Send</button>
 ```
 
 
@@ -392,17 +395,17 @@ Modifiers use the `__` prefix and can be applied at different levels:
 Global modifiers can be:
 1. **Unique modifiers** — specific to that data attribute's behavior (**none supported yet**)
 2. **Trigger modifiers** — shared by all triggers (including default trigger), but can be overridden at trigger level
-   - Example: `data-sub__debounce.300:result@signal1,signal2="..."`
+   - Example: `data-sub__debounce.300:result@signal1@signal2="..."`
      - Both `@signal1` and `@signal2` inherit 300ms debounce
      - Can override: `@signal1__debounce.100` uses 100ms instead
 3. **Target modifiers** — shared by all targets, but can be overridden at target level
-   - Example: `data-sub__append:target1,target2@trigger="..."`
+   - Example: `data-sub__append:target1:target2@trigger="..."`
      - Both `:target1` and `:target2` use append mode
      - Can override: `:target1__replace` uses replace instead
 
 **Local Modifiers** (on specific targets/triggers):
 ```html
-<div data-sub:target1__once,target2__debounce.100@trigger="value">
+<div data-sub:target1__once:target2__debounce.100@trigger="value">
                     ^^^^^^              ^^^^^^^^^^^^^^^^ local modifiers
 ```
 
@@ -411,22 +414,22 @@ Local modifiers apply only to the specific target or trigger they're attached to
 **Examples:**
 ```html
 <!-- Global trigger mod: debounce all triggers -->
-<div data-sub__debounce.300:result@input,change="dm.query">
+<div data-sub__debounce.300:result@input@change="dm.query">
   <!-- Both @input and @change debounced by 300ms -->
 </div>
 
 <!-- Override global mod at trigger level -->
-<div data-sub__debounce.300:result@input__debounce.100,change="dm.query">
+<div data-sub__debounce.300:result@input__debounce.100@change="dm.query">
   <!-- @input uses 100ms, @change uses 300ms -->
 </div>
 
 <!-- Global target mod: append to all targets -->
-<div data-sub__append:log1,log2@trigger="dm.message">
+<div data-sub__append:log1:log2@trigger="dm.message">
   <!-- Both :log1 and :log2 use append mode -->
 </div>
 
 <!-- Mix global and local mods -->
-<div data-sub__once:target1,target2__throttle.100@signal="dm.data">
+<div data-sub__once:target1:target2__throttle.100@signal="dm.data">
   <!-- :target1 executes once, :target2 throttles at 100ms (once overridden) -->
 </div>
 ```
@@ -444,7 +447,7 @@ Unlike other directives, `data-def` has flexible target and value combinations:
 
 **Syntax:**
 ```
-data-def[__mods][:target1,target2,...]="value"
+data-def[__mods][:target1:target2:...]="value"
 ```
 
 **Note:** `data-def` does **not** support triggers (`@trigger`) — it only supports targets and value.
@@ -462,7 +465,7 @@ data-def[__mods][:target1,target2,...]="value"
 
 2. **Value present, targets present** — Set evaluated value to all targets:
    ```html
-   <div data-def:counter,total="42">
+   <div data-def:counter:total="42">
    <!-- Sets dm.counter = 42 and dm.total = 42 -->
    
    <div data-def:user="{ name: 'Jane', age: 30 }">
@@ -473,14 +476,14 @@ data-def[__mods][:target1,target2,...]="value"
 
 3. **No value, targets present** — Set all targets to `null`:
    ```html
-   <div data-def:counter,user,items>
+   <div data-def:counter:user:items>
    <!-- Sets dm.counter = null, dm.user = null, dm.items = null -->
    ```
    - Useful for declaring signals without initial values
    - Explicitly initializes signals as `null`
 
 **Targets:**
-- `data-def` may contain **0 or more targets** (`:target1,target2,...`)
+- `data-def` may contain **0 or more targets** (`:target1:target2:...`)
 - No triggers or other primitives are supported
 
 **Examples:**
@@ -494,11 +497,11 @@ data-def[__mods][:target1,target2,...]="value"
 </div>
 
 <!-- Set same value to multiple signals -->
-<div data-def:loading,busy,processing="false">
+<div data-def:loading:busy:processing="false">
 </div>
 
 <!-- Null initialization -->
-<div data-def:data,error,response>
+<div data-def:data:error:response>
 </div>
 
 <!-- Computed value assigned to target -->
@@ -506,7 +509,7 @@ data-def[__mods][:target1,target2,...]="value"
 </div>
 
 <!-- Complex expression with multiple targets -->
-<div data-def:x,y,z="dm.items.length">
+<div data-def:x:y:z="dm.items.length">
 </div>
 ```
 
@@ -516,12 +519,12 @@ The `data-sub` directive updates targets reactively based on triggers and always
 
 **Syntax:**
 ```
-data-sub[__mods][:target1,target2,...][@trigger1,trigger2,...]="value"
+data-sub[__mods][:target1:target2:...][@trigger1@trigger2@...]="value"
 ```
 
 **Components:**
-- **Targets**: 0 or many (`:target1,target2,...`)
-- **Triggers**: 0 or many (`@trigger1,trigger2,...`) — only **signals** and **events** (not props)
+- **Targets**: 0 or many (`:target1:target2:...`)
+- **Triggers**: 0 or many (`@trigger1@trigger2@...`) — only **signals** and **events** (not props)
   - Context determines event vs signal: `.click` is event, `userName` is signal
 - **Value**: **Required** — JavaScript expression to evaluate
 
@@ -556,12 +559,12 @@ data-sub[__mods][:target1,target2,...][@trigger1,trigger2,...]="value"
 **Examples:**
 ```html
 <!-- Multiple targets, single trigger -->
-<div data-sub:display,log@count="'Count: ' + dm.count">
+<div data-sub:display:log@count="'Count: ' + dm.count">
 <!-- Both dm.display and dm.log updated when dm.count changes -->
 </div>
 
 <!-- Multiple triggers, single target -->
-<div data-sub:fullName@firstName,lastName="
+<div data-sub:full-name@first-name@last-name="
   `${dm.firstName} ${dm.lastName}`
 ">
 <!-- dm.fullName updates when either dm.firstName or dm.lastName changes -->
@@ -587,7 +590,7 @@ data-sub[__mods][:target1,target2,...][@trigger1,trigger2,...]="value"
 </div>
 
 <!-- Combining element targets and signal targets -->
-<div data-sub:.textContent,status@count="
+<div data-sub:.textContent:status@count="
   dm.count > 10 ? 'High' : 'Low'
 ">
 <!-- Updates element's textContent AND dm.status signal -->
@@ -602,9 +605,9 @@ The `data-sync` directive is a simplified version of `data-sub` for reactive syn
 
 **Syntax:**
 ```
-data-sync[__mods][:target1:target2]           <!-- 2-way sync -->
-data-sync[__mods][:target][@trigger]          <!-- 1-way sync -->
-data-sync[__mods][@trigger]                    <!-- 1-way sync -->
+data-sync[__mods]:target1:target2             <!-- 2-way sync -->
+data-sync[__mods]:target@trigger              <!-- 1-way sync -->
+data-sync[__mods]@trigger                      <!-- 1-way sync -->
 ```
 
 **Components:**
@@ -619,7 +622,7 @@ If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **alway
 
 1. **Two-way sync** (2 targets, no trigger):
    ```html
-   <input data-sync:userName:.value>
+   <input data-sync:user-name:.value>
    <!-- Signal dm.userName ↔ element's value property -->
    <!-- Changes in either update the other -->
    ```
@@ -656,19 +659,19 @@ If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **alway
 **Examples:**
 ```html
 <!-- 2-way: signal ↔ input value -->
-<input data-sync:userName:.value>
+<input data-sync:user-name:.value>
 
 <!-- 1-way: signal → input (implicit :.) -->
-<input data-sync@userName>
+<input data-sync@user-name>
 
 <!-- 1-way: input → signal (implicit @.) -->
-<input data-sync:userName>
+<input data-sync:user-name>
 
 <!-- 1-way: signal → span textContent -->
-<span data-sync:.textContent@displayName></span>
+<span data-sync:.textContent@display-name></span>
 
 <!-- 1-way: signal → default prop (implicit :.) -->
-<span data-sync@displayName></span>
+<span data-sync@display-name></span>
 ```
 
 **Key Simplification:**
@@ -685,12 +688,12 @@ The `data-class` directive adds or removes CSS classes on the element reactively
 
 **Syntax (Current):**
 ```
-data-class[__mods]:.className,.-invertedClassName,...@trigger1,trigger2,...
+data-class[__mods]:.className:.-invertedClassName:...@trigger1@trigger2@...
 ```
 
 **Components:**
 - **Targets**: 1 or many — class names with `.` prefix (e.g., `:.active`, `:.-inactive`)
-- **Triggers**: 1 or many — signals or props (e.g., `@isLoading`, `@.checked`)
+- **Triggers**: 1 or many — signals or props (e.g., `@is-loading`, `@.checked`)
 - **Value**: **Not supported** — classes toggle based on trigger boolean values
 
 **Current Class Notation:**
@@ -717,19 +720,19 @@ When a trigger fires:
 <div data-class:.-active@isLoading>
 
 <!-- Multiple classes with different behaviors -->
-<div data-class:.inactive,.-active@isLoading>
+<div data-class:.inactive:.-active@is-loading>
 <!-- When isLoading = true: add .inactive, remove .active -->
 <!-- When isLoading = false: remove .inactive, add .active -->
 </div>
 
 <!-- Inverted trigger -->
-<div data-class:.ready@!isLoading>
+<div data-class:.ready@!is-loading>
 <!-- When isLoading = false: add .ready -->
 <!-- When isLoading = true: remove .ready -->
 </div>
 
 <!-- Multiple triggers -->
-<div data-class:.highlight@isActive,isFocused>
+<div data-class:.highlight@is-active@is-focused>
 <!-- Add .highlight when either dm.isActive or dm.isFocused is true -->
 </div>
 
@@ -744,7 +747,7 @@ The current `.` and `-.` notation conflicts with the parser because `.` and `-` 
 
 **Future Syntax (Planned):**
 ```
-data-class[__mods]:+className,~invertedClassName@trigger
+data-class[__mods]:+className:~invertedClassName@trigger
 ```
 - **`+className`** — Add class when trigger is true (replaces `.className`)
 - **`~className`** — Remove class when trigger is true (replaces `.-className`)
@@ -752,7 +755,7 @@ data-class[__mods]:+className,~invertedClassName@trigger
 **Future Examples:**
 ```html
 <!-- Add/remove with clearer syntax -->
-<div data-class:+inactive,~active@isLoading>
+<div data-class:+inactive:~active@is-loading>
 
 <!-- No ambiguity with signal names -->
 <div data-class:+highlight@user-active>
@@ -764,13 +767,13 @@ The `data-disp` directive shows or hides an element by toggling its `display` CS
 
 **Syntax:**
 ```
-data-disp[__mods]:.@trigger1,trigger2,...="value"
-data-disp[__mods]@trigger1,trigger2,...="value"     <!-- Implicit :. target -->
+data-disp[__mods]:.@trigger1@trigger2@...="value"
+data-disp[__mods]@trigger1@trigger2@...="value"     <!-- Implicit :. target -->
 ```
 
 **Components:**
 - **Target**: Always `:.` (the element itself, can be implicit)
-- **Triggers**: 1 or many — signals or props (e.g., `@isVisible`, `@.checked`)
+- **Triggers**: 1 or many — signals or props (e.g., `@is-visible`, `@.checked`)
 - **Value**: **Required** — JavaScript expression evaluated as boolean to determine visibility
 
 **Behavior:**
@@ -788,22 +791,22 @@ data-disp[__mods]@trigger1,trigger2,...="value"     <!-- Implicit :. target -->
 **Examples:**
 ```html
 <!-- Show element when signal is true -->
-<p data-disp:.@isActive="dm.isActive">
+<p data-disp:.@is-active="dm.isActive">
   Visible when active
 </p>
 
 <!-- Implicit :. target -->
-<p data-disp@isActive="dm.isActive">
+<p data-disp@is-active="dm.isActive">
   Visible when active
 </p>
 
 <!-- Negated condition -->
-<p data-disp:.@isActive="!dm.isActive">
+<p data-disp:.@is-active="!dm.isActive">
   Visible only when NOT active
 </p>
 
 <!-- Complex expression -->
-<div data-disp@count,threshold="dm.count > dm.threshold">
+<div data-disp@count@threshold="dm.count > dm.threshold">
   Shows when count exceeds threshold
 </div>
 
@@ -813,7 +816,7 @@ data-disp[__mods]@trigger1,trigger2,...="value"     <!-- Implicit :. target -->
 </div>
 
 <!-- Multiple triggers with logic -->
-<span data-disp@user,isLoggedIn="dm.user && dm.isLoggedIn">
+<span data-disp@user@is-logged-in="dm.user && dm.isLoggedIn">
   Visible when user exists AND logged in
 </span>
 
@@ -837,7 +840,7 @@ data-disp[__mods]@trigger1,trigger2,...="value"     <!-- Implicit :. target -->
 </div>
 
 <!-- Conditional sections -->
-<section data-disp@isPremium="dm.isPremium">
+<section data-disp@is-premium="dm.isPremium">
   Premium content
 </section>
 ```
