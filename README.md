@@ -510,6 +510,92 @@ data-def[__mods][:target1,target2,...]="value"
 </div>
 ```
 
+#### `data-sub` — Subscribe and Update
+
+The `data-sub` directive updates targets reactively based on triggers and always requires a value.
+
+**Syntax:**
+```
+data-sub[__mods][:target1,target2,...][@trigger1,trigger2,...]="value"
+```
+
+**Components:**
+- **Targets**: 0 or many (`:target1,target2,...`)
+- **Triggers**: 0 or many (`@trigger1,trigger2,...`) — only **signals** and **events** (not props)
+  - Context determines event vs signal: `.click` is event, `userName` is signal
+- **Value**: **Required** — JavaScript expression to evaluate
+
+**Behavior:**
+
+1. **No triggers present** — Immediate evaluation:
+   ```html
+   <div data-sub:result="dm.count * 2">
+   <!-- Evaluates once immediately, sets dm.result -->
+   ```
+   - Value evaluated immediately on initialization
+   - Result set to all present targets
+
+2. **No targets present** — Side effects only:
+   ```html
+   <div data-sub@userName="console.log('User:', dm.userName)">
+   <!-- Logs to console whenever dm.userName changes, no target updated -->
+   ```
+   - Value evaluated for side effects (logging, external API calls, etc.)
+   - No signal or property updates
+
+3. **Both targets and triggers present** — Reactive updates:
+   ```html
+   <div data-sub:greeting@userName="'Hello, ' + dm.userName">
+   <!-- Updates dm.greeting whenever dm.userName changes -->
+   ```
+   - Value evaluated when:
+     - Any trigger fires (signal change or event)
+     - Any trigger has `__immediate` modifier (and optional guard modifiers return true)
+   - Evaluated result is set to all present targets
+
+**Examples:**
+```html
+<!-- Multiple targets, single trigger -->
+<div data-sub:display,log@count="'Count: ' + dm.count">
+<!-- Both dm.display and dm.log updated when dm.count changes -->
+</div>
+
+<!-- Multiple triggers, single target -->
+<div data-sub:fullName@firstName,lastName="
+  `${dm.firstName} ${dm.lastName}`
+">
+<!-- dm.fullName updates when either dm.firstName or dm.lastName changes -->
+</div>
+
+<!-- Event trigger -->
+<button data-sub:timestamp@.click="Date.now()">
+<!-- dm.timestamp updated on each click -->
+</button>
+
+<!-- Side effects with trigger, no targets -->
+<div data-sub@error="
+  if (dm.error) {
+    console.error('Error occurred:', dm.error);
+    alert('Something went wrong!');
+  }
+">
+</div>
+
+<!-- Immediate evaluation with guard -->
+<div data-sub:result@value__immediate__gt.0="dm.value * 2">
+<!-- Evaluates immediately only if dm.value > 0 -->
+</div>
+
+<!-- Combining element targets and signal targets -->
+<div data-sub:.textContent,status@count="
+  dm.count > 10 ? 'High' : 'Low'
+">
+<!-- Updates element's textContent AND dm.status signal -->
+</div>
+```
+
+**Note:** The value expression is **always required** in `data-sub`, unlike `data-def` where it's optional.
+
 
 ---
 
