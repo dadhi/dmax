@@ -987,3 +987,78 @@ data-dump-signal                             <!-- Shorthand: bare signal name --
 - **Flexible templates**: External or inline, reusable or specific
 
 **Note:** The `@` symbol has a special semantic meaning in `data-dump` — it denotes the **data source** (where data comes from), not a reactive trigger (when to update). This is the main syntactic exception in dmax's otherwise unified grammar.
+
+#### `data-debug` — Global State Inspector
+
+The `data-debug` directive displays all signals in the global store as a live JSON object. It automatically subscribes to every signal change and updates the element's content whenever any signal is modified.
+
+**Syntax:**
+```
+data-debug
+```
+
+**Components:**
+- No targets, triggers, or value — just the attribute name
+- Completely standalone directive
+
+**Behavior:**
+1. Subscribes to **all signal changes** globally
+2. On any signal update, serializes the entire signal store (`S`) to JSON
+3. Updates the element's `textContent` with pretty-printed JSON (2-space indentation)
+4. Shows all signals with their current values in real-time
+
+**Usage:**
+```html
+<!-- Display all signals in a <pre> element -->
+<pre data-debug></pre>
+
+<!-- Can use any element -->
+<div data-debug></div>
+<code data-debug></code>
+```
+
+**Example Output:**
+```json
+{
+  "count": 5,
+  "userName": "Alice",
+  "items": [
+    "item1",
+    "item2"
+  ],
+  "user": {
+    "name": "Bob",
+    "email": "bob@example.com"
+  },
+  "isActive": true
+}
+```
+
+**Common Use Cases:**
+```html
+<!-- Development debugging panel -->
+<details>
+  <summary>Debug: Signal Store</summary>
+  <pre data-debug style="font-size: 12px;"></pre>
+</details>
+
+<!-- Floating debug panel -->
+<div style="position: fixed; top: 0; right: 0; max-width: 300px; 
+            max-height: 400px; overflow: auto; background: #f5f5f5; 
+            padding: 10px; font-family: monospace; font-size: 11px;">
+  <strong>Signals:</strong>
+  <pre data-debug></pre>
+</div>
+
+<!-- Simple inline debug -->
+<pre data-debug style="background: #eee; padding: 10px;"></pre>
+```
+
+**Notes:**
+- **Performance**: Updates on every signal change — use only during development
+- **Display**: Best used with `<pre>` or monospace font for readable JSON
+- **No configuration**: Cannot filter or customize which signals are shown
+- **Read-only**: Only displays state, doesn't allow editing
+- **Global scope**: Always shows the entire signal store, not a subset
+
+**Tip:** Remove or comment out `data-debug` elements in production builds to avoid unnecessary updates.
