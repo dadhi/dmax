@@ -694,49 +694,69 @@ data-class[__mods]:.className:.-invertedClassName:...@trigger1@trigger2@...
 **Components:**
 - **Targets**: 1 or many — class names with `.` prefix (e.g., `:.active`, `:.-inactive`)
 - **Triggers**: 1 or many — signals or props (e.g., `@is-loading`, `@.checked`)
-- **Value**: **Not supported** — classes toggle based on trigger boolean values
+- **Value**: **Optional** — JavaScript expression evaluated as boolean; if provided, overrides simple trigger toggling
 
 **Current Class Notation:**
-- **`.className`** — Add class when trigger is **true**, remove when **false**
-- **`.-className`** — Remove class when trigger is **true**, add when **false** (inverted)
+- **`.className`** — Add class when condition is **true**, remove when **false**
+- **`.-className`** — Remove class when condition is **true**, add when **false** (inverted)
 
 **Trigger Inversion:**
 - **`@!trigger`** — Inverts the trigger's boolean interpretation
-- Example: `@!isLoading` treats `false` as `true` and vice versa
+- Example: `@!is-loading` treats `false` as `true` and vice versa
 
 **Behavior:**
-When a trigger fires:
+
+**Without value** — simple trigger-based toggling:
 1. Trigger value is interpreted as boolean
 2. For `.className` targets: add class if true, remove if false
-3. For `.-className` targets: remove class if true, add if false (inverted behavior)
-4. Multiple triggers: each trigger can affect all classes independently
+3. For `.-className` targets: remove class if true, add if false
+
+**With value** — expression-based toggling:
+1. When trigger fires, the value expression is evaluated
+2. Result is interpreted as boolean
+3. Classes are added/removed based on the expression result
 
 **Examples (Current Syntax):**
 ```html
+<!-- Simple trigger-based toggling (no value) -->
+<div data-class:.inactive@is-loading>
 <!-- Add .inactive when dm.isLoading is true, remove when false -->
-<div data-class:.inactive@isLoading>
+</div>
 
+<!-- Inverted class (no value) -->
+<div data-class:.-active@is-loading>
 <!-- Remove .active when dm.isLoading is true, add when false -->
-<div data-class:.-active@isLoading>
+</div>
 
-<!-- Multiple classes with different behaviors -->
+<!-- Multiple classes with different behaviors (no value) -->
 <div data-class:.inactive:.-active@is-loading>
 <!-- When isLoading = true: add .inactive, remove .active -->
 <!-- When isLoading = false: remove .inactive, add .active -->
 </div>
 
-<!-- Inverted trigger -->
+<!-- Expression-based toggling (WITH value) -->
+<li data-class:.zebra-even:.-zebra-odd@posts="$index % 2 === 0">
+<!-- Zebra striping: even rows get .zebra-even, odd rows get .zebra-odd -->
+<!-- Expression evaluated: if index is even, add .zebra-even and remove .zebra-odd -->
+</li>
+
+<!-- Complex expression (WITH value) -->
+<div data-class:.highlight@count@threshold="dm.count > dm.threshold && dm.count < 100">
+<!-- Add .highlight only when count is between threshold and 100 -->
+</div>
+
+<!-- Inverted trigger (no value) -->
 <div data-class:.ready@!is-loading>
 <!-- When isLoading = false: add .ready -->
 <!-- When isLoading = true: remove .ready -->
 </div>
 
-<!-- Multiple triggers -->
+<!-- Multiple triggers (no value) -->
 <div data-class:.highlight@is-active@is-focused>
 <!-- Add .highlight when either dm.isActive or dm.isFocused is true -->
 </div>
 
-<!-- Property trigger -->
+<!-- Property trigger (no value) -->
 <input data-class:.checked@.checked>
 <!-- Add .checked class when input's checked property is true -->
 </input>
