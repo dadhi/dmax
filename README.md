@@ -795,6 +795,7 @@ data-disp[__mods]@trigger1@trigger2@...="value"     <!-- Implicit :. target -->
 - **Target**: Always `:.` (the element itself, can be implicit)
 - **Triggers**: 1 or many — signals or props (e.g., `@is-visible`, `@.checked`)
 - **Value**: **Required** — JavaScript expression evaluated as boolean to determine visibility
+  - **TBD**: Optional value support for simple trigger-based toggling (like `data-class`) not yet implemented
 
 **Behavior:**
 1. When trigger fires, the value expression is evaluated
