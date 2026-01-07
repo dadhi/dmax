@@ -853,17 +853,15 @@ The `data-dump` directive renders a template for each item in an array or once f
 
 **Syntax:**
 ```
-data-dump[__mods]:.@signal#templateId
-data-dump[__mods]@signal#templateId         <!-- Implicit :. target -->
-data-dump[__mods]@signal                     <!-- Inline template -->
-data-dump-signal                             <!-- Shorthand: bare signal name -->
+data-dump[__mods]@signal#template-id         <!-- External template -->
+data-dump[__mods]@signal                     <!-- Inline template (child) -->
 ```
 
 **Components:**
-- **Target**: Always `:.` (the element itself, implicit)
+- **Target**: **Not supported** — always uses `innerHTML` of the element where `data-dump` is defined
 - **Trigger**: 1 signal — the data source to iterate (e.g., `@posts`, `@user.items`)
   - **Note**: `@` has special meaning in `data-dump` — it's the **data source**, not a reactive trigger
-- **Element**: `#templateId` (external template) or inline `<template>` child (optional)
+- **Element**: `#template-id` (external template) or inline `<template>` child
 - **Value**: **Not supported** — data comes from the trigger signal
 
 **Template Sources:**
@@ -872,19 +870,21 @@ data-dump-signal                             <!-- Shorthand: bare signal name --
 2. **Inline template** (child): `data-dump@posts`
    - Uses a `<template>` element as direct child of the element
    - Template is automatically removed from DOM after extraction
-3. **Shorthand syntax**: `data-dump-posts`
-   - Bare signal name in attribute, uses inline template
 
 **Behavior:**
 
-1. **Array rendering**: Clones template once per array item
+1. **Rendering target**: Always uses the `innerHTML` of the element where `data-dump` is defined
+   - Clones are appended directly to the element's content
+   - No separate target specification needed
+
+2. **Array rendering**: Clones template once per array item
    - Adds clones when array grows
    - Removes clones from end when array shrinks
    - Updates are efficient (only changes needed clones)
 
-2. **Object rendering**: Clones template once for the object value
+3. **Object rendering**: Clones template once for the object value
 
-3. **Placeholder replacement** in cloned templates:
+4. **Placeholder replacement** in cloned templates:
    - **`$index`** → array index (e.g., `0`, `1`, `2`)
    - **`$item`** → signal path to item (e.g., `posts.0`, `posts.1`)
    - Replacements work in both attribute names and values
@@ -911,26 +911,19 @@ data-dump-signal                             <!-- Shorthand: bare signal name --
   </template>
 </ul>
 
-<!-- Shorthand with bare signal name -->
-<ul data-dump-posts>
-  <template>
-    <li data-sub:.@posts>dm.posts[$index]</li>
-  </template>
-</ul>
-
 <!-- Nested signal path -->
 <ul data-dump@user.items#tpl-item></ul>
 
 <!-- Using placeholders in attributes -->
 <template id="tpl-item">
-  <li data-index="$index" data-class:.even.-odd="$index % 2 === 0">
+  <li data-index="$index" data-class:.even:.-odd="$index % 2 === 0">
     <span data-sub:.@items>dm.items[$index].name</span>
   </li>
 </template>
 
 <!-- Zebra striping with placeholders -->
 <template id="tpl-row">
-  <tr data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
+  <tr data-class:.zebra-even:.-zebra-odd="$index % 2 === 0">
     <td data-sub:.@rows>$index + 1</td>
     <td data-sub:.@rows>dm.rows[$index].title</td>
   </tr>
