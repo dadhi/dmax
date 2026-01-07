@@ -1086,3 +1086,37 @@ data-debug
 - **Global scope**: Always shows the entire signal store, not a subset
 
 **Tip:** Remove or comment out `data-debug` elements in production builds to avoid unnecessary updates.
+
+---
+
+## Future Enhancements (TBD)
+
+The following features are planned but not yet implemented:
+
+### Syntax Improvements
+
+1. **`data-class`**: New class notation using `+` and `~` prefixes
+   - **Current**: `.className` (add when true), `.-className` (remove when true)
+   - **Planned**: `+className` (add when true), `~className` (remove when true)
+   - **Reason**: Current `.` and `-.` notation conflicts with parser because `.` and `-` can be part of signal names (e.g., `user-name`, `item.count`)
+   - Example: `data-class:+inactive:~active@is-loading`
+
+### Directive Value Support
+
+2. **`data-sync`**: Optional value with JS expression for 1-way sync transformations
+   - Example: `data-sync:.textContent@count="dm.count * 2"`
+   - Would allow transforming values during synchronization
+   - Currently: value is passed through directly without transformation
+
+3. **`data-disp`**: Optional value support for simple trigger-based toggling
+   - Example: `data-disp@is-visible` (without value expression)
+   - Would toggle visibility based on trigger's boolean value
+   - Currently: requires explicit expression like `data-disp@is-visible="dm.isVisible"`
+   - Similar to how `data-class` supports both modes
+
+### HTTP Actions
+
+4. **`data-action` controls**: Additional controls and features for HTTP actions (`data-get`, `data-post`, `data-put`, `data-patch`, `data-delete`)
+   - Enhanced request/response handling
+   - More sophisticated error handling
+   - Additional options and configuration
