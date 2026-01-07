@@ -614,6 +614,7 @@ data-sync[__mods]@trigger                      <!-- 1-way sync -->
 - **Targets**: 0, 1, or 2 — signals or props (e.g., `:userName`, `:.value`)
 - **Trigger**: 0 or 1 — signal or prop (e.g., `@userName`, `@.value`)
 - **Value**: **Not supported** — target receives the trigger's value directly
+  - **TBD**: Optional value with JS expression for 1-way sync transformations (e.g., `data-sync:.textContent@count="dm.count * 2"`)
 
 **Key Rule:**
 If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **always the default target property** `:.` of the element where `data-sync` is defined.
