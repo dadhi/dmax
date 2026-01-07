@@ -887,7 +887,8 @@ data-dump[__mods]@signal                     <!-- Inline template (child) -->
 4. **Placeholder replacement** in cloned templates:
    - **`$index`** → array index (e.g., `0`, `1`, `2`)
    - **`$item`** → signal path to item (e.g., `posts.0`, `posts.1`)
-   - Replacements work in both attribute names and values
+   - Replacements work in attribute names and attribute values (JS expressions)
+   - **No replacement in element content** (textContent/innerHTML) — and this is correct, as it would be impossible to subscribe to triggers embedded in element text
 
 **Examples:**
 
@@ -945,15 +946,23 @@ data-dump[__mods]@signal                     <!-- Inline template (child) -->
 **Placeholder Usage:**
 ```html
 <template>
-  <!-- $index in attribute VALUE (replaced in JS expressions) -->
-  <li data-sub:.@posts="dm.posts[$index].title">
-  
   <!-- $index in attribute NAME (replaced literally) -->
   <li data-index="$index">
   
+  <!-- $index in attribute VALUE (replaced in JS expressions) -->
+  <li data-sub:.@posts="dm.posts[$index].title">
+  <li data-class:.active="$index === 0">
+  
   <!-- $item in attribute VALUE (replaced with signal path) -->
   <span data-sub:.@posts="$item.name">
-  <!-- After replacement becomes: dm.posts[0].name -->
+  <!-- After replacement becomes: dm.posts[0].name for first item -->
+  
+  <!-- Element textContent/innerHTML: NO REPLACEMENT -->
+  <li>Item $index</li>           ❌ $index stays as literal text
+  <span>$item</span>              ❌ $item stays as literal text
+  
+  <!-- To display dynamic content, use data attributes -->
+  <span data-sub:.@posts="$index + 1"></span>  ✅ Correct way
 </template>
 ```
 
