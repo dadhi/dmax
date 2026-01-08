@@ -730,7 +730,6 @@
     return {targets, triggers};
   }
 
-  // parseDataAttrFast: now a thin wrapper over tokenizer
   function parseDataAttrFast(attr, prefixLen) {
     const tokens = tokenizeDirective(attr, prefixLen);
     if (!tokens) return null;
@@ -746,7 +745,6 @@
     return tokens;
   }
 
-  // Phase 1.3: Element resolution with warnings
   const getElById = (id, context = 'element reference') => {
     if (!id) return null;
     const el = document.getElementById(id);
@@ -756,8 +754,6 @@
     return el;
   };
 
-  // Set property (fast, supports nested)
-  // Phase 2.2: Fast-path for single-level properties (90% of cases)
   const setProp = (el, path, val) => {
     if(!path) path = getAutoProp(el);
     
