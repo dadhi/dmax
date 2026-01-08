@@ -284,9 +284,8 @@
 <script>
 // dmax v0.0.2
 (()=>{
-  const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
+  const S=new Map(), subs=new Map(), fnCache=new Map();
   
-  // Phase 2.1: Proxy for dm - eliminates Object.fromEntries allocations
   const dmProxy = new Proxy({}, {
     get: (_, key) => S.get(key),
     set: (_, key, val) => { set(key, val); return true; },
@@ -300,27 +299,21 @@
   const CC = { DOT: 46, COLON: 58, AT: 64, UNDERSCORE: 95, HASH: 35 };
   const debug=document.querySelector('[data-debug]');
 
-  // Optimized kebab→camel (no regex, cached)
-  const toCamel = s => {
-    if(!s || s.indexOf('-') === -1) return s;
-    if(keyCache.has(s)) return keyCache.get(s);
-    let result = '', i = 0;
-    while(i < s.length){
-      if(s[i] === '-'){
-        // Skip multiple consecutive hyphens
-        while(s[i] === '-' && i + 1 < s.length) i++;
-        if(i < s.length) result += s[i].toUpperCase(), i++;
-      } else {
-        result += s[i++];
-      }
+  const nameCache = new Map()
+  const kebabToCamel = s => {
+    if (!s) return s;
+    let p = s.indexOf('-');
+    if (p === -1) return s;
+    if (nameCache.has(s)) return nameCache.get(s);
+    let result = s.slice(0, p);
+    while (p != -1 && ++p < s.length) {
+      if (s[p] == '-') continue;
+      result += s[p].toUpperCase();
+      if (++p < s.length)
+        result += s.slice(p, (p = s.indexOf('-', p)) == -1 ? s.length : p);
     }
-    keyCache.set(s, result);
+    nameCache.set(s, result);
     return result;
-  };
-  // Canonical signal key used for Map lookups - normalize toCamel and lowercase
-  const sigKey = s => {
-    if(!s) return s;
-    return toCamel(String(s)).toLowerCase();
   };
 
   // Default property for element (consistent, compact)
@@ -363,7 +356,7 @@
       const inner = m[1].trim();
       // inner may be like 'indexs[0]' or 'someSignal' or 'some.path'
       const base = inner.split(/[\.\[]/)[0];
-      if(base) roots.add(toCamel(base));
+      if(base) roots.add(kebabToCamel(base));
     }
     return roots;
   };
@@ -387,10 +380,10 @@
     for(const p of parts){
       if(!p) continue;
       const m = p.match(/^([^\[]+)\[(.+)\]$/);
-      if(!m){ out.push(toCamel(p)); continue; }
+      if(!m){ out.push(kebabToCamel(p)); continue; }
       const base = m[1];
       const inner = m[2];
-      out.push(toCamel(base));
+      out.push(kebabToCamel(base));
       // evaluate inner: support patterns like `indexs[0]` or `idx` or numeric literal
       const innerMatch = inner.match(/^([^\[]+)\[(\d+)\]$/);
       if(innerMatch){
@@ -584,7 +577,7 @@
         }
       }
       const segToConvert = pieces.slice(idx).join('-');
-      const camel = toCamel(segToConvert);
+      const camel = kebabToCamel(segToConvert);
       out.push(leading ? ('-' + camel) : camel);
     }
     return out.join('.');
@@ -778,7 +771,7 @@
     
     // Fast path: no nested access
     if(path.indexOf('.') === -1) {
-      const key = toCamel(path);
+      const key = kebabToCamel(path);
       try {
         if(el[key] !== val) el[key] = val;
       } catch(e) {
@@ -795,12 +788,12 @@
         let key = parts[i];
         // Support array indexes: foo.0.bar
         if(/^\d+$/.test(key)) key = +key;
-        t = t[toCamel(key)];
+        t = t[kebabToCamel(key)];
         if(!t) throw new Error('Invalid property path');
       }
       let last = parts[parts.length - 1];
       if(/^\d+$/.test(last)) last = +last;
-      last = toCamel(last);
+      last = kebabToCamel(last);
       if(t && t[last] !== val) t[last] = val;
     } catch(e) {
       console.error('Failed to set property', path, 'on', el, e);
@@ -939,8 +932,8 @@
         if(t.type === 'signal'){
         const rootRaw = String(t.name).split('.')[0];
         const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-        const root = toCamel(rootBase);
-        const rootAlias = sigKey(rootBase);
+        const root = kebabToCamel(rootBase);
+        const rootAlias = kebabToCamel(rootBase);
         if(!subs.has(root)) subs.set(root, []);
         if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
         const dec = makeDecorated(handler, t);
@@ -1231,7 +1224,7 @@
     if(Array.isArray(stateSpecs) && stateSpecs.length){
       for(const s of stateSpecs){
         if(!s || !s.name) continue;
-        const camel = toCamel(s.name);
+        const camel = kebabToCamel(s.name);
         const mode = s.mode || 'busy';
         // create default initial values per mode
         if(mode === 'busy') { if(!S.has(camel)) S.set(camel, false); }
@@ -1255,7 +1248,7 @@
           // element reference
           if(raw[0] === '#'){
             const parts = raw.slice(1).split('.'); const elem = getElById(parts[0], attr); const prop = parts.slice(1).join('.') || getAutoProp(elem);
-            const val = elem ? (elem[toCamel(prop)] ?? elem.value ?? null) : null;
+            const val = elem ? (elem[kebabToCamel(prop)] ?? elem.value ?? null) : null;
             // decide where to place val based on mods or default
             if(inp.mods['query']){
               const name = inp.mods['query'] === true ? (parts[parts.length-1]) : inp.mods['query'];
@@ -1355,7 +1348,7 @@
         if(target && target.type === 'signal'){
           // handle result modifier: replace (default), append, prepend
           const mod = info.resultMod || 'replace';
-          const targetSignal = toCamel(target.name);
+          const targetSignal = kebabToCamel(target.name);
           try{
             if(mod === 'replace'){
               set(targetSignal, payload);
@@ -1406,8 +1399,8 @@
       if(t.type === 'signal'){
       const rootRaw = String(t.name).split('.')[0];
       const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-      const root = toCamel(rootBase);
-      const rootAlias = sigKey(rootBase);
+      const root = kebabToCamel(rootBase);
+      const rootAlias = kebabToCamel(rootBase);
         if(!subs.has(root)) subs.set(root, []);
         if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
         const handler = () => doRequest(undefined, t.name);
@@ -1463,8 +1456,8 @@
       const colon = attr.indexOf(':');
       const path = colon === -1 ? '' : attr.substring(colon + 1);
       if(!path) return;
-      const root = toCamel(path.split('.')[0]);
-      const rootAlias = sigKey(path.split('.')[0]);
+      const root = kebabToCamel(path.split('.')[0]);
+      const rootAlias = kebabToCamel(path.split('.')[0]);
       const update = () => {
         const val = get(path);
         const prop = getAutoProp(el);
@@ -1517,7 +1510,7 @@
           const sname = t.name;
           const rootRaw = String(sname).split('.')[0];
           const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-          const root = toCamel(rootBase);
+          const root = kebabToCamel(rootBase);
           const handler = () => {
             try{ const v = get(String(sname));
               const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
@@ -1526,7 +1519,7 @@
           };
           handler();
           if(!subs.has(root)) subs.set(root, []);
-          const rootAlias = sigKey(rootBase);
+          const rootAlias = kebabToCamel(rootBase);
           if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
           let entry = handler;
           if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
@@ -1544,7 +1537,7 @@
         for(const sname of subsigs){
           const rootRaw = String(sname).split('.')[0];
           const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-          const root = toCamel(rootBase);
+          const root = kebabToCamel(rootBase);
           const handler = () => {
             try{ const v = get(String(sname));
               const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
@@ -1553,7 +1546,7 @@
           };
           handler();
           if(!subs.has(root)) subs.set(root, []);
-          const rootAlias = sigKey(rootBase);
+          const rootAlias = kebabToCamel(rootBase);
           if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
           subs.get(root).push(handler);
           if(rootAlias !== root) subs.get(rootAlias).push(handler);
@@ -1664,8 +1657,8 @@
     }
 
     // canonical root
-    const root = toCamel(sig.split('.')[0]);
-    const rootAlias = sigKey(sig.split('.')[0]);
+    const root = kebabToCamel(sig.split('.')[0]);
+    const rootAlias = kebabToCamel(sig.split('.')[0]);
 
     // internal state on element
     if(!el.__dump) el.__dump = { nodes: [], count: 0, sig: sig };
@@ -1826,8 +1819,8 @@
   // Signal get/set/emit
   const get = p => {
     const parts = p.split('.');
-    let v = S.get(toCamel(parts[0]));
-    for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
+    let v = S.get(kebabToCamel(parts[0]));
+    for(let i = 1; i < parts.length; i++) v = v?.[kebabToCamel(parts[i])];
     return v;
   };
   // Diff helper: compares two objects or arrays shallowly and returns change details
@@ -1856,7 +1849,7 @@
     return out;
   };
   const emit = (p, mutation = 'content', info = null) => {
-    const root = toCamel(p.split('.')[0]);
+    const root = kebabToCamel(p.split('.')[0]);
     const handlers = subs.get(root);
     
     if(handlers){
@@ -1884,10 +1877,10 @@
             const cp = h.childPath != null ? String(h.childPath) : null;
             if(cp){
               const sval = cp;
-              const svalCamel = toCamel(sval);
+              const svalCamel = kebabToCamel(sval);
               const makeKeySet = (list) => {
                 const s = new Set();
-                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if(!Number.isNaN(nx)) s.add(String(nx)); });
+                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(kebabToCamel(sx)); const nx = Number(x); if(!Number.isNaN(nx)) s.add(String(nx)); });
                 return s;
               };
               const addedSet = makeKeySet(change.added);
@@ -1928,7 +1921,7 @@
 
   const setImpl = (p, v, force = false) => {
     const parts = p.split('.');
-    const root = toCamel(parts[0]);
+    const root = kebabToCamel(parts[0]);
     const current = get(p);
     // quick equality for primitives and references
   if (!force && current === v) return;
@@ -1943,7 +1936,7 @@
       const parent = get(parentPath);
       const lastRaw = parts[parts.length - 1];
       const lastIsIndex = /^\d+$/.test(String(lastRaw));
-      const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
+      const last = lastIsIndex ? +lastRaw : kebabToCamel(lastRaw);
       if(parent == null) return 'shape';
       if(Array.isArray(parent)){
         if(lastIsIndex){
@@ -1965,7 +1958,7 @@
     if(parts.length === 1){
       const before = S.get(root);
       S.set(root, v);
-      try{ const alias = sigKey(root); if(alias !== root) S.set(alias, v); }catch(e){}
+      try{ const alias = kebabToCamel(root); if(alias !== root) S.set(alias, v); }catch(e){}
       if(mutation === 'shape'){
         // diff top-level object/array
         const base = diffValues(before, v, false);
@@ -1982,22 +1975,22 @@
       try{ base = Array.isArray(orig) ? orig.slice() : (orig && typeof orig === 'object' ? Object.assign({}, orig) : (typeof orig === 'object' ? {} : {})); }catch(e){ base = {} }
       let t = base;
       for(let i = 1; i < parts.length - 1; i++){
-        const key = toCamel(parts[i]);
+        const key = kebabToCamel(parts[i]);
         if(typeof t[key] !== 'object' || t[key] === null) t[key] = {};
         // shallow clone child to avoid mutating original reference
         const child = t[key];
         t[key] = Array.isArray(child) ? child.slice() : Object.assign({}, child);
         t = t[key];
       }
-      t[toCamel(parts[parts.length - 1])] = v;
+      t[kebabToCamel(parts[parts.length - 1])] = v;
       // after-parent snapshot
       const afterParent = (function(){
         let node = base;
-        for(let i = 1; i < parts.length - 1; i++) node = node[toCamel(parts[i])] || {};
+        for(let i = 1; i < parts.length - 1; i++) node = node[kebabToCamel(parts[i])] || {};
         return node;
       })();
       S.set(root, base);
-      try{ const alias = sigKey(root); if(alias !== root) S.set(alias, base); }catch(e){}
+      try{ const alias = kebabToCamel(root); if(alias !== root) S.set(alias, base); }catch(e){}
       if(mutation === 'shape'){
         const base = diffValues(beforeParent, afterParent, false);
         const full = diffValues(beforeParent, afterParent, true);
@@ -2060,13 +2053,13 @@
       try{
         const o = JSON.parse(value);
         for(let k in o){
-          const camelK = toCamel(k);
+          const camelK = kebabToCamel(k);
           if(camelK === 'ev' || camelK === 'el'){
             console.error('Reserved signal name:', k, 'in', attr);
             continue;
           }
           S.set(camelK, o[k]);
-          try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+          try{ const alias = kebabToCamel(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
         }
       }catch(e){
         console.error('data-def JSON parse error:', e.message, 'in', attr);
@@ -2076,13 +2069,13 @@
       try{
         const result = Function('return ' + value)();
         for(const sigName of signalNames){
-          const camelName = toCamel(sigName);
+          const camelName = kebabToCamel(sigName);
           if(camelName === 'ev' || camelName === 'el'){
             console.error('Reserved signal name:', sigName, 'in', attr);
             continue;
           }
           S.set(camelName, result);
-          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, result); }catch(e){}
+          try{ const alias = kebabToCamel(camelName); if(alias !== camelName) S.set(alias, result); }catch(e){}
         }
       }catch(e){
         console.error('data-def expression eval error:', e.message, 'in', attr);
