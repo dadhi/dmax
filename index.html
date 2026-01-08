@@ -13,9 +13,6 @@
 </style>
 </head>
 <body>
-
-
-
 <div data-def='{
   "user": {
     "name": "Alice",
@@ -42,9 +39,6 @@
   "guard-val": 3,
   "other-flag": false
 }'></div>
-
-
-
   <h3>1. Deep Nested Signal Sync</h3>
   <div class="page">data-sync:user.name, data-sync:user.age</div>
   
@@ -70,7 +64,6 @@
   </div>
   <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
 </section>
-
 
 <section id="separate-demo">
   <h3>Separate Live Demo</h3>
@@ -111,8 +104,6 @@
   <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="dm.count * 2"></span></p>
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
-
-  
   <div style="margin-top:8px">
     <button id="gOnceBtn" data-sub__once:once-test@.click="dm.onceTest + 1">GlobalOnce +1</button>
     <span id="gOnceDisplay" data-sub:.@once-test="dm.onceTest"></span>
@@ -290,12 +281,8 @@
   </div>
 </section>
 
-
-
 <script>
-
-
-// dmax MVP logic with new syntax support and modular parsing
+// dmax v0.0.2
 (()=>{
   const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
   
@@ -2158,7 +2145,6 @@
 })();
 </script>
 
-
 <section>
   <h3>11. Content vs Shape Demo</h3>
   <div class="page">Demonstrates default (content) subscriptions vs <code>__shape</code> subscriptions.</div>
@@ -2193,13 +2179,11 @@ window.formatShapeChange = function(c){
 };
 </script>
 
-
 <div id="__fg_reactivity_tests" style="display:none">
   <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
   <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
   <span id="shapeChild" data-sub:.@parent__shape="(window.__shapeChild = (window.__shapeChild||0) + 1, window.__shapeChild)"></span>
 
-  
   <span id="indirectCount" data-sub:.@postObjs[idx]="(window.__indirectCount=(window.__indirectCount||0)+1,window.__indirectCount)"></span>
   <button id="setPost0Title" data-sub:postObjs.0.title@.click="'NewP0Title'">Set post0 title</button>
   <button id="setPost1Title" data-sub:postObjs.1.title@.click="'NewP1Title'">Set post1 title</button>
@@ -2209,6 +2193,5 @@ window.formatShapeChange = function(c){
   <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, {added: true})">Add key</button>
   <button id="removeKey" data-sub:parent@.click="(function(){ const o = Object.assign({}, dm.parent || {}); delete o.added; return o; })()">Remove key</button>
 </div>
-
 </body>
 </html>
