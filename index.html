@@ -403,27 +403,20 @@
     return out.join('.');
   };
 
-  // Compile JS expression with caching
-  // New simplified compile: expressions reference the global state explicitly via `dm`.
-  // Example: use `dm.user.name` or `dm.count * 2`. This avoids identifier guessing.
   const compile = body => {
     if(fnCache.has(body)) return fnCache.get(body);
     let inner;
     try {
-      // signature: (dm, el, ev, sg, detail)
-      // dm is a plain object built from the internal signal Map (S), so expressions
-      // can read values as `dm.foo` or `dm.user.name`.
       inner = new Function('dm','el','ev','sg','detail', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
     } catch(e) {
-      console.error('[dmax] Failed to compile expression:', body.slice(0, 50) + (body.length > 50 ? '...' : ''), e);
+      console.error('[dmax] Failed to compile expression:', body.slice(0, 80) + (body.length > 80 ? '...' : ''), e);
       inner = () => undefined;
     }
-    // Phase 1.4: Error boundary with expression context
     const wrapped = (dm, el, ev, sg, detail) => {
       try { 
         return inner(dm, el, ev, sg, detail); 
       } catch (e) { 
-        console.error('[dmax] Expression failed:', body.slice(0, 60) + (body.length > 60 ? '...' : ''), e);
+        console.error('[dmax] Expression failed:', body.slice(0, 80) + (body.length > 80 ? '...' : ''), e);
         return undefined; 
       }
     };
@@ -431,7 +424,6 @@
     return wrapped;
   };
 
-  // Phase 1.1: Validation helpers
   const RESERVED_NAMES = ['ev', 'el', 'sg', 'dm', 'detail'];
   const VALID_MODIFIERS = ['immediate', 'notimmediate', 'once', 'always', 'debounce', 'throttle', 'prevent', 'and', 'notand', 'gt', 'lt', 'eq', 'gte', 'lte', 'neq', 'shape', 'content'];
   
