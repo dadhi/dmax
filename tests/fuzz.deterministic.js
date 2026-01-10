@@ -162,9 +162,9 @@ function* generateDataSyncCombinations() {
 
 function* generateDataClassCombinations() {
   // Valid
-  yield { attr: 'data-class:#.active@is-active', valid: true, category: 'single-class' };
-  yield { attr: 'data-class:#.active.-inactive@is-active', valid: true, category: 'inverse-class' };
-  yield { attr: 'data-class:#.foo:#.bar@baz', valid: true, category: 'multi-class' };
+  yield { attr: 'data-class:+active@is-active', valid: true, category: 'single-class' };
+  yield { attr: 'data-class:+active:~inactive@is-active', valid: true, category: 'inverse-class' };
+  yield { attr: 'data-class:+foo:+bar@baz', valid: true, category: 'multi-class' };
   
   // Invalid - parser returns null
   yield { attr: 'data-class:', valid: false, category: 'malformed', error: 'empty' };

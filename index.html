@@ -13,6 +13,9 @@
 </style>
 </head>
 <body>
+
+
+
 <div data-def='{
   "user": {
     "name": "Alice",
@@ -39,6 +42,9 @@
   "guard-val": 3,
   "other-flag": false
 }'></div>
+
+
+
   <h3>1. Deep Nested Signal Sync</h3>
   <div class="page">data-sync:user.name, data-sync:user.age</div>
   
@@ -64,6 +70,7 @@
   </div>
   <div style="margin:6px 0">Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
 </section>
+
 
 <section id="separate-demo">
   <h3>Separate Live Demo</h3>
@@ -104,6 +111,8 @@
   <p>Multi-target (updates 3 places): <span data-sub:.:doubled@count="dm.count * 2"></span></p>
   <button id="probeBtn" data-sub:.@.click="el.id + ' ' + ev.type + ' ' + (sg || 'no-sg')">Probe</button>
   <span id="probeOut" data-sub:.@count="sg"></span>
+
+  
   <div style="margin-top:8px">
     <button id="gOnceBtn" data-sub__once:once-test@.click="dm.onceTest + 1">GlobalOnce +1</button>
     <span id="gOnceDisplay" data-sub:.@once-test="dm.onceTest"></span>
@@ -185,7 +194,7 @@
   <div style="margin:6px 0">
     <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
   </div>
-  <div id="classBox" data-class:.active.-inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+  <div id="classBox" data-class:+active:~inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
   <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
   <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active (negated)</p>
 </section>
@@ -195,7 +204,7 @@
   <div class="page">data-dump@posts#tpl-post — template as child &lt;template&gt; or reference by id</div>
   
   <template id="tpl-post">
-    <li data-index="$index" data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
+8    <li data-index="$index" data-class:+zebra-even:~zebra-odd="$index % 2 === 0">
       <span class="num" data-sub:.@posts="$index + 1"></span>
       <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
     </li>
@@ -205,7 +214,7 @@
   <h4>Inline-template data-dump example (no #id)</h4>
   <ul id="inline-posts" data-dump@posts>
     <template>
-      <li data-index="$index" data-class:.zebra-even.-zebra-odd="$index % 2 === 0">
+      <li data-index="$index" data-class:+zebra-even:~zebra-odd="$index % 2 === 0">
         <span class="num" data-sub:.@posts="$index + 1"></span>
         <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
       </li>
@@ -281,11 +290,16 @@
   </div>
 </section>
 
+
+
 <script>
-// dmax v0.0.2
+
+
+// dmax MVP logic with new syntax support and modular parsing
 (()=>{
-  const S=new Map(), subs=new Map(), fnCache=new Map();
+  const S=new Map(), subs=new Map(), keyCache=new Map(), fnCache=new Map();
   
+  // Phase 2.1: Proxy for dm - eliminates Object.fromEntries allocations
   const dmProxy = new Proxy({}, {
     get: (_, key) => S.get(key),
     set: (_, key, val) => { set(key, val); return true; },
@@ -296,24 +310,45 @@
   });
   
   // Common character-code constants used by parsers
-  const CC = { DOT: 46, COLON: 58, AT: 64, UNDERSCORE: 95, HASH: 35 };
+  const CC = { DOT: 46, COLON: 58, AT: 64, UNDERSCORE: 95, HASH: 35, PLUS: 43, TILDE: 126, EXCLAIM: 33, CARET: 94, QUESTION: 63 };
+  
+  // Token types for unified parser
+  const TOK = {
+    TARGET_SIG: 1,    // :signal or :signal.path
+    TARGET_PROP: 2,   // :.prop or :#id.prop or :+class or :~class
+    TRIG_SIG: 3,      // @signal or @!signal (negated)
+    TRIG_EVENT: 4,    // @.event or @#id.event
+    TRIG_SPECIAL: 5,  // @_window.resize, @_interval.1000
+    MOD: 6,           // __immediate, __debounce.100
+    HEADER: 7,        // ^json, ^x-api-key.value
+    INPUT: 8,         // +signal, +#id.prop
+    STATE: 9,         // ?busy__busy
+    TEMPLATE: 10      // #tpl-id
+  };
+  
   const debug=document.querySelector('[data-debug]');
 
-  const nameCache = new Map()
-  const kebabToCamel = s => {
-    if (!s) return s;
-    let p = s.indexOf('-');
-    if (p === -1) return s;
-    if (nameCache.has(s)) return nameCache.get(s);
-    let result = s.slice(0, p);
-    while (p != -1 && ++p < s.length) {
-      if (s[p] == '-') continue;
-      result += s[p].toUpperCase();
-      if (++p < s.length)
-        result += s.slice(p, (p = s.indexOf('-', p)) == -1 ? s.length : p);
+  // Optimized kebab→camel (no regex, cached)
+  const toCamel = s => {
+    if(!s || s.indexOf('-') === -1) return s;
+    if(keyCache.has(s)) return keyCache.get(s);
+    let result = '', i = 0;
+    while(i < s.length){
+      if(s[i] === '-'){
+        // Skip multiple consecutive hyphens
+        while(s[i] === '-' && i + 1 < s.length) i++;
+        if(i < s.length) result += s[i].toUpperCase(), i++;
+      } else {
+        result += s[i++];
+      }
     }
-    nameCache.set(s, result);
+    keyCache.set(s, result);
     return result;
+  };
+  // Canonical signal key used for Map lookups - normalize toCamel and lowercase
+  const sigKey = s => {
+    if(!s) return s;
+    return toCamel(String(s)).toLowerCase();
   };
 
   // Default property for element (consistent, compact)
@@ -356,7 +391,7 @@
       const inner = m[1].trim();
       // inner may be like 'indexs[0]' or 'someSignal' or 'some.path'
       const base = inner.split(/[\.\[]/)[0];
-      if(base) roots.add(kebabToCamel(base));
+      if(base) roots.add(toCamel(base));
     }
     return roots;
   };
@@ -380,10 +415,10 @@
     for(const p of parts){
       if(!p) continue;
       const m = p.match(/^([^\[]+)\[(.+)\]$/);
-      if(!m){ out.push(kebabToCamel(p)); continue; }
+      if(!m){ out.push(toCamel(p)); continue; }
       const base = m[1];
       const inner = m[2];
-      out.push(kebabToCamel(base));
+      out.push(toCamel(base));
       // evaluate inner: support patterns like `indexs[0]` or `idx` or numeric literal
       const innerMatch = inner.match(/^([^\[]+)\[(\d+)\]$/);
       if(innerMatch){
@@ -403,20 +438,27 @@
     return out.join('.');
   };
 
+  // Compile JS expression with caching
+  // New simplified compile: expressions reference the global state explicitly via `dm`.
+  // Example: use `dm.user.name` or `dm.count * 2`. This avoids identifier guessing.
   const compile = body => {
     if(fnCache.has(body)) return fnCache.get(body);
     let inner;
     try {
+      // signature: (dm, el, ev, sg, detail)
+      // dm is a plain object built from the internal signal Map (S), so expressions
+      // can read values as `dm.foo` or `dm.user.name`.
       inner = new Function('dm','el','ev','sg','detail', `try{ return (${body}); }catch(e){ console.error(e); return undefined; }`);
     } catch(e) {
-      console.error('[dmax] Failed to compile expression:', body.slice(0, 80) + (body.length > 80 ? '...' : ''), e);
+      console.error('[dmax] Failed to compile expression:', body.slice(0, 50) + (body.length > 50 ? '...' : ''), e);
       inner = () => undefined;
     }
+    // Phase 1.4: Error boundary with expression context
     const wrapped = (dm, el, ev, sg, detail) => {
       try { 
         return inner(dm, el, ev, sg, detail); 
       } catch (e) { 
-        console.error('[dmax] Expression failed:', body.slice(0, 80) + (body.length > 80 ? '...' : ''), e);
+        console.error('[dmax] Expression failed:', body.slice(0, 60) + (body.length > 60 ? '...' : ''), e);
         return undefined; 
       }
     };
@@ -424,6 +466,7 @@
     return wrapped;
   };
 
+  // Phase 1.1: Validation helpers
   const RESERVED_NAMES = ['ev', 'el', 'sg', 'dm', 'detail'];
   const VALID_MODIFIERS = ['immediate', 'notimmediate', 'once', 'always', 'debounce', 'throttle', 'prevent', 'and', 'notand', 'gt', 'lt', 'eq', 'gte', 'lte', 'neq', 'shape', 'content'];
   
@@ -569,7 +612,7 @@
         }
       }
       const segToConvert = pieces.slice(idx).join('-');
-      const camel = kebabToCamel(segToConvert);
+      const camel = toCamel(segToConvert);
       out.push(leading ? ('-' + camel) : camel);
     }
     return out.join('.');
@@ -640,6 +683,23 @@
           const merged1 = Object.assign({}, gm, mr[0]);
           if (merged1.always !== undefined) delete merged1.once;
           targets.push({type:'prop', elemId:'', propPath:prop, isCurr:true, mods:merged1});
+        } else if (c2 === '+' || c2 === '~') {
+          // :+class or :~class -> data-class target (new syntax)
+          const action = c2 === '+' ? 'add' : 'remove';
+          i++; // skip + or ~
+          let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
+          let raw = s.slice(i, j); i = j;
+          if (!raw) return null;
+          const mi = raw.indexOf('__');
+          if (mi !== -1) raw = raw.slice(0, mi);
+          const className = normalizePathStrict(raw, attr);
+          if (className === null) return null;
+          let mr = [ {}, i ];
+          if (i + 1 < n && s.charAt(i) === '_' && s.charAt(i+1) === '_') mr = parseModsFast(s, i, n);
+          if (mr[0] === null) return null; i = mr[1];
+          const merged = Object.assign({}, gm, mr[0]);
+          if (merged.always !== undefined) delete merged.once;
+          targets.push({type:'prop', subtype:'class', action, className, isCurr:true, mods:merged});
         } else {
           // :name -> signal target
           let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
@@ -707,7 +767,12 @@
           if (merged5.always !== undefined) delete merged5.once;
           triggers.push({type:'event', elemId:'', eventName:ev, isCurr:true, mods:merged5});
         } else {
-          // @name -> signal trigger
+          // @name or @!name -> signal trigger (with optional negation)
+          let negated = false;
+          if (c2 === '!') {
+            negated = true;
+            i++; // skip !
+          }
           let j = i; while (j < n && ':@_'.indexOf(s[j]) === -1) j++;
           let raw = s.slice(i, j); i = j;
           if (!raw) return null;
@@ -718,7 +783,7 @@
           if (mr[0] === null) return null; i = mr[1];
           const merged6 = Object.assign({}, gm, mr[0]);
           if (merged6.always !== undefined) delete merged6.once;
-          triggers.push({type:'signal', name, mods:merged6});
+          triggers.push({type:'signal', name, negated, mods:merged6});
         }
       } else {
         return null;
@@ -730,6 +795,7 @@
     return {targets, triggers};
   }
 
+  // parseDataAttrFast: now a thin wrapper over tokenizer
   function parseDataAttrFast(attr, prefixLen) {
     const tokens = tokenizeDirective(attr, prefixLen);
     if (!tokens) return null;
@@ -745,6 +811,7 @@
     return tokens;
   }
 
+  // Phase 1.3: Element resolution with warnings
   const getElById = (id, context = 'element reference') => {
     if (!id) return null;
     const el = document.getElementById(id);
@@ -754,12 +821,14 @@
     return el;
   };
 
+  // Set property (fast, supports nested)
+  // Phase 2.2: Fast-path for single-level properties (90% of cases)
   const setProp = (el, path, val) => {
     if(!path) path = getAutoProp(el);
     
     // Fast path: no nested access
     if(path.indexOf('.') === -1) {
-      const key = kebabToCamel(path);
+      const key = toCamel(path);
       try {
         if(el[key] !== val) el[key] = val;
       } catch(e) {
@@ -776,12 +845,12 @@
         let key = parts[i];
         // Support array indexes: foo.0.bar
         if(/^\d+$/.test(key)) key = +key;
-        t = t[kebabToCamel(key)];
+        t = t[toCamel(key)];
         if(!t) throw new Error('Invalid property path');
       }
       let last = parts[parts.length - 1];
       if(/^\d+$/.test(last)) last = +last;
-      last = kebabToCamel(last);
+      last = toCamel(last);
       if(t && t[last] !== val) t[last] = val;
     } catch(e) {
       console.error('Failed to set property', path, 'on', el, e);
@@ -809,6 +878,21 @@
   };
 
   const createClassApplier = (target, targetEl) => {
+    // New syntax: target has subtype:'class', action:'add'|'remove', className
+    if (target.subtype === 'class') {
+      const className = target.className;
+      const action = target.action; // 'add' or 'remove'
+      return res => {
+        if (action === 'add') {
+          if (res) targetEl.classList.add(className);
+          else targetEl.classList.remove(className);
+        } else { // 'remove'
+          if (res) targetEl.classList.remove(className);
+          else targetEl.classList.add(className);
+        }
+      };
+    }
+    // Legacy fallback (old . and .- syntax) - parse propPath
     const classes = (target.propPath || '').split('.').filter(Boolean).map(c => ({name: c[0] === '-' ? c.slice(1) : c, remove: c[0] === '-'}));
     return res => {
       for(const c of classes){
@@ -850,7 +934,31 @@
       return;
     }
     const {targets, triggers} = parsed;
-    const fn = compile(body);
+    
+    // Handle optional value for data-class and data-disp
+    let fn;
+    if (body) {
+      fn = compile(body);
+    } else {
+      // No value: use trigger value directly
+      if (type === 'data-class' || type === 'data-disp') {
+        fn = (dm, el, ev, sg) => {
+          // For signal triggers, return signal value (possibly negated)
+          if (sg) {
+            const val = get(sg);
+            // Check if any trigger is negated
+            const negatedTrigger = triggers.find(t => t.type === 'signal' && t.name === sg && t.negated);
+            return negatedTrigger ? !val : val;
+          }
+          // For event triggers, return truthy
+          return true;
+        };
+      } else {
+        console.error(`[dmax] ${type} requires a value expression`);
+        return;
+      }
+    }
+    
     // Precompute appliers for targets to minimize work on each trigger
     const appliers = targets.map(t => {
       const targetEl = t.elemId ? getElById(t.elemId, attr) : el;
@@ -900,7 +1008,9 @@
           const run = () => {
             if (andPath && !get(String(andPath))) return;
             if (notandPath && get(String(notandPath))) return;
-            const subjectVal = t.type === 'signal' ? get(String(t.name)) : ev?.detail?.ms;
+            // Get subject value, apply negation if trigger is negated
+            let subjectVal = t.type === 'signal' ? get(String(t.name)) : ev?.detail?.ms;
+            if (t.negated && t.type === 'signal') subjectVal = !subjectVal;
             if (guardEq !== undefined && String(subjectVal) !== String(guardEq)) return;
             if (guardNe !== undefined && String(subjectVal) === String(guardNe)) return;
             if (guardGt !== undefined && !(+subjectVal > guardGt)) return;
@@ -920,8 +1030,8 @@
         if(t.type === 'signal'){
         const rootRaw = String(t.name).split('.')[0];
         const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-        const root = kebabToCamel(rootBase);
-        const rootAlias = kebabToCamel(rootBase);
+        const root = toCamel(rootBase);
+        const rootAlias = sigKey(rootBase);
         if(!subs.has(root)) subs.set(root, []);
         if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
         const dec = makeDecorated(handler, t);
@@ -1212,7 +1322,7 @@
     if(Array.isArray(stateSpecs) && stateSpecs.length){
       for(const s of stateSpecs){
         if(!s || !s.name) continue;
-        const camel = kebabToCamel(s.name);
+        const camel = toCamel(s.name);
         const mode = s.mode || 'busy';
         // create default initial values per mode
         if(mode === 'busy') { if(!S.has(camel)) S.set(camel, false); }
@@ -1236,7 +1346,7 @@
           // element reference
           if(raw[0] === '#'){
             const parts = raw.slice(1).split('.'); const elem = getElById(parts[0], attr); const prop = parts.slice(1).join('.') || getAutoProp(elem);
-            const val = elem ? (elem[kebabToCamel(prop)] ?? elem.value ?? null) : null;
+            const val = elem ? (elem[toCamel(prop)] ?? elem.value ?? null) : null;
             // decide where to place val based on mods or default
             if(inp.mods['query']){
               const name = inp.mods['query'] === true ? (parts[parts.length-1]) : inp.mods['query'];
@@ -1336,7 +1446,7 @@
         if(target && target.type === 'signal'){
           // handle result modifier: replace (default), append, prepend
           const mod = info.resultMod || 'replace';
-          const targetSignal = kebabToCamel(target.name);
+          const targetSignal = toCamel(target.name);
           try{
             if(mod === 'replace'){
               set(targetSignal, payload);
@@ -1387,8 +1497,8 @@
       if(t.type === 'signal'){
       const rootRaw = String(t.name).split('.')[0];
       const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-      const root = kebabToCamel(rootBase);
-      const rootAlias = kebabToCamel(rootBase);
+      const root = toCamel(rootBase);
+      const rootAlias = sigKey(rootBase);
         if(!subs.has(root)) subs.set(root, []);
         if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
         const handler = () => doRequest(undefined, t.name);
@@ -1444,8 +1554,8 @@
       const colon = attr.indexOf(':');
       const path = colon === -1 ? '' : attr.substring(colon + 1);
       if(!path) return;
-      const root = kebabToCamel(path.split('.')[0]);
-      const rootAlias = kebabToCamel(path.split('.')[0]);
+      const root = toCamel(path.split('.')[0]);
+      const rootAlias = sigKey(path.split('.')[0]);
       const update = () => {
         const val = get(path);
         const prop = getAutoProp(el);
@@ -1498,7 +1608,7 @@
           const sname = t.name;
           const rootRaw = String(sname).split('.')[0];
           const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-          const root = kebabToCamel(rootBase);
+          const root = toCamel(rootBase);
           const handler = () => {
             try{ const v = get(String(sname));
               const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
@@ -1507,7 +1617,7 @@
           };
           handler();
           if(!subs.has(root)) subs.set(root, []);
-          const rootAlias = kebabToCamel(rootBase);
+          const rootAlias = sigKey(rootBase);
           if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
           let entry = handler;
           if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
@@ -1525,7 +1635,7 @@
         for(const sname of subsigs){
           const rootRaw = String(sname).split('.')[0];
           const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-          const root = kebabToCamel(rootBase);
+          const root = toCamel(rootBase);
           const handler = () => {
             try{ const v = get(String(sname));
               const pt = propTargets.length ? (propTargets[0].propPath || null) : null;
@@ -1534,7 +1644,7 @@
           };
           handler();
           if(!subs.has(root)) subs.set(root, []);
-          const rootAlias = kebabToCamel(rootBase);
+          const rootAlias = sigKey(rootBase);
           if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
           subs.get(root).push(handler);
           if(rootAlias !== root) subs.get(rootAlias).push(handler);
@@ -1645,8 +1755,8 @@
     }
 
     // canonical root
-    const root = kebabToCamel(sig.split('.')[0]);
-    const rootAlias = kebabToCamel(sig.split('.')[0]);
+    const root = toCamel(sig.split('.')[0]);
+    const rootAlias = sigKey(sig.split('.')[0]);
 
     // internal state on element
     if(!el.__dump) el.__dump = { nodes: [], count: 0, sig: sig };
@@ -1807,8 +1917,8 @@
   // Signal get/set/emit
   const get = p => {
     const parts = p.split('.');
-    let v = S.get(kebabToCamel(parts[0]));
-    for(let i = 1; i < parts.length; i++) v = v?.[kebabToCamel(parts[i])];
+    let v = S.get(toCamel(parts[0]));
+    for(let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
     return v;
   };
   // Diff helper: compares two objects or arrays shallowly and returns change details
@@ -1837,7 +1947,7 @@
     return out;
   };
   const emit = (p, mutation = 'content', info = null) => {
-    const root = kebabToCamel(p.split('.')[0]);
+    const root = toCamel(p.split('.')[0]);
     const handlers = subs.get(root);
     
     if(handlers){
@@ -1865,10 +1975,10 @@
             const cp = h.childPath != null ? String(h.childPath) : null;
             if(cp){
               const sval = cp;
-              const svalCamel = kebabToCamel(sval);
+              const svalCamel = toCamel(sval);
               const makeKeySet = (list) => {
                 const s = new Set();
-                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(kebabToCamel(sx)); const nx = Number(x); if(!Number.isNaN(nx)) s.add(String(nx)); });
+                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if(!Number.isNaN(nx)) s.add(String(nx)); });
                 return s;
               };
               const addedSet = makeKeySet(change.added);
@@ -1909,7 +2019,7 @@
 
   const setImpl = (p, v, force = false) => {
     const parts = p.split('.');
-    const root = kebabToCamel(parts[0]);
+    const root = toCamel(parts[0]);
     const current = get(p);
     // quick equality for primitives and references
   if (!force && current === v) return;
@@ -1924,7 +2034,7 @@
       const parent = get(parentPath);
       const lastRaw = parts[parts.length - 1];
       const lastIsIndex = /^\d+$/.test(String(lastRaw));
-      const last = lastIsIndex ? +lastRaw : kebabToCamel(lastRaw);
+      const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
       if(parent == null) return 'shape';
       if(Array.isArray(parent)){
         if(lastIsIndex){
@@ -1946,7 +2056,7 @@
     if(parts.length === 1){
       const before = S.get(root);
       S.set(root, v);
-      try{ const alias = kebabToCamel(root); if(alias !== root) S.set(alias, v); }catch(e){}
+      try{ const alias = sigKey(root); if(alias !== root) S.set(alias, v); }catch(e){}
       if(mutation === 'shape'){
         // diff top-level object/array
         const base = diffValues(before, v, false);
@@ -1963,22 +2073,22 @@
       try{ base = Array.isArray(orig) ? orig.slice() : (orig && typeof orig === 'object' ? Object.assign({}, orig) : (typeof orig === 'object' ? {} : {})); }catch(e){ base = {} }
       let t = base;
       for(let i = 1; i < parts.length - 1; i++){
-        const key = kebabToCamel(parts[i]);
+        const key = toCamel(parts[i]);
         if(typeof t[key] !== 'object' || t[key] === null) t[key] = {};
         // shallow clone child to avoid mutating original reference
         const child = t[key];
         t[key] = Array.isArray(child) ? child.slice() : Object.assign({}, child);
         t = t[key];
       }
-      t[kebabToCamel(parts[parts.length - 1])] = v;
+      t[toCamel(parts[parts.length - 1])] = v;
       // after-parent snapshot
       const afterParent = (function(){
         let node = base;
-        for(let i = 1; i < parts.length - 1; i++) node = node[kebabToCamel(parts[i])] || {};
+        for(let i = 1; i < parts.length - 1; i++) node = node[toCamel(parts[i])] || {};
         return node;
       })();
       S.set(root, base);
-      try{ const alias = kebabToCamel(root); if(alias !== root) S.set(alias, base); }catch(e){}
+      try{ const alias = sigKey(root); if(alias !== root) S.set(alias, base); }catch(e){}
       if(mutation === 'shape'){
         const base = diffValues(beforeParent, afterParent, false);
         const full = diffValues(beforeParent, afterParent, true);
@@ -2041,13 +2151,13 @@
       try{
         const o = JSON.parse(value);
         for(let k in o){
-          const camelK = kebabToCamel(k);
+          const camelK = toCamel(k);
           if(camelK === 'ev' || camelK === 'el'){
             console.error('Reserved signal name:', k, 'in', attr);
             continue;
           }
           S.set(camelK, o[k]);
-          try{ const alias = kebabToCamel(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
+          try{ const alias = sigKey(camelK); if(alias !== camelK) S.set(alias, o[k]); }catch(e){}
         }
       }catch(e){
         console.error('data-def JSON parse error:', e.message, 'in', attr);
@@ -2057,13 +2167,13 @@
       try{
         const result = Function('return ' + value)();
         for(const sigName of signalNames){
-          const camelName = kebabToCamel(sigName);
+          const camelName = toCamel(sigName);
           if(camelName === 'ev' || camelName === 'el'){
             console.error('Reserved signal name:', sigName, 'in', attr);
             continue;
           }
           S.set(camelName, result);
-          try{ const alias = kebabToCamel(camelName); if(alias !== camelName) S.set(alias, result); }catch(e){}
+          try{ const alias = sigKey(camelName); if(alias !== camelName) S.set(alias, result); }catch(e){}
         }
       }catch(e){
         console.error('data-def expression eval error:', e.message, 'in', attr);
@@ -2126,6 +2236,7 @@
 })();
 </script>
 
+
 <section>
   <h3>11. Content vs Shape Demo</h3>
   <div class="page">Demonstrates default (content) subscriptions vs <code>__shape</code> subscriptions.</div>
@@ -2160,11 +2271,13 @@ window.formatShapeChange = function(c){
 };
 </script>
 
+
 <div id="__fg_reactivity_tests" style="display:none">
   <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount||0) + 1, window.__contentCount)"></span>
   <span id="shapeSub" data-sub:.@parent__shape="(window.__shapeCount = (window.__shapeCount||0) + 1, window.__shapeCount)"></span>
   <span id="shapeChild" data-sub:.@parent__shape="(window.__shapeChild = (window.__shapeChild||0) + 1, window.__shapeChild)"></span>
 
+  
   <span id="indirectCount" data-sub:.@postObjs[idx]="(window.__indirectCount=(window.__indirectCount||0)+1,window.__indirectCount)"></span>
   <button id="setPost0Title" data-sub:postObjs.0.title@.click="'NewP0Title'">Set post0 title</button>
   <button id="setPost1Title" data-sub:postObjs.1.title@.click="'NewP1Title'">Set post1 title</button>
@@ -2174,5 +2287,6 @@ window.formatShapeChange = function(c){
   <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, {added: true})">Add key</button>
   <button id="removeKey" data-sub:parent@.click="(function(){ const o = Object.assign({}, dm.parent || {}); delete o.added; return o; })()">Remove key</button>
 </div>
+
 </body>
 </html>

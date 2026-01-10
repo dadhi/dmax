@@ -340,8 +340,8 @@ Values are evaluated as JavaScript function bodies with access to these paramete
 <span data-disp:.@loading="dm.loading && dm.count > 0">
 
 <!-- data-class: Boolean expression per class -->
-<div data-class:active@isActive="dm.isActive">
-<div data-class:loading@busy="dm.busy">
+<div data-class:+active@isActive="dm.isActive">
+<div data-class:+loading@busy="dm.busy">
 
 <!-- data-action: URL template with signal interpolation -->
 <button data-get:result@.click="api/users/${dm.userId}">Fetch</button>
@@ -685,102 +685,84 @@ If `data-sync` has exactly **1 trigger OR 1 target**, the other actor is **alway
 
 #### `data-class` — Conditional CSS Classes
 
-The `data-class` directive adds or removes CSS classes on the element reactively based on trigger values interpreted as booleans. **No value is allowed** — classes are toggled based on trigger truthiness.
+The `data-class` directive adds or removes CSS classes on the element reactively based on trigger values interpreted as booleans.
 
-**Syntax (Current):**
+**Syntax:**
 ```
-data-class[__mods]:.className:.-invertedClassName:...@trigger1@trigger2@...
+data-class[__mods]:+className:~invertedClassName:...@trigger1@trigger2@...[="expression"]
 ```
 
 **Components:**
-- **Targets**: 1 or many — class names with `.` prefix (e.g., `:.active`, `:.-inactive`)
+- **Targets**: 1 or many — class names with `+` or `~` prefix (e.g., `:+active`, `:~inactive`)
 - **Triggers**: 1 or many — signals or props (e.g., `@is-loading`, `@.checked`)
-- **Value**: **Optional** — JavaScript expression evaluated as boolean; if provided, overrides simple trigger toggling
+- **Value**: **Optional** — JavaScript expression evaluated as boolean; if omitted, uses trigger value directly
 
-**Current Class Notation:**
-- **`.className`** — Add class when condition is **true**, remove when **false**
-- **`.-className`** — Remove class when condition is **true**, add when **false** (inverted)
+**Class Notation:**
+- **`+className`** — Add class when condition is **true**, remove when **false**
+- **`~className`** — Remove class when condition is **true**, add when **false** (inverted)
 
-**Trigger Inversion:**
+**Trigger Negation:**
 - **`@!trigger`** — Inverts the trigger's boolean interpretation
 - Example: `@!is-loading` treats `false` as `true` and vice versa
 
 **Behavior:**
 
 **Without value** — simple trigger-based toggling:
-1. Trigger value is interpreted as boolean
-2. For `.className` targets: add class if true, remove if false
-3. For `.-className` targets: remove class if true, add if false
+1. Trigger value is interpreted as boolean (negation applied if `!` present)
+2. For `+className` targets: add class if true, remove if false
+3. For `~className` targets: remove class if true, add if false
 
 **With value** — expression-based toggling:
 1. When trigger fires, the value expression is evaluated
 2. Result is interpreted as boolean
 3. Classes are added/removed based on the expression result
 
-**Examples (Current Syntax):**
+**Examples:**
 ```html
 <!-- Simple trigger-based toggling (no value) -->
-<div data-class:.inactive@is-loading>
+<div data-class:+inactive@is-loading>
 <!-- Add .inactive when dm.isLoading is true, remove when false -->
 </div>
 
 <!-- Inverted class (no value) -->
-<div data-class:.-active@is-loading>
+<div data-class:~active@is-loading>
 <!-- Remove .active when dm.isLoading is true, add when false -->
 </div>
 
 <!-- Multiple classes with different behaviors (no value) -->
-<div data-class:.inactive:.-active@is-loading>
+<div data-class:+inactive:~active@is-loading>
 <!-- When isLoading = true: add .inactive, remove .active -->
 <!-- When isLoading = false: remove .inactive, add .active -->
 </div>
 
 <!-- Expression-based toggling (WITH value) -->
-<li data-class:.zebra-even:.-zebra-odd@posts="$index % 2 === 0">
+<li data-class:+zebra-even:~zebra-odd@posts="$index % 2 === 0">
 <!-- Zebra striping: even rows get .zebra-even, odd rows get .zebra-odd -->
 <!-- Expression evaluated: if index is even, add .zebra-even and remove .zebra-odd -->
 </li>
 
 <!-- Complex expression (WITH value) -->
-<div data-class:.highlight@count@threshold="dm.count > dm.threshold && dm.count < 100">
+<div data-class:+highlight@count@threshold="dm.count > dm.threshold && dm.count < 100">
 <!-- Add .highlight only when count is between threshold and 100 -->
 </div>
 
-<!-- Inverted trigger (no value) -->
-<div data-class:.ready@!is-loading>
+<!-- Negated trigger (no value) -->
+<div data-class:+ready@!is-loading>
 <!-- When isLoading = false: add .ready -->
 <!-- When isLoading = true: remove .ready -->
 </div>
 
 <!-- Multiple triggers (no value) -->
-<div data-class:.highlight@is-active@is-focused>
+<div data-class:+highlight@is-active@is-focused>
 <!-- Add .highlight when either dm.isActive or dm.isFocused is true -->
 </div>
 
 <!-- Property trigger (no value) -->
-<input data-class:.checked@.checked>
+<input data-class:+checked@.checked>
 <!-- Add .checked class when input's checked property is true -->
 </input>
 ```
 
-**Known Issue:**
-The current `.` and `-.` notation conflicts with the parser because `.` and `-` can be part of signal names (e.g., `user-name`, `item.count`).
-
-**Future Syntax (Planned):**
-```
-data-class[__mods]:+className:~invertedClassName@trigger
-```
-- **`+className`** — Add class when trigger is true (replaces `.className`)
-- **`~className`** — Remove class when trigger is true (replaces `.-className`)
-
-**Future Examples:**
-```html
-<!-- Add/remove with clearer syntax -->
-<div data-class:+inactive:~active@is-loading>
-
-<!-- No ambiguity with signal names -->
-<div data-class:+highlight@user-active>
-```
 
 #### `data-disp` — Conditional Visibility
 
@@ -788,18 +770,18 @@ The `data-disp` directive shows or hides an element by toggling its `display` CS
 
 **Syntax:**
 ```
-data-disp[__mods]:.@trigger1@trigger2@...="value"
-data-disp[__mods]@trigger1@trigger2@...="value"     <!-- Implicit :. target -->
+data-disp[__mods]:.@trigger1@trigger2@...[="value"]
+data-disp[__mods]@trigger1@trigger2@...[="value"]     <!-- Implicit :. target -->
 ```
 
 **Components:**
 - **Target**: Always `:.` (the element itself, can be implicit)
 - **Triggers**: 1 or many — signals or props (e.g., `@is-visible`, `@.checked`)
-- **Value**: **Required** — JavaScript expression evaluated as boolean to determine visibility
-  - **TBD**: Optional value support for simple trigger-based toggling (like `data-class`) not yet implemented
+- **Value**: **Optional** — JavaScript expression evaluated as boolean to determine visibility
+  - If omitted, uses trigger value directly (like `data-class`)
 
 **Behavior:**
-1. When trigger fires, the value expression is evaluated
+1. When trigger fires, evaluate the expression (or use trigger value if no expression)
 2. If result is truthy: element is shown (display set to original/default value)
 3. If result is falsy: element is hidden (`display: none`)
 4. The original `display` value is preserved and restored when showing
@@ -812,13 +794,13 @@ data-disp[__mods]@trigger1@trigger2@...="value"     <!-- Implicit :. target -->
 
 **Examples:**
 ```html
-<!-- Show element when signal is true -->
-<p data-disp:.@is-active="dm.isActive">
-  Visible when active
+<!-- Show element when signal is true (no value) -->
+<p data-disp@is-active>
+  Visible when dm.isActive is truthy
 </p>
 
-<!-- Implicit :. target -->
-<p data-disp@is-active="dm.isActive">
+<!-- With explicit expression -->
+<p data-disp:.@is-active="dm.isActive">
   Visible when active
 </p>
 
@@ -1095,28 +1077,37 @@ The following features are planned but not yet implemented:
 
 ### Syntax Improvements
 
-1. **`data-class`**: New class notation using `+` and `~` prefixes
-   - **Current**: `.className` (add when true), `.-className` (remove when true)
-   - **Planned**: `+className` (add when true), `~className` (remove when true)
-   - **Reason**: Current `.` and `-.` notation conflicts with parser because `.` and `-` can be part of signal names (e.g., `user-name`, `item.count`)
+1. ✅ **`data-class`**: New class notation using `+` and `~` prefixes (**IMPLEMENTED**)
+   - **Was**: `.className` (add when true), `.-className` (remove when true)
+   - **Now**: `+className` (add when true), `~className` (remove when true)
+   - **Reason**: Eliminates parser ambiguity with `.` and `-` in signal names
    - Example: `data-class:+inactive:~active@is-loading`
 
 ### Directive Value Support
 
-2. **`data-sync`**: Optional value with JS expression for 1-way sync transformations
+2. ✅ **`data-class`**: Optional value for trigger-based toggling (**IMPLEMENTED**)
+   - Example without value: `data-class:+active@is-ready`
+   - Example with value: `data-class:+highlight@count="dm.count > 5"`
+   - Allows both simple and complex conditional class toggling
+
+3. ✅ **`data-disp`**: Optional value for trigger-based toggling (**IMPLEMENTED**)
+   - Example without value: `data-disp@is-visible`
+   - Example with value: `data-disp@error="dm.error !== null"`
+   - Consistent with `data-class` behavior
+
+4. ✅ **Negation shorthand**: `!` prefix on triggers (**IMPLEMENTED**)
+   - Example: `data-class:+ready@!is-loading`
+   - Equivalent to: `data-class:+ready@is-loading="!dm.isLoading"`
+   - Works with any trigger type (signals, props)
+
+5. **`data-sync`**: Optional value with JS expression for transformations (**NOT YET IMPLEMENTED**)
    - Example: `data-sync:.textContent@count="dm.count * 2"`
    - Would allow transforming values during synchronization
    - Currently: value is passed through directly without transformation
 
-3. **`data-disp`**: Optional value support for simple trigger-based toggling
-   - Example: `data-disp@is-visible` (without value expression)
-   - Would toggle visibility based on trigger's boolean value
-   - Currently: requires explicit expression like `data-disp@is-visible="dm.isVisible"`
-   - Similar to how `data-class` supports both modes
-
 ### HTTP Actions
 
-4. **`data-action` controls**: Additional controls and features for HTTP actions (`data-get`, `data-post`, `data-put`, `data-patch`, `data-delete`)
+6. **`data-action` controls**: Additional controls and features for HTTP actions (**NOT YET IMPLEMENTED**)
    - Enhanced request/response handling
    - More sophisticated error handling
    - Additional options and configuration
