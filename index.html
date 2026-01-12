@@ -1022,7 +1022,7 @@
         return decorated;
       };
 
-        if(t.type === 'signal'){
+      if(t.type === 'signal'){
         const rootRaw = String(t.name).split('.')[0];
         const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
         const root = toCamel(rootBase);
