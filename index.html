@@ -1918,17 +1918,16 @@
   };
   // Diff helper: compares two objects or arrays shallowly and returns change details
   // NOTE: key-level value-change entries were removed: shape diffs only report added/removed keys/indices.
-  const diffValues = (before, after, includeVals = false) => {
+  const diffValues = (before, after) => {
     const out = { added: [], removed: [] };
-    if(includeVals){ out.addedValues = {}; out.removedValues = {}; }
     if(before == null && after == null) return out;
     if(Array.isArray(before) || Array.isArray(after)){
       const a = Array.isArray(before) ? before : [];
       const b = Array.isArray(after) ? after : [];
       if(b.length > a.length){
-        for(let i = a.length; i < b.length; i++){ out.added.push(i); if(includeVals) out.addedValues[i] = b[i]; }
+        for(let i = a.length; i < b.length; i++){ out.added.push(i); }
       } else if(b.length < a.length){
-        for(let i = b.length; i < a.length; i++){ out.removed.push(i); if(includeVals) out.removedValues[i] = a[i]; }
+        for(let i = b.length; i < a.length; i++){ out.removed.push(i); }
       }
       // value changes within existing indices are considered content (not shape) and are not reported here
       return out;
@@ -1936,8 +1935,8 @@
     // objects
     const bb = before && typeof before === 'object' ? before : {};
     const aa = after && typeof after === 'object' ? after : {};
-    for(const k in aa){ if(!(k in bb)){ out.added.push(k); if(includeVals) out.addedValues[k] = aa[k]; } }
-    for(const k in bb){ if(!(k in aa)){ out.removed.push(k); if(includeVals) out.removedValues[k] = bb[k]; } }
+    for(const k in aa){ if(!(k in bb)){ out.added.push(k); } }
+    for(const k in bb){ if(!(k in aa)){ out.removed.push(k); } }
     // property value changes are considered content-only and are not included in shape diffs
     return out;
   };
@@ -2052,12 +2051,8 @@
       const before = S.get(root);
       S.set(root, v);
       try{ const alias = sigKey(root); if(alias !== root) S.set(alias, v); }catch(e){}
-      if(mutation === 'shape'){
-        // diff top-level object/array
-        const base = diffValues(before, v, false);
-        const full = diffValues(before, v, true);
-        changeInfo = { base, full };
-      }
+      if(mutation === 'shape')
+        changeInfo = diffValues(before, v)
     } else {
       // structural shallow clone: only clone root object/array and walk path
       const orig = S.get(root);
@@ -2084,11 +2079,8 @@
       })();
       S.set(root, base);
       try{ const alias = sigKey(root); if(alias !== root) S.set(alias, base); }catch(e){}
-      if(mutation === 'shape'){
-        const base = diffValues(beforeParent, afterParent, false);
-        const full = diffValues(beforeParent, afterParent, true);
-        changeInfo = { base, full };
-      }
+      if(mutation === 'shape')
+        changeInfo = diffValues(beforeParent, afterParent)
     }
     emit(p, mutation, changeInfo);
   };
@@ -2256,11 +2248,10 @@
 // Helper to render shape change summaries for the demo
 window.formatShapeChange = function(c){
   if(!c) return '';
-  const ch = (c && (c.added || c.removed)) ? c : (c && (c.base || c.full) ? c.base || c.full : c);
+  const ch = c && (c.added || c.removed)
   const parts = [];
   if(ch.added && ch.added.length) parts.push('added: ' + ch.added.join(','));
   if(ch.removed && ch.removed.length) parts.push('removed: ' + ch.removed.join(','));
-  // key-level value changes are considered content-only and are not reported in shape summaries
   if(parts.length === 0) return '';
   return parts.join(' | ');
 };
