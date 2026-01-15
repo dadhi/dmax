@@ -816,8 +816,6 @@
     return el;
   };
 
-  // Set property (fast, supports nested)
-  // Phase 2.2: Fast-path for single-level properties (90% of cases)
   const setProp = (el, path, val) => {
     if(!path) path = getAutoProp(el);
     
@@ -1907,8 +1905,6 @@
     try{ doRender(undefined, sig); }catch(e){}
   }
 
-  // --- Modifiers demo helpers: none (logic implemented in setupGeneric above)
-
   // Signal get/set/emit
   const get = p => {
     const parts = p.split('.');
@@ -1940,6 +1936,7 @@
     // property value changes are considered content-only and are not included in shape diffs
     return out;
   };
+
   const emit = (p, mutation = 'content', info = null) => {
     const root = toCamel(p.split('.')[0]);
     const handlers = subs.get(root);
@@ -2016,7 +2013,7 @@
     const root = toCamel(parts[0]);
     const current = get(p);
     // quick equality for primitives and references
-  if (!force && current === v) return;
+    if (!force && current === v) return;
     // helper to detect shape vs content
     const detectMutation = () => {
       if(parts.length === 1){

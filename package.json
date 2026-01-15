@@ -1,9 +1,28 @@
 {
   "dependencies": {
     "jsdom": "^27.4.0"
-  }
-  ,"scripts":{
-    "test:actions":"node tests/actions.e2e.js",
-    "serve":"npx http-server -c-1 -p 8080"
-  }
+  },
+  "scripts": {
+    "test:actions": "node tests/actions.e2e.js",
+    "serve": "npx http-server -c-1 -p 8080"
+  },
+  "name": "dmax",
+  "version": "1.0.0",
+  "description": "A tiny data-maximal runtime.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dadhi/dmax.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dadhi/dmax/issues"
+  },
+  "homepage": "https://github.com/dadhi/dmax#readme"
 }

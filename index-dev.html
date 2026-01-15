@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>dmax notebook asserts — index-dev.html</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    header {
+      padding: 8px 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #summary {
+      margin-left: auto;
+      font-weight: 600;
+    }
+
+    main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: calc(100% - 0px);
+    }
+
+    #out {
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+    }
+
+    .note {
+      color: #475569;
+      font-style: italic;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div id="summary">Tests 0: Failed 0, Total 0</div>
+  </header>
+  <main>
+    <div class="note">Output is mirrored from console.log/error</div>
+    <pre id="out"></pre>
+  </main>
+  <script>
+    // Mirror console to <pre>, count tests
+    (function () {
+      const out = document.getElementById('out');
+      const summary = document.getElementById('summary');
+      let pass = 0, fail = 0, total = 0;
+      const orig = { log: console.log, error: console.error, warn: console.warn };
+      function toText(v) {
+        try {
+          if (typeof v === 'string') return v;
+          if (v && typeof v === 'object') return JSON.stringify(v);
+          return String(v);
+        } catch (_) { return String(v); }
+      }
+      function append(args) {
+        const line = args.map(toText).join(' ');
+        out.textContent += line + '\n';
+        if (args && args.length && (args[0] === '✓' || args[0] === '\u2713')) { pass++; total++; }
+        else if (args && args.length && (args[0] === '✗')) { fail++; total++; }
+        summary.textContent = `Tests ${total}: Passed ${pass}, Failed ${fail}`;
+      }
+      console.log = (...args) => { try { append(args); } finally { orig.log.apply(console, args); } };
+      console.error = (...args) => { try { append(args); } finally { orig.error.apply(console, args); } };
+      console.warn = (...args) => { try { append(args); } finally { orig.warn.apply(console, args); } };
+    })();
+  </script>
+  <script>
+    // @js-check
+    //-------------test code-------------------
+    stableStringify = (val) => {
+      if (Array.isArray(val)) return `[${val.map(stableStringify).join(',')}]`;
+      if (val && typeof val === 'object' && !(val instanceof Date)) {
+        return `{${Object.keys(val).sort().map(key => `${JSON.stringify(key)}:${stableStringify(val[key])}`).join(',')}}`;
+      }
+      return JSON.stringify(val);
+    };
+    deepEqual = (a, b) => {
+      if (a === b) return true;
+      const aObj = a && typeof a === 'object';
+      const bObj = b && typeof b === 'object';
+      if (!aObj && !bObj) return Object.is(a, b);
+      return stableStringify(a) === stableStringify(b);
+    };
+    fmt = (val) => (typeof val === 'string' ? `'${val}'` : stableStringify(val));
+    assert = (fn, expected, label) => {
+      try {
+        const actual = fn();
+        const pass = deepEqual(actual, expected);
+        if (pass)
+          console.log('✓', label, '>>>', fmt(actual));
+        else
+          console.error('✗', label, '>>> expected:', fmt(expected), 'actual:', fmt(actual));
+      } catch (err) {
+        console.error('✗', label, '>>> threw:', fmt(err), '>>> expected:', fmt(expected));
+      }
+    };
+
+    //------- lib code starts here-------------
+    // Returns the index of the first found char (from chars) in the s, or -1 if none found,
+    // then you can check s[returnedIndex] to see which char it is.
+    function indexFirst(s, chars, pos = 0) {
+      let i, first = s.length
+      for (let c of chars) if ((i = s.indexOf(c, pos)) != -1 && i < first) first = i
+      return first === s.length ? -1 : first
+    }
+
+    assert(() => indexFirst('abcdefg', ['x', 'y', 'z']), -1, 'none found');
+    assert(() => indexFirst('abcdefg', ['x', 'c', 'z']), 2, 'one found');
+    assert(() => indexFirst('abcdefgabc', ['a', 'b', 'c'], 3), 7, 'multiple found with pos');
+    assert(() => indexFirst('abcdefg', ['a'], 10), -1, 'pos out of range');
+
+
+    const CAMEL_NAMES = new Map()
+    function kebabToCamel(s) {
+      if (!s) return s
+      let p = s.indexOf('-')
+      if (p < 0) return s
+      let res = CAMEL_NAMES.get(s)
+      if (res) return res
+      res = s.slice(0, p)
+      while (p >= 0 && ++p < s.length) {
+        if (s[p] == '-') continue;
+        res += s[p].toUpperCase()
+        if (++p < s.length)
+          res += s.slice(p, (p = s.indexOf('-', p)) == -1 ? s.length : p)
+      }
+      CAMEL_NAMES.set(s, res)
+      return res
+    }
+
+    assert(() => kebabToCamel('foo-bar'), 'fooBar', 'basic case');
+    assert(() => kebabToCamel('-bar'), 'Bar', 'lead single');
+    assert(() => kebabToCamel('bar-'), 'bar', 'trail single');
+    assert(() => kebabToCamel('multi-part-key'), 'multiPartKey', 'multi part');
+    assert(() => kebabToCamel('-'), '', 'single dash');
+    assert(() => kebabToCamel('--'), '', 'multi dashes only');
+    assert(() => kebabToCamel('--leading--dashes'), 'LeadingDashes', 'leading dashes');
+    assert(() => kebabToCamel('trailing--dashes-'), 'trailingDashes', 'trailing dashes');
+
+    const WIN = '_window'; DOC = '_document'; FRM = '_form'; INTR = '_interval'; TIMT = '_timeout'
+    const SPECIALS = [WIN, DOC, FRM, INTR, TIMT]
+
+    function isSpecial(n) {
+      if (n.startsWith('_')) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
+      return false
+    }
+
+    function isPropOrEvent(n) {
+      return n.startsWith('#') || n.startsWith('.') || isSpecial(n)
+    }
+
+    // @WIP using +#tpl-id instead of #tpl-id to be predictable in presence of other selectors
+    const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+', REM = '~'
+    const ALL = [MOD, TARG, TRIG, STAT, ADD, REM]
+    const MODS = [MOD]
+    const NAME_DELIMS = ['.'] //'[', ']' // @wip parse brackets later
+
+    // mod: {key: str, val: num|bool|item}
+    // signal: {type: s, root:name, path: null|[...names], not: null|bool}
+    // propev: {type: p, root:null|name, path: null|[...names], not: null|bool, rtype:'id'|'sp', more:null|num|str }
+    // class:  {type: p, root:null|name, path: [name], not: false|true, rtype:'id'|'sp'}
+    function parseItem(type, n, pos = 0) {
+      if (!n) return { type, root: null, path: null }
+
+      let p = pos
+      while (n.startsWith('!', p)) ++p
+      let not = p == 0 ? null : p % 2 != 0
+
+      let d = indexFirst(n, NAME_DELIMS, p)
+      let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
+      root = kebabToCamel(root)
+
+      let id = null
+      if (type != MOD && root && root.length > 0 && (root[0] == '#' || isSpecial(root))) {
+        id = root[0];
+        root = root.slice(1)
+      }
+
+      if (d < 0) return { type, not, id, root }
+      p = d + 1
+      if (p == n.length) return { type, not, id, root, path: [null] }
+      let path = []
+      while (p >= 0 && p < n.length) {
+        d = indexFirst(n, NAME_DELIMS, p)
+        const part = n.slice(p, p = d < 0 ? n.length : d)
+        path.push(kebabToCamel(part))
+        ++p
+      }
+
+      return { type, not, id, root, path }
+    }
+
+    assert(() => parseItem(TRIG, '#hey.foo.bar-baz'), { type: '@', not: null, id: '#', root: 'hey', path: ['foo', 'barBaz'] }, 'trigger #id.prop.prop')
+
+
+    // returns { [MOD]: mods, [TARG]: [targets [it, {[MOD]: [...mods]}]...],...}
+    function parse(n, p = 'data-'.length, it = ALL) {
+      let items = {}, mods = null
+      while (p >= 0 && p < n.length) {
+        if ((p = indexFirst(n, it, p)) == -1) { p = n.length; break }
+        let t = n[p], item = null
+        if (++p < n.length) {
+          let end = indexFirst(n, ALL, p)
+          let name = n.slice(p, p = end != -1 ? end : n.length)
+          if (name) item = parseItem(t, name)
+        }
+
+        let ts = items[t] ??= []
+        if (t == MOD) {
+          ts.push(item);
+          if (p >= n.length || (it === MODS && n[p] != MOD)) return [items, p]
+        } else if (p >= n.length || n[p] != MOD) {
+          if (item) item.mods = null
+          ts.push(item);
+        } else {
+          [mods, p] = parse(n, p, MODS)
+          if (item) item.mods = mods?.[MOD]
+          ts.push(item)
+        }
+      }
+
+      if (p < n.length) console.warn('Not everything is parsed "', n.slice(p), '" in', n)
+      return [items, p]
+    }
+
+    assert(() => parse('data-def'), [{}, 8], 'empty')
+    assert(() => parse('data-sub:'), [{ ":": [null] }, 9], 'single empty')
+    assert(() => parse('data-sub^mod'), [{ "^": [{ "id": null, "not": null, "root": "mod", "type": "^" }] }, 12], 'global mod')
+    assert(() => parse('data-sub^mod.some-foo.value^!eq.3'), [{ "^": [{ "id": null, "not": null, "path": ["someFoo", "value"], "root": "mod", "type": "^" }, { "id": null, "not": true, "path": ["3"], "root": "eq", "type": "^" }] }, 33], '2 global mods')
+    assert(() => parse('data-sub^mod^@hey^foo:bar'), [{":":[{"id":null,"mods":null,"not":null,"root":"bar","type":":"}],"@":[{"id":null,"mods":[{"id":null,"not":null,"root":"foo","type":"^"}],"not":null,"root":"hey","type":"@"}],"^":[{"id":null,"not":null,"root":"mod","type":"^"},null]},25], '2 global mods and item with mod with item')
+    assert(() => parse('data-sub:xxx~'), [{ ":": [{ "id": null, "mods": null, "not": null, "root": "xxx", "type": ":" }], "~": [null] }, 13], 'name and empty')
+    assert(() => parse('data-sub:xxx:'), [{ ":": [{ "id": null, "mods": null, "not": null, "root": "xxx", "type": ":" }, null] }, 13], 'single name')
+    assert(() => parse('data-sub::'), [{":":[null,null]},10], '2 empties')
+    assert(() => parse('data-sub:foo^'), [{ ":": [["foo", [""]]] }, 13], 'name+empty mod')
+    assert(() => parse('data-sub:foo^^'), [{ ":": [["foo", ["", ""]]] }, 14], 'name+2 empty mods')
+    assert(() => parse('data-sub:foo-bar^bax.3'), [{ ":": [["foo-bar", ["bax.3"]]] }, 22], 'item^mod')
+    assert(() => parse('data-sub:foo-bar^bax.3@!something^nice'), [{ ":": [["foo-bar", ["bax.3"]]], "@": [["!something", ["nice"]]] }, 38], 'item^mod@item2^mod')
+
+    function isObjEmpty(o) {
+      for (const _ in o) return false
+      return true
+    }
+
+    const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
+    const SIGN_ARGS = ['dm', 'el']
+    const TRIG_ARGS = ['dm', 'el', 'ev', 'sg', 'detail']
+
+    function compileFn(aVal, aName, args) {
+      let val = '' + aVal
+      var r = val.indexOf('return')
+      let body = r != -1 && (r + 6 >= val.length || indexFirst(val, RETURN_THEN, r + 6) == r + 6) ? val : `return(${val})`
+      body = `try{ ${body} }catch(e){ console.error('Error eval ${aName} value as function:', e.message, '>>>', ${val}); return }`
+      let fn;
+      try { fn = Function(...args, body) }
+      catch (e) { console.error(`Error compiling ${aName} value to function:`, e.message, '>>>', val); return }
+      return fn;
+    }
+
+    const _dm = new Map()
+    const DM = new Proxy({}, {
+      get: (_, key) => _dm.get(key),
+      set: (_, key, val) => { _dm.set(key, val); return true; },
+      has: (_, key) => _dm.has(key),
+      ownKeys: () => Array.from(_dm.keys()),
+      getOwnPropertyDescriptor: (_, key) =>
+        _dm.has(key) ? { value: _dm.get(key), enumerable: true, configurable: true } : undefined
+    });
+
+    // - data-def='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
+    // - data-def:foo='{bar: "hey"}' // foo signal
+    // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
+    // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
+    function dSign(el, aName, aVal) {
+      let [it, _p] = parse(aName)
+      let tars = it[TARG]
+      delete it[TARG]
+      if (!isObjEmpty(it)) console.warn('Supports only targets but found more:', aName)
+      let val = aVal ? compileFn(aVal, aName, SIGN_ARGS)(DM, el) : null
+      if (tars && tars.length > 0) {
+        for (const [t, mods] of tars) {
+          if (mods) console.warn('Mods are not supported:', mods, 'in', aName);
+          if (isPropOrEvent(t)) { console.warn('Prop targets are not supported:', t, 'in', aName); continue }
+          _dm.set(kebabToCamel(t), val)
+        }
+      } else if (!val || typeof val !== 'object') {
+        console.error('Attribute', aName, 'value should contain object with signal fields, but found', aVal)
+      } else {
+        for (const t in val)
+          _dm.set(kebabToCamel(t), val[t])
+      }
+    }
+
+    const _sign = (nam, val) => { _dm.clear(); dSign(null, nam, val); return DM }
+    assert(() => _sign('data-def', '{foo: {bar: "hey"}, baz: 1}'), { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
+    assert(() => _sign('data-def:foo', '{bar: "hey"}'), { "foo": { "bar": "hey" } }, 'signal = value')
+    assert(() => _sign('data-def:foo-bar:baz'), { "baz": null, "fooBar": null }, 'signals')
+    assert(() => _sign('data-def:foo-bar:baz', '`Mamma Mia ${42}`'), { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
+
+    assert(() => { _dm.clear(); dSign({ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'); return DM }, { "foo": "Hey, John" }, 'using el')
+    assert(() => { _dm.clear(); DM.name = "Noize"; dSign(null, 'data-def:greet', '"Hey, " + dm.name'); return DM }, { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+
+    function getElById(id, aName) {
+      if (!id) return null
+      const el = document.getElementById(id)
+      if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`)
+      return el;
+    };
+
+    function getAutoProp(el) {
+      return !el ? 'textContent' :
+        (el.type === 'checkbox' || el.type === 'radio') ? 'checked' :
+          (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') ? 'value' :
+            'textContent'
+    }
+
+    // Default event for element (tags are upper-case per W3C; no toUpperCase needed)
+    function getAutoEvent(el) {
+      return !el || !el.tagName ? 'click' :
+        (el.tagName === 'FORM') ? 'submit' :
+          (el.type === 'checkbox' || el.type === 'radio') ? 'change' :
+            (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') ? (el.tagName === 'SELECT' ? 'change' : 'input') :
+              'click'
+    }
+
+    function setProp(el, path, val) {
+      if (!path) path = getAutoProp(el);
+
+      // Fast path: no nested access
+      if (path.indexOf('.') === -1) {
+        const key = toCamel(path);
+        try {
+          if (el[key] !== val) el[key] = val;
+        } catch (e) {
+          console.error('Failed to set property', path, 'on', el, e);
+        }
+        return;
+      }
+
+      // Nested path (slower)
+      const parts = path.split('.');
+      let t = el;
+      try {
+        for (let i = 0; i < parts.length - 1; i++) {
+          let key = parts[i];
+          // Support array indexes: foo.0.bar
+          if (/^\d+$/.test(key)) key = +key;
+          t = t[toCamel(key)];
+          if (!t) throw new Error('Invalid property path');
+        }
+        let last = parts[parts.length - 1];
+        if (/^\d+$/.test(last)) last = +last;
+        last = toCamel(last);
+        if (t && t[last] !== val) t[last] = val;
+      } catch (e) {
+        console.error('Failed to set property', path, 'on', el, e);
+      }
+    }
+
+    const SUBS = new Map()
+    function emitSignal(sg, mutation = 'content', info = null) {
+      const root = toCamel(sg.split('.')[0]);
+      const handlers = SUBS.get(root);
+
+      if (handlers) {
+        for (const h of handlers) {
+          try {
+            // Legacy function handlers (fast path) for content and shape
+            if (typeof h === 'function') {
+              h(undefined, sg);
+              continue;
+            }
+            if (!(h && typeof h.fn === 'function')) continue;
+
+            // CONTENT mutation: only call content-mode subscribers (fast path)
+            if (mutation === 'content') {
+              if (h.mode === 'content' && !h.childPath) { h.fn(undefined, sg); }
+              continue;
+            }
+
+            // SHAPE mutation: prepare minimal change payload (added/removed only)
+            if (h.mode === 'shape' || h.mode === 'content') {
+              const base = info && info.base ? info.base : { added: [], removed: [] };
+              const change = { added: base.added || [], removed: base.removed || [] };
+
+              // If subscriber requested a childPath filter, only invoke when that key/index was added/removed
+              const cp = h.childPath != null ? String(h.childPath) : null;
+              if (cp) {
+                const sval = cp;
+                const svalCamel = toCamel(sval);
+                const makeKeySet = (list) => {
+                  const s = new Set();
+                  (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if (!Number.isNaN(nx)) s.add(String(nx)); });
+                  return s;
+                };
+                const addedSet = makeKeySet(change.added);
+                const removedSet = makeKeySet(change.removed);
+                const matches = addedSet.has(sval) || addedSet.has(svalCamel) || removedSet.has(sval) || removedSet.has(svalCamel);
+                if (!matches) continue;
+              }
+
+              // For signal-originated invocations, pass no event object (undefined)
+              // and forward the minimal change summary as a third argument (`detail`).
+              // This makes handlers treat `ev` as undefined (signal source) and
+              // receive the change via the `detail` parameter.
+              h.fn(undefined, sg, change);
+            }
+          } catch (e) { console.error('Subscriber handler error', e); }
+        }
+      }
+      // updateDebug(); // @wip
+    }
+
+    function getSignalVal(sg) {
+      const parts = sg.split('.');
+      let v = _dm.get(toCamel(parts[0]));
+      for (let i = 1; i < parts.length; i++) v = v?.[toCamel(parts[i])];
+      return v;
+    };
+
+    function setSignalVal(sg, val, ev) {
+      const currVal = getSignalVal(sg);
+      if (!ev && currVal === val) return;
+
+      const parts = sg.split('.');
+      const root = toCamel(parts[0]);
+
+      // helper to detect shape vs content
+      const detectMutation = () => {
+        // root-level assignment: treat object/array assignments as shape (structural)
+        if (parts.length === 1)
+          return val && typeof val === 'object' ? 'shape' : 'content';
+
+        const parentPath = parts.slice(0, -1).join('.');
+        const parent = getSignalVal(parentPath);
+        const lastRaw = parts[parts.length - 1];
+        const lastIsIndex = /^\d+$/.test(String(lastRaw));
+        const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
+        if (parent == null) return 'shape';
+        if (Array.isArray(parent)) {
+          if (lastIsIndex) {
+            if (last >= parent.length) return 'shape'; // adding index -> shape
+            return 'content'; // replacing existing index -> content
+          }
+          // non-numeric assignment on array -> shape
+          return 'shape';
+        }
+        // object parent
+        if (Object.prototype.hasOwnProperty.call(parent, last)) return 'content';
+        return 'shape';
+      };
+
+      const mutation = detectMutation();
+
+      // prepare change info for shape mutations
+      let changeInfo = null;
+      if (parts.length === 1) {
+        const before = _dm.get(root);
+        _dm.set(root, val);
+        try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, val); } catch (e) { }
+        if (mutation === 'shape')
+          changeInfo = diffValues(before, val)
+      } else {
+        // structural shallow clone: only clone root object/array and walk path
+        const orig = _dm.get(root);
+        // compute parent path and before-parent snapshot
+        const parentPath = parts.slice(0, -1).join('.');
+        const beforeParent = getSignalVal(parentPath);
+        let base;
+        try { base = Array.isArray(orig) ? orig.slice() : (orig && typeof orig === 'object' ? Object.assign({}, orig) : (typeof orig === 'object' ? {} : {})); } catch (e) { base = {} }
+        let t = base;
+        for (let i = 1; i < parts.length - 1; i++) {
+          const key = toCamel(parts[i]);
+          if (typeof t[key] !== 'object' || t[key] === null) t[key] = {};
+          // shallow clone child to avoid mutating original reference
+          const child = t[key];
+          t[key] = Array.isArray(child) ? child.slice() : Object.assign({}, child);
+          t = t[key];
+        }
+        t[toCamel(parts[parts.length - 1])] = val;
+        // after-parent snapshot
+        const afterParent = (function () {
+          let node = base;
+          for (let i = 1; i < parts.length - 1; i++) node = node[toCamel(parts[i])] || {};
+          return node;
+        })();
+        _dm.set(root, base);
+        try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, base); } catch (e) { }
+        if (mutation === 'shape')
+          changeInfo = diffValues(beforeParent, afterParent)
+      }
+      emitSignal(sg, mutation, changeInfo);
+    }
+
+    syncDepth = 0, MAX_SYNC_DEPTH = 16;
+    function setSignal(sg, val, ev) {
+      if (syncDepth++ > MAX_SYNC_DEPTH) {
+        console.error(`[dmax] Infinite loop detected for signal: ${sg} (depth > ${MAX_SYNC_DEPTH})`)
+        return
+      }
+      try { return setSignalVal(sg, val, ev) } finally { syncDepth-- }
+    }
+
+    // Track all event listeners and signal handlers for cleanup
+    cleanupMap = new WeakMap();
+
+    function dSub(el, aName, aVal) {
+      let [it, _p] = parse(aName)
+      let targets = it[TARG]
+      let triggers = it[TRIG]
+      let globMods = it[MOD]
+      delete it[TARG]; delete it[TRIG]; delete it[MOD];
+      if (!isObjEmpty(it)) console.warn('Supports only targets, triggers, mods but found more:', aName)
+      if (!aVal) { console.error('Error in ', aName, 'it requires a value but found none', aVal); return }
+      let fn = compileFn(aVal, aName, TRIG_ARGS)
+      if (!fn) return
+
+      // Precompute appliers for targets to minimize work on each trigger
+      const appliers = targets.map(tar => {
+        const targetEl = tar.elemId ? getElById(tar.elemId, attr) : el;
+        if (!targetEl) return null;
+        if (tar.type === 'signal')
+          return (val, ev) => setSignal(tar.name, val, ev);
+        return (val, _) => setProp(targetEl, tar.propPath, val);
+      });
+
+      const handler = (ev, sg, detailArg) => {
+        const detail = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
+        const val = fn(DM, el, ev, sg, detail);
+        if (!appliers || appliers.length === 0) return;
+        try {
+          for (const ap of appliers) if (ap) ap(val, ev);
+        } catch (e) { console.error('Applier error', e); }
+      };
+
+      // Track listeners for cleanup
+      let listeners = cleanupMap.get(el);
+      if (!listeners) cleanupMap.set(el, listeners = []);
+      for (let trig of triggers) {
+
+        // build a decorated handler that supports modifier semantics: __prevent, __once, __debounce, __throttle, __and
+        const makeDecorated = (hand, t) => {
+          const { mods = {} } = t;
+          const debMs = mods.debounce == null ? null : +mods.debounce;
+          const thrMs = mods.throttle == null ? null : +mods.throttle;
+          const once = 'once' in mods;
+          const prevent = 'prevent' in mods;
+          const andPath = mods.and ?? null;
+          const guardEq = 'eq' in mods ? mods.eq : undefined;
+          const guardNe = 'ne' in mods ? mods.ne : undefined;
+          const guardGt = 'gt' in mods ? +mods.gt : undefined;
+          const guardGe = 'ge' in mods ? +mods.ge : undefined;
+          const guardLt = 'lt' in mods ? +mods.lt : undefined;
+          const guardLe = 'le' in mods ? +mods.le : undefined;
+          let timer = null;
+          let last = 0;
+          const decorated = function (ev, sg, detailArg) {
+            if (prevent) ev?.preventDefault?.();
+            const run = () => {
+              if (andPath && !getSignalVal(String(andPath))) return;
+              // Get subject value, apply negation if trigger is negated
+              let subjectVal = t.type === 'signal' ? getSignalVal(String(t.name)) : ev?.detail?.ms;
+              if (t.negated && t.type === 'signal') subjectVal = !subjectVal;
+              if (guardEq !== undefined && String(subjectVal) !== String(guardEq)) return;
+              if (guardNe !== undefined && String(subjectVal) === String(guardNe)) return;
+              if (guardGt !== undefined && !(+subjectVal > guardGt)) return;
+              if (guardGe !== undefined && !(+subjectVal >= guardGe)) return;
+              if (guardLt !== undefined && !(+subjectVal < guardLt)) return;
+              if (guardLe !== undefined && !(+subjectVal <= guardLe)) return;
+              try { hand(ev, sg, detailArg); } catch (e) { console.error('Handler error', e); }
+              if (once && decorated && decorated.remove) decorated.remove();
+            };
+            if (debMs != null) { clearTimeout(timer); timer = setTimeout(run, debMs); return; }
+            if (thrMs != null) { const now = Date.now(); if (now - last >= thrMs) { last = now; run(); } return; }
+            run();
+          };
+          return decorated;
+        };
+
+        if (trig.type === 'signal') {
+          const rootRaw = String(trig.name).split('.')[0];
+          const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
+          const root = toCamel(rootBase);
+          const rootAlias = sigKey(rootBase);
+          if (!SUBS.has(root)) SUBS.set(root, []);
+          if (rootAlias !== root && !SUBS.has(rootAlias)) SUBS.set(rootAlias, []);
+          const dec = makeDecorated(handler, trig);
+          // allow removal for __once and other removals; handle both legacy function entries and object entries
+          dec.remove = () => {
+            const arr = SUBS.get(root) || [];
+            SUBS.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
+            if (rootAlias !== root) { const arr2 = SUBS.get(rootAlias) || []; SUBS.set(rootAlias, arr2.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec))); }
+          };
+          // support __shape modifier: register subscription object with optional childPath
+          let entry = dec;
+          if (trig.mods && ('shape' in trig.mods || 'content' in trig.mods)) {
+            const sval = (trig.mods && 'shape' in trig.mods) ? ((trig.mods.shape === true || trig.mods.shape === 1) ? null : (trig.mods.shape != null ? String(trig.mods.shape) : null)) : null;
+            entry = { fn: dec, mode: ('shape' in trig.mods ? 'shape' : 'content'), childPath: sval };
+          }
+
+          SUBS.get(root).push(entry);
+          if (rootAlias !== root) SUBS.get(rootAlias).push(entry);
+
+          listeners.push({ type: 'signal', root, handler: dec });
+          if (rootAlias !== root) listeners.push({ type: 'signal', root: rootAlias, handler: dec });
+          if (!trig.mods?.notimmediate) dec(undefined, trig.name);
+          continue;
+        }
+
+        // Event triggers
+        // Resolve target element: explicit id (`#id`) or current element
+        let targetEl = null;
+        let eventName = trig.eventName || null;
+
+        // Case: explicit element id — no legacy mappings, require real element id
+        if (trig.elemId) {
+          targetEl = getElById(trig.elemId, attr);
+          if (!targetEl) { console.error('Element not found for id:', trig.elemId); }
+        }
+
+        // Case: new syntax uses `.window` or `.interval` as eventName while isCurr is true
+        // Handle special triggers produced by the `_` token: @_window, @_document, @_form, @_interval, @_delay
+        if (trig.type === 'special') {
+          const name = trig.name;
+          if (name === 'window') {
+            const ev = (trig.arg && String(trig.arg)) || 'resize';
+            window.addEventListener(ev, handler);
+            listeners.push({ type: 'event', targetEl: window, eventName: ev, handler });
+            if (trig.mods?.immediate) handler();
+            continue;
+          }
+          if (name === 'document') {
+            const ev = (trig.arg && String(trig.arg)) || 'visibilitychange';
+            document.addEventListener(ev, handler);
+            listeners.push({ type: 'event', targetEl: document, eventName: ev, handler });
+            if (trig.mods?.immediate) handler();
+            continue;
+          }
+          if (name === 'interval') {
+            const ms = parseInt(trig.arg) || 1000;
+            const tick = () => {
+              try { handler(new CustomEvent('interval', { detail: { ms } })); } catch (e) { }
+            };
+            const id = setInterval(tick, ms);
+            listeners.push({ type: 'interval', id });
+            if (trig.mods?.immediate) tick();
+            continue;
+          }
+          if (name === 'delay') {
+            const ms = parseInt(trig.arg) || 0;
+            const id = setTimeout(() => {
+              try { handler(new CustomEvent('delay', { detail: { ms } })); } catch (e) { }
+            }, ms);
+            listeners.push({ type: 'timeout', id });
+            continue;
+          }
+          if (name === 'form') {
+            // bind to closest form ancestor
+            const formEl = el && el.closest ? el.closest('form') : null;
+            if (formEl) {
+              const ev = (trig.arg && String(trig.arg)) || 'submit';
+              formEl.addEventListener(ev, handler);
+              listeners.push({ type: 'event', targetEl: formEl, eventName: ev, handler });
+              if (trig.mods?.immediate) handler();
+            }
+            continue;
+          }
+        }
+
+        // If still no targetEl, fall back to current element
+        if (!targetEl) targetEl = el;
+        // Determine final event name
+        const finalEvent = eventName || getAutoEvent(targetEl);
+        if (targetEl === null) { console.error('Element not found:', trig.elemId); continue; }
+        // decorate handler with modifiers
+        const dec = (function (orig, tt) {
+          const decorated = makeDecorated(orig, tt);
+          decorated.remove = () => { try { targetEl.removeEventListener(finalEvent, decorated); } catch (e) { } };
+          return decorated;
+        })(handler, trig);
+        targetEl.addEventListener(finalEvent, dec);
+        listeners.push({ type: 'event', targetEl, eventName: finalEvent, handler: dec });
+        if (trig.mods?.immediate) dec();
+      }
+      if (triggers.length === 0) handler();
+    }
+  </script>
+</body>
+
+</html>
