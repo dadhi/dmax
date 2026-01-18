@@ -20,6 +20,10 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     #summary {
@@ -47,6 +51,14 @@
       border-bottom: 1px solid #e2e8f0;
       background: #f8fafc;
     }
+
+    .chk.pass {
+      color: #16a34a;
+    }
+
+    .chk.fail {
+      color: #dc2626;
+    }
   </style>
 </head>
 
@@ -73,10 +85,23 @@
         } catch (_) { return String(v); }
       }
       function append(args) {
+        const isPass = args && args.length && (args[0] === '✓' || args[0] === '\u2713');
+        const isFail = args && args.length && (args[0] === '✗');
         const line = args.map(toText).join(' ');
-        out.textContent += line + '\n';
-        if (args && args.length && (args[0] === '✓' || args[0] === '\u2713')) { pass++; total++; }
-        else if (args && args.length && (args[0] === '✗')) { fail++; total++; }
+        const div = document.createElement('div');
+        if (isPass || isFail) {
+          const chk = document.createElement('span');
+          chk.textContent = args[0];
+          chk.className = 'chk ' + (isPass ? 'pass' : 'fail');
+          div.appendChild(chk);
+          const rest = args.slice(1).map(toText).join(' ');
+          div.appendChild(document.createTextNode(' ' + rest));
+        } else {
+          div.textContent = line;
+        }
+        out.appendChild(div);
+        if (isPass) { pass++; total++; }
+        else if (isFail) { fail++; total++; }
         summary.textContent = `Tests ${total}: Passed ${pass}, Failed ${fail}`;
       }
       console.log = (...args) => { try { append(args); } finally { orig.log.apply(console, args); } };
@@ -173,7 +198,8 @@
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+', REM = '~'
     const ALL = [MOD, TARG, TRIG, STAT, ADD, REM]
     const MODS = [MOD]
-    const NAME_DELIMS = ['.'] //'[', ']' // @wip parse brackets later
+    const DOT = '.'
+    const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
 
     // mod: {key: str, val: num|bool|item}
     // signal: {type: s, root:name, path: null|[...names], not: null|bool}
@@ -186,22 +212,30 @@
       while (n.startsWith('!', p)) ++p
       let not = p == 0 ? null : p % 2 != 0
 
-      let d = indexFirst(n, NAME_DELIMS, p)
+      let d = n.indexOf(DOT, p)
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
       root = kebabToCamel(root)
 
-      let id = null
-      if (type != MOD && root && root.length > 0 && (root[0] == '#' || isSpecial(root))) {
-        id = root[0];
+      let id = null, mod = type === MOD
+      if (!mod && root && root.length > 0 && (root[0] == '#' || isSpecial(root))) {
+        id = root[0]
         root = root.slice(1)
       }
 
       if (d < 0) return { type, not, id, root }
       p = d + 1
-      if (p == n.length) return { type, not, id, root, path: [null] }
-      let path = []
+      let path = mod ? null : [null]
+      if (p == n.length) return { type, not, id, root, path }
+
+      if (mod) {
+        // recursive handling of the MOD value which may be signal/prop
+        path = n.indexOf(DOT, p) < 0 ? n.slice(p) : parseItem(TRIG, n, p)
+        return { type, not, id, root, path }
+      }
+
+      path = []
       while (p >= 0 && p < n.length) {
-        d = indexFirst(n, NAME_DELIMS, p)
+        d = n.indexOf(DOT, p)
         const part = n.slice(p, p = d < 0 ? n.length : d)
         path.push(kebabToCamel(part))
         ++p
@@ -211,6 +245,15 @@
     }
 
     assert(() => parseItem(TRIG, '#hey.foo.bar-baz'), { type: '@', not: null, id: '#', root: 'hey', path: ['foo', 'barBaz'] }, 'trigger #id.prop.prop')
+    assert(() => parseItem(TARG, 'foo-bar'), { type: ':', not: null, id: null, root: 'fooBar' }, 'target kebab to camel');
+    assert(() => parseItem(TRIG, '#el.some.prop'), { type: '@', not: null, id: '#', root: 'el', path: ['some', 'prop'] }, 'trigger id and path');
+    assert(() => parseItem(TRIG, '!foo'), { type: '@', not: true, id: null, root: 'foo' }, 'negated once');
+    assert(() => parseItem(TRIG, '!!foo'), { type: '@', not: false, id: null, root: 'foo' }, 'double negation even');
+    assert(() => parseItem(TARG, 'foo.'), { type: ':', not: null, id: null, root: 'foo', path: [null] }, 'trailing dot yields null path');
+    assert(() => parseItem(TARG, 'a..b'), { type: ':', not: null, id: null, root: 'a', path: ['', 'b'] }, 'empty middle segment');
+    assert(() => parseItem(TARG, 'foo.bar-baz.qux-quux'), { type: ':', not: null, id: null, root: 'foo', path: ['barBaz', 'quxQuux'] }, 'path segments kebab->camel');
+    assert(() => parseItem(MOD, '!eq.3'), { type: '^', not: true, id: null, root: 'eq', path: '3' }, 'mod with negation and numeric path');
+    assert(() => parseItem(TARG, ''), { type: ':', root: null, path: null }, 'empty name returns nulls');
 
 
     // returns { [MOD]: mods, [TARG]: [targets [it, {[MOD]: [...mods]}]...],...}
@@ -246,15 +289,15 @@
     assert(() => parse('data-def'), [{}, 8], 'empty')
     assert(() => parse('data-sub:'), [{ ":": [null] }, 9], 'single empty')
     assert(() => parse('data-sub^mod'), [{ "^": [{ "id": null, "not": null, "root": "mod", "type": "^" }] }, 12], 'global mod')
-    assert(() => parse('data-sub^mod.some-foo.value^!eq.3'), [{ "^": [{ "id": null, "not": null, "path": ["someFoo", "value"], "root": "mod", "type": "^" }, { "id": null, "not": true, "path": ["3"], "root": "eq", "type": "^" }] }, 33], '2 global mods')
-    assert(() => parse('data-sub^mod^@hey^foo:bar'), [{":":[{"id":null,"mods":null,"not":null,"root":"bar","type":":"}],"@":[{"id":null,"mods":[{"id":null,"not":null,"root":"foo","type":"^"}],"not":null,"root":"hey","type":"@"}],"^":[{"id":null,"not":null,"root":"mod","type":"^"},null]},25], '2 global mods and item with mod with item')
+    assert(() => parse('data-sub^mod.some-foo.value^!eq.3'), [{"^":[{"id":null,"not":null,"path":{"id":null,"not":false,"path":["value"],"root":"someFoo","type":"@"},"root":"mod","type":"^"},{"id":null,"not":true,"path":"3","root":"eq","type":"^"}]},33], '2 global mods')
+    assert(() => parse('data-sub^mod^@hey^foo:bar'), [{ ":": [{ "id": null, "mods": null, "not": null, "root": "bar", "type": ":" }], "@": [{ "id": null, "mods": [{ "id": null, "not": null, "root": "foo", "type": "^" }], "not": null, "root": "hey", "type": "@" }], "^": [{ "id": null, "not": null, "root": "mod", "type": "^" }, null] }, 25], '2 global mods and item with mod with item')
     assert(() => parse('data-sub:xxx~'), [{ ":": [{ "id": null, "mods": null, "not": null, "root": "xxx", "type": ":" }], "~": [null] }, 13], 'name and empty')
     assert(() => parse('data-sub:xxx:'), [{ ":": [{ "id": null, "mods": null, "not": null, "root": "xxx", "type": ":" }, null] }, 13], 'single name')
-    assert(() => parse('data-sub::'), [{":":[null,null]},10], '2 empties')
-    assert(() => parse('data-sub:foo^'), [{ ":": [["foo", [""]]] }, 13], 'name+empty mod')
-    assert(() => parse('data-sub:foo^^'), [{ ":": [["foo", ["", ""]]] }, 14], 'name+2 empty mods')
-    assert(() => parse('data-sub:foo-bar^bax.3'), [{ ":": [["foo-bar", ["bax.3"]]] }, 22], 'item^mod')
-    assert(() => parse('data-sub:foo-bar^bax.3@!something^nice'), [{ ":": [["foo-bar", ["bax.3"]]], "@": [["!something", ["nice"]]] }, 38], 'item^mod@item2^mod')
+    assert(() => parse('data-sub::'), [{ ":": [null, null] }, 10], '2 empties')
+    assert(() => parse('data-sub:foo^'), [{":":[{"id":null,"mods":[null],"not":null,"root":"foo","type":":"}]},13], 'name+empty mod')
+    assert(() => parse('data-sub:foo^^'), [{":":[{"id":null,"mods":[null,null],"not":null,"root":"foo","type":":"}]},14], 'name+2 empty mods')
+    assert(() => parse('data-sub:foo-bar^bax.3'), [{":":[{"id":null,"mods":[{"id":null,"not":null,"path":"3","root":"bax","type":"^"}],"not":null,"root":"fooBar","type":":"}]},22], 'item^mod')
+    assert(() => parse('data-sub:foo-bar^bax.3@!something^nice'), [{":":[{"id":null,"mods":[{"id":null,"not":null,"path":"3","root":"bax","type":"^"}],"not":null,"root":"fooBar","type":":"}],"@":[{"id":null,"mods":[{"id":null,"not":null,"root":"nice","type":"^"}],"not":true,"root":"something","type":"@"}]},38], 'item^mod@item2^mod')
 
     function isObjEmpty(o) {
       for (const _ in o) return false
