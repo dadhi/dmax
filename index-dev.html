@@ -301,7 +301,7 @@
         }
       }
 
-      if (p < aName.length) console.warn('Not everything is parsed "', aName.slice(p), '" in', aName)
+      if (p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
       return [items, p]
     }
 
@@ -358,12 +358,12 @@
       let [it, _p] = parse(aName)
       let tars = it[TARG]
       delete it[TARG]
-      if (!isObjEmpty(it)) console.warn('Supports only targets but found more:', aName)
+      if (!isObjEmpty(it)) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
       let val = aVal ? compileFn(aVal, aName, SIGN_ARGS)(DM, el) : null
       if (tars) {
         for (const t of tars) {
           if (t.kind != SIGN) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', aName); continue }
-          if (t.mods) console.warn('Mods are not supported:', mods, 'in', aName);
+          if (t.mods) console.warn('[dmax] Warning: Mods are not supported:', mods, 'in', aName);
           _dm.set(t.root, val)
         }
       } else if (!val || typeof val !== 'object') {
@@ -599,7 +599,7 @@
     //   let trigs = it[TRIG]
     //   let globMods = it[MOD]
     //   delete it[TARG]; delete it[TRIG]; delete it[MOD];
-    //   if (!isObjEmpty(it)) console.warn('Supports only targets, triggers, mods but found more:', aName)
+    //   if (!isObjEmpty(it)) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', aName)
     //   if (!aVal) { console.error('[dmax] Error: in ', aName, 'it requires a value but found none', aVal); return }
     //   let fn = compileFn(aVal, aName, TRIG_ARGS)
     //   if (!fn) return
