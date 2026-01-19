@@ -69,6 +69,7 @@
   <main>
     <div class="note">Output is mirrored from console.log/error</div>
     <pre id="out"></pre>
+    <div id='foo' style="visibility:hidden" ?>good</div>
   </main>
   <script>
     // Mirror console to <pre>, count tests
@@ -366,11 +367,11 @@
           if (t.mods) console.warn('[dmax] Warning: Mods are not supported:', mods, 'in', aName);
           _dm.set(t.root, val)
         }
-      } else if (!val || typeof val !== 'object') {
-        console.error('[dmax] Error: Attribute', aName, 'value should contain object with signal fields, but found', aVal)
-      } else {
+      } else if (val && typeof val === 'object') {
         for (const t in val)
           _dm.set(kebabToCamel(t), val[t])
+      } else {
+        console.error('[dmax] Error: Attribute', aName, 'value should contain object with signal fields, but found', aVal)
       }
     }
 
@@ -390,6 +391,8 @@
       return el;
     };
 
+    assert(() => getElById('foo', 'data-sub:#foo@bar')?.textContent ?? null, 'good', 'get existing elem')
+
     function getAutoProp(el) {
       if (!el) return 'textContent'
       const t = el.type, n = el.tagName
@@ -407,40 +410,38 @@
           : 'input'
     }
 
-    // function setProp(tar, val, el, aName) {
-    //   let el = tar.kind == ID ? getElById(tar.root) : el
-    //   let path = tar.path, prop = null
-    //   if (!path || (path.length === 1 && path[0] === null))
-    //     prop = getAutoProp(el);
-    //   else if (path.length > 1)
-    //     prop = path[0]
+    function isNil(v) { return v === null || v === undefined }
 
-    //   if (prop) {
-    //     try {
-    //       if (el[prop] !== val) el[prop] = val;
-    //     } catch (e) {
-    //       console.error('[dmax] Error: Failed to set property:', e.message, '>>>', tar, 'on', el);
-    //     }
-    //     return;
-    //   }
+    function getNestedVal(obj, path, depth = 0) {
+      let v = obj
+      if (isNil(v) || !path) return v
+      let n = !depth || depth > path.length ? path.length : depth
+      for (let i = 0; i < n; ++i) if (isNil(v = v[path[i]])) return v
+      return v
+    }
 
-    //   let t = el;
-    //   try {
-    //     for (let i = 0; i < parts.length - 1; i++) {
-    //       let key = parts[i];
-    //       // Support array indexes: foo.0.bar
-    //       if (/^\d+$/.test(key)) key = +key;
-    //       t = t[toCamel(key)];
-    //       if (!t) throw new Error('Invalid property path');
-    //     }
-    //     let last = parts[parts.length - 1];
-    //     if (/^\d+$/.test(last)) last = +last;
-    //     last = toCamel(last);
-    //     if (t && t[last] !== val) t[last] = val;
-    //   } catch (e) {
-    //     console.error('[dmax] Error: Failed to set property', path, 'on', el, e);
-    //   }
-    // }
+    assert(() => getNestedVal(getElById('foo', 'xxx'), ['textContent']), 'good', 'getNestedVal depth 1')
+    assert(() => getNestedVal({ foo: {bar: {baz: 42}}}, ['foo', 'bar', 'baz']), 42, 'getNestedVal 42')
+
+    function getSignalVal(sg) { return getNestedVal(_dm.get(sg.root)) }
+
+    function setProp(el, aName, tar, val) {
+      if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
+      let obj = tar.kind == ID ? getElById(tar.root, aName) : el
+      let path = tar.path, prop = null
+      if (!path || (path.length === 1 && path[0] === null))
+        prop = getAutoProp(el);
+      else if (path.length > 0) {
+        obj = getNestedVal(obj, path, path.length - 1)
+        prop = path[path.length - 1]
+      }
+      if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', aName); return }
+      try {
+        if (obj[prop] !== val) obj[prop] = val; // @wip deep comparison???
+      } catch (e) {
+        console.error('[dmax] Error: Failed to set property:', e.message, '>>>', tar, 'on', el);
+      }
+    }
 
     // const SUBS = new Map()
     // function emitSignal(sg, mutation = 'content', info = null) {
@@ -495,17 +496,6 @@
     //   }
     //   // updateDebug(); // @wip
     // }
-
-    function isNil(v) { return v === null || v === undefined }
-
-    function getNestedVal(obj, path) {
-      let v = obj
-      if (isNil(v) || !path) return v
-      for (const p of path) if (isNil(v = v[p])) return v
-      return v
-    }
-
-    function getSignalVal(sg) { return getNestedVal(_dm.get(sg.root)) }
 
     // function setSignalVal(sg, val, ev) {
     //   const currVal = getSignalVal(sg);
@@ -608,8 +598,8 @@
     //   for (const tar of tars) {
     //     if (!tar || !tar.kind) continue
     //     let setter = tar.kind == SIGN
-    //       ? (t, val, ev) => setSignal(t, val, el, aName, ev)
-    //       : (t, val, _ev) => setProp(t, val, el, aName)
+    //       ? (t, val, ev) => setSignal(el, aName, t, val, ev)
+    //       : (t, val, _ev) => setProp(el, aName, t, val)
     //     setters.push(setter)
     //   }
 
