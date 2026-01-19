@@ -262,7 +262,7 @@
     assert(() => parseItem('XXX', TARG, ''), null, 'error: empty name returns nulls');
 
     function parse(aName, p = 'data-'.length, it = ALL) {
-      let items = {}, mods = null
+      let items = {}, modItems = null
       while (p >= 0 && p < aName.length) {
         if ((p = indexFirst(aName, it, p)) == -1) { p = aName.length; break }
         let t = aName[p], item = null
@@ -272,18 +272,31 @@
           if (name) item = parseItem(aName, t, name)
         }
 
-        if (!item) continue // skip null/errors
+        if (!item) continue // skip null/errors, avoid later null checks
 
         let ts = items[t] ??= []
         if (t == MOD) {
           ts.push(item);
           if (p >= aName.length || (it === MODS && aName[p] != MOD)) return [items, p]
         } else if (p >= aName.length || aName[p] != MOD) {
-          if (item) item.mods = null
+          item.mods = items[MOD] ?? null // set to glob mods if any
           ts.push(item);
         } else {
-          [mods, p] = parse(aName, p, MODS)
-          if (item) item.mods = mods?.[MOD] ?? null
+          [modItems, p] = parse(aName, p, MODS)
+          let mods = modItems?.[MOD] ?? null
+          if (items[MOD]) { // put glob mods if any into local mods but don't override
+            if (!mods) mods = items[MOD]
+            else {
+              let modCount = mods.length
+              for (const gm of items[MOD]) {
+                let skipGlobal = false
+                for (let i = 0; i < modCount; ++i)
+                  if (mods[i].root === gm.root) { skipGlobal = true; break }
+                if (!skipGlobal) mods.push(gm)
+              }
+            }
+          }
+          item.mods = mods
           ts.push(item)
         }
       }
@@ -296,7 +309,7 @@
     assert(() => parse('data-sub:'), [{}, 9], 'single empty')
     assert(() => parse('data-sub^mod'), [{ "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
     assert(() => parse('data-sub^mod.some-foo.value^!eq.3'), [{ "^": [{ "kind": "^", "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": "^", "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
-    assert(() => parse('data-sub^mod^@hey^foo:bar'), [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "foo" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
+    assert(() => parse('data-sub^mod^@hey^foo:bar'), [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "foo" }, { "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
     assert(() => parse('data-sub@!xxx@!'), [{ "@": [{ "kind": "s", "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
     assert(() => parse('data-sub:xxx:'), [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
     assert(() => parse('data-sub::'), [{}, 10], '2 empties')
@@ -304,6 +317,8 @@
     assert(() => parse('data-sub:foo^^'), [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
     assert(() => parse('data-sub:foo-bar^bax.3'), [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
     assert(() => parse('data-sub:foo-bar^bax.3@!something^nice'), [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
+    assert(() => parse('data-sub^ge.2^le.5@foo^le.4'), [{ "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "4", "root": "le" }, { "kind": "^", "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": "2", "root": "ge" }, { "kind": "^", "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
+    assert(() => parse('data-sub^hey@foo:bar+bax'), [{ "+": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
 
     function isObjEmpty(o) {
       for (const _ in o) return false
