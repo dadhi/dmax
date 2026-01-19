@@ -216,7 +216,7 @@
       if (root) root = kebabToCamel(root)
 
       if (type === MOD) {
-        if (!root) { console.error('Mod name should not be empty for:', n, 'in:', aName); return null }
+        if (!root) { console.error('[dmax] Error: Mod name should not be empty for:', n, 'in:', aName); return null }
         if (d < 0 || d + 1 >= n.length) return { kind: MOD, not, root, path: null } // accepts trailing dot in ^mod-foo.
         let val = n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseItem(aName, TRIG, n, p) // recurse for mod val being a signal
         return { kind: MOD, root, not, path: val }
@@ -226,11 +226,11 @@
       if (root && root.length > 0 && (root[0] === ID || isSpecial(root))) {
         kind = root[0] // ID or SPEC
         root = root.slice(1)
-        if (!root) { console.error('The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
+        if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
       }
 
       if (d < 0) {
-        if (!root && kind === SIGN) { console.error('Signal should have a non empty name:', n, 'in:', aName); return null }
+        if (!root && kind === SIGN) { console.error('[dmax] Error: Signal should have a non empty name:', n, 'in:', aName); return null }
         return { kind, not, root, path: null }
       }
 
@@ -242,7 +242,7 @@
       while (p >= 0 && p < n.length) {
         d = n.indexOf(DOT, p)
         const part = n.slice(p, p = d < 0 ? n.length : d)
-        if (!part) { console.error('Path should not have an empty part:', n, 'in:', aName); return null }
+        if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', aName); return null }
         path.push(kebabToCamel(part))
         ++p
       }
@@ -333,7 +333,7 @@
       let val = '' + aVal
       var r = val.indexOf('return')
       let body = r != -1 && (r + 6 >= val.length || indexFirst(val, RETURN_THEN, r + 6) == r + 6) ? val : `return(${val})`
-      body = `try{ ${body} }catch(e){ console.error('Error eval ${aName} value as function:', e.message, '>>>', ${val}); return }`
+      body = `try{ ${body} }catch(e){ console.error('[dmax] Error: eval ${aName} value as function:', e.message, '>>>', ${val}); return }`
       let fn;
       try { fn = Function(...args, body) }
       catch (e) { console.error(`Error compiling ${aName} value to function:`, e.message, '>>>', val); return }
@@ -360,14 +360,14 @@
       delete it[TARG]
       if (!isObjEmpty(it)) console.warn('Supports only targets but found more:', aName)
       let val = aVal ? compileFn(aVal, aName, SIGN_ARGS)(DM, el) : null
-      if (tars && tars.length > 0) {
+      if (tars) {
         for (const t of tars) {
-          if (!t.kind || t.kind != SIGN) { console.error('Only signal targets are supported but found:', t, 'in', aName); continue }
+          if (t.kind != SIGN) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', aName); continue }
           if (t.mods) console.warn('Mods are not supported:', mods, 'in', aName);
           _dm.set(t.root, val)
         }
       } else if (!val || typeof val !== 'object') {
-        console.error('Attribute', aName, 'value should contain object with signal fields, but found', aVal)
+        console.error('[dmax] Error: Attribute', aName, 'value should contain object with signal fields, but found', aVal)
       } else {
         for (const t in val)
           _dm.set(kebabToCamel(t), val[t])
@@ -419,7 +419,7 @@
     //     try {
     //       if (el[prop] !== val) el[prop] = val;
     //     } catch (e) {
-    //       console.error('Failed to set property:', e.message, '>>>', tar, 'on', el);
+    //       console.error('[dmax] Error: Failed to set property:', e.message, '>>>', tar, 'on', el);
     //     }
     //     return;
     //   }
@@ -438,7 +438,7 @@
     //     last = toCamel(last);
     //     if (t && t[last] !== val) t[last] = val;
     //   } catch (e) {
-    //     console.error('Failed to set property', path, 'on', el, e);
+    //     console.error('[dmax] Error: Failed to set property', path, 'on', el, e);
     //   }
     // }
 
@@ -490,7 +490,7 @@
     //           // receive the change via the `detail` parameter.
     //           h.fn(undefined, sg, change);
     //         }
-    //       } catch (e) { console.error('Subscriber handler error', e); }
+    //       } catch (e) { console.error('[dmax] Error: Subscriber handler error', e); }
     //     }
     //   }
     //   // updateDebug(); // @wip
@@ -600,7 +600,7 @@
     //   let globMods = it[MOD]
     //   delete it[TARG]; delete it[TRIG]; delete it[MOD];
     //   if (!isObjEmpty(it)) console.warn('Supports only targets, triggers, mods but found more:', aName)
-    //   if (!aVal) { console.error('Error in ', aName, 'it requires a value but found none', aVal); return }
+    //   if (!aVal) { console.error('[dmax] Error: in ', aName, 'it requires a value but found none', aVal); return }
     //   let fn = compileFn(aVal, aName, TRIG_ARGS)
     //   if (!fn) return
 
@@ -619,7 +619,7 @@
     //     if (!appliers || appliers.length === 0) return;
     //     try {
     //       for (const ap of appliers) if (ap) ap(val, ev);
-    //     } catch (e) { console.error('Applier error', e); }
+    //     } catch (e) { console.error('[dmax] Error: Applier error', e); }
     //   };
 
     //   // Track listeners for cleanup
@@ -656,7 +656,7 @@
     //           if (guardGe !== undefined && !(+subjectVal >= guardGe)) return;
     //           if (guardLt !== undefined && !(+subjectVal < guardLt)) return;
     //           if (guardLe !== undefined && !(+subjectVal <= guardLe)) return;
-    //           try { hand(ev, sg, detailArg); } catch (e) { console.error('Handler error', e); }
+    //           try { hand(ev, sg, detailArg); } catch (e) { console.error('[dmax] Error: Handler error', e); }
     //           if (once && decorated && decorated.remove) decorated.remove();
     //         };
     //         if (debMs != null) { clearTimeout(timer); timer = setTimeout(run, debMs); return; }
@@ -704,7 +704,7 @@
     //     // Case: explicit element id — no legacy mappings, require real element id
     //     if (trig.elemId) {
     //       targetEl = getElById(trig.elemId, attr);
-    //       if (!targetEl) { console.error('Element not found for id:', trig.elemId); }
+    //       if (!targetEl) { console.error('[dmax] Error: Element not found for id:', trig.elemId); }
     //     }
 
     //     // Case: new syntax uses `.window` or `.interval` as eventName while isCurr is true
@@ -760,7 +760,7 @@
     //     if (!targetEl) targetEl = el;
     //     // Determine final event name
     //     const finalEvent = eventName || getAutoEvent(targetEl);
-    //     if (targetEl === null) { console.error('Element not found:', trig.elemId); continue; }
+    //     if (targetEl === null) { console.error('[dmax] Error: Element not found:', trig.elemId); continue; }
     //     // decorate handler with modifiers
     //     const dec = (function (orig, tt) {
     //       const decorated = makeDecorated(orig, tt);
