@@ -458,8 +458,10 @@
       }
     }
 
+    const SHAPE = 'shape', CONTENT = 'content'
     const _subs = new Map()
-    function emitSignal(root, mode = 'content', shapeChange = null) {
+
+    function emitSignal(root, changeMode = CONTENT, shapeChange = null) {
       const handlers = _subs.get(root);
       if (handlers) {
         for (const h of handlers) {
@@ -472,7 +474,7 @@
             }
             if (!(h && typeof h.fn === 'function')) continue;
 
-            if (mode === CONTENT) {
+            if (changeMode === CONTENT) {
               if (h.mode === CONTENT && !h.childPath) h.fn(undefined, sg)
               continue;
             }
@@ -491,7 +493,28 @@
       // updateDebug(); // @wip
     }
 
-    const SHAPE = 'shape', CONTENT = 'content'
+    function diffValues(before, after) {
+      const out = { added: [], removed: [] };
+      if (before == null && after == null) return out;
+      if (Array.isArray(before) || Array.isArray(after)) {
+        const a = Array.isArray(before) ? before : [];
+        const b = Array.isArray(after) ? after : [];
+        if (b.length > a.length) {
+          for (let i = a.length; i < b.length; i++) { out.added.push(i); }
+        } else if (b.length < a.length) {
+          for (let i = b.length; i < a.length; i++) { out.removed.push(i); }
+        }
+        // value changes within existing indices are considered content (not shape) and are not reported here
+        return out;
+      }
+      // objects
+      const bb = before && typeof before === 'object' ? before : {};
+      const aa = after && typeof after === 'object' ? after : {};
+      for (const k in aa) { if (!(k in bb)) { out.added.push(k); } }
+      for (const k in bb) { if (!(k in aa)) { out.removed.push(k); } }
+      // property value changes are considered content-only and are not included in shape diffs
+      return out;
+    }
 
     // If sg not exist in the _dm, then we will create it -> create missing target on demand
     function setSignalVal(el, aName, tar, val, ev) {
@@ -522,7 +545,7 @@
         const before = _dm.get(root);
         _dm.set(root, val);
         try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, val); } catch (e) { }
-        if (mutation === 'shape')
+        if (changeMode === 'shape')
           changeInfo = diffValues(before, val)
       } else {
         // structural shallow clone: only clone root object/array and walk path
@@ -550,10 +573,10 @@
         })();
         _dm.set(root, base);
         try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, base); } catch (e) { }
-        if (mutation === 'shape')
+        if (changeMode === 'shape')
           changeInfo = diffValues(beforeParent, afterParent)
       }
-      emitSignal(tar, mutation, changeInfo);
+      emitSignal(tar, changeMode, changeInfo);
     }
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 16;
