@@ -198,7 +198,16 @@
       return n.startsWith(ID) || n.startsWith(DOT) || isSpecial(n)
     }
 
-    // @WIP using +#tpl-id instead of #tpl-id to be predictable in presence of other selectors
+    // @WIP: Phase 1
+    // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
+    // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
+    // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
+    // @WIP: Phase 2
+    // data-sign instead of data-def, data-sub, data-sync
+    // data-sign:foo:bar='console.log('side effect!'); return 42'
+    // data-sign:target@source-signal@.source-prop
+    // data-sign:targ@#some.prop@~click // click sets the targ to ev.detail by default or you can data-sign:targ@#some.prop@~click.target.name
+    // data-sign:targ@#some.prop@~click='pr ? pr : ev?.target.name ?? null' where pr is additional parameter we are passing to (dm, el, sg, ev, pr) => '...'
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
     const ALL = [MOD, TARG, TRIG, STAT, ADD]
     const MODS = [MOD]
@@ -421,9 +430,7 @@
     }
 
     assert(() => getNestedVal(getElById('foo', 'xxx'), ['textContent']), 'good', 'getNestedVal depth 1')
-    assert(() => getNestedVal({ foo: {bar: {baz: 42}}}, ['foo', 'bar', 'baz']), 42, 'getNestedVal 42')
-
-    function getSignalVal(sg) { return getNestedVal(_dm.get(sg.root)) }
+    assert(() => getNestedVal({ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']), 42, 'getNestedVal 42')
 
     function setProp(el, aName, tar, val) {
       if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
@@ -443,142 +450,143 @@
       }
     }
 
-    // const SUBS = new Map()
-    // function emitSignal(sg, mutation = 'content', info = null) {
-    //   const root = toCamel(sg.split('.')[0]);
-    //   const handlers = SUBS.get(root);
+    const SUBS = new Map()
+    function emitSignal(root, mutation = 'content', shapeChange = null) {
+      const handlers = SUBS.get(root);
+      if (handlers) {
+        for (const h of handlers) {
+          try {
+            // Legacy function handlers (fast path) for content and shape
+            if (typeof h === 'function') {
+              h(undefined, sg);
+              continue;
+            }
+            if (!(h && typeof h.fn === 'function')) continue;
 
-    //   if (handlers) {
-    //     for (const h of handlers) {
-    //       try {
-    //         // Legacy function handlers (fast path) for content and shape
-    //         if (typeof h === 'function') {
-    //           h(undefined, sg);
-    //           continue;
-    //         }
-    //         if (!(h && typeof h.fn === 'function')) continue;
+            if (mutation === CONTENT) {
+              if (h.mode === CONTENT && !h.childPath) h.fn(undefined, sg)
+              continue;
+            }
 
-    //         // CONTENT mutation: only call content-mode subscribers (fast path)
-    //         if (mutation === 'content') {
-    //           if (h.mode === 'content' && !h.childPath) { h.fn(undefined, sg); }
-    //           continue;
-    //         }
+            // SHAPE mutation: prepare minimal change payload (added/removed only)
+            const change = { added: shapeChange?.added ?? [], removed: shapeChange?.removed ?? [] };
 
-    //         // SHAPE mutation: prepare minimal change payload (added/removed only)
-    //         if (h.mode === 'shape' || h.mode === 'content') {
-    //           const base = info && info.base ? info.base : { added: [], removed: [] };
-    //           const change = { added: base.added || [], removed: base.removed || [] };
+            // If subscriber requested a childPath filter, only invoke when that key/index was added/removed
+            if (h.childPath) {
+              const sval = h.childPath;
+              const makeKeySet = (list) => {
+                const s = new Set();
+                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if (!Number.isNaN(nx)) s.add(String(nx)); });
+                return s;
+              };
+              const addedSet = makeKeySet(change.added);
+              const removedSet = makeKeySet(change.removed);
+              const matches = addedSet.has(sval) || addedSet.has(svalCamel) || removedSet.has(sval) || removedSet.has(svalCamel);
+              if (!matches) continue;
+            }
 
-    //           // If subscriber requested a childPath filter, only invoke when that key/index was added/removed
-    //           const cp = h.childPath != null ? String(h.childPath) : null;
-    //           if (cp) {
-    //             const sval = cp;
-    //             const svalCamel = toCamel(sval);
-    //             const makeKeySet = (list) => {
-    //               const s = new Set();
-    //               (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if (!Number.isNaN(nx)) s.add(String(nx)); });
-    //               return s;
-    //             };
-    //             const addedSet = makeKeySet(change.added);
-    //             const removedSet = makeKeySet(change.removed);
-    //             const matches = addedSet.has(sval) || addedSet.has(svalCamel) || removedSet.has(sval) || removedSet.has(svalCamel);
-    //             if (!matches) continue;
-    //           }
+            // For signal-originated invocations, pass no event object (undefined)
+            // and forward the minimal change summary as a third argument (`detail`).
+            // This makes handlers treat `ev` as undefined (signal source) and
+            // receive the change via the `detail` parameter.
+            h.fn(undefined, sg, change);
+          } catch (e) { console.error('[dmax] Error: Subscriber handler error', e); }
+        }
+      }
+      // updateDebug(); // @wip
+    }
 
-    //           // For signal-originated invocations, pass no event object (undefined)
-    //           // and forward the minimal change summary as a third argument (`detail`).
-    //           // This makes handlers treat `ev` as undefined (signal source) and
-    //           // receive the change via the `detail` parameter.
-    //           h.fn(undefined, sg, change);
-    //         }
-    //       } catch (e) { console.error('[dmax] Error: Subscriber handler error', e); }
-    //     }
-    //   }
-    //   // updateDebug(); // @wip
-    // }
+    const SHAPE = 'shape', CONTENT = 'content'
 
-    // function setSignalVal(sg, val, ev) {
-    //   const currVal = getSignalVal(sg);
-    //   if (!ev && currVal === val) return;
+    function setSignalVal(el, aName, tar, val, ev) {
+      const root = tar.root, path = tar.path, depth = path?.length ?? 0, sg = _dm.get(root)
+      if (sg === undefined) { console.log('[dmax] Error no such signal exist for setting', sg, 'in', aName); return }
+      if (depth === 0) {
+        if (sg === val) return // @wip deep compare?
+        _dm.set(root) = val
+        emitSignal(root, CONTENT, info)
+      }
 
-    //   const parts = sg.split('.');
-    //   const root = toCamel(parts[0]);
+      if (depth > 0) sg = getNestedVal(sg, path, depth - 1)
 
-    //   // helper to detect shape vs content
-    //   const detectMutation = () => {
-    //     // root-level assignment: treat object/array assignments as shape (structural)
-    //     if (parts.length === 1)
-    //       return val && typeof val === 'object' ? 'shape' : 'content';
 
-    //     const parentPath = parts.slice(0, -1).join('.');
-    //     const parent = getSignalVal(parentPath);
-    //     const lastRaw = parts[parts.length - 1];
-    //     const lastIsIndex = /^\d+$/.test(String(lastRaw));
-    //     const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
-    //     if (parent == null) return 'shape';
-    //     if (Array.isArray(parent)) {
-    //       if (lastIsIndex) {
-    //         if (last >= parent.length) return 'shape'; // adding index -> shape
-    //         return 'content'; // replacing existing index -> content
-    //       }
-    //       // non-numeric assignment on array -> shape
-    //       return 'shape';
-    //     }
-    //     // object parent
-    //     if (Object.prototype.hasOwnProperty.call(parent, last)) return 'content';
-    //     return 'shape';
-    //   };
+      if (!ev && currVal === val) return; // @wip deep compare?
 
-    //   const mutation = detectMutation();
+      // detect shape vs content
+      const detectMutation = (path, val, currVal) => {
+        // root-level assignment: treat object/array assignments as shape (structural)
+        if (p.length === 1)
+          return val && typeof val === 'object' ? 'shape' : 'content';
 
-    //   // prepare change info for shape mutations
-    //   let changeInfo = null;
-    //   if (parts.length === 1) {
-    //     const before = _dm.get(root);
-    //     _dm.set(root, val);
-    //     try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, val); } catch (e) { }
-    //     if (mutation === 'shape')
-    //       changeInfo = diffValues(before, val)
-    //   } else {
-    //     // structural shallow clone: only clone root object/array and walk path
-    //     const orig = _dm.get(root);
-    //     // compute parent path and before-parent snapshot
-    //     const parentPath = parts.slice(0, -1).join('.');
-    //     const beforeParent = getSignalVal(parentPath);
-    //     let base;
-    //     try { base = Array.isArray(orig) ? orig.slice() : (orig && typeof orig === 'object' ? Object.assign({}, orig) : (typeof orig === 'object' ? {} : {})); } catch (e) { base = {} }
-    //     let t = base;
-    //     for (let i = 1; i < parts.length - 1; i++) {
-    //       const key = toCamel(parts[i]);
-    //       if (typeof t[key] !== 'object' || t[key] === null) t[key] = {};
-    //       // shallow clone child to avoid mutating original reference
-    //       const child = t[key];
-    //       t[key] = Array.isArray(child) ? child.slice() : Object.assign({}, child);
-    //       t = t[key];
-    //     }
-    //     t[toCamel(parts[parts.length - 1])] = val;
-    //     // after-parent snapshot
-    //     const afterParent = (function () {
-    //       let node = base;
-    //       for (let i = 1; i < parts.length - 1; i++) node = node[toCamel(parts[i])] || {};
-    //       return node;
-    //     })();
-    //     _dm.set(root, base);
-    //     try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, base); } catch (e) { }
-    //     if (mutation === 'shape')
-    //       changeInfo = diffValues(beforeParent, afterParent)
-    //   }
-    //   emitSignal(sg, mutation, changeInfo);
-    // }
+        const parentPath = path.slice(0, -1).join('.');
+        const parent = getSignalVal(parentPath);
+        const lastRaw = path[path.length - 1];
+        const lastIsIndex = /^\d+$/.test(String(lastRaw));
+        const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
+        if (parent == null) return 'shape';
+        if (Array.isArray(parent)) {
+          if (lastIsIndex) {
+            if (last >= parent.length) return 'shape'; // adding index -> shape
+            return 'content'; // replacing existing index -> content
+          }
+          // non-numeric assignment on array -> shape
+          return 'shape';
+        }
+        // object parent
+        if (Object.prototype.hasOwnProperty.call(parent, last)) return 'content';
+        return 'shape';
+      };
 
-    // syncDepth = 0, MAX_SYNC_DEPTH = 16;
-    // function setSignal(sg, val, ev) {
-    //   if (syncDepth++ > MAX_SYNC_DEPTH) {
-    //     console.error(`[dmax] Infinite loop detected for signal: ${sg} (depth > ${MAX_SYNC_DEPTH})`)
-    //     return
-    //   }
-    //   try { return setSignalVal(sg, val, ev) } finally { syncDepth-- }
-    // }
+      const mutation = detectMutation();
+
+      // prepare change info for shape mutations
+      let changeInfo = null;
+      if (path.length === 1) {
+        const before = _dm.get(root);
+        _dm.set(root, val);
+        try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, val); } catch (e) { }
+        if (mutation === 'shape')
+          changeInfo = diffValues(before, val)
+      } else {
+        // structural shallow clone: only clone root object/array and walk path
+        const orig = _dm.get(root);
+        // compute parent path and before-parent snapshot
+        const parentPath = path.slice(0, -1).join('.');
+        const beforeParent = getSignalVal(parentPath);
+        let base;
+        try { base = Array.isArray(orig) ? orig.slice() : (orig && typeof orig === 'object' ? Object.assign({}, orig) : (typeof orig === 'object' ? {} : {})); } catch (e) { base = {} }
+        let t = base;
+        for (let i = 1; i < path.length - 1; i++) {
+          const key = toCamel(path[i]);
+          if (typeof t[key] !== 'object' || t[key] === null) t[key] = {};
+          // shallow clone child to avoid mutating original reference
+          const child = t[key];
+          t[key] = Array.isArray(child) ? child.slice() : Object.assign({}, child);
+          t = t[key];
+        }
+        t[toCamel(path[path.length - 1])] = val;
+        // after-parent snapshot
+        const afterParent = (function () {
+          let node = base;
+          for (let i = 1; i < path.length - 1; i++) node = node[toCamel(path[i])] || {};
+          return node;
+        })();
+        _dm.set(root, base);
+        try { const alias = sigKey(root); if (alias !== root) _dm.set(alias, base); } catch (e) { }
+        if (mutation === 'shape')
+          changeInfo = diffValues(beforeParent, afterParent)
+      }
+      emitSignal(tar, mutation, changeInfo);
+    }
+
+    let syncDepth = 0, MAX_SYNC_DEPTH = 16;
+    function setSignal(el, aName, tar, val, ev) {
+      if (syncDepth++ > MAX_SYNC_DEPTH) {
+        console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
+        return
+      }
+      try { return setSignalVal(el, aName, tar, val, ev) } finally { syncDepth-- }
+    }
 
     // // Track all event listeners and signal handlers for cleanup
     // cleanupMap = new WeakMap();
