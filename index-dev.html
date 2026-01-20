@@ -186,7 +186,7 @@
 
     const DOT = '.'
     const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
-    const SIGN = 's', PROP = DOT, ID = '#', SPEC = '_', EXCL = '!'
+    const SIGN = 's', PROP = DOT, ID = '#', SPEC = '_', NOT = '!', EV = '~' // @wip add support for EV 
 
     const WIN = '_window'; DOC = '_document'; FRM = '_form'; INTR = '_interval'; TIMT = '_timeout'
     const SPECIALS = [WIN, DOC, FRM, INTR, TIMT]
@@ -213,14 +213,14 @@
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
     const ALL = [MOD, TARG, TRIG, STAT, ADD]
     const MODS = [MOD]
-    const KIND = [MOD, SIGN, PROP, ID, SPEC]
+    const KIND = [MOD, SIGN, PROP, EV, ID, SPEC]
 
     // Returns {kind:KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     function parseItem(aName, type, n, pos = 0) {
       if (!n) return null
 
       let p = pos
-      while (n.startsWith(EXCL, p)) ++p
+      while (n.startsWith(NOT, p)) ++p
       let not = p == 0 ? null : p % 2 != 0
 
       let d = n.indexOf(DOT, p)
@@ -269,9 +269,10 @@
     assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": "s", "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
     assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
     assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": "s", "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
-    assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": "^", "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path'); // @wip should be an error for null
+    assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": "^", "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
     assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": "^", "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
+    assert(parseItem, ['YYY', TARG, '.'], { "kind": ".", "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
 
     function parse(aName, p = 'data-'.length, it = ALL) {
       let items = {}, modItems = null
@@ -429,24 +430,25 @@
 
     function getNestedVal(obj, path, depth = 0) {
       let v = obj
-      if (isNil(v) || !path) return v
+      if (isNil(v) || !path) return [v, 0]
       let n = !depth || depth > path.length ? path.length : depth
-      for (let i = 0; i < n; ++i) if (isNil(v = v[path[i]])) return v
-      return v
+      for (let i = 0; i < n; ++i) if (isNil(v = v[path[i]])) return [v, i + 1]
+      return [v, n]
     }
 
-    assert(getNestedVal, [getElById('foo', 'xxx'), ['textContent']], 'good', 'getNestedVal depth 1')
-    assert(getNestedVal, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], 42, 'getNestedVal 42')
+    assert(getNestedVal, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'getNestedVal depth 1')
+    assert(getNestedVal, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], 'getNestedVal 42')
+    assert(getNestedVal, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'getNestedVal 42')
 
     function setProp(el, aName, tar, val) {
       if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
       let obj = tar.kind == ID ? getElById(tar.root, aName) : el
       let path = tar.path, prop = null
-      if (!path || (path.length === 1 && path[0] === null))
+      if (!path)
         prop = getAutoProp(el);
       else if (path.length > 0) {
-        obj = getNestedVal(obj, path, path.length - 1)
-        prop = path[path.length - 1]
+        [obj, _] = getNestedVal(obj, path, path.length - 1)
+        prop = path.at(-1)
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', aName); return }
       try {
@@ -456,12 +458,13 @@
       }
     }
 
-    const SUBS = new Map()
-    function emitSignal(root, mutation = 'content', shapeChange = null) {
-      const handlers = SUBS.get(root);
+    const _subs = new Map()
+    function emitSignal(root, mode = 'content', shapeChange = null) {
+      const handlers = _subs.get(root);
       if (handlers) {
         for (const h of handlers) {
           try {
+            // @wip what and why do we need this??
             // Legacy function handlers (fast path) for content and shape
             if (typeof h === 'function') {
               h(undefined, sg);
@@ -469,33 +472,19 @@
             }
             if (!(h && typeof h.fn === 'function')) continue;
 
-            if (mutation === CONTENT) {
+            if (mode === CONTENT) {
               if (h.mode === CONTENT && !h.childPath) h.fn(undefined, sg)
               continue;
             }
 
-            // SHAPE mutation: prepare minimal change payload (added/removed only)
-            const change = { added: shapeChange?.added ?? [], removed: shapeChange?.removed ?? [] };
-
-            // If subscriber requested a childPath filter, only invoke when that key/index was added/removed
-            if (h.childPath) {
-              const sval = h.childPath;
-              const makeKeySet = (list) => {
-                const s = new Set();
-                (list || []).forEach(x => { const sx = String(x); s.add(sx); s.add(toCamel(sx)); const nx = Number(x); if (!Number.isNaN(nx)) s.add(String(nx)); });
-                return s;
-              };
-              const addedSet = makeKeySet(change.added);
-              const removedSet = makeKeySet(change.removed);
-              const matches = addedSet.has(sval) || addedSet.has(svalCamel) || removedSet.has(sval) || removedSet.has(svalCamel);
+            if (shapeChange && h.childPath) {
+              let matches =
+                shapeChange.added && shapeChange.added.indexOf(h.childPath) != 1 ||
+                shapeChange.removed && shapeChange.removed.indexOf(h.childPath) != 1;
               if (!matches) continue;
             }
 
-            // For signal-originated invocations, pass no event object (undefined)
-            // and forward the minimal change summary as a third argument (`detail`).
-            // This makes handlers treat `ev` as undefined (signal source) and
-            // receive the change via the `detail` parameter.
-            h.fn(undefined, sg, change);
+            h.fn(undefined, sg, detail = shapeChange);
           } catch (e) { console.error('[dmax] Error: Subscriber handler error', e); }
         }
       }
@@ -504,47 +493,29 @@
 
     const SHAPE = 'shape', CONTENT = 'content'
 
+    // If sg not exist in the _dm, then we will create it -> create missing target on demand
     function setSignalVal(el, aName, tar, val, ev) {
-      const root = tar.root, path = tar.path, depth = path?.length ?? 0, sg = _dm.get(root)
-      if (sg === undefined) { console.log('[dmax] Error no such signal exist for setting', sg, 'in', aName); return }
-      if (depth === 0) {
-        if (sg === val) return // @wip deep compare?
+      const root = tar.root, path = tar.path, isValObj = val && typeof val == 'object'
+      const sgRoot = _dm.get(root)
+      if (!path) { // at depth 0
+        if (sgRoot === val) return // @wip deep compare?
         _dm.set(root) = val
-        emitSignal(root, CONTENT, info)
+        emitSignal(root, isValObj ? SHAPE : CONTENT, null) // setting x = { foo: [], bar:{} } is the shape change
+        return
       }
 
-      if (depth > 0) sg = getNestedVal(sg, path, depth - 1)
+      if (!sgRoot) { console.error('[dmax] Error: cannot set value to absent signal root:', root, 'at path:', path); return }
 
+      let depth = path.length
+      let [sgObj, d] = getNestedVal(sgRoot, path, depth - 1)
+      if (!sgObj) { console.error('[dmax] Error: cannot set value to missing signal object at:', root, 'at path:', path, 'at index:', d - 1); return }
 
-      if (!ev && currVal === val) return; // @wip deep compare?
+      const curr = sgObj[path.at(-1)]
+      if (curr === val) return; // @wip deep compare?
 
-      // detect shape vs content
-      const detectMutation = (path, val, currVal) => {
-        // root-level assignment: treat object/array assignments as shape (structural)
-        if (p.length === 1)
-          return val && typeof val === 'object' ? 'shape' : 'content';
+      changeMode = curr === undefined ? SHAPE : CONTENT
 
-        const parentPath = path.slice(0, -1).join('.');
-        const parent = getSignalVal(parentPath);
-        const lastRaw = path[path.length - 1];
-        const lastIsIndex = /^\d+$/.test(String(lastRaw));
-        const last = lastIsIndex ? +lastRaw : toCamel(lastRaw);
-        if (parent == null) return 'shape';
-        if (Array.isArray(parent)) {
-          if (lastIsIndex) {
-            if (last >= parent.length) return 'shape'; // adding index -> shape
-            return 'content'; // replacing existing index -> content
-          }
-          // non-numeric assignment on array -> shape
-          return 'shape';
-        }
-        // object parent
-        if (Object.prototype.hasOwnProperty.call(parent, last)) return 'content';
-        return 'shape';
-      };
-
-      const mutation = detectMutation();
-
+      // @wip NEXT
       // prepare change info for shape mutations
       let changeInfo = null;
       if (path.length === 1) {
