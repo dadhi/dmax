@@ -128,16 +128,18 @@
       return stableStringify(a) === stableStringify(b);
     };
     fmt = (val) => (typeof val === 'string' ? `'${val}'` : stableStringify(val));
-    assert = (fn, expected, label) => {
+    assert = (fn, args, expected, label) => {
+      const fname = fn && fn.name ? fn.name : '(anonymous)';
+      const head = label ? `${fname} — ${label}` : fname;
       try {
-        const actual = fn();
+        const actual = Array.isArray(args) ? fn(...args) : fn(args);
         const pass = deepEqual(actual, expected);
         if (pass)
-          console.log('✓', label, '>>>', fmt(actual));
+          console.log('✓', head, '>>>', fmt(actual));
         else
-          console.error('✗', label, '>>> expected:', fmt(expected), 'actual:', fmt(actual));
+          console.error('✗', head, '>>> expected:', fmt(expected), 'actual:', fmt(actual));
       } catch (err) {
-        console.error('✗', label, '>>> threw:', fmt(err), '>>> expected:', fmt(expected));
+        console.error('✗', head, '>>> threw:', fmt(err), '>>> expected:', fmt(expected));
       }
     };
 
@@ -150,10 +152,10 @@
       return first === s.length ? -1 : first
     }
 
-    assert(() => indexFirst('abcdefg', ['x', 'y', 'z']), -1, 'none found');
-    assert(() => indexFirst('abcdefg', ['x', 'c', 'z']), 2, 'one found');
-    assert(() => indexFirst('abcdefgabc', ['a', 'b', 'c'], 3), 7, 'multiple found with pos');
-    assert(() => indexFirst('abcdefg', ['a'], 10), -1, 'pos out of range');
+    assert(indexFirst, ['abcdefg', ['x', 'y', 'z']], -1, 'none found');
+    assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
+    assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
+    assert(indexFirst, ['abcdefg', ['a'], 10], -1, 'pos out of range');
 
     const CAMEL_NAMES = new Map()
     function kebabToCamel(s) {
@@ -173,14 +175,14 @@
       return res
     }
 
-    assert(() => kebabToCamel('foo-bar'), 'fooBar', 'basic case');
-    assert(() => kebabToCamel('-bar'), 'Bar', 'lead single');
-    assert(() => kebabToCamel('bar-'), 'bar', 'trail single');
-    assert(() => kebabToCamel('multi-part-key'), 'multiPartKey', 'multi part');
-    assert(() => kebabToCamel('-'), '', 'single dash');
-    assert(() => kebabToCamel('--'), '', 'multi dashes only');
-    assert(() => kebabToCamel('--leading--dashes'), 'LeadingDashes', 'leading dashes');
-    assert(() => kebabToCamel('trailing--dashes-'), 'trailingDashes', 'trailing dashes');
+    assert(kebabToCamel, ['foo-bar'], 'fooBar', 'basic case');
+    assert(kebabToCamel, ['-bar'], 'Bar', 'lead single');
+    assert(kebabToCamel, ['bar-'], 'bar', 'trail single');
+    assert(kebabToCamel, ['multi-part-key'], 'multiPartKey', 'multi part');
+    assert(kebabToCamel, ['-'], '', 'single dash');
+    assert(kebabToCamel, ['--'], '', 'multi dashes only');
+    assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
+    assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
 
     const DOT = '.'
     const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
@@ -259,17 +261,17 @@
       return { kind, not, root, path }
     }
 
-    assert(() => parseItem('XXX', TRIG, '#hey.foo.bar-baz'), { "kind": "#", "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
-    assert(() => parseItem('XXX', TARG, 'foo-bar'), { "kind": "s", "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
-    assert(() => parseItem('XXX', TRIG, '#el.some.prop'), { "kind": "#", "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
-    assert(() => parseItem('XXX', TRIG, '!foo'), { "kind": "s", "not": true, "path": null, "root": "foo" }, 'negated once');
-    assert(() => parseItem('XXX', TRIG, '!!foo'), { "kind": "s", "not": false, "path": null, "root": "foo" }, 'double negation even');
-    assert(() => parseItem('XXX', TARG, 'foo.'), { "kind": "s", "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
-    assert(() => parseItem('XXX', TARG, 'a..b'), null, 'error: empty middle segment');
-    assert(() => parseItem('XXX', TARG, 'foo.bar-baz.qux-quux'), { "kind": "s", "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
-    assert(() => parseItem('XXX', MOD, '!eq.3'), { "kind": "^", "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path'); // @wip should be an error for null
-    assert(() => parseItem('XXX', MOD, '!eq.'), { "kind": "^", "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
-    assert(() => parseItem('XXX', TARG, ''), null, 'error: empty name returns nulls');
+    assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": "#", "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
+    assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": "s", "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
+    assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": "#", "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
+    assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": "s", "not": true, "path": null, "root": "foo" }, 'negated once');
+    assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": "s", "not": false, "path": null, "root": "foo" }, 'double negation even');
+    assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": "s", "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
+    assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
+    assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": "s", "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
+    assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": "^", "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path'); // @wip should be an error for null
+    assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": "^", "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
+    assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
 
     function parse(aName, p = 'data-'.length, it = ALL) {
       let items = {}, modItems = null
@@ -315,20 +317,20 @@
       return [items, p]
     }
 
-    assert(() => parse('data-def'), [{}, 8], 'empty')
-    assert(() => parse('data-sub:'), [{}, 9], 'single empty')
-    assert(() => parse('data-sub^mod'), [{ "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
-    assert(() => parse('data-sub^mod.some-foo.value^!eq.3'), [{ "^": [{ "kind": "^", "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": "^", "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
-    assert(() => parse('data-sub^mod^@hey^foo:bar'), [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "foo" }, { "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
-    assert(() => parse('data-sub@!xxx@!'), [{ "@": [{ "kind": "s", "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
-    assert(() => parse('data-sub:xxx:'), [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
-    assert(() => parse('data-sub::'), [{}, 10], '2 empties')
-    assert(() => parse('data-sub:foo^'), [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
-    assert(() => parse('data-sub:foo^^'), [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
-    assert(() => parse('data-sub:foo-bar^bax.3'), [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
-    assert(() => parse('data-sub:foo-bar^bax.3@!something^nice'), [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
-    assert(() => parse('data-sub^ge.2^le.5@foo^le.4'), [{ "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "4", "root": "le" }, { "kind": "^", "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": "2", "root": "ge" }, { "kind": "^", "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
-    assert(() => parse('data-sub^hey@foo:bar+bax'), [{ "+": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
+    assert(parse, ['data-def'], [{}, 8], 'empty')
+    assert(parse, ['data-sub:'], [{}, 9], 'single empty')
+    assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
+    assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": "^", "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": "^", "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
+    assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "foo" }, { "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
+    assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": "s", "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
+    assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
+    assert(parse, ['data-sub::'], [{}, 10], '2 empties')
+    assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
+    assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
+    assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
+    assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
+    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "4", "root": "le" }, { "kind": "^", "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": "2", "root": "ge" }, { "kind": "^", "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
+    assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
 
     function isObjEmpty(o) {
       for (const _ in o) return false
@@ -384,14 +386,16 @@
       }
     }
 
-    const _sign = (nam, val) => { _dm.clear(); dSign(null, nam, val); return DM }
-    assert(() => _sign('data-def', '{foo: {bar: "hey"}, baz: 1}'), { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
-    assert(() => _sign('data-def:foo', '{bar: "hey"}'), { "foo": { "bar": "hey" } }, 'signal = value')
-    assert(() => _sign('data-def:foo-bar:baz'), { "baz": null, "fooBar": null }, 'signals')
-    assert(() => _sign('data-def:foo-bar:baz', '`Mamma Mia ${42}`'), { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
+    const _sign = (nam, val) => { _dm.clear(); dSign(null, nam, val); return DM };
+    const _signEl = (el, nam, val) => { _dm.clear(); dSign(el, nam, val); return DM };
+    const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dSign(null, nam, val); return DM };
+    assert(_sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
+    assert(_sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
+    assert(_sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
+    assert(_sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
 
-    assert(() => { _dm.clear(); dSign({ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'); return DM }, { "foo": "Hey, John" }, 'using el')
-    assert(() => { _dm.clear(); DM.name = "Noize"; dSign(null, 'data-def:greet', '"Hey, " + dm.name'); return DM }, { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+    assert(_signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
+    assert(_signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
 
     function getElById(id, aName) {
       if (!id) return null
@@ -400,7 +404,9 @@
       return el;
     };
 
-    assert(() => getElById('foo', 'data-sub:#foo@bar')?.textContent ?? null, 'good', 'get existing elem')
+    const _getElById = (id, aName) => getElById(id, aName)?.textContent ?? null;
+
+    assert(_getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
 
     function getAutoProp(el) {
       if (!el) return 'textContent'
@@ -429,8 +435,8 @@
       return v
     }
 
-    assert(() => getNestedVal(getElById('foo', 'xxx'), ['textContent']), 'good', 'getNestedVal depth 1')
-    assert(() => getNestedVal({ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']), 42, 'getNestedVal 42')
+    assert(getNestedVal, [getElById('foo', 'xxx'), ['textContent']], 'good', 'getNestedVal depth 1')
+    assert(getNestedVal, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], 42, 'getNestedVal 42')
 
     function setProp(el, aName, tar, val) {
       if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
