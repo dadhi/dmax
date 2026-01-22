@@ -379,15 +379,15 @@ vcon.on('error', msg => { pageLogs.push(String(msg)); console.error('[page error
       await new Promise(r => setTimeout(r, 120));
       if(window.__contentCount === 1 && (window.__shapeCount === 0)) pass('FG: content-change notifies content subs only'); else fail('FG: content-change notification mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
       if(String(contentSub.textContent).trim() === '1') pass('FG: content subscriber received value'); else fail('FG: content subscriber content mismatch');
-      // childPath-specific shape subscriber should NOT trigger on content-change
-      if((window.__shapeChild || 0) === 0) pass('FG: childPath filter not triggered on content-change'); else fail('FG: childPath filter incorrectly triggered on content-change');
+      // path-specific shape subscriber should NOT trigger on content-change
+      if((window.__shapeChild || 0) === 0) pass('FG: path filter not triggered on content-change'); else fail('FG: path filter incorrectly triggered on content-change');
 
       // 2) shape-change: add a key on parent (should notify shape subs and also still trigger content subs)
       addKey.dispatchEvent(new window.Event('click', { bubbles: true }));
       await new Promise(r => setTimeout(r, 120));
       if(window.__shapeCount === 1 && window.__contentCount >= 2) pass('FG: shape-change notifies shape (and content) subs'); else fail('FG: shape-change notification mismatch: ' + window.__contentCount + '/' + window.__shapeCount);
-      // childPath-specific shape subscriber should be triggered when that key added
-      if((window.__shapeChild || 0) === 1) pass('FG: childPath filter triggered on shape add'); else fail('FG: childPath filter did not trigger on shape add');
+      // path-specific shape subscriber should be triggered when that key added
+      if((window.__shapeChild || 0) === 1) pass('FG: path filter triggered on shape add'); else fail('FG: path filter did not trigger on shape add');
 
       // Explicit check: compiled shape subscriber should update DOM using the `detail` parameter
       try{

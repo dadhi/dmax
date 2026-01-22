@@ -1034,11 +1034,11 @@
           subs.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
           if(rootAlias !== root){ const arr2 = subs.get(rootAlias) || []; subs.set(rootAlias, arr2.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec))); }
         };
-        // support __shape modifier: register subscription object with optional childPath
+        // support __shape modifier: register subscription object with optional path
         let entry = dec;
         if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
           const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
-          entry = { fn: dec, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
+          entry = { fn: dec, mode: ('shape' in t.mods ? 'shape' : 'content'), path: sval };
         }
         // If trigger uses bracket-index indirection, wrap the handler so it only fires when the resolved path matches
         if(hasBracketIndex(t.name)){
@@ -1059,7 +1059,7 @@
               }
             }catch(e){ }
           };
-          const wrappedEntry = { fn: wrapper, mode: (t.mods && ('shape' in t.mods) ? 'shape' : 'content'), childPath: null };
+          const wrappedEntry = { fn: wrapper, mode: (t.mods && ('shape' in t.mods) ? 'shape' : 'content'), path: null };
           subs.get(root).push(wrappedEntry);
           if(rootAlias !== root) subs.get(rootAlias).push(wrappedEntry);
           // also subscribe wrapper to bracket roots (idx signals)
@@ -1499,7 +1499,7 @@
         let entry = handler;
         if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
           const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
-          entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
+          entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), path: sval };
         }
         subs.get(root).push(entry);
         if(rootAlias !== root) subs.get(rootAlias).push(entry);
@@ -1615,7 +1615,7 @@
           let entry = handler;
           if(t.mods && ('shape' in t.mods || 'content' in t.mods)){
             const sval = (t.mods && 'shape' in t.mods) ? ((t.mods.shape === true || t.mods.shape === 1) ? null : (t.mods.shape != null ? String(t.mods.shape) : null)) : null;
-            entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), childPath: sval };
+            entry = { fn: handler, mode: ('shape' in t.mods ? 'shape' : 'content'), path: sval };
           }
           subs.get(root).push(entry);
           if(rootAlias !== root) subs.get(rootAlias).push(entry);
@@ -1897,7 +1897,7 @@
     // subscribe to root signal (shape mode)
     if(!subs.has(root)) subs.set(root, []);
     if(rootAlias !== root && !subs.has(rootAlias)) subs.set(rootAlias, []);
-    const entry = { fn: doRender, mode: 'shape', childPath: null };
+    const entry = { fn: doRender, mode: 'shape', path: null };
     subs.get(root).push(entry);
     if(rootAlias !== root) subs.get(rootAlias).push(entry);
 
@@ -1953,7 +1953,7 @@
 
           // CONTENT mutation: only call content-mode subscribers (fast path)
           if(mutation === 'content'){
-            if(h.mode === 'content' && !h.childPath){ h.fn(undefined, p); }
+            if(h.mode === 'content' && !h.path){ h.fn(undefined, p); }
             continue;
           }
 
@@ -1962,8 +1962,8 @@
             const base = info && info.base ? info.base : { added: [], removed: [] };
             const change = { added: base.added || [], removed: base.removed || [] };
 
-            // If subscriber requested a childPath filter, only invoke when that key/index was added/removed
-            const cp = h.childPath != null ? String(h.childPath) : null;
+            // If subscriber requested a path filter, only invoke when that key/index was added/removed
+            const cp = h.path != null ? String(h.path) : null;
             if(cp){
               const sval = cp;
               const svalCamel = toCamel(sval);

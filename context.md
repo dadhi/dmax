@@ -49,7 +49,7 @@ Shape change payload (guarantees)
     - `ev`: DOM Event for event-originated triggers (`undefined` for signal-originated)
     - `sg`: signal path that triggered the evaluation (if any)
     - `detail`: shape-change summary provided for shape-mode invocations
-  - Subscriptions: stored in `subs` keyed by canonical root; entries are objects `{ fn, mode, childPath }` (or legacy function entries).
+  - Subscriptions: stored in `subs` keyed by canonical root; entries are objects `{ fn, mode, path }`.
 
   Content vs Shape semantics
   - Content mutation: value replacement — not structural; invokes `content` subscribers only.

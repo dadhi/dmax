@@ -458,41 +458,6 @@
       }
     }
 
-    const SHAPE = 'shape', CONTENT = 'content'
-    const _subs = new Map()
-
-    function emitSignal(root, path, shapeDiff = null) {
-      const handlers = _subs.get(root);
-      if (handlers) {
-        for (const h of handlers) {
-          try {
-            // @wip what and why do we need this??
-            // Legacy function handlers (fast path) for content and shape
-            if (typeof h === 'function') {
-              h(undefined, sg);
-              continue;
-            }
-            if (!(h && typeof h.fn === 'function')) continue; // @wip console.error?
-
-            if (!path) {
-              if (h.mode === CONTENT && ?? !h.childPath) h.fn(undefined, sg)
-              continue;
-            }
-
-            if (shapeDiff && h.childPath) {
-              let matches =
-                shapeDiff.added && shapeDiff.added.indexOf(h.childPath) != 1 ||
-                shapeDiff.removed && shapeDiff.removed.indexOf(h.childPath) != 1;
-              if (!matches) continue;
-            }
-
-            h.fn(undefined, sg, detail = shapeDiff);
-          } catch (e) { console.error('[dmax] Error: Subscriber handler error', e); }
-        }
-      }
-      // updateDebug(); // @wip
-    }
-
     const EMPTY_ARR = []
     function diffShapeShallow(before, after) {
       let b = before, a = after
@@ -516,31 +481,46 @@
       return add ? (rem ? { added, removed } : { added }) : (rem ? { removed } : null)
     }
 
-    // If sg not exist in the _dm, then we will create it -> create missing target on demand
-    // Shape vs Content (old, new):
-    // (undefined, _) -> Shape // everything changes
-    // (obj, obj) -> shapeDiff ? Shape : Content
-    // (_, _) -> Content
-    function setSignalVal(el, aName, tar, val, ev) {
-      const root = tar.root, path = tar.path, isNewObjOrArr = val && typeof val == 'object'
-      let curr = _dm.get(root), diff = null
-      if (!path) {
-        if (curr === val) return // handles non-object comparison, @wip deep compare, use diffDeep?
-        diff = diffShapeShallow()
-        _dm.set(root) = val
-        emitSignal(root, null, diff) // notify root listeners
-        return
+    const NOTIFY_ANY_CHANGE = 0, NOTIFY_ANY_WITH_SHAPE = 1, NOTIFY_SHAPE_CHANGE_ONLY = 2
+    const _subs = new Map()
+
+    // If sg not exist in the _dm, then we will create it -> creating missing target on demand
+    function setSignalVal(_el, aName, tar, val, ev) {
+      const root = tar.root, path = tar.path
+      let curr = _dm.get(root)
+      if (path) {
+        console.assert(path.length)
+        const [parent, _] = getNestedVal(curr, path, path.length - 1)
+        if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', aName); return }
+        const last = path.at(-1)
+        curr = parent[last]
       }
 
-      if (!curr) { console.error('[dmax] Error: cannot set value to absent signal root:', root, 'at path:', path); return }
-
-      let depth = path.length
-      [curr, d] = getNestedVal(curr, path, depth)
-      if (d < depth) { console.error('[dmax] Error: cannot set value to missing signal object at:', root, 'at path:', path, 'at index:', d - 1); return }
       if (curr === val) return;
-      diff = diffShapeShallow()
-      // _dm.set(root) = val // we changed the property, so the root should not be reassigned
-      emitSignal(root, path, diff); // notify path and all sub-path listeners up to root
+      const handlers = _subs.get(root);
+      if (!handlers) return;
+
+      // @wip calc the diff on demand if only we have the handler for NOTIFY_ANY_WITH_SHAPE, NOTIFY_SHAPE_CHANGE_ONLY
+      let diff = diffShapeShallow(curr, val)
+
+      // subs entry by root: {rootHandlers:[...], pathHandlers:[{path:['bar', 'baz'], hs:[]}]}
+      // eval handlers order for (root, path):
+      // (root, undefined) -> invoke root handlers (SHAPE/CONTENT depending on shapeDiff), then invoke down all path handlers as well with SHAPE mode
+      // (root, path)      -> invoke all passed path handlers (SHAPE/CONTENT depending on shapeDiff), then down to longer paths as SHAPE, then up to ROOT as CONTENT
+      if (!path) {
+        for (const h of handlers) {
+          // h.function, h.mode, h.path
+        }
+      }
+
+      // @wip implementation plan?
+      // - for each root/path subbed handler find if root/path value is changed (shallow check is fine for now)
+      //    - collect the changed path handler
+      // - set new value
+      // - invoke all changed root/paths handler 
+
+
+      // updateDebug(); // @wip don't bother until later
     }
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 16;
@@ -642,11 +622,11 @@
     //         SUBS.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
     //         if (rootAlias !== root) { const arr2 = SUBS.get(rootAlias) || []; SUBS.set(rootAlias, arr2.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec))); }
     //       };
-    //       // support __shape modifier: register subscription object with optional childPath
+    //       // support __shape modifier: register subscription object with optional path
     //       let entry = dec;
     //       if (trig.mods && ('shape' in trig.mods || 'content' in trig.mods)) {
     //         const sval = (trig.mods && 'shape' in trig.mods) ? ((trig.mods.shape === true || trig.mods.shape === 1) ? null : (trig.mods.shape != null ? String(trig.mods.shape) : null)) : null;
-    //         entry = { fn: dec, mode: ('shape' in trig.mods ? 'shape' : 'content'), childPath: sval };
+    //         entry = { fn: dec, mode: ('shape' in trig.mods ? 'shape' : 'content'), path: sval };
     //       }
 
     //       SUBS.get(root).push(entry);
