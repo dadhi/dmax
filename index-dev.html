@@ -481,49 +481,122 @@
       return add ? (rem ? { added, removed } : { added }) : (rem ? { removed } : null)
     }
 
-    const NOTIFY_ANY_CHANGE = 0, NOTIFY_ANY_WITH_SHAPE = 1, NOTIFY_SHAPE_CHANGE_ONLY = 2
-    const _subs = new Map()
+    const VAL_CHANGE_DEPTH_MAX = 32
+    function valChangedDeep(before, after, depth = 0) {
+      if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] Warning: too deep to compare for signal value change, consider it changed, stopped at:', VAL_CHANGE_DEPTH_MAX); return true }
+      if (before !== after) return true // primitive, null, undefined, after that point we know that before and after of the same type
+      let b = before, a = after
+      if (Array.isArray(b)) { // means b is also an array
+        if (b.length != a.length) return true
+        for (let i = 0; i < b.length; ++i) if (valChangedDeep(b, a, ++depth)) return true
+      } else if (b && typeof b === 'object') {
+        let checkedObjs = [], bk
+        for (const k in b) {
+          if (!(k in a)) return true
+          if (valChangedDeep(bk = b[k], a[k]), ++depth) return true
+          if (bk && typeof bk === 'object') checkedObjs.push(k) // to prevent re-eval of the possibly deep object, for primitives it is fine
+        }
+        for (const k in a) {
+          if (!(k in b)) return true
+          if (checkedObjs.indexOf(k) != -1 && valChangedDeep(b[k], a[k]), ++depth) return true
+        }
+      }
+      return false
+    }
+
+    function samePath(a, b) {
+      if (a.length !== b.length) return false
+      for (let i = 0; i < a.length; ++i)
+        if (a[i] !== b[i]) return false
+      return true
+    }
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
+    const NOTIFY_SG_CHANGE = 0, NOTIFY_SG_CHANGE_PLUS_SHAPE = 1, NOTIFY_SG_SHAPE_CHANGE_ONLY = 2
+    const _subs = new Map()
     function setSignalVal(_el, aName, tar, val, ev) {
       const root = tar.root, path = tar.path
-      let curr = _dm.get(root)
+      let sg = _dm.get(root), cur = sg, parent = null, last = null
       if (path) {
         console.assert(path.length)
-        const [parent, _] = getNestedVal(curr, path, path.length - 1)
+        [parent, _] = getNestedVal(cur, path, path.length - 1)
         if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', aName); return }
-        const last = path.at(-1)
-        curr = parent[last]
+        cur = parent[last = path.at(-1)]
       }
 
-      if (curr === val) return;
+      // if change detected it means ALL parents of cur val and SOME of children changed
+      if (!valChangedDeep(cur, val)) return;
+
       const handlers = _subs.get(root);
       if (!handlers) return;
 
-      // @wip calc the diff on demand if only we have the handler for NOTIFY_ANY_WITH_SHAPE, NOTIFY_SHAPE_CHANGE_ONLY
-      let diff = diffShapeShallow(curr, val)
-
-      // subs entry by root: {rootHandlers:[...], pathHandlers:[{path:['bar', 'baz'], hs:[]}]}
-      // eval handlers order for (root, path):
-      // (root, undefined) -> invoke root handlers (SHAPE/CONTENT depending on shapeDiff), then invoke down all path handlers as well with SHAPE mode
-      // (root, path)      -> invoke all passed path handlers (SHAPE/CONTENT depending on shapeDiff), then down to longer paths as SHAPE, then up to ROOT as CONTENT
-      if (!path) {
-        for (const h of handlers) {
-          // h.function, h.mode, h.path
+      // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
+      let collected = [], diffed = false, diff = null, pathDiffs = []
+      for (const h of handlers) { // h.function, h.mode, h.path
+        const hp = h.path, mode = h.mode
+        if (!hp) {
+          if (!path && !diffed && mode !== NOTIFY_SG_CHANGE) {// compare roots if it is the first time
+            diffed = true
+            diff = diffShapeShallow(cur, val)
+          }
+          if (path || mode !== NOTIFY_SG_SHAPE_CHANGE_ONLY || diff)
+            collected.push([h, path ? null : diff]) // ignore diff later for NOTIFY_SG_CHANGE
+          continue
         }
+
+        // if some path value changed - filter out the handlers diverting from the path
+        if (path) {
+          const notifyParent = hp.length < path.length, minLen = notifyParent ? hp.length : path.length
+          let skip = false
+          for (let i = 0; i < minLen; ++i) if (skip = (path[i] != hp[i])) break
+          if (skip) continue
+          if (notifyParent) { collected.push([h, null]); continue }
+          if (path.length == hp.length) {
+            if (!diffed && mode !== NOTIFY_SG_CHANGE) {
+              diffed = true
+              diff = diffShapeShallow(cur, val)
+            }
+            if (mode !== NOTIFY_SG_SHAPE_CHANGE_ONLY || diff)
+              collected.push([h, diff])
+            continue
+          }
+        }
+
+        // the hp has the longer path based on previous checks, we to check that it actually changed
+        // first, check if we did this comparison before
+        let hCol = null, p = null
+        for (const col in collected) // check if the same 
+          if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
+
+        let [pathCur, _] = getNestedVal(sg, hp), pathVal
+        if (hCol) pathVal = hCol[2]
+        else {
+          [pathVal, _] = getNestedVal(val, hp)
+          if (!valChangedDeep(pathCur, pathVal)) continue
+        }
+
+        let pathDiffed = false, pathDiff = null
+        if (mode != NOTIFY_SG_CHANGE) {
+          for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
+          if (!pathDiffed) pathDiffs.push(pathDiff = diffShapeShallow(pathCur, pathVal))
+        }
+
+        if (mode !== NOTIFY_SG_SHAPE_CHANGE_ONLY || pathDiff)
+          collected.push([h, pathDiff, pathVal])
       }
 
-      // @wip implementation plan?
-      // - for each root/path subbed handler find if root/path value is changed (shallow check is fine for now)
-      //    - collect the changed path handler
-      // - set new value
-      // - invoke all changed root/paths handler 
+      if (!path) // at last set the new value
+        _dm.set(root, cur)
+      else
+        parent[last] = cur
 
+      for (const hh of collected) // notify with new values and diff if asked for
+        hh[0].function(hh[0].mode === NOTIFY_SG_CHANGE ? null : hh[1])
 
       // updateDebug(); // @wip don't bother until later
     }
 
-    let syncDepth = 0, MAX_SYNC_DEPTH = 16;
+    let syncDepth = 0, MAX_SYNC_DEPTH = 32;
     function setSignal(el, aName, tar, val, ev) {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
