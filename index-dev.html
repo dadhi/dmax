@@ -368,7 +368,7 @@
     // - data-def:foo='{bar: "hey"}' // foo signal
     // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
-    function dSign(el, aName, aVal) {
+    function dSync(el, aName, aVal) {
       let [it, _p] = parse(aName)
       let tars = it[TARG]
       delete it[TARG]
@@ -388,9 +388,9 @@
       }
     }
 
-    const _sign = (nam, val) => { _dm.clear(); dSign(null, nam, val); return DM };
-    const _signEl = (el, nam, val) => { _dm.clear(); dSign(el, nam, val); return DM };
-    const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dSign(null, nam, val); return DM };
+    const _sign = (nam, val) => { _dm.clear(); dSync(null, nam, val); return DM };
+    const _signEl = (el, nam, val) => { _dm.clear(); dSync(el, nam, val); return DM };
+    const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dSync(null, nam, val); return DM };
     assert(_sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     assert(_sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     assert(_sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -450,16 +450,11 @@
         for (let i = 0; i < b.length; ++i) if (valChangedDeep(b[i], a[i], ++depth)) return true
       } else if (b && typeof b === 'object') {
         if (!a || typeof a !== 'object') return true
-        let checkedObjs = [], bk
         for (const k in b) {
           if (!(k in a)) return true
-          if (valChangedDeep(bk = b[k], a[k], ++depth)) return true
-          if (bk && typeof bk === 'object') checkedObjs.push(k) // to prevent re-eval of the possibly deep object, for primitives it is fine
+          if (valChangedDeep(b[k], a[k], ++depth)) return true
         }
-        for (const k in a) {
-          if (!(k in b)) return true
-          if (checkedObjs.indexOf(k) == -1 && valChangedDeep(b[k], a[k], ++depth)) return true
-        }
+        for (const k in a) if (!(k in b)) return true
       } else if (a !== b) return true
       return false
     }
@@ -472,6 +467,8 @@
     assert(valChangedDeep, [{foo:1}, {foo}], true, '2 simple non equal objects')
     assert(valChangedDeep, [{foo:1}, null], true, 'object and null')
     assert(valChangedDeep, [{foo:1, bar:[{baz:[42]}]}, {foo:1, bar:[{baz:[42]}]}], false, 'complex objects')
+    assert(valChangedDeep, [[1, 5,6,7], [5,6,7,8]], true, 'flat diff arrays')
+    assert(valChangedDeep, [[5,6,7,8], [5,6,7,8]], false, 'flat equal arrays')
 
     function setProp(el, aName, tar, val) {
       if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
