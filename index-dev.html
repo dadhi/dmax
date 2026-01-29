@@ -463,12 +463,12 @@
     assert(valChangedDeep, [null, []], true, 'null vs empty arr')
     assert(valChangedDeep, [[], []], false, '2 empty arrays')
     assert(valChangedDeep, [[42], [42]], false, '2 value arrays')
-    assert(valChangedDeep, [{foo:1}, {foo:1}], false, '2 simple objects')
-    assert(valChangedDeep, [{foo:1}, {foo}], true, '2 simple non equal objects')
-    assert(valChangedDeep, [{foo:1}, null], true, 'object and null')
-    assert(valChangedDeep, [{foo:1, bar:[{baz:[42]}]}, {foo:1, bar:[{baz:[42]}]}], false, 'complex objects')
-    assert(valChangedDeep, [[1, 5,6,7], [5,6,7,8]], true, 'flat diff arrays')
-    assert(valChangedDeep, [[5,6,7,8], [5,6,7,8]], false, 'flat equal arrays')
+    assert(valChangedDeep, [{ foo: 1 }, { foo: 1 }], false, '2 simple objects')
+    assert(valChangedDeep, [{ foo: 1 }, { foo }], true, '2 simple non equal objects')
+    assert(valChangedDeep, [{ foo: 1 }, null], true, 'object and null')
+    assert(valChangedDeep, [{ foo: 1, bar: [{ baz: [42] }] }, { foo: 1, bar: [{ baz: [42] }] }], false, 'complex objects')
+    assert(valChangedDeep, [[1, 5, 6, 7], [5, 6, 7, 8]], true, 'flat diff arrays')
+    assert(valChangedDeep, [[5, 6, 7, 8], [5, 6, 7, 8]], false, 'flat equal arrays')
 
     function setProp(el, aName, tar, val) {
       if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
@@ -513,11 +513,24 @@
       if (Array.isArray(a))
         return { removed: Object.keys(b), addedRange: [0, a.length] }
 
-      let add = 0, rem = 0
-      for (const k in a) if (!(k in b)) { added.push(k); ++add }
-      for (const k in b) if (!(k in a)) { removed.push(k); ++rem }
-      return add ? (rem ? { added, removed } : { added }) : (rem ? { removed } : null)
+      // Shallow object key shape diff: track added/removed keys only
+      let added = [], removed = []
+      for (const k in a) if (!(k in b)) added.push(k)
+      for (const k in b) if (!(k in a)) removed.push(k)
+      return added.length ? (removed.length ? { added, removed } : { added }) : (removed.length ? { removed } : null)
     }
+
+    assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
+    assert(diffShapeShallow, [[1, 2], [3, 4]], null, 'arrays same length')
+    assert(diffShapeShallow, [[1, 2], [1, 2, 3, 4, 5]], { addedRange: [2, 3] }, 'arrays added tail')
+    assert(diffShapeShallow, [[1, 2, 3, 4, 5], [1, 2]], { removedRange: [2, 3] }, 'arrays removed tail')
+    assert(diffShapeShallow, [[], []], null, 'arrays both empty')
+    assert(diffShapeShallow, [{ a: 1 }, { a: 2 }], null, 'objects same keys different values')
+    assert(diffShapeShallow, [{ a: 1 }, { a: 1, b: 2 }], { added: ['b'] }, 'objects add key')
+    assert(diffShapeShallow, [{ a: 1, b: 2 }, { a: 1 }], { removed: ['b'] }, 'objects remove key')
+    assert(diffShapeShallow, [{ a: 1, b: 2 }, { a: 1, c: 3 }], { added: ['c'], removed: ['b'] }, 'objects add+remove')
+    assert(diffShapeShallow, [[1, 2, 3], { a: 1, b: 2 }], { added: ['a', 'b'], removedRange: [0, 3] }, 'array to object')
+    assert(diffShapeShallow, [{ a: 1, b: 2 }, [1, 2, 3]], { removed: ['a', 'b'], addedRange: [0, 3] }, 'object to array')
 
     function samePath(a, b) {
       if (a.length !== b.length) return false
