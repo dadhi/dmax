@@ -368,7 +368,7 @@
     // - data-def:foo='{bar: "hey"}' // foo signal
     // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
-    function dSync(el, aName, aVal) {
+    function dDef(el, aName, aVal) {
       let [it, _p] = parse(aName)
       let tars = it[TARG]
       delete it[TARG]
@@ -388,9 +388,9 @@
       }
     }
 
-    const _sign = (nam, val) => { _dm.clear(); dSync(null, nam, val); return DM };
-    const _signEl = (el, nam, val) => { _dm.clear(); dSync(el, nam, val); return DM };
-    const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dSync(null, nam, val); return DM };
+    const _sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
+    const _signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
+    const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
     assert(_sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     assert(_sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     assert(_sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -429,17 +429,17 @@
 
     function isNil(v) { return v === null || v === undefined }
 
-    function getNestedVal(obj, path, depth = 0) {
+    function getNestedVal(obj, path, depth = -1) {
       let v = obj
       if (isNil(v) || !path) return [v, 0]
-      let n = !depth || depth > path.length ? path.length : depth
+      let n = depth == -1 || depth > path.length ? path.length : depth
       for (let i = 0; i < n; ++i) if (isNil(v = v[path[i]])) return [v, i + 1]
       return [v, n]
     }
 
-    assert(getNestedVal, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'getNestedVal depth 1')
-    assert(getNestedVal, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], 'getNestedVal 42')
-    assert(getNestedVal, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'getNestedVal 42')
+    assert(getNestedVal, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
+    assert(getNestedVal, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
+    assert(getNestedVal, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
 
     const VAL_CHANGE_DEPTH_MAX = 32
     function valChangedDeep(before, after, depth = 0) {
@@ -478,7 +478,7 @@
         prop = getAutoProp(el);
       else if (path.length > 0) {
         [obj, _] = getNestedVal(obj, path, path.length - 1)
-        prop = path.at(-1)
+        prop = path[path.length-1]
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', aName); return }
       try {
@@ -540,34 +540,40 @@
     }
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
-    const NOTIFY_SG_CHANGE = 0, NOTIFY_SG_CHANGE_PLUS_SHAPE = 1, NOTIFY_SG_SHAPE_CHANGE_ONLY = 2
+    const SG_CHANGED = 0, SG_CHANGED_PLUS_SHAPE = 1, SG_SHAPE_CHANGED_ONLY = 2
     const _subs = new Map()
-    function setSignalVal(_el, aName, tar, val, ev) {
+    function setSignalVal(aName, tar, val, ev) {
+      console.assert(tar)
       const root = tar.root, path = tar.path
-      let sg = _dm.get(root), cur = sg, parent = null, last = null
+      console.assert(root)
+      let sgVal = _dm.get(root), curVal = sgVal, parent = sgVal, d = 0, last = null
       if (path) {
-        console.assert(path.length)
-        [parent, _] = getNestedVal(cur, path, path.length - 1)
+        console.assert(path.length);
+        [parent, d] = getNestedVal(parent, path, path.length - 1)
         if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', aName); return }
-        cur = parent[last = path.at(-1)]
+        curVal = parent[last = path[d]]
       }
 
-      // if change detected it means ALL parents of cur val and SOME of children changed
-      if (!valChangedDeep(cur, val)) return;
+      // if change detected it means ALL parents of cur  and SOME of children changed
+      if (!valChangedDeep(curVal, val)) return;
 
       const handlers = _subs.get(root);
-      if (!handlers) return;
+      if (!handlers) {
+        if (!path) _dm.set(root, val)
+        else parent[last] = val
+        return
+      }
 
       // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
       let collected = [], diffed = false, diff = null, pathDiffs = []
-      for (const h of handlers) { // h.function, h.mode, h.path
+      for (const h of handlers) { // h.fn, h.mode, h.path
         const hp = h.path, mode = h.mode
         if (!hp) {
-          if (!path && !diffed && mode !== NOTIFY_SG_CHANGE) {// compare roots if it is the first time
+          if (!path && !diffed && mode !== SG_CHANGED) {// compare roots if it is the first time
             diffed = true
-            diff = diffShapeShallow(cur, val)
+            diff = diffShapeShallow(curVal, val)
           }
-          if (path || mode !== NOTIFY_SG_SHAPE_CHANGE_ONLY || diff)
+          if (path || mode !== SG_SHAPE_CHANGED_ONLY || diff)
             collected.push([h, path ? null : diff]) // ignore diff later for NOTIFY_SG_CHANGE
           continue
         }
@@ -580,11 +586,11 @@
           if (skip) continue
           if (notifyParent) { collected.push([h, null]); continue }
           if (path.length == hp.length) {
-            if (!diffed && mode !== NOTIFY_SG_CHANGE) {
+            if (!diffed && mode !== SG_CHANGED) {
               diffed = true
-              diff = diffShapeShallow(cur, val)
+              diff = diffShapeShallow(curVal, val)
             }
-            if (mode !== NOTIFY_SG_SHAPE_CHANGE_ONLY || diff)
+            if (mode !== SG_SHAPE_CHANGED_ONLY || diff)
               collected.push([h, diff])
             continue
           }
@@ -596,7 +602,7 @@
         for (const col in collected) // check if the same 
           if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
 
-        let [pathCur, _] = getNestedVal(sg, hp), pathVal
+        let [pathCur, _] = getNestedVal(sgVal, hp), pathVal
         if (hCol) pathVal = hCol[2]
         else {
           [pathVal, _] = getNestedVal(val, hp)
@@ -604,39 +610,119 @@
         }
 
         let pathDiffed = false, pathDiff = null
-        if (mode != NOTIFY_SG_CHANGE) {
+        if (mode != SG_CHANGED) {
           for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
           if (!pathDiffed) pathDiffs.push(pathDiff = diffShapeShallow(pathCur, pathVal))
         }
 
-        if (mode !== NOTIFY_SG_SHAPE_CHANGE_ONLY || pathDiff)
+        if (mode !== SG_SHAPE_CHANGED_ONLY || pathDiff)
           collected.push([h, pathDiff, pathVal])
       }
 
-      if (!path) // at last set the new value
-        _dm.set(root, cur)
-      else
-        parent[last] = cur
+      if (!path) _dm.set(root, val)
+      else parent[last] = val
 
       for (const hh of collected) // notify with new values and diff if asked for
-        hh[0].function(hh[0].mode === NOTIFY_SG_CHANGE ? null : hh[1])
+        hh[0].fn(hh[0].mode === SG_CHANGED ? null : hh[1])
 
       // updateDebug(); // @wip don't bother until later
     }
 
+    // @TEST register sink subscriber
+    function _reg(root, path, mode, sink) {
+      let arr = _subs.get(root)
+      if (!arr) _subs.set(root, arr = []);
+      arr.push({ fn: (d) => sink.push(d), mode, path });
+    }
+
+    function reset() { _subs.clear(); _dm.clear() }
+
+    function tSetD() {
+      reset();
+      _dm.set('user', { name: 'Alice', age: 30 });
+      const sh = [], nm = [], age = [], deep = [];
+      _reg('user', null, SG_CHANGED_PLUS_SHAPE, sh);
+      _reg('user', ['name'], SG_CHANGED_PLUS_SHAPE, nm);
+      _reg('user', ['age'], SG_CHANGED_PLUS_SHAPE, age);
+      _reg('user', ['name', 'first'], SG_CHANGED_PLUS_SHAPE, deep);
+      setSignalVal('t', { root: 'user', path: ['name'] }, 'Bob');
+      return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
+    }
+    assert(tSetD, [], { r: 1, nm: 1, age: 0, deep: 0, val: 'Bob' }, 'path update, exact match');
+
+    function tSetE() {
+      reset();
+      _dm.set('user', { children: [1, 2] });
+      const c0 = [], c1 = [], c2 = [];
+      _reg('user', ['children'], SG_CHANGED, c0);
+      _reg('user', ['children'], SG_CHANGED_PLUS_SHAPE, c1);
+      _reg('user', ['children'], SG_SHAPE_CHANGED_ONLY, c2);
+      setSignalVal('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
+      const d1 = c1.length ? c1[c1.length - 1] : null;
+      const d2 = c2.length ? c2[c2.length - 1] : null;
+      return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('user')?.children };
+    }
+    assert(tSetE, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'path update shape arrays');
+
+    function tSetA() {
+      reset()
+      _dm.set('sg', 1);
+      setSignalVal('t', { root: 'sg', path: null }, 2);
+      return _dm.get('sg');
+    }
+    assert(tSetA, [], 2, 'root update no subs');
+
+    function tSetB() {
+      reset();
+      _dm.set('sg', 'a');
+      const c0 = [], c1 = [], c2 = [];
+      _reg('sg', null, SG_CHANGED, c0);
+      _reg('sg', null, SG_CHANGED_PLUS_SHAPE, c1);
+      _reg('sg', null, SG_SHAPE_CHANGED_ONLY, c2);
+      setSignalVal('t', { root: 'sg', path: null }, 'b');
+      return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
+    }
+    assert(tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
+
+    function tSetC() {
+      reset();
+      _dm.set('sg', [1, 2]);
+      const c0 = [], c1 = [], c2 = [];
+      _reg('sg', null, SG_CHANGED, c0);
+      _reg('sg', null, SG_CHANGED_PLUS_SHAPE, c1);
+      _reg('sg', null, SG_SHAPE_CHANGED_ONLY, c2);
+      setSignalVal('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
+      const d1 = c1.length ? c1[c1.length - 1] : null;
+      const d2 = c2.length ? c2[c2.length - 1] : null;
+      return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
+    }
+    assert(tSetC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
+
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
-    function setSignal(el, aName, tar, val, ev) {
+    function setSignal(_el, aName, tar, val, ev) {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
         return
       }
-      try { return setSignalVal(el, aName, tar, val, ev) } finally { syncDepth-- }
+      try { return setSignalVal(aName, tar, val, ev) } finally { syncDepth-- }
     }
 
     // // Track all event listeners and signal handlers for cleanup
-    // cleanupMap = new WeakMap();
+    // _cleanupMap = new WeakMap();
 
-    // function dSub(el, aName, aVal) {
+    // @wip Use dSync for everything:
+    // data-def -> data-sync:target0:target1='val'
+    // data-sub -> data-sync:targ@sign@.prop@.ev~='val'
+    // data-sync:.prop@sign
+    // data-sync:@.prop:@sign='type === SIGNAL ? val * 2 : val * 0.5'
+    // data-class -> data-sync:.class-list^add@sign@.prop='type == PROP ? cls1 : cls2'
+    // data-class -> data-sync:.class-list^add.cls1@sign
+    // data-class -> data-sync:.class-list^toggle.foo.bar@sign
+    // data-class -> data-sync:.class-list^toggle@sign='cls2'
+    // data-class -> data-sync:.class-list^remove.cls3@!sign'
+    // data-disp  -> data-sync:style.display^_set.none@foo@.bar
+
+    // function dSync(el, aName, aVal) {
     //   let [it, _p] = parse(aName)
     //   let tars = it[TARG]
     //   let trigs = it[TRIG]
@@ -666,8 +752,8 @@
     //   };
 
     //   // Track listeners for cleanup
-    //   let listeners = cleanupMap.get(el);
-    //   if (!listeners) cleanupMap.set(el, listeners = []);
+    //   let listeners = _cleanupMap.get(el);
+    //   if (!listeners) _cleanupMap.set(el, listeners = []);
     //   for (let trig of trigs) {
 
     //     // build a decorated handler that supports modifier semantics: __prevent, __once, __debounce, __throttle, __and
