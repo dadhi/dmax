@@ -1,6 +1,6 @@
 # dmax
 
-A tiny data-maximal runtime.
+A tiny declarative web lib.
 
 ## Quick Start
 
@@ -209,7 +209,7 @@ State tracking signals (denoted with `?`) monitor the HTTP request/response cycl
 **Concept:**
 - Special kind of **target signals** that automatically track request state
 - Syntax: `?signalName__mode` where mode defines what to track
-- Multiple trackers can be specified: `?busy__busy,err__err` or `?status__all`
+- Multiple trackers can be specified: `?busy__busy?err__err` or `?status__all`
 - **Auto-created:** tracker signals are automatically initialized if they don't exist
 
 **✅ Tracker Modes:**
@@ -255,7 +255,7 @@ HTTP headers for `data-action` directives are specified with the `^` prefix. Hea
 - `^name.value` — custom header with constant value
   - Example: `^cache-control.no-cache` sets `Cache-Control: no-cache`
   - Example: `^authorization.Bearer_token123` sets `Authorization: Bearer token123`
-  - Multiple headers: `^x-api-key.abc123,^x-request-id.xyz789`
+- Multiple custom headers: `^x-api-key.abc123^x-request-id.abc123`
 
 **Header Shortcuts:**
 Predefined shortcuts for common headers:
@@ -1071,43 +1071,9 @@ data-debug
 
 ---
 
-## Future Enhancements (TBD)
+## Future Version @TBD
 
-The following features are planned but not yet implemented:
-
-### Syntax Improvements
-
-1. ✅ **`data-class`**: New class notation using `+` and `~` prefixes (**IMPLEMENTED**)
-   - **Was**: `.className` (add when true), `.-className` (remove when true)
-   - **Now**: `+className` (add when true), `~className` (remove when true)
-   - **Reason**: Eliminates parser ambiguity with `.` and `-` in signal names
-   - Example: `data-class:+inactive:~active@is-loading`
-
-### Directive Value Support
-
-2. ✅ **`data-class`**: Optional value for trigger-based toggling (**IMPLEMENTED**)
-   - Example without value: `data-class:+active@is-ready`
-   - Example with value: `data-class:+highlight@count="dm.count > 5"`
-   - Allows both simple and complex conditional class toggling
-
-3. ✅ **`data-disp`**: Optional value for trigger-based toggling (**IMPLEMENTED**)
-   - Example without value: `data-disp@is-visible`
-   - Example with value: `data-disp@error="dm.error !== null"`
-   - Consistent with `data-class` behavior
-
-4. ✅ **Negation shorthand**: `!` prefix on triggers (**IMPLEMENTED**)
-   - Example: `data-class:+ready@!is-loading`
-   - Equivalent to: `data-class:+ready@is-loading="!dm.isLoading"`
-   - Works with any trigger type (signals, props)
-
-5. **`data-sync`**: Optional value with JS expression for transformations (**NOT YET IMPLEMENTED**)
-   - Example: `data-sync:.textContent@count="dm.count * 2"`
-   - Would allow transforming values during synchronization
-   - Currently: value is passed through directly without transformation
-
-### HTTP Actions
-
-6. **`data-action` controls**: Additional controls and features for HTTP actions (**NOT YET IMPLEMENTED**)
-   - Enhanced request/response handling
-   - More sophisticated error handling
-   - Additional options and configuration
+- using ^ instead if __ for mods
+- data-def may use a compiled value expression with access to other signals through `dm` e.g. `data-def:foo='dm.bar + 2'`
+- unified function signature for compiled js expression for All data attribute. Planning it will be `(dm, el, src, val, detail)` where `src` defines the trigger of expression or null for data-def and immediate
+- exclamation mark `!` to use for before trigger signals and values, and for mod values, to convert their value to negative boolean or to the boolean with double `!!` (triple, etc. `!` is supported too)
