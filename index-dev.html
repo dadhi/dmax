@@ -184,37 +184,30 @@
     assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
     assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
 
-    const DOT = '.'
+    const DOT = '.', ID = '#', NOT = '!'
     const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
-    const SIGN = 's', PROP = DOT, ID = '#', SPEC = '_', NOT = '!', EV = '~' // @wip add support for EV 
+    const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
+    const KIND = [SIGNAL, EV_PROP, SPECIAL]
 
     const WIN = '_window'; DOC = '_document'; FRM = '_form'; INTR = '_interval'; TIMT = '_timeout'
     const SPECIALS = [WIN, DOC, FRM, INTR, TIMT]
 
     function isSpecial(n) {
-      if (n.startsWith(SPEC)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
+      if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
       return false
-    }
-
-    function isPropOrEvent(n) {
-      return n.startsWith(ID) || n.startsWith(DOT) || isSpecial(n)
     }
 
     // @WIP: Phase 1
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
     // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
     // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
-    // @WIP: Phase 2
-    // data-sign instead of data-def, data-sub, data-sync
-    // data-sign:foo:bar='console.log('side effect!'); return 42'
-    // data-sign:target@source-signal@.source-prop
-    // data-sign:targ@#some.prop@~click // click sets the targ to ev.detail by default or you can data-sign:targ@#some.prop@~click.target.name
-    // data-sign:targ@#some.prop@~click='pr ? pr : ev?.target.name ?? null' where pr is additional parameter we are passing to (dm, el, sg, ev, pr) => '...'
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
     const ALL = [MOD, TARG, TRIG, STAT, ADD]
     const MODS = [MOD]
-    const KIND = [MOD, SIGN, PROP, EV, ID, SPEC]
 
+    // Applied only to the signals!
+    const MOD_ANY = 'any', MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
+    
     // Returns {kind:KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     function parseItem(aName, type, n, pos = 0) {
       if (!n) return null
@@ -234,20 +227,18 @@
         return { kind: MOD, root, not, path: val }
       }
 
-      let kind = SIGN
-      if (root && root.length > 0 && (root[0] === ID || isSpecial(root))) {
-        kind = root[0] // ID or SPEC
-        root = root.slice(1)
-        if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
+      let kind = EV_PROP
+      if (root && root.length > 0) {
+        const id = root[0] === ID
+        if (id || isSpecial(root)) {
+          kind = id ? EV_PROP : SPECIAL
+          root = root.slice(1)
+          if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
+        } else kind = SIGNAL
       }
 
-      if (d < 0) {
-        if (!root && kind === SIGN) { console.error('[dmax] Error: Signal should have a non empty name:', n, 'in:', aName); return null }
-        return { kind, not, root, path: null }
-      }
-
-      if (!root) kind = PROP
-      if (d + 1 == n.length) return { kind, not, root, path: null }
+      if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
+      if (d < 0 || d + 1 == n.length) return { kind, not, root, path: null }
 
       p = d + 1
       let path = []
@@ -261,18 +252,19 @@
       return { kind, not, root, path }
     }
 
-    assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": "#", "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
-    assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": "s", "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
-    assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": "#", "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
-    assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": "s", "not": true, "path": null, "root": "foo" }, 'negated once');
-    assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": "s", "not": false, "path": null, "root": "foo" }, 'double negation even');
-    assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": "s", "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
+    assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PROP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
+    assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
+    assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PROP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
+    assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SIGNAL, "not": true, "path": null, "root": "foo" }, 'negated once');
+    assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SIGNAL, "not": false, "path": null, "root": "foo" }, 'double negation even');
+    assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
     assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
-    assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": "s", "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
-    assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": "^", "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
-    assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": "^", "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
+    assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
+    assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
+    assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
-    assert(parseItem, ['YYY', TARG, '.'], { "kind": PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
+    assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
+    assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
 
     function parse(aName, p = 'data-'.length, it = ALL) {
       let items = {}, modItems = null
@@ -320,19 +312,19 @@
 
     assert(parse, ['data-def'], [{}, 8], 'empty')
     assert(parse, ['data-sub:'], [{}, 9], 'single empty')
-    assert(parse, ['data-sub:.'], [{ ":": [{ "kind": ".", "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
-    assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
-    assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": "^", "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": "^", "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
-    assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "foo" }, { "kind": "^", "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
-    assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": "s", "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
-    assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
+    assert(parse, ['data-sub:.'], [{ ":": [{ "kind": EV_PROP, "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
+    assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
+    assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
+    assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
+    assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": SIGNAL, "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
+    assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
     assert(parse, ['data-sub::'], [{}, 10], '2 empties')
-    assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
-    assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": "s", "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
-    assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
-    assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
-    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": "4", "root": "le" }, { "kind": "^", "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": "2", "root": "ge" }, { "kind": "^", "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
-    assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": "s", "mods": [{ "kind": "^", "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": "^", "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
+    assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
+    assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
+    assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
+    assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
+    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
+    assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
 
     function isObjEmpty(o) {
       for (const _ in o) return false
@@ -340,10 +332,10 @@
     }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
-    const SIGN_ARGS = ['dm', 'el']
-    const TRIG_ARGS = ['dm', 'el', 'ev', 'sg', 'detail']
+    const SRC_EVAL = 0, SRC_SIGNAL = 1, SRC_PROP = 2, SRC_EVENT = 3
+    const FN_ARGS = ['dm', 'el', 'src', 'val', 'detail'] // universal args available in right data- attr value expression
 
-    function compileFn(aVal, aName, args) {
+    function compileFn(aVal, aName, args=FN_ARGS) {
       let val = '' + aVal
       var r = val.indexOf('return')
       let body = r != -1 && (r + 6 >= val.length || indexFirst(val, RETURN_THEN, r + 6) == r + 6) ? val : `return(${val})`
@@ -373,10 +365,12 @@
       let tars = it[TARG]
       delete it[TARG]
       if (!isObjEmpty(it)) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
-      let val = aVal ? compileFn(aVal, aName, SIGN_ARGS)(DM, el) : null
+      let fn = compileFn(aVal, aName)
+      if (!fn) return
+      let val = aVal ? fn(DM, el, SRC_EVAL) : null
       if (tars) {
         for (const t of tars) {
-          if (t.kind != SIGN) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', aName); continue }
+          if (t.kind != SIGNAL) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', aName); continue }
           if (t.mods) console.warn('[dmax] Warning: Mods are not supported:', mods, 'in', aName);
           _dm.set(t.root, val)
         }
@@ -470,15 +464,21 @@
     assert(valChangedDeep, [[1, 5, 6, 7], [5, 6, 7, 8]], true, 'flat diff arrays')
     assert(valChangedDeep, [[5, 6, 7, 8], [5, 6, 7, 8]], false, 'flat equal arrays')
 
+    function expected(cond, ctx='expect') {
+      if (cond) return true
+      console.error('[dmax] Unexpected condition in:', ctx)
+      return false
+    }
+
     function setProp(el, aName, tar, val) {
-      if (tar.kind != ID && tar.kind != PROP) { console.error('[dmax] Error: Unsupported target kind for setting the property', tar, 'in', aName); return }
-      let obj = tar.kind == ID ? getElById(tar.root, aName) : el
+      if (!expected(tar.kind === EV_PROP)) return null;
+      let obj = tar.root ? getElById(tar.root, aName) : el
       let path = tar.path, prop = null
       if (!path)
         prop = getAutoProp(el);
       else if (path.length > 0) {
         [obj, _] = getNestedVal(obj, path, path.length - 1)
-        prop = path[path.length-1]
+        prop = path[path.length - 1]
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', aName); return }
       try {
@@ -489,12 +489,14 @@
       return obj[prop]
     }
 
-    assert(setProp, [{ value: 'Answer42' }, 'data-eval:.', { kind: PROP, not: null, root: "", path: null }, 'Seaman!'],
+    assert(setProp, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV_PROP, not: null, root: "", path: null }, 'Seaman!'],
       'Seaman!', 'default prop')
-    assert(setProp, [null, 'data-eval:#foo.', { kind: ID, not: null, root: 'foo', path: null }, 'Seaman!'],
+    assert(setProp, [null, 'data-eval:#foo.', { kind: EV_PROP, not: null, root: 'foo', path: null }, 'Seaman!'],
       'Seaman!', '#foo default prop')
-    assert(setProp, [null, 'data-eval:#foo.style.color', { kind: ID, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    assert(setProp, [null, 'data-eval:#foo.style.color', { kind: EV_PROP, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       'lime', '#foo nested prop')
+    assert(setProp, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+      null, 'unexpected signal')
 
     const EMPTY_ARR = []
     function diffShapeShallow(before, after) {
@@ -539,16 +541,38 @@
       return true
     }
 
-    // If sg not exist in the _dm, then we will create it -> creating missing target on demand
-    const SG_CHANGED = 0, SG_CHANGED_PLUS_SHAPE = 1, SG_SHAPE_CHANGED_ONLY = 2
+    const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
+    function getShapeMode(mods) {
+      for (const m in mods) {
+        if (m.root == MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
+        if (m.root == MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
+      }
+      return SG_CHANGED_ANY
+    }
+
+    const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
+    function isImmediateMod(mods, defaultVal) {
+      for (const m in mods) {
+        if (m.root == MOD_IMMEDIATE) return true
+        if (m.root == MOD_NOTIMMEDIATE) return false;
+      }
+      return defaultVal;
+    }
+
+    function getSignalVal(root, path) { return getNestedVal(root, path)[0] }
+
     const _subs = new Map()
-    function setSignalVal(aName, tar, val, ev) {
-      console.assert(tar)
+
+    // If sg not exist in the _dm, then we will create it -> creating missing target on demand
+    function setSignalVal(aName, tar, val) {
+      if (!expected(tar)) return null
+
       const root = tar.root, path = tar.path
-      console.assert(root)
+      if (!expected(root)) return null
+
       let sgVal = _dm.get(root), curVal = sgVal, parent = sgVal, d = 0, last = null
       if (path) {
-        console.assert(path.length);
+        if (!expected(path.length)) return null;
         [parent, d] = getNestedVal(parent, path, path.length - 1)
         if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', aName); return }
         curVal = parent[last = path[d]]
@@ -569,11 +593,11 @@
       for (const h of handlers) { // h.fn, h.mode, h.path
         const hp = h.path, mode = h.mode
         if (!hp) {
-          if (!path && !diffed && mode !== SG_CHANGED) {// compare roots if it is the first time
+          if (!path && !diffed && mode !== SG_CHANGED_ANY) {// compare roots if it is the first time
             diffed = true
             diff = diffShapeShallow(curVal, val)
           }
-          if (path || mode !== SG_SHAPE_CHANGED_ONLY || diff)
+          if (path || mode !== SG_CHANGED_SHAPE_ONLY || diff)
             collected.push([h, path ? null : diff]) // ignore diff later for NOTIFY_SG_CHANGE
           continue
         }
@@ -586,11 +610,11 @@
           if (skip) continue
           if (notifyParent) { collected.push([h, null]); continue }
           if (path.length == hp.length) {
-            if (!diffed && mode !== SG_CHANGED) {
+            if (!diffed && mode !== SG_CHANGED_ANY) {
               diffed = true
               diff = diffShapeShallow(curVal, val)
             }
-            if (mode !== SG_SHAPE_CHANGED_ONLY || diff)
+            if (mode !== SG_CHANGED_SHAPE_ONLY || diff)
               collected.push([h, diff])
             continue
           }
@@ -610,12 +634,12 @@
         }
 
         let pathDiffed = false, pathDiff = null
-        if (mode != SG_CHANGED) {
+        if (mode != SG_CHANGED_ANY) {
           for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
           if (!pathDiffed) pathDiffs.push(pathDiff = diffShapeShallow(pathCur, pathVal))
         }
 
-        if (mode !== SG_SHAPE_CHANGED_ONLY || pathDiff)
+        if (mode !== SG_CHANGED_SHAPE_ONLY || pathDiff)
           collected.push([h, pathDiff, pathVal])
       }
 
@@ -623,7 +647,7 @@
       else parent[last] = val
 
       for (const hh of collected) // notify with new values and diff if asked for
-        hh[0].fn(hh[0].mode === SG_CHANGED ? null : hh[1])
+        hh[0].fn(hh[0].mode === SG_CHANGED_ANY ? null : hh[1])
 
       // updateDebug(); // @wip don't bother until later
     }
@@ -641,10 +665,10 @@
       reset();
       _dm.set('user', { name: 'Alice', age: 30 });
       const sh = [], nm = [], age = [], deep = [];
-      _reg('user', null, SG_CHANGED_PLUS_SHAPE, sh);
-      _reg('user', ['name'], SG_CHANGED_PLUS_SHAPE, nm);
-      _reg('user', ['age'], SG_CHANGED_PLUS_SHAPE, age);
-      _reg('user', ['name', 'first'], SG_CHANGED_PLUS_SHAPE, deep);
+      _reg('user', null, SG_CHANGED_WITH_SHAPE, sh);
+      _reg('user', ['name'], SG_CHANGED_WITH_SHAPE, nm);
+      _reg('user', ['age'], SG_CHANGED_WITH_SHAPE, age);
+      _reg('user', ['name', 'first'], SG_CHANGED_WITH_SHAPE, deep);
       setSignalVal('t', { root: 'user', path: ['name'] }, 'Bob');
       return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
     }
@@ -654,9 +678,9 @@
       reset();
       _dm.set('user', { children: [1, 2] });
       const c0 = [], c1 = [], c2 = [];
-      _reg('user', ['children'], SG_CHANGED, c0);
-      _reg('user', ['children'], SG_CHANGED_PLUS_SHAPE, c1);
-      _reg('user', ['children'], SG_SHAPE_CHANGED_ONLY, c2);
+      _reg('user', ['children'], SG_CHANGED_ANY, c0);
+      _reg('user', ['children'], SG_CHANGED_WITH_SHAPE, c1);
+      _reg('user', ['children'], SG_CHANGED_SHAPE_ONLY, c2);
       setSignalVal('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
@@ -676,9 +700,9 @@
       reset();
       _dm.set('sg', 'a');
       const c0 = [], c1 = [], c2 = [];
-      _reg('sg', null, SG_CHANGED, c0);
-      _reg('sg', null, SG_CHANGED_PLUS_SHAPE, c1);
-      _reg('sg', null, SG_SHAPE_CHANGED_ONLY, c2);
+      _reg('sg', null, SG_CHANGED_ANY, c0);
+      _reg('sg', null, SG_CHANGED_WITH_SHAPE, c1);
+      _reg('sg', null, SG_CHANGED_SHAPE_ONLY, c2);
       setSignalVal('t', { root: 'sg', path: null }, 'b');
       return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
     }
@@ -688,9 +712,9 @@
       reset();
       _dm.set('sg', [1, 2]);
       const c0 = [], c1 = [], c2 = [];
-      _reg('sg', null, SG_CHANGED, c0);
-      _reg('sg', null, SG_CHANGED_PLUS_SHAPE, c1);
-      _reg('sg', null, SG_SHAPE_CHANGED_ONLY, c2);
+      _reg('sg', null, SG_CHANGED_ANY, c0);
+      _reg('sg', null, SG_CHANGED_WITH_SHAPE, c1);
+      _reg('sg', null, SG_CHANGED_SHAPE_ONLY, c2);
       setSignalVal('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
@@ -699,186 +723,160 @@
     assert(tSetC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
-    function setSignal(_el, aName, tar, val, ev) {
+    function setSignal(aName, tar, val) {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
         return
       }
-      try { return setSignalVal(aName, tar, val, ev) } finally { syncDepth-- }
+      try { return setSignalVal(aName, tar, val) } finally { syncDepth-- }
     }
 
-    // // Track all event listeners and signal handlers for cleanup
-    // _cleanupMap = new WeakMap();
+    function applyTrigMods(fn, mods) {
+      const debMs = mods.debounce == null ? null : +mods.debounce;
+      const thrMs = mods.throttle == null ? null : +mods.throttle;
+      const once = 'once' in mods;
+      const prevent = 'prevent' in mods;
+      const andPath = mods.and ?? null;
+      const guardEq = 'eq' in mods ? mods.eq : undefined;
+      const guardNe = 'ne' in mods ? mods.ne : undefined;
+      const guardGt = 'gt' in mods ? +mods.gt : undefined;
+      const guardGe = 'ge' in mods ? +mods.ge : undefined;
+      const guardLt = 'lt' in mods ? +mods.lt : undefined;
+      const guardLe = 'le' in mods ? +mods.le : undefined;
+      let timer = null;
+      let last = 0;
+      const decorated = function (ev, sg, detailArg) {
+        if (prevent) ev?.preventDefault?.();
+        const run = () => {
+          if (andPath && !getSignalVal(String(andPath))) return;
+          // Get subject value, apply negation if trigger is negated
+          let subjectVal = t.type === 'signal' ? getSignalVal(String(t.name)) : ev?.detail?.ms;
+          if (t.negated && t.type === 'signal') subjectVal = !subjectVal;
+          if (guardEq !== undefined && String(subjectVal) !== String(guardEq)) return;
+          if (guardNe !== undefined && String(subjectVal) === String(guardNe)) return;
+          if (guardGt !== undefined && !(+subjectVal > guardGt)) return;
+          if (guardGe !== undefined && !(+subjectVal >= guardGe)) return;
+          if (guardLt !== undefined && !(+subjectVal < guardLt)) return;
+          if (guardLe !== undefined && !(+subjectVal <= guardLe)) return;
+          try { fn(ev, sg, detailArg); } catch (e) { console.error('[dmax] Error: Handler error', e); }
+          if (once && decorated && decorated.remove) decorated.remove();
+        };
+        if (debMs != null) { clearTimeout(timer); timer = setTimeout(run, debMs); return; }
+        if (thrMs != null) { const now = Date.now(); if (now - last >= thrMs) { last = now; run(); } return; }
+        run();
+      };
+      return decorated;
+    }
 
-    // @wip Use dSync for everything:
-    // data-def -> data-sync:target0:target1='val'
-    // data-sub -> data-sync:targ@sign@.prop@.ev~='val'
-    // data-sync:.prop@sign
-    // data-sync:@.prop:@sign='type === SIGNAL ? val * 2 : val * 0.5'
-    // data-class -> data-sync:.class-list^add@sign@.prop='type == PROP ? cls1 : cls2'
-    // data-class -> data-sync:.class-list^add.cls1@sign
-    // data-class -> data-sync:.class-list^toggle.foo.bar@sign
-    // data-class -> data-sync:.class-list^toggle@sign='cls2'
-    // data-class -> data-sync:.class-list^remove.cls3@!sign'
-    // data-disp  -> data-sync:style.display^_set.none@foo@.bar
-
-    // function dSync(el, aName, aVal) {
+    // _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
+    // function dSub(el, aName, aVal) {
     //   let [it, _p] = parse(aName)
-    //   let tars = it[TARG]
-    //   let trigs = it[TRIG]
-    //   let globMods = it[MOD]
+    //   let tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+
     //   delete it[TARG]; delete it[TRIG]; delete it[MOD];
     //   if (!isObjEmpty(it)) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', aName)
     //   if (!aVal) { console.error('[dmax] Error: in ', aName, 'it requires a value but found none', aVal); return }
-    //   let fn = compileFn(aVal, aName, TRIG_ARGS)
+    //   let fn = compileFn(aVal, aName)
     //   if (!fn) return
-
-    //   let setters = []
-    //   for (const tar of tars) {
-    //     if (!tar || !tar.kind) continue
-    //     let setter = tar.kind == SIGN
-    //       ? (t, val, ev) => setSignal(el, aName, t, val, ev)
-    //       : (t, val, _ev) => setProp(el, aName, t, val)
-    //     setters.push(setter)
+    //   if (tars) {
+    //     let tarSetters = []
+    //     for (const tar of tars) {
+    //       console.assert(tar.kind)
+    //       let setter = tar.kind == SIGN
+    //         ? (el, n, t, val) => setSignal(n, t, val)
+    //         : (el, n, t, val) => setProp(el, n, t, val)
+    //       tarSetters.push([tar, setter])
+    //     }
+    //     const coreFn = fn
+    //     if (tarSetters.length > 0) {
+    //       fn = (dm, el, src, val, detail) => {
+    //         // // const detail = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
+    //         // const detail = null // @WIP should contain shape changes, maybe more...
+    //         const val = coreFn(dm, el, src, val, detail)
+    //         try {
+    //           for (const [t, s] of tarSetters) s(el, aName, t, val)
+    //         } catch (e) { console.error('[dmax] Error: setting the target:', t, 'ended with ex:', e) }
+    //       }
+    //     }
     //   }
 
-    //   const handler = (ev, sg, detailArg) => {
-    //     const detail = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
-    //     const val = fn(DM, el, ev, sg, detail);
-    //     if (!appliers || appliers.length === 0) return;
-    //     try {
-    //       for (const ap of appliers) if (ap) ap(val, ev);
-    //     } catch (e) { console.error('[dmax] Error: Applier error', e); }
-    //   };
+    //   if (!trigs) { // invoke, same as immediate but without val/details - so no problems
+    //     fn(DM, el, SRC_EVAL, null, null); return
+    //   }
 
-    //   // Track listeners for cleanup
-    //   let listeners = _cleanupMap.get(el);
-    //   if (!listeners) _cleanupMap.set(el, listeners = []);
+    //   let elSubs = _cleanupBoundSubs.get(el);
+    //   if (!elSubs) _cleanupBoundSubs.set(el, elSubs = []);
     //   for (let trig of trigs) {
+    //     if (trig.kind === SIGN) {
+    //       const root = trig.root; console.assert(root)
+    //       const path = trig.path
 
-    //     // build a decorated handler that supports modifier semantics: __prevent, __once, __debounce, __throttle, __and
-    //     const makeDecorated = (hand, t) => {
-    //       const { mods = {} } = t;
-    //       const debMs = mods.debounce == null ? null : +mods.debounce;
-    //       const thrMs = mods.throttle == null ? null : +mods.throttle;
-    //       const once = 'once' in mods;
-    //       const prevent = 'prevent' in mods;
-    //       const andPath = mods.and ?? null;
-    //       const guardEq = 'eq' in mods ? mods.eq : undefined;
-    //       const guardNe = 'ne' in mods ? mods.ne : undefined;
-    //       const guardGt = 'gt' in mods ? +mods.gt : undefined;
-    //       const guardGe = 'ge' in mods ? +mods.ge : undefined;
-    //       const guardLt = 'lt' in mods ? +mods.lt : undefined;
-    //       const guardLe = 'le' in mods ? +mods.le : undefined;
-    //       let timer = null;
-    //       let last = 0;
-    //       const decorated = function (ev, sg, detailArg) {
-    //         if (prevent) ev?.preventDefault?.();
-    //         const run = () => {
-    //           if (andPath && !getSignalVal(String(andPath))) return;
-    //           // Get subject value, apply negation if trigger is negated
-    //           let subjectVal = t.type === 'signal' ? getSignalVal(String(t.name)) : ev?.detail?.ms;
-    //           if (t.negated && t.type === 'signal') subjectVal = !subjectVal;
-    //           if (guardEq !== undefined && String(subjectVal) !== String(guardEq)) return;
-    //           if (guardNe !== undefined && String(subjectVal) === String(guardNe)) return;
-    //           if (guardGt !== undefined && !(+subjectVal > guardGt)) return;
-    //           if (guardGe !== undefined && !(+subjectVal >= guardGe)) return;
-    //           if (guardLt !== undefined && !(+subjectVal < guardLt)) return;
-    //           if (guardLe !== undefined && !(+subjectVal <= guardLe)) return;
-    //           try { hand(ev, sg, detailArg); } catch (e) { console.error('[dmax] Error: Handler error', e); }
-    //           if (once && decorated && decorated.remove) decorated.remove();
-    //         };
-    //         if (debMs != null) { clearTimeout(timer); timer = setTimeout(run, debMs); return; }
-    //         if (thrMs != null) { const now = Date.now(); if (now - last >= thrMs) { last = now; run(); } return; }
-    //         run();
-    //       };
-    //       return decorated;
-    //     };
+    //       if (!_subs.has(root)) _subs.set(root, []);
 
-    //     if (trig.type === 'signal') {
-    //       const rootRaw = String(trig.name).split('.')[0];
-    //       const rootBase = (rootRaw.indexOf('[') !== -1) ? rootRaw.split('[')[0] : rootRaw;
-    //       const root = toCamel(rootBase);
-    //       const rootAlias = sigKey(rootBase);
-    //       if (!SUBS.has(root)) SUBS.set(root, []);
-    //       if (rootAlias !== root && !SUBS.has(rootAlias)) SUBS.set(rootAlias, []);
-    //       const dec = makeDecorated(handler, trig);
-    //       // allow removal for __once and other removals; handle both legacy function entries and object entries
-    //       dec.remove = () => {
-    //         const arr = SUBS.get(root) || [];
-    //         SUBS.set(root, arr.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec)));
-    //         if (rootAlias !== root) { const arr2 = SUBS.get(rootAlias) || []; SUBS.set(rootAlias, arr2.filter(it => (typeof it === 'function' ? it !== dec : it.fn !== dec))); }
-    //       };
-    //       // support __shape modifier: register subscription object with optional path
-    //       let entry = dec;
-    //       if (trig.mods && ('shape' in trig.mods || 'content' in trig.mods)) {
-    //         const sval = (trig.mods && 'shape' in trig.mods) ? ((trig.mods.shape === true || trig.mods.shape === 1) ? null : (trig.mods.shape != null ? String(trig.mods.shape) : null)) : null;
-    //         entry = { fn: dec, mode: ('shape' in trig.mods ? 'shape' : 'content'), path: sval };
+    //       const mods = trig.mods
+    //       if (mods) fn = applyTrigMods(fn, mods);
+
+    //       const mode = getShapeMode(mods)
+    //       _subs.get(root).push({fn, mode, path})
+          
+    //       fn.unsub = () => {
+    //         const subs = _subs.get(root)
+    //         if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== fn))
     //       }
+    //       elSubs.push({ type: SIGN, root, path, fn })
 
-    //       SUBS.get(root).push(entry);
-    //       if (rootAlias !== root) SUBS.get(rootAlias).push(entry);
-
-    //       listeners.push({ type: 'signal', root, handler: dec });
-    //       if (rootAlias !== root) listeners.push({ type: 'signal', root: rootAlias, handler: dec });
-    //       if (!trig.mods?.notimmediate) dec(undefined, trig.name);
-    //       continue;
+    //       // @wip should we consolidate immediate, and call after all triggers, otherwise that will be multiple side-effects
+    //       // @wip maybe passing signal [root, path] to fn is good?
+    //       if (isImmediateMod(mods, false)) fn(DM, el, SRC_SIGNAL, getSignalVal(root, path), null)
+    //       continue
     //     }
 
-    //     // Event triggers
-    //     // Resolve target element: explicit id (`#id`) or current element
-    //     let targetEl = null;
+    //     const targetEl = root ? getElById(root, aName) : el
+    //     if (!targetEl) { console.error('[dmax] Error: Element not found for id:', root, 'in:', aName); return }
+
     //     let eventName = trig.eventName || null;
 
-    //     // Case: explicit element id — no legacy mappings, require real element id
-    //     if (trig.elemId) {
-    //       targetEl = getElById(trig.elemId, attr);
-    //       if (!targetEl) { console.error('[dmax] Error: Element not found for id:', trig.elemId); }
-    //     }
-
-    //     // Case: new syntax uses `.window` or `.interval` as eventName while isCurr is true
     //     // Handle special triggers produced by the `_` token: @_window, @_document, @_form, @_interval, @_delay
-    //     if (trig.type === 'special') {
-    //       const name = trig.name;
-    //       if (name === 'window') {
+    //     if (trig.kind === SPECIAL) {
+    //       if (root === 'window') {
     //         const ev = (trig.arg && String(trig.arg)) || 'resize';
     //         window.addEventListener(ev, handler);
-    //         listeners.push({ type: 'event', targetEl: window, eventName: ev, handler });
+    //         elSubs.push({ type: 'event', targetEl: window, eventName: ev, handler });
     //         if (trig.mods?.immediate) handler();
     //         continue;
     //       }
-    //       if (name === 'document') {
+    //       if (root === 'document') {
     //         const ev = (trig.arg && String(trig.arg)) || 'visibilitychange';
     //         document.addEventListener(ev, handler);
-    //         listeners.push({ type: 'event', targetEl: document, eventName: ev, handler });
+    //         elSubs.push({ type: 'event', targetEl: document, eventName: ev, handler });
     //         if (trig.mods?.immediate) handler();
     //         continue;
     //       }
-    //       if (name === 'interval') {
+    //       if (root === 'interval') {
     //         const ms = parseInt(trig.arg) || 1000;
     //         const tick = () => {
     //           try { handler(new CustomEvent('interval', { detail: { ms } })); } catch (e) { }
     //         };
     //         const id = setInterval(tick, ms);
-    //         listeners.push({ type: 'interval', id });
+    //         elSubs.push({ type: 'interval', id });
     //         if (trig.mods?.immediate) tick();
     //         continue;
     //       }
-    //       if (name === 'delay') {
+    //       if (root === 'delay') {
     //         const ms = parseInt(trig.arg) || 0;
     //         const id = setTimeout(() => {
     //           try { handler(new CustomEvent('delay', { detail: { ms } })); } catch (e) { }
     //         }, ms);
-    //         listeners.push({ type: 'timeout', id });
+    //         elSubs.push({ type: 'timeout', id });
     //         continue;
     //       }
-    //       if (name === 'form') {
+    //       if (root === 'form') {
     //         // bind to closest form ancestor
     //         const formEl = el && el.closest ? el.closest('form') : null;
     //         if (formEl) {
     //           const ev = (trig.arg && String(trig.arg)) || 'submit';
     //           formEl.addEventListener(ev, handler);
-    //           listeners.push({ type: 'event', targetEl: formEl, eventName: ev, handler });
+    //           elSubs.push({ type: 'event', targetEl: formEl, eventName: ev, handler });
     //           if (trig.mods?.immediate) handler();
     //         }
     //         continue;
@@ -891,18 +889,39 @@
     //     const finalEvent = eventName || getAutoEvent(targetEl);
     //     if (targetEl === null) { console.error('[dmax] Error: Element not found:', trig.elemId); continue; }
     //     // decorate handler with modifiers
-    //     const dec = (function (orig, tt) {
-    //       const decorated = makeDecorated(orig, tt);
+    //     const moddedHandler = (function (orig, tt) {
+    //       const decorated = applyTrigMods(orig, tt);
     //       decorated.remove = () => { try { targetEl.removeEventListener(finalEvent, decorated); } catch (e) { } };
     //       return decorated;
     //     })(handler, trig);
-    //     targetEl.addEventListener(finalEvent, dec);
-    //     listeners.push({ type: 'event', targetEl, eventName: finalEvent, handler: dec });
-    //     if (trig.mods?.immediate) dec();
+    //     targetEl.addEventListener(finalEvent, moddedHandler);
+    //     elSubs.push({ type: 'event', targetEl, eventName: finalEvent, handler: moddedHandler });
+    //     if (trig.mods?.immediate) moddedHandler();
     //   }
-    //   if (trigs.length === 0) handler();
     // }
-  </script>
+
+    // // Cleanup the subs bound to the data-attr defined on the removed element
+  //   const observer = new MutationObserver(records => {
+  //     for(const rec of records){
+  //       for(const node of rec.removedNodes){
+  //         if(node.nodeType !== 1) continue;
+  //         const boundSubs = _cleanupBoundSubs.get(node);
+  //         if(boundSubs){
+  //           for(const l of boundSubs){
+  //             if(l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler);
+  //             if(l.type === 'signal'){
+  //               const arr = subs.get(l.root);
+  //               if(arr) subs.set(l.root, arr.filter(it => it.fn !== l.handler));
+  //             }
+  //             if(l.type === 'interval') clearInterval(l.id);
+  //           }
+  //           _cleanupBoundSubs.delete(node);
+  //         }
+  //       }
+  //     }
+  //   });
+  //   observer.observe(document.body, {childList:true, subtree:true});
+  // </script>
 </body>
 
 </html>
