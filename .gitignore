@@ -37,3 +37,5 @@ npm-debug.log*
 # Optional: ignore test artifacts created at runtime
 tmp/
 temp/
+
+.edge-dom.txt

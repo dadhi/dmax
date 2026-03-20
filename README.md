@@ -1071,9 +1071,10 @@ data-debug
 
 ---
 
-## Future Version @TBD
+## Future Version @WIP
 
 - using ^ instead if __ for mods
 - data-def may use a compiled value expression with access to other signals through `dm` e.g. `data-def:foo='dm.bar + 2'`
 - unified function signature for compiled js expression for All data attribute. Planning it will be `(dm, el, src, val, detail)` where `src` defines the trigger of expression or null for data-def and immediate
 - exclamation mark `!` to use for before trigger signals and values, and for mod values, to convert their value to negative boolean or to the boolean with double `!!` (triple, etc. `!` is supported too)
+- 'delay' mod is renamed to 'timeout'
