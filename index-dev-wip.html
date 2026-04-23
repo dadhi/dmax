@@ -649,35 +649,40 @@
       return defaultVal;
     }
 
-    const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle"
+    const MOD_ONCE = 'once', MOD_PREVENT = 'prevent', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle"
     const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
+    function hasMod(mods, name) {
+      if (!mods) return false
+      for (const m of mods) if (m && m.root === name) return true
+      return false
+    }
 
-    function scanMods(mods) {
-      const scan = {
-        debounce: null, throttle: null, and: null, eq: null, ne: null, gt: null, ge: null, lt: null, le: null,
-        once: false, prevent: false, hasPermit: false, changeMod: SG_CHANGED_ANY
-      }
-      if (!mods) return scan
+    function getLastMod(mods, name) {
+      let found = null
+      if (!mods) return found
+      for (const m of mods) if (m && m.root === name) found = m
+      return found
+    }
+
+    function hasPermitMod(mods) {
+      if (!mods) return false
       for (const m of mods) {
-        if (!m) continue
-        const name = m.root
-        if (name === MOD_DEBOUNCE) { if (!scan.debounce) scan.debounce = m; continue }
-        if (name === MOD_THROTTLE) { if (!scan.throttle) scan.throttle = m; continue }
-        if (name === MOD_AND) { if (!scan.and) scan.and = m; scan.hasPermit = true; continue }
-        if (name === MOD_EQ) { if (!scan.eq) scan.eq = m; scan.hasPermit = true; continue }
-        if (name === MOD_NE) { if (!scan.ne) scan.ne = m; scan.hasPermit = true; continue }
-        if (name === MOD_GT) { if (!scan.gt) scan.gt = m; scan.hasPermit = true; continue }
-        if (name === MOD_GE) { if (!scan.ge) scan.ge = m; scan.hasPermit = true; continue }
-        if (name === MOD_LT) { if (!scan.lt) scan.lt = m; scan.hasPermit = true; continue }
-        if (name === MOD_LE) { if (!scan.le) scan.le = m; scan.hasPermit = true; continue }
-        if (name === MOD_ONCE) { scan.once = true; continue }
-        if (name === 'prevent') { scan.prevent = true; continue }
-        if (scan.changeMod === SG_CHANGED_ANY) {
-          if (name === MOD_WITH_SHAPE) scan.changeMod = SG_CHANGED_WITH_SHAPE
-          else if (name === MOD_SHAPE_ONLY) scan.changeMod = SG_CHANGED_SHAPE_ONLY
-        }
+        const name = m && m.root
+        if (name === MOD_AND || name === MOD_EQ || name === MOD_NE || name === MOD_GT || name === MOD_GE || name === MOD_LT || name === MOD_LE)
+          return true
       }
-      return scan
+      return false
+    }
+
+    function getChangeMod(mods) {
+      let changeMod = SG_CHANGED_ANY
+      if (!mods) return changeMod
+      for (const m of mods) {
+        const name = m && m.root
+        if (name === MOD_WITH_SHAPE) changeMod = SG_CHANGED_WITH_SHAPE
+        else if (name === MOD_SHAPE_ONLY) changeMod = SG_CHANGED_SHAPE_ONLY
+      }
+      return changeMod
     }
 
     function getSignalValOrIt(it) {
@@ -691,20 +696,27 @@
     function modsPermitVal(mods, val) {
       if (!mods) return true
       for (const m of mods) {
-        const mName = m.root, mVal = mName == MOD_AND && typeof m.path === 'string' ? _dm.get(m.path) : getSignalValOrIt(m.path)
+        const mName = m.root
         if (mName == MOD_AND) {
+          const mVal = typeof m.path === 'string' ? _dm.get(m.path) : getSignalValOrIt(m.path)
           if (!mVal) return false
         } else if (mName == MOD_EQ) {
+          const mVal = getSignalValOrIt(m.path)
           if (val != mVal) return false
         } else if (mName == MOD_NE) {
+          const mVal = getSignalValOrIt(m.path)
           if (val == mVal) return false
         } else if (mName == MOD_GT) {
+          const mVal = getSignalValOrIt(m.path)
           if (+val <= +mVal) return false
         } else if (mName == MOD_LT) {
+          const mVal = getSignalValOrIt(m.path)
           if (+val >= +mVal) return false
         } else if (mName == MOD_GE) {
+          const mVal = getSignalValOrIt(m.path)
           if (+val < +mVal) return false
         } else if (mName == MOD_LE) {
+          const mVal = getSignalValOrIt(m.path)
           if (+val > +mVal) return false
         }
       }
@@ -892,24 +904,14 @@
       }
       const isSg = trig.kind === SIGNAL
       const not = !!trig.not
-      const modScan = scanMods(mods)
-      const mDeb = modScan.debounce, mThr = modScan.throttle
-      const mAnd = modScan.and, mEq = modScan.eq, mNe = modScan.ne
-      const mGt = modScan.gt, mGe = modScan.ge, mLt = modScan.lt, mLe = modScan.le
-      const one = modScan.once, prv = modScan.prevent
+      const mDeb = getLastMod(mods, MOD_DEBOUNCE), mThr = getLastMod(mods, MOD_THROTTLE)
+      const one = hasMod(mods, MOD_ONCE), prv = hasMod(mods, MOD_PREVENT)
 
       let tm = 0, last = 0
       const cond = (ev, dt) => {
-        if (mAnd && !(typeof mAnd.path === 'string' ? _dm.get(mAnd.path) : getSignalValOrIt(mAnd.path))) return false
         let v = isSg ? getSignalValOrIt(trig) : (dt ?? ev?.detail?.ms)
         if (isSg && not) v = !v
-        if (mEq && String(v) !== String(getSignalValOrIt(mEq.path))) return false
-        if (mNe && String(v) === String(getSignalValOrIt(mNe.path))) return false
-        if (mGt && !(+v > +getSignalValOrIt(mGt.path))) return false
-        if (mGe && !(+v >= +getSignalValOrIt(mGe.path))) return false
-        if (mLt && !(+v < +getSignalValOrIt(mLt.path))) return false
-        if (mLe && !(+v <= +getSignalValOrIt(mLe.path))) return false
-        return true
+        return modsPermitVal(mods, v)
       }
 
       const run = (ev, sg, dt) => {
@@ -1010,6 +1012,22 @@
     }
     assert(tTrigModsThrottle, [], [1, 3], 'applyTrigMods: throttle rate limit');
 
+    function tTrigModsMultipleAnd() {
+      reset();
+      _dm.set('gateA', true)
+      _dm.set('gateB', false)
+      let c = 0
+      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [
+        { root: MOD_AND, path: 'gateA' },
+        { root: MOD_AND, path: 'gateB' },
+      ])
+      h(null, null, 1)
+      _dm.set('gateB', true)
+      h(null, null, 2)
+      return c
+    }
+    assert(tTrigModsMultipleAnd, [], 1, 'applyTrigMods: multiple and gates');
+
     _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     function dSub(el, aName, aVal) {
       let [it, _p] = parse(aName)
@@ -1059,9 +1077,8 @@
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
 
-          const modScan = scanMods(mods)
-          const throttle = modScan.throttle
-          const needPermit = modScan.hasPermit
+          const throttle = getLastMod(mods, MOD_THROTTLE)
+          const needPermit = hasPermitMod(mods)
           let subFn = null
           if (!throttle && !needPermit)
             subFn = () => fn(DM, el, trig, getSignalValOrIt(trig), null)
@@ -1084,7 +1101,7 @@
             }
           }
 
-          const debounce = modScan.debounce
+          const debounce = getLastMod(mods, MOD_DEBOUNCE)
           if (debounce) {
             const dInterval = +getSignalValOrIt(debounce.path)
             if (dInterval > 0) {
@@ -1096,7 +1113,7 @@
             }
           }
 
-          const changeMod = modScan.changeMod // todo: @wip do we need this as a separate thing
+          const changeMod = getChangeMod(mods) // todo: @wip do we need this as a separate thing
           _subs.get(root).push({ fn: subFn, changeMod, path })
           subFn.unsub = () => {
             const subs = _subs.get(root)
