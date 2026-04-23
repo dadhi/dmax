@@ -661,6 +661,10 @@
       return p === getDefaultProp(el) || p === 'value' || p === 'checked' || p === 'textContent'
     }
 
+    function getModVal(m) {
+      return m && m.root === MOD_AND && typeof m.path === 'string' ? _dm.get(m.path) : getSignalValOrIt(m.path)
+    }
+
     const _subs = new Map()
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
@@ -853,7 +857,7 @@
         if (v === undefined && !isSg) v = ev?.detail?.ms
         if (!permitMods) return true
         for (const m of permitMods) {
-          const mVal = getSignalValOrIt(m.path)
+          const mVal = getModVal(m)
           if (m.root === MOD_AND) {
             if (!mVal) return false
           } else if (m.root === MOD_EQ) {
