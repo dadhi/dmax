@@ -413,14 +413,14 @@
 
     function getDefaultProp(el) {
       if (!el) return 'textContent'
-      const t = el.type, n = el.tagName
+      const t = el.type || '', n = el.tagName
       return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent'
     }
 
     function getDefaultEvent(el) {
       if (!el) return 'click'
       let n = el.tagName
-      let t = el.type
+      let t = el.type || ''
       return n === 'FORM' ? 'submit'
         : t === 'checkbox' || t === 'radio' || n === 'SELECT' ? 'change'
           : n === 'INPUT' || n === 'TEXTAREA' ? 'input'
