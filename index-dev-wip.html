@@ -1028,7 +1028,7 @@
                   const tick = count++
                   const detail = { tick, ms, type: SPEC_INTERVAL }
                   modded(undefined, ms, detail)
-                } catch (e) { }
+                } catch (e) { console.error('[dmax] Error: interval handler failed:', e?.message ?? e) }
               }, ms);
               elSubs.push({ type: 'interval', id });
               continue;
@@ -1038,7 +1038,7 @@
               const onTimeout = (_e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onTimeout, trig, mods)
               const id = setTimeout(() => {
-                try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { }
+                try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error('[dmax] Error: timeout handler failed:', e?.message ?? e) }
               }, ms);
               elSubs.push({ type: 'timeout', id });
               continue;
