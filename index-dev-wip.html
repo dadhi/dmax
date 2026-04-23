@@ -59,6 +59,62 @@
     .chk.fail {
       color: #dc2626;
     }
+
+    #dsub-examples {
+      padding: 16px 12px 28px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    #dsub-examples h2,
+    #dsub-examples h3,
+    #dsub-examples p {
+      margin: 0;
+    }
+
+    .example-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .example-card {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    .example-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .example-toolbar input,
+    .example-toolbar button {
+      font: inherit;
+      padding: 6px 8px;
+    }
+
+    .example-code,
+    .example-out {
+      margin: 10px 0 0;
+      padding: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .example-out {
+      background: #111827;
+      min-height: 96px;
+    }
   </style>
 </head>
 
@@ -71,6 +127,32 @@
     <pre id="out"></pre>
     <div id='foo' hidden>good</div>
   </main>
+  <section id="dsub-examples">
+    <h2>dSub examples</h2>
+    <p>Live examples using the raw expression args: <code>dm</code>, <code>el</code>, <code>trig</code>, <code>val</code>, <code>detail</code>.</p>
+    <div class="example-grid">
+      <article class="example-card">
+        <h3>Example 1 — inspect which trigger fired</h3>
+        <p>The same expression handles a signal trigger and an explicit button click, then prints the raw trigger shape.</p>
+        <div class="example-toolbar">
+          <button id="exampleArgEvent" type="button">Fire click trigger</button>
+          <button id="exampleArgSignal" type="button">Bump signal trigger</button>
+        </div>
+        <pre class="example-code" id="exampleArgCode"></pre>
+        <pre class="example-out" id="exampleArgOut"></pre>
+      </article>
+      <article class="example-card">
+        <h3>Example 2 — branch on trigger shape without DTOs</h3>
+        <p>The expression checks <code>trig.kind</code>, <code>trig.root</code>, and <code>trig.path</code> to decide whether a prop change or button click caused the update.</p>
+        <div class="example-toolbar">
+          <input id="exampleBranchInput" value="alpha" aria-label="Branch example input" />
+          <button id="exampleBranchBtn" type="button">Run click branch</button>
+        </div>
+        <pre class="example-code" id="exampleBranchCode"></pre>
+        <pre class="example-out" id="exampleBranchOut"></pre>
+      </article>
+    </div>
+  </section>
   <script>
     // Mirror console to <pre>, count tests
     (function () {
@@ -1292,6 +1374,53 @@
       return { im, after };
     }
     assert(tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+
+    function setupDSubExamples() {
+      reset();
+
+      const argCode = [
+        "dSub(exampleArgOut, 'data-sub:#exampleArgOut.textContent@exampleArgCount^immediate@#exampleArgEvent.click',",
+        "  \"[\" +",
+        "    'source=' + (trig.kind === 's' ? 'signal' : 'event') + '\\n' +",
+        "    'trig.kind=' + trig.kind + '\\n' +",
+        "    'trig.root=' + trig.root + '\\n' +",
+        "    'trig.path=' + (trig.path ? trig.path.join('.') : '(none)') + '\\n' +",
+        "    'val=' + val + '\\n' +",
+        "    'detail=' + (detail && detail.type ? detail.type : detail == null ? 'null' : detail)\"",
+        ")"
+      ].join('\n')
+      const branchCode = [
+        "dSub(exampleBranchInput, 'data-sub:#exampleBranchOut.textContent@.value@#exampleBranchBtn.click',",
+        "  \"trig.kind === '.' && trig.root === '' && trig.path && trig.path[0] === 'value'\"",
+        "    ? 'prop trigger → val=' + val + '; detail=' + (detail && detail.type ? detail.type : 'null')",
+        "    : 'event trigger → event=' + (detail && detail.type ? detail.type : 'null') + '; currentInput=' + el.value",
+        ")"
+      ].join('\n')
+
+      const exampleArgOut = getElById('exampleArgOut', 'exampleArgOut')
+      const exampleArgEvent = getElById('exampleArgEvent', 'exampleArgEvent')
+      const exampleArgSignal = getElById('exampleArgSignal', 'exampleArgSignal')
+      const exampleArgCode = getElById('exampleArgCode', 'exampleArgCode')
+      const exampleBranchInput = getElById('exampleBranchInput', 'exampleBranchInput')
+      const exampleBranchBtn = getElById('exampleBranchBtn', 'exampleBranchBtn')
+      const exampleBranchCode = getElById('exampleBranchCode', 'exampleBranchCode')
+
+      if (exampleArgCode) exampleArgCode.textContent = argCode
+      if (exampleBranchCode) exampleBranchCode.textContent = branchCode
+      if (!exampleArgOut || !exampleArgEvent || !exampleArgSignal || !exampleBranchInput || !exampleBranchBtn) return
+
+      _dm.set('exampleArgCount', 0)
+      dSub(exampleArgOut, 'data-sub:#exampleArgOut.textContent@exampleArgCount^immediate@#exampleArgEvent.click',
+        "['source=' + (trig.kind === 's' ? 'signal' : 'event'), 'trig.kind=' + trig.kind, 'trig.root=' + trig.root, 'trig.path=' + (trig.path ? trig.path.join('.') : '(none)'), 'val=' + val, 'detail=' + (detail && detail.type ? detail.type : detail == null ? 'null' : detail)].join('\\n')")
+      exampleArgSignal.addEventListener('click', () => {
+        const next = (_dm.get('exampleArgCount') || 0) + 1
+        _setSignalAndNotifySubs('exampleArgSignal', { root: 'exampleArgCount', path: null }, next)
+      })
+
+      dSub(exampleBranchInput, 'data-sub:#exampleBranchOut.textContent@.value@#exampleBranchBtn.click',
+        "trig.kind === '.' && trig.root === '' && trig.path && trig.path[0] === 'value' ? 'prop trigger → val=' + val + '; detail=' + (detail && detail.type ? detail.type : 'null') : 'event trigger → event=' + (detail && detail.type ? detail.type : 'null') + '; currentInput=' + el.value")
+    }
+    setupDSubExamples()
 
     // // todo: Cleanup the subs bound to the data-attr defined on the removed element
     //   const observer = new MutationObserver(records => {
