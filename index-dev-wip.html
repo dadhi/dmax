@@ -59,6 +59,45 @@
     .chk.fail {
       color: #dc2626;
     }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      padding: 12px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .demo-grid section {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .demo-grid h2 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .demo-grid button,
+    .demo-grid input {
+      margin: 4px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .demo-grid pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 8px;
+      border-radius: 6px;
+      min-height: 64px;
+    }
   </style>
 </head>
 
@@ -69,6 +108,28 @@
   <main>
     <div class="note">Output is mirrored from console.log/error</div>
     <pre id="out"></pre>
+    <div class="demo-grid" id="liveDsubDemo">
+      <section id="liveDemo">
+        <h2>Live dSub inputs</h2>
+        <button id="liveEventBtn" type="button">Trigger explicit id event</button>
+        <input id="livePropInput" value="typed-live-value" />
+        <button id="liveSignalBtn" type="button">Trigger signal</button>
+        <button id="liveWindowBtn" type="button">Trigger window event</button>
+        <button id="liveDocumentBtn" type="button">Trigger document event</button>
+      </section>
+      <section>
+        <h2>Form / timer triggers</h2>
+        <form id="liveForm">
+          <button id="liveFormBtn" type="submit">Submit form trigger</button>
+        </form>
+        <div id="liveSpecialLog"></div>
+        <pre id="liveBranchOut"></pre>
+      </section>
+      <section>
+        <h2>Raw dm / el / trig / val / detail</h2>
+        <pre id="liveArgsOut"></pre>
+      </section>
+    </div>
     <div id='foo' hidden>good</div>
   </main>
   <script>
@@ -573,13 +634,9 @@
     }
 
     const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle"
+    const MOD_PREVENT = 'prevent'
     const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
-    const PERMIT_MODS = [MOD_AND, MOD_EQ, MOD_NE, MOD_LT, MOD_GT, MOD_LE, MOD_GE]
-
-    function getModOrNull(mods, name) {
-      if (mods) for (const m in mods) if (m.root === name) return m
-      return null
-    }
+    const PERMIT_MODS = new Set([MOD_AND, MOD_EQ, MOD_NE, MOD_LT, MOD_GT, MOD_LE, MOD_GE])
 
     function getSignalValOrIt(it) {
       if (!it.kind) return it
@@ -589,33 +646,19 @@
       return it.not ? !val : val
     }
 
-    function hasPermitMods(mods) {
-      if (!mods) return false
-      for (const m of mods) if (m.root in PERMIT_MODS) return true
-      return false
+    function readElPropOrNull(el, path) {
+      const p = path && path.length ? path : [getDefaultProp(el)]
+      if (!el || !p || !p.length) return undefined
+      if (p.length === 1) return el[p[0]]
+      let [obj, d] = getPropValAndDepth(el, p, p.length - 1)
+      return obj && d === p.length - 1 ? obj[p[p.length - 1]] : undefined
     }
 
-    function modsPermitVal(mods, val) {
-      if (!mods) return true
-      for (const m of mods) {
-        const mName = m.root, mVal = getSignalValOrIt(m.path)
-        if (mVal == MOD_AND) {
-          if (!modVal) return false
-        } else if (mName == MOD_EQ) {
-          if (val != mVal) return false
-        } else if (mName == MOD_NE) {
-          if (val == mVal) return false
-        } else if (mName == MOD_GT) {
-          if (+val <= +mVal) return false
-        } else if (mName == MOD_LT) {
-          if (+val >= +mVal) return false
-        } else if (mName == MOD_GE) {
-          if (+val < +mVal) return false
-        } else if (mName == MOD_LE) {
-          if (+val > +mVal) return false
-        }
-      }
-      return true
+    function isPropTrig(el, path) {
+      if (!path || !path.length) return false
+      if (path.length > 1) return true
+      const p = path[0]
+      return p === getDefaultProp(el) || p === 'value' || p === 'checked' || p === 'textContent'
     }
 
     const _subs = new Map()
@@ -792,54 +835,59 @@
 
     function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
-      const not = !!trig.not
-      const root = trig.root
-      const path = trig.path
-
-      const deb = mods.debounce == null ? 0 : +mods.debounce
-      const thr = mods.throttle == null ? 0 : +mods.throttle
-      const one = mods.once !== undefined
-      const prv = mods.prevent !== undefined
-
-      const and = mods.and == null ? null : String(mods.and)
-      const eqOn = mods.eq !== undefined, neOn = mods.ne !== undefined
-      const eq = mods.eq, ne = mods.ne
-      const gtOn = mods.gt != null, geOn = mods.ge != null, ltOn = mods.lt != null, leOn = mods.le != null
-      const gt = gtOn ? +mods.gt : 0
-      const ge = geOn ? +mods.ge : 0
-      const lt = ltOn ? +mods.lt : 0
-      const le = leOn ? +mods.le : 0
+      let deb = 0, thr = 0, one = false, prv = false
+      let permitMods = null
+      if (mods) for (const m of mods) {
+        if (!m) continue
+        const nam = m.root
+        if (nam === MOD_DEBOUNCE) deb ||= +getSignalValOrIt(m.path) || 0
+        else if (nam === MOD_THROTTLE) thr ||= +getSignalValOrIt(m.path) || 0
+        else if (nam === MOD_ONCE) one = true
+        else if (nam === MOD_PREVENT) prv = true
+        else if (PERMIT_MODS.has(nam)) (permitMods ??= []).push(m)
+      }
 
       let tm = 0, last = 0
-      const cond = (ev, dt) => {
-        // if (and && !getSignalValOrIt(and)) return false 
-        let v = isSg ? getSignalValOrIt(root, path) : (dt ?? ev?.detail?.ms)
-        if (isSg && not) v = !v
-        if (eqOn && String(v) !== String(eq)) return false
-        if (neOn && String(v) === String(ne)) return false
-        if (gtOn && !(+v > gt)) return false
-        if (geOn && !(+v >= ge)) return false
-        if (ltOn && !(+v < lt)) return false
-        if (leOn && !(+v <= le)) return false
+      const cond = (ev, val) => {
+        let v = isSg && trig.not ? !val : val
+        if (v === undefined && !isSg) v = ev?.detail?.ms
+        if (!permitMods) return true
+        for (const m of permitMods) {
+          const mVal = getSignalValOrIt(m.path)
+          if (m.root === MOD_AND) {
+            if (!mVal) return false
+          } else if (m.root === MOD_EQ) {
+            if (v != mVal) return false
+          } else if (m.root === MOD_NE) {
+            if (v == mVal) return false
+          } else if (m.root === MOD_GT) {
+            if (!(+v > +mVal)) return false
+          } else if (m.root === MOD_LT) {
+            if (!(+v < +mVal)) return false
+          } else if (m.root === MOD_GE) {
+            if (!(+v >= +mVal)) return false
+          } else if (m.root === MOD_LE) {
+            if (!(+v <= +mVal)) return false
+          }
+        }
         return true
       }
 
-      const run = (ev, sg, dt) => {
-
-        if (!cond(ev, dt)) return
-        try { fn(ev, sg, dt) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+      const run = (ev, val, detail) => {
+        if (!cond(ev, val)) return
+        try { fn(ev, val, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && h.remove) h.remove()
       }
 
-      const h = function (ev, sg, dt) {
+      const h = function (ev, val, detail) {
         if (prv) ev?.preventDefault?.()
-        if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, sg, dt); return }
+        if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, val, detail); return }
         if (thr > 0) {
           const now = Date.now()
           if (now - last < thr) return
           last = now
         }
-        run(ev, sg, dt)
+        run(ev, val, detail)
       }
       return h
     }
@@ -848,10 +896,10 @@
       reset();
       _dm.set('a', 5)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: SIGNAL, root: 'a', path: null, not: null }, { eq: '5', ne: '6' })
-      h()
+      const h = applyTrigMods(() => ++c, { kind: SIGNAL, root: 'a', path: null, not: null }, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
+      h(null, _dm.get('a'), null)
       _dm.set('a', 6)
-      h()
+      h(null, _dm.get('a'), null)
       return c
     }
     assert(tTrigModsEqNe, [], 1, 'applyTrigMods: eq/ne filter');
@@ -860,10 +908,10 @@
       reset();
       _dm.set('gate', false)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, { and: 'gate' })
-      h(null, null, 1)
+      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_AND, path: { kind: SIGNAL, root: 'gate', path: null, not: null } }])
+      h(null, 1, null)
       _dm.set('gate', true)
-      h(null, null, 2)
+      h(null, 2, null)
       return c
     }
     assert(tTrigModsAnd, [], 1, 'applyTrigMods: and gate');
@@ -871,7 +919,7 @@
     function tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, { prevent: true, once: true })
+      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
       h.remove = () => ++r
       h(ev, null, null)
       return { p, r, c }
@@ -886,9 +934,9 @@
       clearTimeout = (n) => q.delete(n)
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, { debounce: 8 })
-        h(null, null, 1)
-        h(null, null, 2)
+        const h = applyTrigMods((_ev, val) => out.push(val), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_DEBOUNCE, path: '8' }])
+        h(null, 1, null)
+        h(null, 2, null)
         for (const [k, v] of q) {
           q.delete(k)
           v[0](...v[1])
@@ -907,18 +955,40 @@
       Date.now = () => now
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, { throttle: 10 })
-        h(null, null, 1)
+        const h = applyTrigMods((_ev, val) => out.push(val), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_THROTTLE, path: '10' }])
+        h(null, 1, null)
         now = 105
-        h(null, null, 2)
+        h(null, 2, null)
         now = 111
-        h(null, null, 3)
+        h(null, 3, null)
         return out
       } finally {
         Date.now = dn
       }
     }
     assert(tTrigModsThrottle, [], [1, 3], 'applyTrigMods: throttle rate limit');
+
+    function tTrigModsRepeatedPermit() {
+      reset();
+      _dm.set('gateA', false)
+      _dm.set('gateB', false)
+      const out = []
+      const h = applyTrigMods((_ev, val) => out.push(val), { kind: SIGNAL, root: 'src', path: null, not: null }, [
+        { root: MOD_AND, path: { kind: SIGNAL, root: 'gateA', path: null, not: null } },
+        { root: MOD_AND, path: { kind: SIGNAL, root: 'gateB', path: null, not: null } },
+        { root: MOD_GT, path: '1' },
+        { root: MOD_LT, path: '4' }
+      ])
+      h(null, 2, null)
+      _dm.set('gateA', true)
+      h(null, 2, null)
+      _dm.set('gateB', true)
+      h(null, 1, null)
+      h(null, 2, null)
+      h(null, 4, null)
+      return out
+    }
+    assert(tTrigModsRepeatedPermit, [], [2], 'applyTrigMods: repeated permit mods all gate');
 
     _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     function dSub(el, aName, aVal) {
@@ -956,142 +1026,104 @@
         fn(DM, el, null, null, null); return
       }
 
-      let elSubs = _cleanupBoundSubs.get(el);
-      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = []);
+      let elSubs = el ? _cleanupBoundSubs.get(el) : null
+      if (el && !elSubs) _cleanupBoundSubs.set(el, elSubs = [])
 
       let ranImmediate = false
 
       for (let trig of trigs) {
-
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods ?? globMods ?? null // local mods already contain globs, so ?? is fine here
+        const mods = trig.mods ?? globMods ?? null
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
-
-          const throttle = getModOrNull(mods, MOD_THROTTLE)
-          const needPermit = hasPermitMods(mods)
-          let subFn = null
-          if (!throttle && !needPermit)
-            subFn = () => fn(DM, el, trig, getSignalValOrIt(trig), null)
-          else if (!throttle)
-            subFn = () => {
-              const trigVal = getSignalValOrIt(trig)
-              if (modsPermitVal(mods, trigVal)) fn(DM, el, trig, trigVal, null)
-            }
-          else {
-            let lastTime = 0
-            subFn = () => {
-              const delay = +getSignalValOrIt(throttle.path)
-              if (delay > 0) {
-                const t = Date.now()
-                if (t - lastTime < delay) return
-                lastTime = t
-              }
-              const trigVal = getSignalValOrIt(trig)
-              if (modsPermitVal(mods, trigVal)) fn(DM, el, trig, trigVal, null)
-            }
-          }
-
-          const debounce = getModOrNull(mods, MOD_DEBOUNCE)
-          if (debounce) {
-            const dInterval = +getSignalValOrIt(debounce.path)
-            if (dInterval > 0) {
-              let dTimeout = 0
-              fn = subFn
-              subFn = () => {
-                if (dTimeout) clearTimeout(dTimeout); dTimeout = setTimeout(fn, dInterval); return
-              }
-            }
-          }
-
           const shape = getSgChangeShape(mods) // todo: @wip do we need this as a separate thing 
-          _subs.get(root).push({ fn, shape, path })
-          fn.unsub = () => {
+          const modded = applyTrigMods((_ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+          const sub = { fn: (detail) => modded(null, getSignalValOrIt(trig), detail), changeMod: shape, path }
+          modded.remove = () => {
             const subs = _subs.get(root)
-            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== fn))
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s !== sub))
           }
+          _subs.get(root).push(sub)
 
-          // todo: @wip can we use _KIND instead of type?
-          elSubs.push({ type: 'signal', el, kind, root, path, fn })
+          if (elSubs) elSubs.push({ type: 'signal', el, kind, root, path, sub, handler: modded })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
-            fn(DM, el, trig, getSignalValOrIt(trig), null)
+            modded(null, getSignalValOrIt(trig), null)
           }
 
-        } else if (kind === EV_PROP || kind === SPECIAL) {
+        } else if (kind === SPECIAL) {
+          let ev = path && path.length ? path[0] : null
+          if (root === SPEC_WIN) {
+            const finalEvent = ev ?? SPEC_WIN_EV
+            const modded = applyTrigMods((eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+            const handler = (eventObj) => modded(eventObj, eventObj?.type, eventObj)
+            handler.remove = () => { try { window.removeEventListener(finalEvent, handler) } catch (_) { } }
+            modded.remove = handler.remove
+            window.addEventListener(finalEvent, handler)
+            if (elSubs) elSubs.push({ type: 'event', targetEl: window, eventName: finalEvent, handler })
+            continue
+          }
+          if (root === SPEC_DOC) {
+            const finalEvent = ev ?? SPEC_DOC_EV
+            const modded = applyTrigMods((eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+            const handler = (eventObj) => modded(eventObj, eventObj?.type, eventObj)
+            handler.remove = () => { try { document.removeEventListener(finalEvent, handler) } catch (_) { } }
+            modded.remove = handler.remove
+            document.addEventListener(finalEvent, handler)
+            if (elSubs) elSubs.push({ type: 'event', targetEl: document, eventName: finalEvent, handler })
+            continue
+          }
+          if (root === SPEC_INTERVAL) {
+            const ms = parseInt(ev) || SPEC_INTERVAL_MS
+            let count = 0
+            const modded = applyTrigMods((_eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+            const id = setInterval(() => { try { modded(null, ms, count++) } catch (_) { } }, ms)
+            if (elSubs) elSubs.push({ type: 'interval', id })
+            continue
+          }
+          if (root === SPEC_TIMEOUT) {
+            const ms = parseInt(ev) || SPEC_TIMEOUT_MS
+            let count = 0
+            const modded = applyTrigMods((_eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+            const id = setTimeout(() => { try { modded(null, ms, count++) } catch (_) { } }, ms)
+            if (elSubs) elSubs.push({ type: 'timeout', id })
+            continue
+          }
+          if (root === SPEC_FORM) {
+            const formEl = el && el.closest ? el.closest('form') : null
+            if (!formEl) continue
+            const formEv = ev || 'submit'
+            const modded = applyTrigMods((eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+            const handler = (eventObj) => modded(eventObj, eventObj?.type, eventObj)
+            handler.remove = () => { try { formEl.removeEventListener(formEv, handler) } catch (_) { } }
+            modded.remove = handler.remove
+            formEl.addEventListener(formEv, handler)
+            if (elSubs) elSubs.push({ type: 'event', targetEl: formEl, eventName: formEv, handler })
+            if (isImmediateMod(mods, false)) {
+              ranImmediate = true
+              modded(null, formEv, null)
+            }
+            continue
+          }
+        } else if (kind === EV_PROP) {
           let targetEl = root ? getElById(root, aName) : el
           if (!targetEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
 
-          let ev = path && path.length ? path[0] : null
-          if (kind === SPECIAL) {
-            if (root === SPEC_WIN) {
-              const onWin = (e) => fn(DM, el, SRC_WIN, e?.type, e)
-              const modded = applyTrigMods(onWin, trig, mods)
-              window.addEventListener(ev ?? SPEC_WIN_EV, modded)
-              elSubs.push({ type: 'event', targetEl: window, eventName: (ev ?? SPEC_WIN_EV), handler: modded })
-              continue;
-            }
-            if (root === SPEC_DOC) {
-              const onDoc = (e) => fn(DM, el, SRC_DOC, e?.type, e)
-              const modded = applyTrigMods(onDoc, trig, mods)
-              document.addEventListener(ev ?? SPEC_DOC_EV, modded)
-              elSubs.push({ type: 'event', targetEl: document, eventName: (ev ?? SPEC_DOC_EV), handler: modded })
-              continue;
-            }
-            if (root === SPEC_INTERVAL) {
-              const ms = parseInt(ev) || SPEC_INTERVAL_MS
-              let count = 0
-              const onInt = () => fn(DM, el, SRC_INTERVAL, ms, count++)
-              const modded = applyTrigMods(onInt, trig, mods)
-              const id = setInterval(() => {
-                try { modded(undefined, null, ms) } catch (e) { }
-              }, ms);
-              elSubs.push({ type: 'interval', id });
-              continue;
-            }
-            if (root === SPEC_TIMEOUT) {
-              const ms = parseInt(ev) || SPEC_TIMEOUT_MS;
-              let count = 0
-              const onTimeout = () => fn(DM, el, SRC_TIMEOUT, ms, count++)
-              const modded = applyTrigMods(onTimeout, trig, mods)
-              const id = setTimeout(() => {
-                try { modded(undefined, null, ms) } catch (e) { }
-              }, ms);
-              elSubs.push({ type: 'timeout', id });
-              continue;
-            }
-            if (root === SPEC_FORM) {
-              // bind to closest form ancestor
-              const formEl = el && el.closest ? el.closest('form') : null;
-              if (formEl) {
-                const formEv = ev || 'submit';
-                const onForm = (e) => fn(DM, el, SRC_EVENT, e, null)
-                const modded = applyTrigMods(onForm, trig, mods)
-                formEl.addEventListener(formEv, modded);
-                elSubs.push({ type: 'event', targetEl: formEl, eventName: formEv, handler: modded });
-                if (isImmediateMod(mods, false)) modded();
-              }
-              continue;
-            }
-          }
+          const propTrig = isPropTrig(targetEl, path)
+          const finalEvent = propTrig ? getDefaultEvent(targetEl) : ((path && path.length ? path[0] : null) ?? getDefaultEvent(targetEl))
+          if (!finalEvent) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
 
-          ev = ev ?? getDefaultEvent(targetEl)
-          if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
-
-          const finalEvent = ev
-          const baseHandler = (eventObj) => {
-            const prop = getDefaultProp(targetEl)
-            const trigVal = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
-            fn(DM, el, SRC_EVENT, trigVal, eventObj)
-          }
-          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { targetEl.removeEventListener(finalEvent, moddedHandler); } catch (e) { } };
-          targetEl.addEventListener(finalEvent, moddedHandler);
-          elSubs.push({ type: 'event', targetEl, eventName: finalEvent, handler: moddedHandler });
+          const propPath = propTrig ? path : null
+          const modded = applyTrigMods((eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+          const handler = (eventObj) => modded(eventObj, propTrig ? readElPropOrNull(targetEl, propPath) : (path && path.length ? eventObj?.type : readElPropOrNull(targetEl, null)), eventObj)
+          handler.remove = () => { try { targetEl.removeEventListener(finalEvent, handler); } catch (_) { } };
+          modded.remove = handler.remove
+          targetEl.addEventListener(finalEvent, handler)
+          if (elSubs) elSubs.push({ type: 'event', targetEl, eventName: finalEvent, handler })
           if (isImmediateMod(mods, false)) {
             ranImmediate = true
-            moddedHandler();
+            modded(null, propTrig ? readElPropOrNull(targetEl, propPath) : (path && path.length ? finalEvent : readElPropOrNull(targetEl, null)), null)
           }
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
       } // end of triggers loop
@@ -1155,6 +1187,149 @@
       return { im, after };
     }
     assert(tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+
+    function tSubExplicitIdEvent() {
+      reset();
+      const wrap = document.createElement('div')
+      const src = document.createElement('button')
+      src.id = 'srcBtn'
+      wrap.appendChild(src)
+      document.body.appendChild(wrap)
+      try {
+        const host = document.createElement('div')
+        dSub(host, 'data-sub:seen@#srcBtn.click', '({ kind: trig.kind, root: trig.root, val, detailType: detail && detail.type })')
+        const hs = _cleanupBoundSubs.get(host) || []
+        const h = hs.find(x => x && x.type === 'event' && x.targetEl === src)
+        h.handler({ type: 'click', preventDefault() { } })
+        return DM['seen']
+      } finally {
+        wrap.remove()
+      }
+    }
+    assert(tSubExplicitIdEvent, [], { kind: EV_PROP, root: 'srcBtn', val: 'click', detailType: 'click' }, 'dSub explicit id event trigger');
+
+    function tSubPropTrigger() {
+      reset();
+      const host = document.createElement('input')
+      host.value = 'Zed'
+      dSub(host, 'data-sub:seen@.value', '({ path: trig.path && trig.path.join("."), val, detailType: detail && detail.type })')
+      const hs = _cleanupBoundSubs.get(host) || []
+      const h = hs.find(x => x && x.type === 'event' && x.targetEl === host)
+      h.handler({ type: 'change', preventDefault() { } })
+      return DM['seen']
+    }
+    assert(tSubPropTrigger, [], { path: 'value', val: 'Zed', detailType: 'change' }, 'dSub prop trigger uses default event and prop value');
+
+    function tSubWindowDocumentFormTriggers() {
+      reset();
+      const form = document.createElement('form')
+      const host = document.createElement('button')
+      host.type = 'submit'
+      form.appendChild(host)
+      document.body.appendChild(form)
+      try {
+        dSub(host, 'data-sub:win@_window.resize', '({ root: trig.root, val, detailType: detail && detail.type })')
+        dSub(host, 'data-sub:doc@_document.visibilitychange', '({ root: trig.root, val, detailType: detail && detail.type })')
+        dSub(host, 'data-sub:frm@_form.submit', '({ root: trig.root, val, detailType: detail && detail.type })')
+        const hs = _cleanupBoundSubs.get(host) || []
+        hs.find(x => x && x.type === 'event' && x.targetEl === window)?.handler({ type: 'resize', preventDefault() { } })
+        hs.find(x => x && x.type === 'event' && x.targetEl === document)?.handler({ type: 'visibilitychange', preventDefault() { } })
+        hs.find(x => x && x.type === 'event' && x.targetEl === form)?.handler({ type: 'submit', preventDefault() { } })
+        return { win: DM['win'], doc: DM['doc'], frm: DM['frm'] }
+      } finally {
+        form.remove()
+      }
+    }
+    assert(tSubWindowDocumentFormTriggers, [], {
+      win: { root: 'window', val: 'resize', detailType: 'resize' },
+      doc: { root: 'document', val: 'visibilitychange', detailType: 'visibilitychange' },
+      frm: { root: 'form', val: 'submit', detailType: 'submit' }
+    }, 'dSub window/document/form triggers');
+
+    function tSubIntervalTimeoutTriggers() {
+      reset();
+      const st = setTimeout, si = setInterval
+      let timeoutCb = null, intervalCb = null
+      setTimeout = (cb, _ms) => (timeoutCb = cb, 1)
+      setInterval = (cb, _ms) => (intervalCb = cb, 2)
+      try {
+        const host = document.createElement('div')
+        dSub(host, 'data-sub:tOut@_timeout.25', '({ root: trig.root, val, detail })')
+        dSub(host, 'data-sub:tInt@_interval.30', '({ root: trig.root, val, detail })')
+        timeoutCb && timeoutCb()
+        intervalCb && intervalCb()
+        return { timeout: DM['tOut'], interval: DM['tInt'] }
+      } finally {
+        setTimeout = st
+        setInterval = si
+      }
+    }
+    assert(tSubIntervalTimeoutTriggers, [], {
+      timeout: { root: 'timeout', val: 25, detail: 0 },
+      interval: { root: 'interval', val: 30, detail: 0 }
+    }, 'dSub interval/timeout triggers');
+
+    function tSubRepeatedPermitMods() {
+      reset();
+      _dm.set('hitCount', 0)
+      _dm.set('gateA', false)
+      _dm.set('gateB', false)
+      const host = document.createElement('div')
+      dSub(host, 'data-sub:hitCount@src^and.gateA^and.gateB^gt.1^lt.4', '(dm.hitCount || 0) + 1')
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 2)
+      _setSignalAndNotifySubs('t', { root: 'gateA', path: null }, true)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 2)
+      _setSignalAndNotifySubs('t', { root: 'gateB', path: null }, true)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 1)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 2)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 4)
+      return DM['hitCount']
+    }
+    assert(tSubRepeatedPermitMods, [], 1, 'dSub repeated permit modifier gating');
+
+    function liveJson(dm, el, trig, val, detail) {
+      const dmOut = {}
+      for (const k in dm) dmOut[k] = dm[k]
+      return JSON.stringify({
+        dm: dmOut,
+        el: el && el.id || null,
+        trig: trig ? { kind: trig.kind, root: trig.root, path: trig.path, not: trig.not } : null,
+        val,
+        detail: detail && typeof detail === 'object' ? { type: detail.type || null, target: detail.target && detail.target.id || null } : detail
+      }, null, 2)
+    }
+
+    function setupLiveDSubExamples() {
+      if (window.__liveDSubSetupDone) return
+      window.__liveDSubSetupDone = true
+      reset()
+      dDef(null, 'data-def:liveCounter:liveGateA:liveGateB', '0')
+      const demo = getElById('liveDemo', 'liveDsubDemo')
+      const argsOut = getElById('liveArgsOut', 'liveDsubDemo')
+      const branchOut = getElById('liveBranchOut', 'liveDsubDemo')
+      const signalBtn = getElById('liveSignalBtn', 'liveDsubDemo')
+      const windowBtn = getElById('liveWindowBtn', 'liveDsubDemo')
+      const documentBtn = getElById('liveDocumentBtn', 'liveDsubDemo')
+      const form = getElById('liveForm', 'liveDsubDemo')
+      if (!demo || !argsOut || !branchOut || !signalBtn || !windowBtn || !documentBtn || !form) return
+
+      dSub(demo, 'data-sub:#liveArgsOut.@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450',
+        'liveJson(dm, el, trig, val, detail)')
+      dSub(demo, 'data-sub:#liveBranchOut.@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450',
+        `trig.kind === 's' ? 'signal branch → ' + trig.root + ' = ' + val
+          : trig.kind === '_' ? 'special branch → ' + trig.root + ' / val=' + val + ' / detail=' + detail
+          : (trig.path && (trig.path.length > 1 || trig.path[0] === 'value' || trig.path[0] === 'checked' || trig.path[0] === 'textContent'))
+            ? 'prop branch → ' + (trig.root || 'self') + '.' + trig.path.join('.')
+            : 'event branch → ' + (trig.root ? '#' + trig.root : 'self') + '.' + ((trig.path && trig.path[0]) || 'default')`)
+
+      signalBtn.addEventListener('click', () => _setSignalAndNotifySubs('live-demo', { root: 'liveCounter', path: null }, (DM['liveCounter'] || 0) + 1))
+      windowBtn.addEventListener('click', () => window.dispatchEvent(mkEv('resize')))
+      documentBtn.addEventListener('click', () => document.dispatchEvent(mkEv('visibilitychange')))
+      form.addEventListener('submit', (e) => e.preventDefault())
+      argsOut.textContent = liveJson(DM, demo, null, null, null)
+      branchOut.textContent = 'Click any live trigger to inspect dSub inputs.'
+    }
+    setupLiveDSubExamples()
 
     // // todo: Cleanup the subs bound to the data-attr defined on the removed element
     //   const observer = new MutationObserver(records => {
