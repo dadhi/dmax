@@ -665,6 +665,15 @@
       return m && m.root === MOD_AND && typeof m.path === 'string' ? _dm.get(m.path) : getSignalValOrIt(m.path)
     }
 
+    function getLiveBranch(trig, val, detail) {
+      if (!trig) return 'no trigger yet'
+      if (trig.kind === SIGNAL) return 'signal branch → ' + trig.root + ' = ' + val
+      if (trig.kind === SPECIAL) return 'special branch → ' + trig.root + ' / val=' + val + ' / detail=' + detail
+      if (trig.path && (trig.path.length > 1 || trig.path[0] === 'value' || trig.path[0] === 'checked' || trig.path[0] === 'textContent'))
+        return 'prop branch → ' + (trig.root || 'self') + '.' + trig.path.join('.')
+      return 'event branch → ' + (trig.root ? '#' + trig.root : 'self') + '.' + ((trig.path && trig.path[0]) || 'default')
+    }
+
     const _subs = new Map()
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
@@ -844,8 +853,8 @@
       if (mods) for (const m of mods) {
         if (!m) continue
         const nam = m.root
-        if (nam === MOD_DEBOUNCE) deb ||= +getSignalValOrIt(m.path) || 0
-        else if (nam === MOD_THROTTLE) thr ||= +getSignalValOrIt(m.path) || 0
+        if (nam === MOD_DEBOUNCE) deb = +getSignalValOrIt(m.path) || 0
+        else if (nam === MOD_THROTTLE) thr = +getSignalValOrIt(m.path) || 0
         else if (nam === MOD_ONCE) one = true
         else if (nam === MOD_PREVENT) prv = true
         else if (PERMIT_MODS.has(nam)) (permitMods ??= []).push(m)
@@ -1119,8 +1128,9 @@
           if (!finalEvent) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
 
           const propPath = propTrig ? path : null
+          const getTrigVal = (eventObj) => propTrig ? readElPropOrNull(targetEl, propPath) : (path && path.length ? eventObj?.type : readElPropOrNull(targetEl, null))
           const modded = applyTrigMods((eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
-          const handler = (eventObj) => modded(eventObj, propTrig ? readElPropOrNull(targetEl, propPath) : (path && path.length ? eventObj?.type : readElPropOrNull(targetEl, null)), eventObj)
+          const handler = (eventObj) => modded(eventObj, getTrigVal(eventObj), eventObj)
           handler.remove = () => { try { targetEl.removeEventListener(finalEvent, handler); } catch (_) { } };
           modded.remove = handler.remove
           targetEl.addEventListener(finalEvent, handler)
@@ -1320,11 +1330,7 @@
       dSub(demo, 'data-sub:#liveArgsOut.@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450',
         'liveJson(dm, el, trig, val, detail)')
       dSub(demo, 'data-sub:#liveBranchOut.@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450',
-        `trig.kind === 's' ? 'signal branch → ' + trig.root + ' = ' + val
-          : trig.kind === '_' ? 'special branch → ' + trig.root + ' / val=' + val + ' / detail=' + detail
-          : (trig.path && (trig.path.length > 1 || trig.path[0] === 'value' || trig.path[0] === 'checked' || trig.path[0] === 'textContent'))
-            ? 'prop branch → ' + (trig.root || 'self') + '.' + trig.path.join('.')
-            : 'event branch → ' + (trig.root ? '#' + trig.root : 'self') + '.' + ((trig.path && trig.path[0]) || 'default')`)
+        'getLiveBranch(trig, val, detail)')
 
       signalBtn.addEventListener('click', () => _setSignalAndNotifySubs('live-demo', { root: 'liveCounter', path: null }, (DM['liveCounter'] || 0) + 1))
       windowBtn.addEventListener('click', () => window.dispatchEvent(mkEv('resize')))
