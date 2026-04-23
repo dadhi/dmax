@@ -1090,16 +1090,21 @@
           let targetEl = root ? getElById(root, aName) : el
           if (!targetEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
 
-          let ev = path && path.length ? path[0] : null
+          const pathLen = path ? path.length : 0
+          const path0 = pathLen ? path[0] : null
           const prop = getDefaultProp(targetEl)
-          const isPropTrig = !!(path && path.length && (path.length > 1 || path[0] === prop || path[0] === 'value' || path[0] === 'checked' || path[0] === 'textContent'))
-          ev = isPropTrig ? getDefaultEvent(targetEl) : (ev ?? getDefaultEvent(targetEl))
+          const defEv = getDefaultEvent(targetEl)
+          const isPropTrig = !!path0 && (pathLen > 1 || path0 === prop || path0 === 'value' || path0 === 'checked' || path0 === 'textContent')
+          const ev = isPropTrig ? defEv : (path0 ?? defEv)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
 
           const finalEvent = ev
           const baseHandler = (eventObj) => {
-            const trigVal = isPropTrig ? getPropValAndDepth(targetEl, path)[0]
-              : (prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent))
+            let trigVal
+            if (isPropTrig) trigVal = getPropValAndDepth(targetEl, path)[0]
+            else if (prop === 'checked') trigVal = targetEl.checked
+            else if (prop === 'value') trigVal = targetEl.value
+            else trigVal = targetEl.textContent
             fn(DM, el, trig, trigVal, eventObj)
           }
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
