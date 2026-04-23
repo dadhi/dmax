@@ -694,14 +694,14 @@
 
       // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
       let collected = [], diffed = false, diff = null, pathDiffs = []
-      for (const h of handlers) { // h.fn, h.changeMod, h.path
-        const hp = h.path, changeMod = h.changeMod
+      for (const h of handlers) { // h.fn, h.changeShape, h.path
+        const hp = h.path, changeShape = h.changeShape
         if (!hp) {
-          if (!path && !diffed && changeMod !== SG_CHANGED_ANY) {// compare roots if it is the first time
+          if (!path && !diffed && changeShape !== SG_CHANGED_ANY) {// compare roots if it is the first time
             diffed = true
             diff = diffShapeShallow(curVal, val)
           }
-          if (path || changeMod !== SG_CHANGED_SHAPE_ONLY || diff)
+          if (path || changeShape !== SG_CHANGED_SHAPE_ONLY || diff)
             collected.push([h, path ? null : diff]) // ignore diff later for NOTIFY_SG_CHANGE
           continue
         }
@@ -714,11 +714,11 @@
           if (skip) continue
           if (notifyParent) { collected.push([h, null]); continue }
           if (path.length == hp.length) {
-            if (!diffed && changeMod !== SG_CHANGED_ANY) {
+            if (!diffed && changeShape !== SG_CHANGED_ANY) {
               diffed = true
               diff = diffShapeShallow(curVal, val)
             }
-            if (changeMod !== SG_CHANGED_SHAPE_ONLY || diff)
+            if (changeShape !== SG_CHANGED_SHAPE_ONLY || diff)
               collected.push([h, diff])
             continue
           }
@@ -738,12 +738,12 @@
         }
 
         let pathDiffed = false, pathDiff = null
-        if (changeMod != SG_CHANGED_ANY) {
+        if (changeShape != SG_CHANGED_ANY) {
           for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
           if (!pathDiffed) pathDiffs.push(pathDiff = diffShapeShallow(pathCur, pathVal))
         }
 
-        if (changeMod !== SG_CHANGED_SHAPE_ONLY || pathDiff)
+        if (changeShape !== SG_CHANGED_SHAPE_ONLY || pathDiff)
           collected.push([h, pathDiff, pathVal])
       }
 
@@ -752,17 +752,17 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        h.fn(h.changeMod === SG_CHANGED_ANY ? null : col[1])
+        h.fn(h.changeShape === SG_CHANGED_ANY ? null : col[1])
       }
 
       // updateDebug(); // @wip don't bother until later
     }
 
     // @TEST register sink subscriber
-    function _reg(root, path, changeMod, sink) {
+    function _reg(root, path, changeShape, sink) {
       let arr = _subs.get(root)
       if (!arr) _subs.set(root, arr = []);
-      arr.push({ fn: (d) => sink.push(d), changeMod, path });
+      arr.push({ fn: (d) => sink.push(d), changeShape, path });
     }
 
     function reset() { _subs.clear(); _dm.clear() }
@@ -1041,9 +1041,9 @@
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
-          const shape = getSgChangeShape(mods) // todo: @wip do we need this as a separate thing 
+          const shape = getSgChangeShape(mods)
           const modded = applyTrigMods((_ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
-          const sub = { fn: (detail) => modded(null, getSignalValOrIt(trig), detail), changeMod: shape, path }
+          const sub = { fn: (detail) => modded(null, getSignalValOrIt(trig), detail), changeShape: shape, path }
           modded.remove = () => {
             const subs = _subs.get(root)
             if (subs && subs.length) _subs.set(root, subs.filter(s => s !== sub))
