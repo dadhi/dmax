@@ -77,8 +77,8 @@
         <button id="live-btn" type="button">Emit click/value</button>
         <button id="live-submit" type="submit">Emit form submit</button>
       </form>
-      <pre id="live-raw" role="status" aria-live="polite" style="margin:8px 0 0 0"></pre>
-      <div id="live-branch" role="status" aria-live="polite"></div>
+      <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
+      <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
     </section>
   </main>
   <script>
@@ -1028,7 +1028,7 @@
                   const tick = count++
                   const detail = { tick, ms, type: SPEC_INTERVAL }
                   modded(undefined, ms, detail)
-                } catch (e) { console.error('[dmax] Error: interval handler failed:', e?.message ?? e) }
+                } catch (e) { console.error(`[dmax] Error: interval handler (${ms}ms) failed:`, e?.message ?? e) }
               }, ms);
               elSubs.push({ type: 'interval', id });
               continue;
@@ -1038,7 +1038,7 @@
               const onTimeout = (_e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onTimeout, trig, mods)
               const id = setTimeout(() => {
-                try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error('[dmax] Error: timeout handler failed:', e?.message ?? e) }
+                try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error(`[dmax] Error: timeout handler (${ms}ms) failed:`, e?.message ?? e) }
               }, ms);
               elSubs.push({ type: 'timeout', id });
               continue;
