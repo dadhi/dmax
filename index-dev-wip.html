@@ -654,14 +654,27 @@
       return obj && d === p.length - 1 ? obj[p[p.length - 1]] : undefined
     }
 
-    function isPropTrig(el, path) {
+    function isPropPath(path, def = null) {
       if (!path || !path.length) return false
       if (path.length > 1) return true
       const p = path[0]
-      return p === getDefaultProp(el) || p === 'value' || p === 'checked' || p === 'textContent'
+      return p === def || p === 'value' || p === 'checked' || p === 'textContent'
+    }
+
+    function isPropTrig(el, path) {
+      return isPropPath(path, getDefaultProp(el))
+    }
+
+    function getEvTrigVal(el, path, eventObj) {
+      return isPropTrig(el, path) ? readElPropOrNull(el, path) : (path && path.length ? eventObj?.type : readElPropOrNull(el, null))
+    }
+
+    function getEvInitialTrigVal(el, path, eventName) {
+      return isPropTrig(el, path) ? readElPropOrNull(el, path) : (path && path.length ? eventName : readElPropOrNull(el, null))
     }
 
     function getModVal(m) {
+      // `and.foo` parses `foo` as a plain string when there is no nested path, so treat it as a signal name.
       return m && m.root === MOD_AND && typeof m.path === 'string' ? _dm.get(m.path) : getSignalValOrIt(m.path)
     }
 
@@ -669,7 +682,7 @@
       if (!trig) return 'no trigger yet'
       if (trig.kind === SIGNAL) return 'signal branch → ' + trig.root + ' = ' + val
       if (trig.kind === SPECIAL) return 'special branch → ' + trig.root + ' / val=' + val + ' / detail=' + detail
-      if (trig.path && (trig.path.length > 1 || trig.path[0] === 'value' || trig.path[0] === 'checked' || trig.path[0] === 'textContent'))
+      if (isPropPath(trig.path))
         return 'prop branch → ' + (trig.root || 'self') + '.' + trig.path.join('.')
       return 'event branch → ' + (trig.root ? '#' + trig.root : 'self') + '.' + ((trig.path && trig.path[0]) || 'default')
     }
@@ -1127,17 +1140,15 @@
           const finalEvent = propTrig ? getDefaultEvent(targetEl) : ((path && path.length ? path[0] : null) ?? getDefaultEvent(targetEl))
           if (!finalEvent) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
 
-          const propPath = propTrig ? path : null
-          const getTrigVal = (eventObj) => propTrig ? readElPropOrNull(targetEl, propPath) : (path && path.length ? eventObj?.type : readElPropOrNull(targetEl, null))
           const modded = applyTrigMods((eventObj, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
-          const handler = (eventObj) => modded(eventObj, getTrigVal(eventObj), eventObj)
+          const handler = (eventObj) => modded(eventObj, getEvTrigVal(targetEl, path, eventObj), eventObj)
           handler.remove = () => { try { targetEl.removeEventListener(finalEvent, handler); } catch (_) { } };
           modded.remove = handler.remove
           targetEl.addEventListener(finalEvent, handler)
           if (elSubs) elSubs.push({ type: 'event', targetEl, eventName: finalEvent, handler })
           if (isImmediateMod(mods, false)) {
             ranImmediate = true
-            modded(null, propTrig ? readElPropOrNull(targetEl, propPath) : (path && path.length ? finalEvent : readElPropOrNull(targetEl, null)), null)
+            modded(null, getEvInitialTrigVal(targetEl, path, finalEvent), null)
           }
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
       } // end of triggers loop
@@ -1318,6 +1329,7 @@
       window.__liveDSubSetupDone = true
       reset()
       dDef(null, 'data-def:liveCounter:liveGateA:liveGateB', '0')
+      const liveTrigs = '@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450'
       const demo = getElById('liveDemo', 'liveDsubDemo')
       const argsOut = getElById('liveArgsOut', 'liveDsubDemo')
       const branchOut = getElById('liveBranchOut', 'liveDsubDemo')
@@ -1327,9 +1339,9 @@
       const form = getElById('liveForm', 'liveDsubDemo')
       if (!demo || !argsOut || !branchOut || !signalBtn || !windowBtn || !documentBtn || !form) return
 
-      dSub(demo, 'data-sub:#liveArgsOut.@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450',
+      dSub(demo, 'data-sub:#liveArgsOut.' + liveTrigs,
         'liveJson(dm, el, trig, val, detail)')
-      dSub(demo, 'data-sub:#liveBranchOut.@liveCounter@#liveEventBtn.click@#livePropInput.value@_window.resize@_document.visibilitychange@_form.submit@_interval.900@_timeout.450',
+      dSub(demo, 'data-sub:#liveBranchOut.' + liveTrigs,
         'getLiveBranch(trig, val, detail)')
 
       signalBtn.addEventListener('click', () => _setSignalAndNotifySubs('live-demo', { root: 'liveCounter', path: null }, (DM['liveCounter'] || 0) + 1))
