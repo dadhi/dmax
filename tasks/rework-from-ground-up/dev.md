@@ -1,8 +1,10 @@
 ## Development Guidelines (Living)
 
 - Prefer **first principles** over stack best-practices by default.
+- No pissimization by default - we have knowledge of the CPU, memory hierarchy, data structures, algorithms, programming language, so that we MUST select at least a GOOD over the EASY approach for the job.
 - Keep design **performance-oriented from the start** (especially hot paths).
-- Apply **semantic compression**: represent intent directly, remove glue/noise. See https://caseymuratori.com/blog_0015 on Semantic Compression.
+- Apply **semantic compression**: represent intent directly, remove glue/noise. See https://caseymuratori.com/blog_0015 on Semantic Compression. SC == compact code as zip, evaluate results, if there is win in size and no losing in performance and simplicity, then keep it, otherwise unzip.
+- Solve problems inline and when it solved multiple time the same way, only then refactor using SC guidelines. If you working on the problem after applying the changes think if inlining will help to simplify the solution (e.g. less checks, less data preparation, etc.). Don't treat the function boundaries as a hard walls - those are fluent and can be created and removed based on SC guidelines
 - Solve problems **piece by piece** with clear boundaries and invariants.
 - **Validate/fail at the surface area** (parse/setup boundaries), not deep inside runtime loops.
 - Treat assumptions as hypotheses: **test fast, falsify early**.

@@ -186,10 +186,20 @@
     assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
     assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
 
+    // todo: @wip
+    // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
+    // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
+    // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
+    const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
+    const ALL = [MOD, TARG, TRIG, STAT, ADD]
+    const MODS = [MOD]
+
     const DOT = '.', ID = '#', NOT = '!'
     const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
     const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
-    const KIND = [SIGNAL, EV_PROP, SPECIAL]
+
+    // Applied only to the signals!
+    const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
 
     const SPEC_WIN = 'window'; SPEC_DOC = 'document'; SPEC_FORM = 'form'; SPEC_INTERVAL = 'interval'; SPEC_TIMEOUT = 'timeout'
     const SPECIALS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
@@ -200,18 +210,8 @@
       return false
     }
 
-    // @WIP: Phase 1
-    // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
-    // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
-    // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
-    const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
-    const ALL = [MOD, TARG, TRIG, STAT, ADD]
-    const MODS = [MOD]
-
-    // Applied only to the signals!
-    const MOD_ANY = 'any', MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
-
-    // Returns {kind:KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
+    const _KIND = [MOD, SIGNAL, EV_PROP, SPECIAL]
+    // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     function parseItem(aName, type, n, pos = 0) {
       if (!n) return null
 
@@ -269,6 +269,7 @@
     assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
 
+    // return invariants: empty mods -> null, todo: @wip the rest
     function parse(aName, p = 'data-'.length, it = ALL) {
       let items = {}, modItems = null
       while (p >= 0 && p < aName.length) {
@@ -300,7 +301,7 @@
                 let skipGlobal = false
                 for (let i = 0; i < modCount; ++i)
                   if (mods[i].root === gm.root) { skipGlobal = true; break }
-                if (!skipGlobal) mods.push(gm)
+                if (!skipGlobal) mods.push(gm) // add global if only there is no local mod with the same root/name, ignore its value
               }
             }
           }
@@ -308,7 +309,6 @@
           ts.push(item)
         }
       }
-
       if (p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
       return [items, p]
     }
@@ -335,8 +335,12 @@
     }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
-    const SRC_IMMEDIATE = 0, SRC_SIGNAL = 1, SRC_PROP = 2, SRC_EVENT = 3, SRC_WIN = 4, SRC_DOC = 5, SRC_INTERVAL = 4
-    const FN_ARGS = ['dm', 'el', 'src', 'val', 'detail'] // universal args available in right data- attr value expression
+
+    // todo: @remove - replaced by trigger object or null itself
+    // const SRC_IMMEDIATE = 0, SRC_SIGNAL = 1, SRC_PROP = 2, SRC_EVENT = 3, SRC_WIN = 4, SRC_DOC = 5, SRC_INTERVAL = 4
+
+    // args available in right data-attr value expression, `trig` maybe null for no triggers or any of the _KIND except MOD
+    const FN_ARGS = ['dm', 'el', 'trig', 'val', 'detail']
 
     function compileFn(aVal, aName, args = FN_ARGS) {
       let val = '' + aVal
@@ -370,7 +374,7 @@
       if (!isObjEmpty(it)) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
       let fn = compileFn(aVal, aName)
       if (!fn) return
-      let val = aVal ? fn(DM, el, SRC_IMMEDIATE) : null
+      let val = aVal ? fn(DM, el, null) : null
       if (tars) {
         for (const t of tars) {
           if (t.kind != SIGNAL) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', aName); continue }
@@ -430,7 +434,7 @@
 
     function isNil(v) { return v === null || v === undefined }
 
-    function getNestedVal(obj, path, depth = -1) {
+    function getPropValAndDepth(obj, path, depth = -1) {
       let v = obj
       if (isNil(v) || !path) return [v, 0]
       let n = depth == -1 || depth > path.length ? path.length : depth
@@ -438,9 +442,9 @@
       return [v, n]
     }
 
-    assert(getNestedVal, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
-    assert(getNestedVal, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
-    assert(getNestedVal, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
+    assert(getPropValAndDepth, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
+    assert(getPropValAndDepth, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
+    assert(getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
 
     const VAL_CHANGE_DEPTH_MAX = 32
     function valChangedDeep(before, after, depth = 0) {
@@ -484,7 +488,7 @@
       if (!path)
         prop = getDefaultProp(el);
       else if (path.length > 0) {
-        [obj, _] = getNestedVal(obj, path, path.length - 1)
+        [obj, _] = getPropValAndDepth(obj, path, path.length - 1)
         prop = path[path.length - 1]
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', aName); return }
@@ -549,8 +553,8 @@
     }
 
     const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
-    function getChangeMod(mods) {
-      if (!mods || !mods.length) return SG_CHANGED_ANY
+    function getSgChangeShape(mods) {
+      if (!mods) return SG_CHANGED_ANY
       for (const m of mods) {
         if (m && m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
         if (m && m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
@@ -568,21 +572,56 @@
       return defaultVal;
     }
 
-    const MOD_ONCE = 'once'
-    function isOnceMod(mods) {
-      for (const m in mods) if (m && m.root === MOD_ONCE) return true
+    const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle"
+    const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
+    const PERMIT_MODS = [MOD_AND, MOD_EQ, MOD_NE, MOD_LT, MOD_GT, MOD_LE, MOD_GE]
+
+    function getModOrNull(mods, name) {
+      if (mods) for (const m in mods) if (m.root === name) return m
+      return null
+    }
+
+    function getSignalValOrIt(it) {
+      if (!it.kind) return it
+      const sg = _dm.get(it.root)
+      const path = it.path
+      const val = path && path.length ? getPropValAndDepth(sg, path)[0] : sg
+      return it.not ? !val : val
+    }
+
+    function hasPermitMods(mods) {
+      if (!mods) return false
+      for (const m of mods) if (m.root in PERMIT_MODS) return true
       return false
     }
 
-    function getSignalVal(root, path = null) {
-      const sg = _dm.get(root)
-      return path && path.length ? getNestedVal(sg, path)[0] : sg
+    function modsPermitVal(mods, val) {
+      if (!mods) return true
+      for (const m of mods) {
+        const mName = m.root, mVal = getSignalValOrIt(m.path)
+        if (mVal == MOD_AND) {
+          if (!modVal) return false
+        } else if (mName == MOD_EQ) {
+          if (val != mVal) return false
+        } else if (mName == MOD_NE) {
+          if (val == mVal) return false
+        } else if (mName == MOD_GT) {
+          if (+val <= +mVal) return false
+        } else if (mName == MOD_LT) {
+          if (+val >= +mVal) return false
+        } else if (mName == MOD_GE) {
+          if (+val < +mVal) return false
+        } else if (mName == MOD_LE) {
+          if (+val > +mVal) return false
+        }
+      }
+      return true
     }
 
     const _subs = new Map()
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
-    function setSignalVal(aName, tar, val) {
+    function _setSignalAndNotifySubs(aName, tar, val) {
       if (!expected(tar)) return null
 
       const root = tar.root, path = tar.path
@@ -591,7 +630,7 @@
       let sgVal = _dm.get(root), curVal = sgVal, parent = sgVal, d = 0, last = null
       if (path) {
         if (!expected(path.length)) return null;
-        [parent, d] = getNestedVal(parent, path, path.length - 1)
+        [parent, d] = getPropValAndDepth(parent, path, path.length - 1)
         if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', aName); return }
         curVal = parent[last = path[d]]
       }
@@ -641,13 +680,13 @@
         // the hp has the longer path based on previous checks, we to check that it actually changed
         // first, check if we did this comparison before
         let hCol = null, p = null
-        for (const col in collected) // check if the same 
+        for (const col in collected) // check if the same
           if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
 
-        let [pathCur, _] = getNestedVal(sgVal, hp), pathVal
+        let [pathCur, _] = getPropValAndDepth(sgVal, hp), pathVal
         if (hCol) pathVal = hCol[2]
         else {
-          [pathVal, _] = getNestedVal(val, hp)
+          [pathVal, _] = getPropValAndDepth(val, hp)
           if (!valChangedDeep(pathCur, pathVal)) continue
         }
 
@@ -664,8 +703,10 @@
       if (!path) _dm.set(root, val)
       else parent[last] = val
 
-      for (const hh of collected) // notify with new values and diff if asked for
-        hh[0].fn(hh[0].changeMod === SG_CHANGED_ANY ? null : hh[1])
+      for (const col of collected) { // notify with new values and diff if asked for
+        const h = col[0]
+        h.fn(h.changeMod === SG_CHANGED_ANY ? null : col[1])
+      }
 
       // updateDebug(); // @wip don't bother until later
     }
@@ -687,7 +728,7 @@
       _reg('user', ['name'], SG_CHANGED_WITH_SHAPE, nm);
       _reg('user', ['age'], SG_CHANGED_WITH_SHAPE, age);
       _reg('user', ['name', 'first'], SG_CHANGED_WITH_SHAPE, deep);
-      setSignalVal('t', { root: 'user', path: ['name'] }, 'Bob');
+      _setSignalAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
       return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
     }
     assert(tSetD, [], { r: 1, nm: 1, age: 0, deep: 0, val: 'Bob' }, 'path update, exact match');
@@ -699,7 +740,7 @@
       _reg('user', ['children'], SG_CHANGED_ANY, c0);
       _reg('user', ['children'], SG_CHANGED_WITH_SHAPE, c1);
       _reg('user', ['children'], SG_CHANGED_SHAPE_ONLY, c2);
-      setSignalVal('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
+      _setSignalAndNotifySubs('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('user')?.children };
@@ -709,7 +750,7 @@
     function tSetA() {
       reset()
       _dm.set('sg', 1);
-      setSignalVal('t', { root: 'sg', path: null }, 2);
+      _setSignalAndNotifySubs('t', { root: 'sg', path: null }, 2);
       return _dm.get('sg');
     }
     assert(tSetA, [], 2, 'root update no subs');
@@ -721,7 +762,7 @@
       _reg('sg', null, SG_CHANGED_ANY, c0);
       _reg('sg', null, SG_CHANGED_WITH_SHAPE, c1);
       _reg('sg', null, SG_CHANGED_SHAPE_ONLY, c2);
-      setSignalVal('t', { root: 'sg', path: null }, 'b');
+      _setSignalAndNotifySubs('t', { root: 'sg', path: null }, 'b');
       return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
     }
     assert(tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
@@ -733,7 +774,7 @@
       _reg('sg', null, SG_CHANGED_ANY, c0);
       _reg('sg', null, SG_CHANGED_WITH_SHAPE, c1);
       _reg('sg', null, SG_CHANGED_SHAPE_ONLY, c2);
-      setSignalVal('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
+      _setSignalAndNotifySubs('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
@@ -741,50 +782,38 @@
     assert(assert_setC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
-    function setSignal(aName, tar, val) {
+    function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
         return
       }
-      try { return setSignalVal(aName, tar, val) } finally { syncDepth-- }
+      try { return _setSignalAndNotifySubs(aName, tar, val) } finally { syncDepth-- }
     }
 
-    function modsToMap(mods) {
-      const map = {}
-      if (!mods) return map
-      for (const m of mods) {
-        if (!m || !m.root) continue
-        map[m.root] = m.path == null ? true : (m.path.kind ? getSignalVal(m.path.root, m.path.path) : m.path)
-      }
-      return map
-    }
-
-    function applyTrigMods(fn, trig, cfg) {
-      cfg = cfg || {}
-
+    function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
       const not = !!trig.not
       const root = trig.root
       const path = trig.path
 
-      const deb = cfg.debounce == null ? 0 : +cfg.debounce
-      const thr = cfg.throttle == null ? 0 : +cfg.throttle
-      const one = cfg.once !== undefined
-      const prv = cfg.prevent !== undefined
+      const deb = mods.debounce == null ? 0 : +mods.debounce
+      const thr = mods.throttle == null ? 0 : +mods.throttle
+      const one = mods.once !== undefined
+      const prv = mods.prevent !== undefined
 
-      const and = cfg.and == null ? null : String(cfg.and)
-      const eqOn = cfg.eq !== undefined, neOn = cfg.ne !== undefined
-      const eq = cfg.eq, ne = cfg.ne
-      const gtOn = cfg.gt != null, geOn = cfg.ge != null, ltOn = cfg.lt != null, leOn = cfg.le != null
-      const gt = gtOn ? +cfg.gt : 0
-      const ge = geOn ? +cfg.ge : 0
-      const lt = ltOn ? +cfg.lt : 0
-      const le = leOn ? +cfg.le : 0
+      const and = mods.and == null ? null : String(mods.and)
+      const eqOn = mods.eq !== undefined, neOn = mods.ne !== undefined
+      const eq = mods.eq, ne = mods.ne
+      const gtOn = mods.gt != null, geOn = mods.ge != null, ltOn = mods.lt != null, leOn = mods.le != null
+      const gt = gtOn ? +mods.gt : 0
+      const ge = geOn ? +mods.ge : 0
+      const lt = ltOn ? +mods.lt : 0
+      const le = leOn ? +mods.le : 0
 
       let tm = 0, last = 0
-      const pass = (ev, dt) => {
-        if (and && !getSignalVal(and)) return false
-        let v = isSg ? getSignalVal(root, path) : (dt ?? ev?.detail?.ms)
+      const cond = (ev, dt) => {
+        // if (and && !getSignalValOrIt(and)) return false 
+        let v = isSg ? getSignalValOrIt(root, path) : (dt ?? ev?.detail?.ms)
         if (isSg && not) v = !v
         if (eqOn && String(v) !== String(eq)) return false
         if (neOn && String(v) === String(ne)) return false
@@ -796,7 +825,8 @@
       }
 
       const run = (ev, sg, dt) => {
-        if (!pass(ev, dt)) return
+
+        if (!cond(ev, dt)) return
         try { fn(ev, sg, dt) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && h.remove) h.remove()
       }
@@ -905,16 +935,15 @@
         for (const tar of tars) {
           console.assert(tar.kind)
           let setTar = tar.kind == SIGNAL
-            ? (el, n, t, val) => setSignal(n, t, val)
+            ? (el, n, t, val) => setSignalAndNotifySubsNLevelsDeep(n, t, val)
             : (el, n, t, val) => setProp(el, n, t, val)
           tarSetters.push([tar, setTar])
         }
-        const coreFn = fn
+        const rawFn = fn
         if (tarSetters.length > 0) {
-          fn = (dm, el, src, trigVal, detail) => {
+          fn = (dm, el, trig, trigVal, detail) => {
             // // const detail = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
-            // const detail = null // @WIP should contain shape changes, maybe more...
-            const exprVal = coreFn(dm, el, src, trigVal, detail)
+            const exprVal = rawFn(dm, el, trig, trigVal, detail)
             try {
               for (const [t, st] of tarSetters) st(el, aName, t, exprVal)
             } catch (e) { console.error('[dmax] Error: setting the target:', t, 'ended with ex:', e) }
@@ -923,36 +952,73 @@
       }
 
       if (!trigs) {
-        fn(DM, el, SRC_IMMEDIATE, null, null); return
+        // immediate
+        fn(DM, el, null, null, null); return
       }
 
-      let ranImmediate = false
       let elSubs = _cleanupBoundSubs.get(el);
       if (!elSubs) _cleanupBoundSubs.set(el, elSubs = []);
+
+      let ranImmediate = false
+
       for (let trig of trigs) {
+
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods ?? globMods ?? null
-        const modsObj = modsToMap(mods)
+        const mods = trig.mods ?? globMods ?? null // local mods already contain globs, so ?? is fine here
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
-          const changeMod = getChangeMod(mods)
-          const signalHandler = () => {
-            const trigVal = getSignalVal(root, path)
-            fn(DM, el, SRC_SIGNAL, trig.not ? !trigVal : trigVal, null)
-          }
-          const modded = applyTrigMods(signalHandler, trig, modsObj)
-          _subs.get(root).push({ fn: modded, changeMod, path })
 
-          modded.unsub = () => {
-            const subs = _subs.get(root)
-            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== modded))
+          const throttle = getModOrNull(mods, MOD_THROTTLE)
+          const needPermit = hasPermitMods(mods)
+          let subFn = null
+          if (!throttle && !needPermit)
+            subFn = () => fn(DM, el, trig, getSignalValOrIt(trig), null)
+          else if (!throttle)
+            subFn = () => {
+              const trigVal = getSignalValOrIt(trig)
+              if (modsPermitVal(mods, trigVal)) fn(DM, el, trig, trigVal, null)
+            }
+          else {
+            let lastTime = 0
+            subFn = () => {
+              const delay = +getSignalValOrIt(throttle.path)
+              if (delay > 0) {
+                const t = Date.now()
+                if (t - lastTime < delay) return
+                lastTime = t
+              }
+              const trigVal = getSignalValOrIt(trig)
+              if (modsPermitVal(mods, trigVal)) fn(DM, el, trig, trigVal, null)
+            }
           }
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: modded })
+
+          const debounce = getModOrNull(mods, MOD_DEBOUNCE)
+          if (debounce) {
+            const dInterval = +getSignalValOrIt(debounce.path)
+            if (dInterval > 0) {
+              let dTimeout = 0
+              fn = subFn
+              subFn = () => {
+                if (dTimeout) clearTimeout(dTimeout); dTimeout = setTimeout(fn, dInterval); return
+              }
+            }
+          }
+
+          const shape = getSgChangeShape(mods) // todo: @wip do we need this as a separate thing 
+          _subs.get(root).push({ fn, shape, path })
+          fn.unsub = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== fn))
+          }
+
+          // todo: @wip can we use _KIND instead of type?
+          elSubs.push({ type: 'signal', el, kind, root, path, fn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
-            modded(undefined, root, null)
+            fn(DM, el, trig, getSignalValOrIt(trig), null)
           }
+
         } else if (kind === EV_PROP || kind === SPECIAL) {
           let targetEl = root ? getElById(root, aName) : el
           if (!targetEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
@@ -961,14 +1027,14 @@
           if (kind === SPECIAL) {
             if (root === SPEC_WIN) {
               const onWin = (e) => fn(DM, el, SRC_WIN, e?.type, e)
-              const modded = applyTrigMods(onWin, trig, modsObj)
+              const modded = applyTrigMods(onWin, trig, mods)
               window.addEventListener(ev ?? SPEC_WIN_EV, modded)
               elSubs.push({ type: 'event', targetEl: window, eventName: (ev ?? SPEC_WIN_EV), handler: modded })
               continue;
             }
             if (root === SPEC_DOC) {
               const onDoc = (e) => fn(DM, el, SRC_DOC, e?.type, e)
-              const modded = applyTrigMods(onDoc, trig, modsObj)
+              const modded = applyTrigMods(onDoc, trig, mods)
               document.addEventListener(ev ?? SPEC_DOC_EV, modded)
               elSubs.push({ type: 'event', targetEl: document, eventName: (ev ?? SPEC_DOC_EV), handler: modded })
               continue;
@@ -977,7 +1043,7 @@
               const ms = parseInt(ev) || SPEC_INTERVAL_MS
               let count = 0
               const onInt = () => fn(DM, el, SRC_INTERVAL, ms, count++)
-              const modded = applyTrigMods(onInt, trig, modsObj)
+              const modded = applyTrigMods(onInt, trig, mods)
               const id = setInterval(() => {
                 try { modded(undefined, null, ms) } catch (e) { }
               }, ms);
@@ -988,7 +1054,7 @@
               const ms = parseInt(ev) || SPEC_TIMEOUT_MS;
               let count = 0
               const onTimeout = () => fn(DM, el, SRC_TIMEOUT, ms, count++)
-              const modded = applyTrigMods(onTimeout, trig, modsObj)
+              const modded = applyTrigMods(onTimeout, trig, mods)
               const id = setTimeout(() => {
                 try { modded(undefined, null, ms) } catch (e) { }
               }, ms);
@@ -1001,7 +1067,7 @@
               if (formEl) {
                 const formEv = ev || 'submit';
                 const onForm = (e) => fn(DM, el, SRC_EVENT, e, null)
-                const modded = applyTrigMods(onForm, trig, modsObj)
+                const modded = applyTrigMods(onForm, trig, mods)
                 formEl.addEventListener(formEv, modded);
                 elSubs.push({ type: 'event', targetEl: formEl, eventName: formEv, handler: modded });
                 if (isImmediateMod(mods, false)) modded();
@@ -1019,7 +1085,7 @@
             const trigVal = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
             fn(DM, el, SRC_EVENT, trigVal, eventObj)
           }
-          const moddedHandler = applyTrigMods(baseHandler, trig, modsObj)
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
           moddedHandler.remove = () => { try { targetEl.removeEventListener(finalEvent, moddedHandler); } catch (e) { } };
           targetEl.addEventListener(finalEvent, moddedHandler);
           elSubs.push({ type: 'event', targetEl, eventName: finalEvent, handler: moddedHandler });
@@ -1084,7 +1150,7 @@
       const el = document.createElement('div');
       dSub(el, 'data-sub:bar@foo^immediate', 'dm.foo');
       const im = DM['bar'];
-      setSignalVal('test', { root: 'foo', path: null }, 8);
+      _setSignalAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
