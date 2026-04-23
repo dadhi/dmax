@@ -675,7 +675,7 @@
 
     function getModVal(m) {
       // `and.foo` parses `foo` as a plain string when there is no nested path, so treat it as a signal name.
-      return m && m.root === MOD_AND && typeof m.path === 'string' ? _dm.get(m.path) : getSignalValOrIt(m.path)
+      return m && m.root === MOD_AND && typeof m.path === 'string' ? DM[m.path] : getSignalValOrIt(m.path)
     }
 
     function getLiveBranch(trig, val, detail) {
@@ -1063,9 +1063,9 @@
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
-          const shape = getSgChangeShape(mods)
+          const changeShape = getSgChangeShape(mods)
           const modded = applyTrigMods((_ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
-          const sub = { fn: (detail) => modded(null, getSignalValOrIt(trig), detail), changeShape: shape, path }
+          const sub = { fn: (detail) => modded(null, getSignalValOrIt(trig), detail), changeShape, path }
           modded.remove = () => {
             const subs = _subs.get(root)
             if (subs && subs.length) _subs.set(root, subs.filter(s => s !== sub))
