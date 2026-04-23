@@ -1378,22 +1378,16 @@
     function setupDSubExamples() {
       reset();
 
+      const argExpr = "['source=' + (trig.kind === 's' ? 'signal' : 'event'), 'trig.kind=' + trig.kind, 'trig.root=' + trig.root, 'trig.path=' + (trig.path ? trig.path.join('.') : '(none)'), 'val=' + val, 'detail=' + (detail && detail.type ? detail.type : detail == null ? 'null' : detail)].join('\\n')"
+      const branchExpr = "trig.kind === '.' && trig.root === '' && trig.path && trig.path[0] === 'value' ? 'prop trigger → val=' + val + '; detail=' + (detail && detail.type ? detail.type : 'null') : 'event trigger → event=' + (detail && detail.type ? detail.type : 'null') + '; currentInput=' + el.value"
       const argCode = [
         "dSub(exampleArgOut, 'data-sub:#exampleArgOut.textContent@exampleArgCount^immediate@#exampleArgEvent.click',",
-        "  \"[\" +",
-        "    'source=' + (trig.kind === 's' ? 'signal' : 'event') + '\\n' +",
-        "    'trig.kind=' + trig.kind + '\\n' +",
-        "    'trig.root=' + trig.root + '\\n' +",
-        "    'trig.path=' + (trig.path ? trig.path.join('.') : '(none)') + '\\n' +",
-        "    'val=' + val + '\\n' +",
-        "    'detail=' + (detail && detail.type ? detail.type : detail == null ? 'null' : detail)\"",
+        "  \"" + argExpr.replaceAll('"', '\\"') + "\"",
         ")"
       ].join('\n')
       const branchCode = [
         "dSub(exampleBranchInput, 'data-sub:#exampleBranchOut.textContent@.value@#exampleBranchBtn.click',",
-        "  \"trig.kind === '.' && trig.root === '' && trig.path && trig.path[0] === 'value'\"",
-        "    ? 'prop trigger → val=' + val + '; detail=' + (detail && detail.type ? detail.type : 'null')",
-        "    : 'event trigger → event=' + (detail && detail.type ? detail.type : 'null') + '; currentInput=' + el.value",
+        "  \"" + branchExpr.replaceAll('"', '\\"') + "\"",
         ")"
       ].join('\n')
 
@@ -1403,22 +1397,23 @@
       const exampleArgCode = getElById('exampleArgCode', 'exampleArgCode')
       const exampleBranchInput = getElById('exampleBranchInput', 'exampleBranchInput')
       const exampleBranchBtn = getElById('exampleBranchBtn', 'exampleBranchBtn')
+      const exampleBranchOut = getElById('exampleBranchOut', 'exampleBranchOut')
       const exampleBranchCode = getElById('exampleBranchCode', 'exampleBranchCode')
 
       if (exampleArgCode) exampleArgCode.textContent = argCode
       if (exampleBranchCode) exampleBranchCode.textContent = branchCode
-      if (!exampleArgOut || !exampleArgEvent || !exampleArgSignal || !exampleBranchInput || !exampleBranchBtn) return
+      if (!exampleArgOut || !exampleArgEvent || !exampleArgSignal || !exampleBranchInput || !exampleBranchBtn || !exampleBranchOut) return
 
       _dm.set('exampleArgCount', 0)
       dSub(exampleArgOut, 'data-sub:#exampleArgOut.textContent@exampleArgCount^immediate@#exampleArgEvent.click',
-        "['source=' + (trig.kind === 's' ? 'signal' : 'event'), 'trig.kind=' + trig.kind, 'trig.root=' + trig.root, 'trig.path=' + (trig.path ? trig.path.join('.') : '(none)'), 'val=' + val, 'detail=' + (detail && detail.type ? detail.type : detail == null ? 'null' : detail)].join('\\n')")
+        argExpr)
       exampleArgSignal.addEventListener('click', () => {
         const next = (_dm.get('exampleArgCount') || 0) + 1
         _setSignalAndNotifySubs('exampleArgSignal', { root: 'exampleArgCount', path: null }, next)
       })
 
       dSub(exampleBranchInput, 'data-sub:#exampleBranchOut.textContent@.value@#exampleBranchBtn.click',
-        "trig.kind === '.' && trig.root === '' && trig.path && trig.path[0] === 'value' ? 'prop trigger → val=' + val + '; detail=' + (detail && detail.type ? detail.type : 'null') : 'event trigger → event=' + (detail && detail.type ? detail.type : 'null') + '; currentInput=' + el.value")
+        branchExpr)
     }
     setupDSubExamples()
 
