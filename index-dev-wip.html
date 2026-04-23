@@ -77,8 +77,8 @@
         <button id="live-btn" type="button">Emit click/value</button>
         <button id="live-submit" type="submit">Emit form submit</button>
       </form>
-      <pre id="live-raw" style="margin:8px 0 0 0"></pre>
-      <div id="live-branch"></div>
+      <pre id="live-raw" role="status" aria-live="polite" style="margin:8px 0 0 0"></pre>
+      <div id="live-branch" role="status" aria-live="polite"></div>
     </section>
   </main>
   <script>
@@ -821,9 +821,7 @@
       let tm = 0, last = 0
 
       const run = (ev, val, detail) => {
-        let trigVal = isSg ? getSignalValOrIt(trig) : val
-        if (isNil(trigVal)) trigVal = detail
-        if (isNil(trigVal)) trigVal = ev?.detail?.value ?? ev?.detail?.ms
+        let trigVal = (isSg ? getSignalValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (isSg && trig.not) trigVal = !trigVal
         if (!modsPermitVal(mods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
@@ -1027,7 +1025,8 @@
               const modded = applyTrigMods(onInt, trig, mods)
               const id = setInterval(() => {
                 try {
-                  const detail = { tick: count++, ms, type: SPEC_INTERVAL }
+                  const tick = count++
+                  const detail = { tick, ms, type: SPEC_INTERVAL }
                   modded(undefined, ms, detail)
                 } catch (e) { }
               }, ms);
@@ -1254,9 +1253,10 @@
       const liveBtn = document.getElementById('live-btn')
       const liveName = document.getElementById('live-name')
       if (!liveForm || !liveBtn || !liveName) return
-      dSub(liveBtn, 'data-sub:#live-raw@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500',
+      const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500'
+      dSub(liveBtn, `data-sub:#live-raw${liveTrigList}`,
         `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`)
-      dSub(liveBtn, 'data-sub:#live-branch@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500',
+      dSub(liveBtn, `data-sub:#live-branch${liveTrigList}`,
         `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`)
       liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')))
     }
