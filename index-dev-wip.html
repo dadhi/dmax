@@ -817,6 +817,9 @@
       const isSg = trig.kind === SIGNAL
       const one = hasMod(mods, MOD_ONCE)
       const prv = hasMod(mods, MOD_PREVENT)
+      // Precompute mod lookups once at setup; path values are still resolved lazily (may reference signals)
+      const debMod = getModOrNull(mods, MOD_DEBOUNCE)
+      const thrMod = getModOrNull(mods, MOD_THROTTLE)
       let tm = 0, last = 0
 
       const run = (ev, val, detail) => {
@@ -829,8 +832,8 @@
 
       const h = function (ev, val, detail) {
         if (prv) ev?.preventDefault?.()
-        const deb = +(resolveModPathVal(getModOrNull(mods, MOD_DEBOUNCE)?.path) ?? 0)
-        const thr = +(resolveModPathVal(getModOrNull(mods, MOD_THROTTLE)?.path) ?? 0)
+        const deb = debMod ? +(resolveModPathVal(debMod.path) ?? 0) : 0
+        const thr = thrMod ? +(resolveModPathVal(thrMod.path) ?? 0) : 0
         if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, val, detail); return }
         if (thr > 0) {
           const now = Date.now()
@@ -987,11 +990,11 @@
           const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
           const changeMod = getSgChangeShape(mods)
           _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.unsub = () => {
+          wrappedSubFn.remove = () => {
             const subs = _subs.get(root)
             if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
           }
-          subFn.remove = wrappedSubFn.unsub
+          subFn.remove = wrappedSubFn.remove
 
           // todo: @wip can we use _KIND instead of type?
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
@@ -1253,10 +1256,10 @@
       delete it[TARG]; delete it[TRIG]; delete it[MOD];
       if (!isObjEmpty(it)) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
 
-      const sigTar = tars.find(t => t.kind === SIGNAL) ?? null
-      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
-      const sigTrig = trigs.find(t => t.kind === SIGNAL) ?? null
-      const propTrig = trigs.find(t => t.kind === EV_PROP) ?? null
+      let sigTar = null, propTar = null
+      for (const t of tars) { if (t.kind === SIGNAL) sigTar = t; else if (t.kind === EV_PROP) propTar = t }
+      let sigTrig = null, propTrig = null
+      for (const t of trigs) { if (t.kind === SIGNAL) sigTrig = t; else if (t.kind === EV_PROP) propTrig = t }
 
       if (!sigTar && !sigTrig) {
         console.error('[dmax] Error: dSync requires signal target or signal trigger in:', aName)
