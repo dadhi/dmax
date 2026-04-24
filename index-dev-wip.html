@@ -1382,6 +1382,256 @@
     }
     assert(tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
 
+    // Converts camelCase back to kebab-case for classList (e.g. zebraEven -> zebra-even)
+    function camelToKebab(s) {
+      return s.replace(/([A-Z])/g, (_, c) => '-' + c.toLowerCase())
+    }
+
+    // data-class+my-class+!my-other@signal="expr"
+    //   +className  → add class when expr truthy, remove when falsy
+    //   +!className → add class when expr falsy (inverted), remove when truthy
+    // aVal is optional; without it the raw signal/trigger value is used as the boolean
+    function dClass(el, aName, aVal) {
+      let [it] = parse(aName)
+      const adds = it[ADD] ?? EMPTY_ARR
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
+      if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
+
+      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
+      const targetEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
+      if (!targetEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
+
+      const classes = adds.map(a => ({ name: camelToKebab(a.root), invert: a.not === true }))
+      let fn = aVal ? compileFn(aVal, aName) : null
+      if (aVal && !fn) return
+
+      function applyClasses(val) {
+        for (const c of classes) {
+          const active = c.invert ? !val : !!val
+          if (active) targetEl.classList.add(c.name)
+          else targetEl.classList.remove(c.name)
+        }
+      }
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+
+      for (const trig of trigs) {
+        const kind = trig.kind, root = trig.root, path = trig.path
+        const mods = trig.mods ?? globMods ?? EMPTY_ARR
+        if (kind === SIGNAL) {
+          if (!expected(root)) return
+          if (!_subs.has(root)) _subs.set(root, [])
+          const subFn = applyTrigMods((_ev, trigVal, detail) => {
+            applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal)
+          }, trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.unsub = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+          }
+          subFn.remove = wrappedSubFn.unsub
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
+        } else if (kind === EV_PROP) {
+          const evTarEl = root ? getElById(root, aName) : el
+          if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
+          const baseHandler = (eventObj) => {
+            applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
+          }
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          evTarEl.addEventListener(ev, moddedHandler)
+          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          if (isImmediateMod(mods, false)) moddedHandler()
+        }
+      }
+    }
+
+    function tClassSignalToggle() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('active', false)
+      dClass(div, 'data-class+active@active^immediate')
+      const hadBefore = div.classList.contains('active')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, true)
+      const hadAfter = div.classList.contains('active')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, false)
+      const hadFinal = div.classList.contains('active')
+      return { hadBefore, hadAfter, hadFinal }
+    }
+    assert(tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dClass signal toggle with immediate');
+
+    function tClassInvertedClass() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('active', false)
+      dClass(div, 'data-class+!inactive@active^immediate')
+      const hadBefore = div.classList.contains('inactive')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, true)
+      const hadAfter = div.classList.contains('inactive')
+      return { hadBefore, hadAfter }
+    }
+    assert(tClassInvertedClass, [], { hadBefore: true, hadAfter: false }, 'dClass inverted +! adds when falsy');
+
+    function tClassMultiClass() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('active', true)
+      dClass(div, 'data-class+is-active+!is-inactive@active^immediate')
+      const activeBefore = div.classList.contains('is-active')
+      const inactiveBefore = div.classList.contains('is-inactive')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, false)
+      const activeAfter = div.classList.contains('is-active')
+      const inactiveAfter = div.classList.contains('is-inactive')
+      return { activeBefore, inactiveBefore, activeAfter, inactiveAfter }
+    }
+    assert(tClassMultiClass, [], { activeBefore: true, inactiveBefore: false, activeAfter: false, inactiveAfter: true }, 'dClass multi-class kebab toggle');
+
+    function tClassWithExpr() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('count', 2)
+      dClass(div, 'data-class+even@count^immediate', 'dm.count % 2 === 0')
+      const hadBefore = div.classList.contains('even')
+      _setSignalAndNotifySubs('t', { root: 'count', path: null }, 3)
+      const hadAfter = div.classList.contains('even')
+      return { hadBefore, hadAfter }
+    }
+    assert(tClassWithExpr, [], { hadBefore: true, hadAfter: false }, 'dClass compiled expression controls class');
+
+    // data-disp:.@signal="expr"
+    //   shows/hides the target element based on the truthy/falsy result of the expression
+    function dDisp(el, aName, aVal) {
+      let [it] = parse(aName)
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', aName); return }
+
+      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
+      const targetEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
+      if (!targetEl) { console.error('[dmax] Error: dDisp target element not found in:', aName); return }
+
+      // Cache original display to restore on show
+      const inline = (targetEl.style && targetEl.style.display) || ''
+      const getCS = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
+      const computed = getCS(targetEl)
+      const hadInline = inline !== ''
+      let origDisplay
+      if (hadInline) origDisplay = inline
+      else if (computed === 'none' || !computed) origDisplay = 'block'
+      else origDisplay = computed
+
+      let fn = aVal ? compileFn(aVal, aName) : null
+      if (aVal && !fn) return
+
+      function applyDisp(val) {
+        if (val) {
+          if (hadInline) targetEl.style.display = origDisplay
+          else {
+            const now = getCS(targetEl)
+            if (now === 'none') targetEl.style.display = origDisplay
+            else targetEl.style.removeProperty('display')
+          }
+        } else {
+          targetEl.style.display = 'none'
+        }
+      }
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+
+      for (const trig of trigs) {
+        const kind = trig.kind, root = trig.root, path = trig.path
+        const mods = trig.mods ?? globMods ?? EMPTY_ARR
+        if (kind === SIGNAL) {
+          if (!expected(root)) return
+          if (!_subs.has(root)) _subs.set(root, [])
+          const subFn = applyTrigMods((_ev, trigVal, detail) => {
+            applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal)
+          }, trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.unsub = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+          }
+          subFn.remove = wrappedSubFn.unsub
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
+        } else if (kind === EV_PROP) {
+          const evTarEl = root ? getElById(root, aName) : el
+          if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
+          const baseHandler = (eventObj) => {
+            applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
+          }
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          evTarEl.addEventListener(ev, moddedHandler)
+          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          if (isImmediateMod(mods, false)) moddedHandler()
+        }
+      }
+    }
+
+    function tDispHideShow() {
+      reset()
+      const div = document.createElement('div')
+      div.style.display = 'block'
+      _dm.set('visible', true)
+      dDisp(div, 'data-disp:.@visible^immediate')
+      const displayBefore = div.style.display
+      _setSignalAndNotifySubs('t', { root: 'visible', path: null }, false)
+      const displayAfterHide = div.style.display
+      _setSignalAndNotifySubs('t', { root: 'visible', path: null }, true)
+      const displayAfterShow = div.style.display
+      return { displayBefore, displayAfterHide, displayAfterShow }
+    }
+    assert(tDispHideShow, [], { displayBefore: 'block', displayAfterHide: 'none', displayAfterShow: 'block' }, 'dDisp show/hide cycle');
+
+    function tDispWithExpr() {
+      reset()
+      const div = document.createElement('div')
+      div.style.display = 'flex'
+      _dm.set('count', 0)
+      dDisp(div, 'data-disp:.@count^immediate', 'dm.count > 0')
+      const displayBefore = div.style.display
+      _setSignalAndNotifySubs('t', { root: 'count', path: null }, 5)
+      const displayAfter = div.style.display
+      return { displayBefore, displayAfter }
+    }
+    assert(tDispWithExpr, [], { displayBefore: 'none', displayAfter: 'flex' }, 'dDisp compiled expression show/hide');
+
+    function tDispTargetElSignal() {
+      reset()
+      const box = document.createElement('div')
+      box.id = 'dispBox'
+      box.style.display = 'block'
+      document.body.appendChild(box)
+      try {
+        _dm.set('show', true)
+        dDisp(box, 'data-disp:.@show^immediate')
+        const displayBefore = box.style.display
+        _setSignalAndNotifySubs('t', { root: 'show', path: null }, false)
+        const displayAfter = box.style.display
+        return { displayBefore, displayAfter }
+      } finally { box.remove() }
+    }
+    assert(tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dDisp hides element on false signal');
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
