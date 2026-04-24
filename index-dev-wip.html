@@ -1412,7 +1412,9 @@
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) return
       // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
-      const sameSubFn = (entry, fn) => (typeof entry === 'function' ? entry === fn : entry && entry.fn === fn)
+      const sameSubFn = (entry, fn) => (typeof entry === 'function'
+        ? entry === fn
+        : !!entry && typeof entry === 'object' && entry.fn === fn)
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -1422,7 +1424,14 @@
             if (l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler)
             else if (l.type === 'signal') {
               const arr = _subs.get(l.root)
-              if (arr && arr.length) _subs.set(l.root, arr.filter(it => !sameSubFn(it, l.fn)))
+              if (arr && arr.length) {
+                let hasMatch = false
+                for (let i = 0; i < arr.length; ++i) if (sameSubFn(arr[i], l.fn)) { hasMatch = true; break }
+                if (hasMatch) {
+                  const filtered = arr.filter(it => !sameSubFn(it, l.fn))
+                  if (filtered.length !== arr.length) _subs.set(l.root, filtered)
+                }
+              }
             }
             else if (l.type === 'interval') clearInterval(l.id)
             else if (l.type === 'timeout') clearTimeout(l.id)
