@@ -515,6 +515,8 @@
       null, 'unexpected signal')
 
     const EMPTY_ARR = []
+    const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
+
     function diffShapeShallow(before, after) {
       let b = before, a = after
       if (!b || typeof b != 'object') b = EMPTY_ARR
@@ -1406,7 +1408,7 @@
       if (!targetEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
 
       const classes = adds.map(a => ({ name: camelToKebab(a.root), invert: a.not === true }))
-      let fn = aVal ? compileFn(aVal, aName) : null
+      const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
 
       function applyClasses(val) {
@@ -1417,26 +1419,32 @@
         }
       }
 
+      // Pre-select handler variants at setup time to avoid fn-null check on every trigger fire
+      const sigApply = fn
+        ? (trig, trigVal, detail) => applyClasses(fn(DM, el, trig, trigVal, detail))
+        : (_t, trigVal) => applyClasses(trigVal)
+      const evApply = fn
+        ? (evTarEl, trig, eventObj) => applyClasses(fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj))
+        : () => applyClasses(true)
+
       let elSubs = _cleanupBoundSubs.get(el)
       if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
 
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods ?? globMods ?? EMPTY_ARR
+        const mods = (trig.mods ?? globMods) || EMPTY_ARR
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, [])
-          const subFn = applyTrigMods((_ev, trigVal, detail) => {
-            applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal)
-          }, trig, mods)
+          const subFn = applyTrigMods((_ev, trigVal, detail) => { sigApply(trig, trigVal, detail) }, trig, mods)
           const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
           const changeMod = getSgChangeShape(mods)
           _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.unsub = () => {
+          wrappedSubFn.remove = () => {
             const subs = _subs.get(root)
             if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
           }
-          subFn.remove = wrappedSubFn.unsub
+          subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
         } else if (kind === EV_PROP) {
@@ -1444,9 +1452,7 @@
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => {
-            applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
-          }
+          const baseHandler = (eventObj) => { evApply(evTarEl, trig, eventObj) }
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
           moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
           evTarEl.addEventListener(ev, moddedHandler)
@@ -1524,23 +1530,18 @@
 
       // Cache original display to restore on show
       const inline = (targetEl.style && targetEl.style.display) || ''
-      const getCS = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
-      const computed = getCS(targetEl)
       const hadInline = inline !== ''
-      let origDisplay
-      if (hadInline) origDisplay = inline
-      else if (computed === 'none' || !computed) origDisplay = 'block'
-      else origDisplay = computed
+      const computed = getComputedDisplay(targetEl)
+      const origDisplay = hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
 
-      let fn = aVal ? compileFn(aVal, aName) : null
+      const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
 
       function applyDisp(val) {
         if (val) {
           if (hadInline) targetEl.style.display = origDisplay
           else {
-            const now = getCS(targetEl)
-            if (now === 'none') targetEl.style.display = origDisplay
+            if (getComputedDisplay(targetEl) === 'none') targetEl.style.display = origDisplay
             else targetEl.style.removeProperty('display')
           }
         } else {
@@ -1548,26 +1549,32 @@
         }
       }
 
+      // Pre-select handler variants at setup time to avoid fn-null check on every trigger fire
+      const sigApply = fn
+        ? (trig, trigVal, detail) => applyDisp(fn(DM, el, trig, trigVal, detail))
+        : (_t, trigVal) => applyDisp(trigVal)
+      const evApply = fn
+        ? (evTarEl, trig, eventObj) => applyDisp(fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj))
+        : () => applyDisp(true)
+
       let elSubs = _cleanupBoundSubs.get(el)
       if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
 
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods ?? globMods ?? EMPTY_ARR
+        const mods = (trig.mods ?? globMods) || EMPTY_ARR
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, [])
-          const subFn = applyTrigMods((_ev, trigVal, detail) => {
-            applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal)
-          }, trig, mods)
+          const subFn = applyTrigMods((_ev, trigVal, detail) => { sigApply(trig, trigVal, detail) }, trig, mods)
           const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
           const changeMod = getSgChangeShape(mods)
           _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.unsub = () => {
+          wrappedSubFn.remove = () => {
             const subs = _subs.get(root)
             if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
           }
-          subFn.remove = wrappedSubFn.unsub
+          subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
         } else if (kind === EV_PROP) {
@@ -1575,9 +1582,7 @@
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => {
-            applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
-          }
+          const baseHandler = (eventObj) => { evApply(evTarEl, trig, eventObj) }
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
           moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
           evTarEl.addEventListener(ev, moddedHandler)
