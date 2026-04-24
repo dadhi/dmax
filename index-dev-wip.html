@@ -1407,27 +1407,36 @@
     }
     initLiveDSubExamples()
 
-    // // todo: Cleanup the subs bound to the data-attr defined on the removed element
-    //   const observer = new MutationObserver(records => {
-    //     for(const rec of records){
-    //       for(const node of rec.removedNodes){
-    //         if(node.nodeType !== 1) continue;
-    //         const boundSubs = _cleanupBoundSubs.get(node);
-    //         if(boundSubs){
-    //           for(const l of boundSubs){
-    //             if(l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler);
-    //             if(l.type === 'signal'){
-    //               const arr = subs.get(l.root);
-    //               if(arr) subs.set(l.root, arr.filter(it => it.fn !== l.handler));
-    //             }
-    //             if(l.type === 'interval') clearInterval(l.id);
-    //           }
-    //           _cleanupBoundSubs.delete(node);
-    //         }
-    //       }
-    //     }
-    //   });
-    //   observer.observe(document.body, {childList:true, subtree:true});
+    // Production cleanup path: when DOM nodes are removed, detach all their bound listeners/subscribers.
+    // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
+    function cleanupBoundSubsDeep(rootNode) {
+      if (!rootNode || rootNode.nodeType !== 1) return
+      const stack = [rootNode]
+      while (stack.length) {
+        const node = stack.pop()
+        const boundSubs = _cleanupBoundSubs.get(node)
+        if (boundSubs) {
+          for (const l of boundSubs) {
+            if (l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler)
+            else if (l.type === 'signal') {
+              const arr = _subs.get(l.root)
+              if (arr && arr.length) _subs.set(l.root, arr.filter(it => (typeof it === 'function' ? it !== l.fn : it.fn !== l.fn)))
+            }
+            else if (l.type === 'interval') clearInterval(l.id)
+            else if (l.type === 'timeout') clearTimeout(l.id)
+          }
+          _cleanupBoundSubs.delete(node)
+        }
+        const children = node.children
+        for (let i = 0; i < children.length; ++i) stack.push(children[i])
+      }
+    }
+    const observer = new MutationObserver(records => {
+      for (const rec of records)
+        for (const node of rec.removedNodes)
+          cleanupBoundSubsDeep(node)
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
     // </script>
 </body>
 
