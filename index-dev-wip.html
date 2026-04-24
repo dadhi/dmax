@@ -559,7 +559,6 @@
 
     const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
     function getSgChangeShape(mods) {
-      if (!mods?.length) return SG_CHANGED_ANY
       for (const m of mods) {
         if (m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
         if (m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
@@ -569,7 +568,6 @@
 
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     function isImmediateMod(mods, defaultVal) {
-      if (!mods?.length) return defaultVal;
       for (const m of mods) {
         if (m.root === MOD_IMMEDIATE) return true
         if (m.root === MOD_NOTIMMEDIATE) return false;
@@ -579,21 +577,18 @@
 
     const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle", MOD_PREVENT = 'prevent'
     const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
-    const PERMIT_MODS = new Set([MOD_AND, MOD_EQ, MOD_NE, MOD_LT, MOD_GT, MOD_LE, MOD_GE])
     function getModOrNull(mods, name) {
-      if (!mods?.length) return null
       for (const m of mods) if (m.root === name) return m
       return null
     }
 
     function hasMod(mods, name) {
-      if (!mods?.length) return false
       for (const m of mods) if (m.root === name) return true
       return false
     }
 
     function isPermitModName(name) {
-      return PERMIT_MODS.has(name)
+      return name === MOD_AND || name === MOD_EQ || name === MOD_NE || name === MOD_LT || name === MOD_GT || name === MOD_LE || name === MOD_GE
     }
 
     function getSignalValOrIt(it) {
@@ -616,13 +611,11 @@
     }
 
     function hasPermitMods(mods) {
-      if (!mods?.length) return false
       for (const m of mods) if (isPermitModName(m.root)) return true
       return false
     }
 
     function modsPermitVal(mods, val) {
-      if (!mods?.length) return true
       for (const m of mods) {
         const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
@@ -984,7 +977,7 @@
       for (let trig of trigs) {
 
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods ?? globMods ?? null // local mods already contain globs, so ?? is fine here
+        const mods = trig.mods ?? globMods ?? EMPTY_ARR // local mods already contain globs, so ?? is fine here
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
