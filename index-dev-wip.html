@@ -1640,6 +1640,705 @@
     }
     assert(tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dDisp hides element on false signal');
 
+    // Dispatch table used by dDump (and future clone-wiring contexts) to call the right setup fn per data-* attr
+    function wireNode(n, an, v) {
+      if (an.indexOf('data-sub') === 0) dSub(n, an, v)
+      else if (an.indexOf('data-sync') === 0) dSync(n, an)
+      else if (an.indexOf('data-class') === 0) dClass(n, an, v)
+      else if (an.indexOf('data-disp') === 0) dDisp(n, an, v)
+      else if (an.indexOf('data-dump') === 0) dDump(n, an)
+    }
+
+    // data-dump@items^immediate          (inline <template> child, array signal, immediate render)
+    // data-dump+#tplId@items^shape_only  (explicit template ref, shape-only subscription)
+    // Inside templates: $item → dm.signal[idx], $index → String(idx) in attr values;
+    //                   $item → signal.idx, $index → String(idx) in attr names
+    function dDump(el, aName) {
+      let [it] = parse(aName)
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const adds = it[ADD] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
+
+      const trig = trigs[0]
+      if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', aName); return }
+
+      const mods = (trig.mods ?? globMods) || EMPTY_ARR
+
+      // Find template: +#tplId add-slot first, then inline <template> child
+      let tpl = null
+      if (adds.length && adds[0].kind === EV_PROP && adds[0].root) {
+        tpl = getElById(adds[0].root, aName)
+      }
+      if (!tpl) tpl = el.querySelector('template')
+      // Detach inline template so it doesn't remain as an empty child
+      if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
+      if (!tpl) { console.error('[dmax] Error: dDump template not found for:', aName); return }
+
+      if (!el.__dump) el.__dump = { nodes: [], count: 0 }
+
+      const sigRoot = trig.root
+      const sigPath = trig.path
+
+      function doRender(detail) {
+        const val = getSignalValOrIt(trig)
+        if (!Array.isArray(val)) return
+        const newLen = val.length
+        const oldLen = el.__dump.count || 0
+
+        // Remove clones from the end when array shrank
+        if (newLen < oldLen) {
+          const removeCount = oldLen - newLen
+          for (let i = 0; i < removeCount; i++) {
+            const node = el.__dump.nodes.pop()
+            if (node && node.parentNode) node.parentNode.removeChild(node)
+          }
+          el.__dump.count = newLen
+        }
+
+        // Append new clones when array grew
+        if (newLen > oldLen) {
+          const frag = document.createDocumentFragment()
+          for (let idx = oldLen; idx < newLen; idx++) {
+            try {
+              if (!tpl.content || !tpl.content.firstElementChild) break
+              const node = tpl.content.firstElementChild.cloneNode(true)
+              // Rewrite $item/$index placeholders in all descendant attribute names and values
+              const walk = [node].concat(Array.from(node.querySelectorAll('*')))
+              for (const n of walk) {
+                const attrs = Array.from(n.attributes || [])
+                for (const a of attrs) {
+                  let atrName = a.name, atrVal = a.value
+                  if (atrName.indexOf('$item') !== -1 || atrName.indexOf('$index') !== -1) {
+                    atrName = atrName.replace(/\$item/g, sigRoot + '.' + idx).replace(/\$index/g, String(idx))
+                  }
+                  if (typeof atrVal === 'string' && (atrVal.indexOf('$item') !== -1 || atrVal.indexOf('$index') !== -1)) {
+                    atrVal = atrVal.replace(/\$index/g, String(idx)).replace(/\$item/g, 'dm.' + sigRoot + '[' + idx + ']')
+                  }
+                  try {
+                    if (atrName !== a.name) { n.removeAttribute(a.name); n.setAttribute(atrName, atrVal) }
+                    else if (atrVal !== a.value) n.setAttribute(atrName, atrVal)
+                  } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', atrName, e.message) }
+                }
+              }
+              frag.appendChild(node)
+              el.__dump.nodes.push(node)
+            } catch (e) {}
+          }
+          el.appendChild(frag)
+          // Wire up data-* attributes on newly inserted nodes
+          for (const node of el.__dump.nodes.slice(-(newLen - oldLen))) {
+            const walk2 = [node].concat(Array.from(node.querySelectorAll('*')))
+            for (const n of walk2)
+              for (const a of Array.from(n.attributes || [])) wireNode(n, a.name, a.value)
+          }
+          el.__dump.count = newLen
+        }
+      }
+
+      const root = sigRoot, path = sigPath
+      if (!_subs.has(root)) _subs.set(root, [])
+      const changeMod = getSgChangeShape(mods)
+      const subFn = applyTrigMods((_ev, _trigVal, detail) => doRender(detail), trig, mods)
+      const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+      _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+      wrappedSubFn.remove = () => {
+        const subs = _subs.get(root)
+        if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+      }
+      subFn.remove = wrappedSubFn.remove
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+      elSubs.push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
+
+      if (isImmediateMod(mods, false)) doRender(null)
+    }
+
+    function tDumpAppendOnly() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', [])
+        dDump(el, 'data-dump@items')
+        const before = el.children.length
+        _setSignalAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
+        const after = el.children.length
+        return { before, after }
+      } finally { el.remove() }
+    }
+    assert(tDumpAppendOnly, [], { before: 0, after: 2 }, 'dDump append-only: signal grows from [] to 2 items')
+
+    function tDumpRemoveFromEnd() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['a', 'b', 'c'])
+        dDump(el, 'data-dump@items^immediate')
+        const before = el.children.length
+        _setSignalAndNotifySubs('t', { root: 'items', path: null }, ['a'])
+        const after = el.children.length
+        return { before, after }
+      } finally { el.remove() }
+    }
+    assert(tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump remove from end: 3 items shrinks to 1')
+
+    function tDumpIndexPlaceholder() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-idx="$index">item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('rows', ['x', 'y'])
+        dDump(el, 'data-dump@rows^immediate')
+        return Array.from(el.children).map(n => n.getAttribute('data-idx'))
+      } finally { el.remove() }
+    }
+    assert(tDumpIndexPlaceholder, [], ['0', '1'], 'dDump $index placeholder rewritten in cloned attribute values')
+
+    function tDumpItemPlaceholder() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-val="$item">item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('rows', ['x', 'y'])
+        dDump(el, 'data-dump@rows^immediate')
+        return Array.from(el.children).map(n => n.getAttribute('data-val'))
+      } finally { el.remove() }
+    }
+    assert(tDumpItemPlaceholder, [], ['dm.rows[0]', 'dm.rows[1]'], 'dDump $item placeholder rewritten to dm.signal[idx] in attribute values')
+
+    function tDumpInlineTemplate() {
+      reset()
+      const el = document.createElement('div')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<span>child</span>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('list', ['a', 'b', 'c'])
+        dDump(el, 'data-dump@list^immediate')
+        const count = el.children.length
+        const tplStillChild = !!el.querySelector('template')
+        return { count, tplStillChild }
+      } finally { el.remove() }
+    }
+    assert(tDumpInlineTemplate, [], { count: 3, tplStillChild: false }, 'dDump inline <template> detached after read, 3 clones appended')
+
+    function tDumpImmediate() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['x', 'y', 'z'])
+        dDump(el, 'data-dump@items^immediate')
+        return el.children.length
+      } finally { el.remove() }
+    }
+    assert(tDumpImmediate, [], 3, 'dDump ^immediate renders existing signal array on setup')
+
+    function tDumpExplicitTemplate() {
+      reset()
+      const tplEl = document.createElement('template')
+      tplEl.id = 'myTpl'
+      tplEl.innerHTML = '<li>item</li>'
+      document.body.appendChild(tplEl)
+      const el = document.createElement('ul')
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['a', 'b'])
+        dDump(el, 'data-dump+#myTpl@items^immediate')
+        return el.children.length
+      } finally { tplEl.remove(); el.remove() }
+    }
+    assert(tDumpExplicitTemplate, [], 2, 'dDump +#tplId explicit template reference appends 2 clones')
+
+    // data-get:result?busy@.click^immediate="url"
+    // data-post^json:result?busy@.click+#id.prop+signal="url"
+    // data-put^json:result@.click+body="url"
+    // data-delete:ok?busy@.click="url"
+    // Method is derived from the attribute prefix; aVal is compiled as a URL expression.
+    function dAction(el, aName, aVal) {
+      const afterData = aName.slice(5) // strip 'data-'
+      const methodEnd = indexFirst(afterData, ALL, 0)
+      const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
+      const prefixToMethod = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }
+      const method = prefixToMethod[methodName]
+      if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', aName); return }
+
+      let [it] = parse(aName)
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const stats = it[STAT] ?? EMPTY_ARR
+      const adds = it[ADD] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      const urlFn = aVal ? compileFn(aVal, aName) : null
+      if (aVal && !urlFn) return
+
+      const resultTar = tars.find(t => t.kind === SIGNAL) ?? null
+      // First ?stat = busy signal, second ?stat = error signal
+      const busyStat = stats[0] ?? null
+      const errStat = stats[1] ?? null
+
+      const isJson = hasMod(globMods, 'json')
+
+      // Initialise state signals to defaults if not yet defined
+      if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
+      if (errStat && !_dm.has(errStat.root)) _dm.set(errStat.root, null)
+
+      const isGetOrDelete = method === 'GET' || method === 'DELETE'
+
+      const doRequest = async () => {
+        const url = urlFn ? urlFn(DM, el, null, null, null) : ''
+        if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
+
+        if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, true)
+        if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
+
+        try {
+          const queryParams = {}, bodyFields = {}
+          for (const add of adds) {
+            const addKind = add.kind, addRoot = add.root, addPath = add.path
+            let val, key
+            if (addKind === EV_PROP) {
+              const addEl = addRoot ? getElById(addRoot, aName) : el
+              val = addEl ? getElPropVal(addEl, addPath) : null
+              key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
+            } else {
+              val = getSignalValOrIt(add)
+              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
+            }
+            if (isGetOrDelete) queryParams[key] = val
+            else bodyFields[key] = val
+          }
+
+          let finalUrl = url
+          const paramKeys = Object.keys(queryParams)
+          if (paramKeys.length) {
+            const q = paramKeys.map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))).join('&')
+            finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
+          }
+
+          const headers = {}
+          if (isJson) { headers['Content-Type'] = 'application/json'; headers['Accept'] = 'application/json' }
+
+          const bodyKeys = Object.keys(bodyFields)
+          let body = null
+          if (bodyKeys.length) {
+            // Single input → unwrap the value (matches reference behaviour); multiple → send as object
+            const raw = bodyKeys.length === 1 ? bodyFields[bodyKeys[0]] : bodyFields
+            body = (isJson || (raw !== null && typeof raw === 'object')) ? JSON.stringify(raw) : String(raw)
+          }
+
+          const init = { method, headers }
+          if (body != null) init.body = body
+
+          const res = await window.fetch(finalUrl, init)
+          const ct = (res.headers && res.headers.get('content-type')) || ''
+          const payload = ct.includes('application/json') ? await res.json() : await res.text()
+
+          if (resultTar) setSignalAndNotifySubsNLevelsDeep(aName, resultTar, payload)
+          if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
+        } catch (err) {
+          if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
+          console.error('[dmax] Error: dAction fetch failed:', err)
+        }
+      }
+
+      if (!trigs.length) { doRequest(); return }
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+
+      let ranImmediate = false
+
+      for (const trig of trigs) {
+        const kind = trig.kind, root = trig.root, path = trig.path
+        const mods = (trig.mods ?? globMods) || EMPTY_ARR
+        if (kind === SIGNAL) {
+          if (!expected(root)) return
+          if (!_subs.has(root)) _subs.set(root, [])
+          const subFn = applyTrigMods((_ev, _trigVal, _detail) => doRequest(), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+          }
+          subFn.remove = wrappedSubFn.remove
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          if (!ranImmediate && isImmediateMod(mods, false)) {
+            ranImmediate = true
+            doRequest()
+          }
+        } else if (kind === EV_PROP) {
+          const evTarEl = root ? getElById(root, aName) : el
+          if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
+          const baseHandler = (_eventObj) => doRequest()
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          evTarEl.addEventListener(ev, moddedHandler)
+          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          if (!ranImmediate && isImmediateMod(mods, false)) {
+            ranImmediate = true
+            moddedHandler()
+          }
+        } else {
+          console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', aName)
+        }
+      }
+    }
+
+    // ---- dAction async tests ----
+    // Tests run sequentially to avoid concurrent reset() interference with shared _subs/_dm state.
+    let _asyncChain = Promise.resolve()
+
+    function _asyncAssert(label, promiseFn) {
+      _asyncChain = _asyncChain.then(() =>
+        promiseFn().then(({ actual, expected }) => {
+          if (deepEqual(actual, expected))
+            console.log('✓', 'dAction —', label, '>>>', fmt(actual))
+          else
+            console.error('✗', 'dAction —', label, '>>> expected:', fmt(expected), 'actual:', fmt(actual))
+        }).catch(err => {
+          console.error('✗', 'dAction —', label, '>>> threw:', err && err.message ? err.message : String(err))
+        })
+      )
+    }
+
+    _asyncAssert('GET ^immediate fires fetch and sets result', async () => {
+      reset()
+      const fetchCalls = []
+      window.fetch = (url, init) => {
+        fetchCalls.push({ url, method: init.method })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => [1, 2, 3]
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('items', null)
+        dAction(btn, 'data-get:items@.click^immediate', '"https://api.test/items"')
+        // click trigger registers the event; immediate also fires doRequest once at setup
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, items: DM['items'] },
+          expected: { calls: 2, method: 'GET', url: 'https://api.test/items', items: [1, 2, 3] }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('POST ^json sends Content-Type and JSON body', async () => {
+      reset()
+      let sentBody = null, sentHeaders = null
+      window.fetch = (_url, init) => {
+        sentBody = init.body
+        sentHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ id: 1 })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('postResult', null)
+        _dm.set('titleVal', 'Hello World')
+        dAction(btn, 'data-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { contentType: sentHeaders?.['Content-Type'], body: JSON.parse(sentBody), result: DM['postResult'] },
+          expected: { contentType: 'application/json', body: 'Hello World', result: { id: 1 } }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('?busy signal goes true while fetching then false on success', async () => {
+      reset()
+      let resolveFetch
+      window.fetch = () => new Promise(r => { resolveFetch = r })
+      try {
+        const btn = document.createElement('button')
+        _dm.set('busy', false)
+        _dm.set('data', null)
+        dAction(btn, 'data-get:data?busy@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        // busy is set synchronously before the first await inside doRequest
+        const busyDuring = DM['busy']
+        resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { busyDuring, busyAfter: DM['busy'] },
+          expected: { busyDuring: true, busyAfter: false }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('fetch failure sets ?err signal and clears ?busy', async () => {
+      reset()
+      window.fetch = () => Promise.reject(new Error('Network error'))
+      try {
+        const btn = document.createElement('button')
+        _dm.set('busy', false)
+        _dm.set('errMsg', null)
+        dAction(btn, 'data-get:data?busy?errMsg@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { busy: DM['busy'], err: DM['errMsg'] },
+          expected: { busy: false, err: 'Network error' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('@signal^immediate fires immediately and on signal change', async () => {
+      reset()
+      const fetchUrls = []
+      window.fetch = (url) => {
+        fetchUrls.push(url)
+        return Promise.resolve({ ok: true, headers: { get: () => 'text/plain' }, text: async () => 'ok' })
+      }
+      try {
+        const div = document.createElement('div')
+        _dm.set('reload', 0)
+        _dm.set('content', null)
+        dAction(div, 'data-get:content@reload^immediate', '"https://api.test/content"')
+        await new Promise(r => setTimeout(r, 0))
+        const afterImmediate = fetchUrls.length
+        _setSignalAndNotifySubs('t', { root: 'reload', path: null }, 1)
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { afterImmediate, total: fetchUrls.length, content: DM['content'] },
+          expected: { afterImmediate: 1, total: 2, content: 'ok' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    // Wait for all sequential async tests before signalling completion
+    _asyncChain.then(() => {
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    }).catch(() => {
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    })
+
+    // --- morph: fast in-place DOM reconciliation ---
+    //
+    // WHY morph beats innerHTML replacement:
+    //   • innerHTML destroys and recreates all event listeners (requires re-wiring)
+    //   • innerHTML triggers forced layout/style recalculation for all descendants
+    //   • innerHTML loses form state (input values, focus, scroll position)
+    //   • morph reuses matched DOM nodes, only patching what changed
+    //
+    // Algorithm (inspired by Idiomorph / keyed reconciliation):
+    //   1. Match by `id` first  → stable identity across reorders
+    //   2. Fallback to same tagName → morph in place
+    //   3. No match → replace/clone
+    //   Build a single Map<id, node> per morphChildren call (O(1) lookup, no double scan).
+
+    // Returns true if two nodes can be morphed in place (same type, same tag or same id).
+    function sameKind(a, b) {
+      if (a.nodeType !== b.nodeType) return false
+      if (a.nodeType !== 1 /*ELEMENT*/) return true
+      if (a.id && b.id) return a.id === b.id
+      return a.tagName === b.tagName
+    }
+
+    // Sync attributes from `to` onto `from`: remove missing, add/update present.
+    function updateAttrs(from, to) {
+      const toAttrs = to.attributes
+      for (let i = 0; i < toAttrs.length; i++) {
+        const { name, value } = toAttrs[i]
+        if (from.getAttribute(name) !== value) from.setAttribute(name, value)
+      }
+      // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
+      // so we iterate backwards to avoid skipping entries.
+      const fromAttrs = from.attributes
+      for (let i = fromAttrs.length - 1; i >= 0; i--) {
+        const name = fromAttrs[i].name
+        if (!to.hasAttribute(name)) from.removeAttribute(name)
+      }
+    }
+
+    // Reconcile children of `from` to match children of `to`.
+    // Single forward pass; reuses a Map allocated once per call for O(1) id lookup.
+    function morphChildren(from, to) {
+      // Build id→node map for all keyed existing children
+      const idMap = new Map()
+      for (let n = from.firstChild; n; n = n.nextSibling)
+        if (n.nodeType === 1 && n.id) idMap.set(n.id, n)
+
+      let cur = from.firstChild
+
+      for (let toChild = to.firstChild; toChild; toChild = toChild.nextSibling) {
+        let match = null
+
+        if (toChild.nodeType === 1 && toChild.id && idMap.has(toChild.id)) {
+          // Keyed match: pull by id regardless of position
+          match = idMap.get(toChild.id)
+          idMap.delete(toChild.id)
+        } else {
+          // Skip over keyed (id'd) nodes that are still awaiting their own keyed toChild match.
+          // Moving `cur` past them prevents an unkeyed child from "stealing" a node that belongs
+          // to a later id-matched slot, which would require an extra insertBefore to fix.
+          while (cur && cur.nodeType === 1 && cur.id && idMap.has(cur.id))
+            cur = cur.nextSibling
+          if (cur && sameKind(cur, toChild)) {
+            match = cur
+          }
+        }
+
+        if (match) {
+          if (match !== cur) {
+            from.insertBefore(match, cur || null)
+          } else {
+            cur = cur.nextSibling
+          }
+          morph(match, toChild)
+        } else {
+          // No reusable node found — clone and insert
+          from.insertBefore(toChild.cloneNode(true), cur || null)
+        }
+      }
+
+      // Remove any remaining unprocessed old nodes
+      while (cur) {
+        const next = cur.nextSibling
+        from.removeChild(cur)
+        cur = next
+      }
+    }
+
+    // Update `from` DOM node in place to match `to`. Does not disturb event
+    // listeners, __dump state, or _cleanupBoundSubs on matched nodes.
+    function morph(from, to) {
+      if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
+        if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
+        return
+      }
+      if (from.nodeType !== 1 || to.nodeType !== 1) return
+      if (from.tagName !== to.tagName) {
+        // Different element type — replace entirely (cannot morph safely)
+        if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
+        return
+      }
+      updateAttrs(from, to)
+      morphChildren(from, to)
+    }
+
+    // morph tests -------------------------------------------------------
+
+    function tMorphTextUpdate() {
+      const from = document.createElement('div')
+      from.textContent = 'old'
+      const to = document.createElement('div')
+      to.textContent = 'new'
+      const originalTextNode = from.firstChild
+      morph(from, to)
+      return { sameNode: from.firstChild === originalTextNode, text: from.textContent }
+    }
+    assert(tMorphTextUpdate, [], { sameNode: true, text: 'new' }, 'morph: text node updated in place')
+
+    function tMorphAttrUpdate() {
+      const from = document.createElement('div')
+      from.setAttribute('class', 'old')
+      from.setAttribute('title', 'keep')
+      const to = document.createElement('div')
+      to.setAttribute('id', 'new-id')
+      to.setAttribute('title', 'keep')
+      morph(from, to)
+      return { id: from.getAttribute('id'), title: from.getAttribute('title'), hasClass: from.hasAttribute('class') }
+    }
+    assert(tMorphAttrUpdate, [], { id: 'new-id', title: 'keep', hasClass: false }, 'morph: attrs added/removed/kept')
+
+    function tMorphChildAdd() {
+      const from = document.createElement('ul')
+      from.innerHTML = '<li>a</li>'
+      const to = document.createElement('ul')
+      to.innerHTML = '<li>a</li><li>b</li>'
+      morph(from, to)
+      return Array.from(from.querySelectorAll('li')).map(li => li.textContent)
+    }
+    assert(tMorphChildAdd, [], ['a', 'b'], 'morph: child add appends new node')
+
+    function tMorphChildRemove() {
+      const from = document.createElement('ul')
+      from.innerHTML = '<li>a</li><li>b</li><li>c</li>'
+      const to = document.createElement('ul')
+      to.innerHTML = '<li>a</li>'
+      morph(from, to)
+      return from.children.length
+    }
+    assert(tMorphChildRemove, [], 1, 'morph: child remove trims extra nodes')
+
+    function tMorphKeyedReorder() {
+      const from = document.createElement('div')
+      from.innerHTML = '<p id="ka">1</p><p id="kb">2</p>'
+      const nodeA = from.querySelector('#ka')
+      const nodeB = from.querySelector('#kb')
+      const to = document.createElement('div')
+      to.innerHTML = '<p id="kb">2</p><p id="ka">1</p>'
+      morph(from, to)
+      return { firstIsB: from.firstChild === nodeB, secondIsA: from.lastChild === nodeA, count: from.children.length }
+    }
+    assert(tMorphKeyedReorder, [], { firstIsB: true, secondIsA: true, count: 2 }, 'morph: keyed nodes moved by id, not replaced')
+
+    function tMorphTagMismatch() {
+      const container = document.createElement('div')
+      const from = document.createElement('div')
+      from.textContent = 'I am a div'
+      container.appendChild(from)
+      const to = document.createElement('p')
+      to.textContent = 'I am a p'
+      morph(from, to)
+      return { tag: container.firstChild.tagName, text: container.firstChild.textContent }
+    }
+    assert(tMorphTagMismatch, [], { tag: 'P', text: 'I am a p' }, 'morph: tag mismatch replaces node')
+
+    function tMorphEventListenerPreserved() {
+      const from = document.createElement('button')
+      let clicked = 0
+      from.addEventListener('click', () => clicked++)
+      const to = document.createElement('button')
+      to.setAttribute('class', 'updated')
+      morph(from, to)
+      from.click()
+      return { clicked, hasClass: from.classList.contains('updated') }
+    }
+    assert(tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
