@@ -70,6 +70,16 @@
     <div class="note">Output is mirrored from console.log/error</div>
     <pre id="out"></pre>
     <div id='foo' hidden>good</div>
+    <section id="live-dsub" style="padding:12px;border-top:1px solid #e2e8f0">
+      <h3 style="margin:0 0 8px 0">Live dSub examples</h3>
+      <form id="live-form">
+        <input id="live-name" value="Ada" />
+        <button id="live-btn" type="button">Emit click/value</button>
+        <button id="live-submit" type="submit">Emit form submit</button>
+      </form>
+      <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
+      <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
+    </section>
   </main>
   <script>
     // Mirror console to <pre>, count tests
@@ -293,18 +303,7 @@
         } else {
           [modItems, p] = parse(aName, p, MODS)
           let mods = modItems?.[MOD] ?? null
-          if (items[MOD]) { // put glob mods if any into local mods but don't override
-            if (!mods) mods = items[MOD]
-            else {
-              let modCount = mods.length
-              for (const gm of items[MOD]) {
-                let skipGlobal = false
-                for (let i = 0; i < modCount; ++i)
-                  if (mods[i].root === gm.root) { skipGlobal = true; break }
-                if (!skipGlobal) mods.push(gm) // add global if only there is no local mod with the same root/name, ignore its value
-              }
-            }
-          }
+          if (items[MOD]) mods = mods ? mods.concat(items[MOD]) : items[MOD].slice()
           item.mods = mods
           ts.push(item)
         }
@@ -326,7 +325,7 @@
     assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
     assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
     assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
-    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
+    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine global+local mods and keep repeats')
     assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
 
     function isObjEmpty(o) {
@@ -421,6 +420,12 @@
       if (!el) return 'click'
       let n = el.tagName
       return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
+    }
+
+    function getElPropVal(targetEl, propPath) {
+      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(targetEl)
+      let val = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
+      return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
     function mkEv(nam) {
@@ -554,31 +559,35 @@
 
     const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
     function getSgChangeShape(mods) {
-      if (!mods) return SG_CHANGED_ANY
-      for (const m of mods) {
-        if (m && m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
-        if (m && m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
+      for (const m of mods || EMPTY_ARR) {
+        if (m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
+        if (m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
       }
       return SG_CHANGED_ANY
     }
 
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     function isImmediateMod(mods, defaultVal) {
-      if (!mods || !mods.length) return defaultVal;
-      for (const m of mods) {
-        if (m && m.root === MOD_IMMEDIATE) return true
-        if (m && m.root === MOD_NOTIMMEDIATE) return false;
+      for (const m of mods || EMPTY_ARR) {
+        if (m.root === MOD_IMMEDIATE) return true
+        if (m.root === MOD_NOTIMMEDIATE) return false;
       }
       return defaultVal;
     }
 
-    const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle"
+    const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle", MOD_PREVENT = 'prevent'
     const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
-    const PERMIT_MODS = [MOD_AND, MOD_EQ, MOD_NE, MOD_LT, MOD_GT, MOD_LE, MOD_GE]
-
+    const PERMIT_MODS = Object.assign(Object.create(null), {
+      [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
+    })
     function getModOrNull(mods, name) {
-      if (mods) for (const m in mods) if (m.root === name) return m
+      for (const m of mods || EMPTY_ARR) if (m.root === name) return m
       return null
+    }
+
+    function hasMod(mods, name) {
+      for (const m of mods || EMPTY_ARR) if (m.root === name) return true
+      return false
     }
 
     function getSignalValOrIt(it) {
@@ -589,18 +598,27 @@
       return it.not ? !val : val
     }
 
+    // Resolve modifier path values: raw value, direct signal key, or parseable trigger-like signal path.
+    function resolveModPathVal(v) {
+      if (v && v.kind) return getSignalValOrIt(v)
+      if (typeof v !== 'string') return v
+      if (_dm.has(v)) return _dm.get(v)
+      const parsed = parseItem('mod', TRIG, v)
+      return parsed && parsed.kind
+        ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
+        : v
+    }
+
     function hasPermitMods(mods) {
-      if (!mods) return false
-      for (const m of mods) if (m.root in PERMIT_MODS) return true
+      for (const m of mods || EMPTY_ARR) if (m.root in PERMIT_MODS) return true
       return false
     }
 
     function modsPermitVal(mods, val) {
-      if (!mods) return true
-      for (const m of mods) {
-        const mName = m.root, mVal = getSignalValOrIt(m.path)
-        if (mVal == MOD_AND) {
-          if (!modVal) return false
+      for (const m of mods || EMPTY_ARR) {
+        const mName = m.root, mVal = resolveModPathVal(m.path)
+        if (mName === MOD_AND) {
+          if (!mVal) return false
         } else if (mName == MOD_EQ) {
           if (val != mVal) return false
         } else if (mName == MOD_NE) {
@@ -680,7 +698,7 @@
         // the hp has the longer path based on previous checks, we to check that it actually changed
         // first, check if we did this comparison before
         let hCol = null, p = null
-        for (const col in collected) // check if the same
+        for (const col of collected) // check if the same
           if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
 
         let [pathCur, _] = getPropValAndDepth(sgVal, hp), pathVal
@@ -693,7 +711,10 @@
         let pathDiffed = false, pathDiff = null
         if (changeMod != SG_CHANGED_ANY) {
           for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
-          if (!pathDiffed) pathDiffs.push(pathDiff = diffShapeShallow(pathCur, pathVal))
+          if (!pathDiffed) {
+            pathDiff = diffShapeShallow(pathCur, pathVal)
+            pathDiffs.push([hp, pathDiff])
+          }
         }
 
         if (changeMod !== SG_CHANGED_SHAPE_ONLY || pathDiff)
@@ -792,54 +813,29 @@
 
     function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
-      const not = !!trig.not
-      const root = trig.root
-      const path = trig.path
-
-      const deb = mods.debounce == null ? 0 : +mods.debounce
-      const thr = mods.throttle == null ? 0 : +mods.throttle
-      const one = mods.once !== undefined
-      const prv = mods.prevent !== undefined
-
-      const and = mods.and == null ? null : String(mods.and)
-      const eqOn = mods.eq !== undefined, neOn = mods.ne !== undefined
-      const eq = mods.eq, ne = mods.ne
-      const gtOn = mods.gt != null, geOn = mods.ge != null, ltOn = mods.lt != null, leOn = mods.le != null
-      const gt = gtOn ? +mods.gt : 0
-      const ge = geOn ? +mods.ge : 0
-      const lt = ltOn ? +mods.lt : 0
-      const le = leOn ? +mods.le : 0
-
+      const one = hasMod(mods, MOD_ONCE)
+      const prv = hasMod(mods, MOD_PREVENT)
       let tm = 0, last = 0
-      const cond = (ev, dt) => {
-        // if (and && !getSignalValOrIt(and)) return false 
-        let v = isSg ? getSignalValOrIt(root, path) : (dt ?? ev?.detail?.ms)
-        if (isSg && not) v = !v
-        if (eqOn && String(v) !== String(eq)) return false
-        if (neOn && String(v) === String(ne)) return false
-        if (gtOn && !(+v > gt)) return false
-        if (geOn && !(+v >= ge)) return false
-        if (ltOn && !(+v < lt)) return false
-        if (leOn && !(+v <= le)) return false
-        return true
-      }
 
-      const run = (ev, sg, dt) => {
-
-        if (!cond(ev, dt)) return
-        try { fn(ev, sg, dt) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+      const run = (ev, val, detail) => {
+        let trigVal = (isSg ? getSignalValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
+        if (isSg && trig.not) trigVal = !trigVal
+        if (!modsPermitVal(mods, trigVal)) return
+        try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && h.remove) h.remove()
       }
 
-      const h = function (ev, sg, dt) {
+      const h = function (ev, val, detail) {
         if (prv) ev?.preventDefault?.()
-        if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, sg, dt); return }
+        const deb = +(resolveModPathVal(getModOrNull(mods, MOD_DEBOUNCE)?.path) ?? 0)
+        const thr = +(resolveModPathVal(getModOrNull(mods, MOD_THROTTLE)?.path) ?? 0)
+        if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, val, detail); return }
         if (thr > 0) {
           const now = Date.now()
           if (now - last < thr) return
           last = now
         }
-        run(ev, sg, dt)
+        run(ev, val, detail)
       }
       return h
     }
@@ -848,7 +844,7 @@
       reset();
       _dm.set('a', 5)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: SIGNAL, root: 'a', path: null, not: null }, { eq: '5', ne: '6' })
+      const h = applyTrigMods(() => ++c, { kind: SIGNAL, root: 'a', path: null, not: null }, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
       h()
       _dm.set('a', 6)
       h()
@@ -860,7 +856,7 @@
       reset();
       _dm.set('gate', false)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, { and: 'gate' })
+      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_AND, path: 'gate' }])
       h(null, null, 1)
       _dm.set('gate', true)
       h(null, null, 2)
@@ -871,7 +867,7 @@
     function tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, { prevent: true, once: true })
+      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
       h.remove = () => ++r
       h(ev, null, null)
       return { p, r, c }
@@ -886,7 +882,7 @@
       clearTimeout = (n) => q.delete(n)
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, { debounce: 8 })
+        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_DEBOUNCE, path: 8 }])
         h(null, null, 1)
         h(null, null, 2)
         for (const [k, v] of q) {
@@ -907,7 +903,7 @@
       Date.now = () => now
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, { throttle: 10 })
+        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_THROTTLE, path: 10 }])
         h(null, null, 1)
         now = 105
         h(null, null, 2)
@@ -919,6 +915,22 @@
       }
     }
     assert(tTrigModsThrottle, [], [1, 3], 'applyTrigMods: throttle rate limit');
+
+    function tTrigModsRepeatedPermitChecks() {
+      reset();
+      _dm.set('gateA', true)
+      _dm.set('gateB', false)
+      let c = 0
+      const mods = [{ root: MOD_AND, path: 'gateA' }, { root: MOD_AND, path: 'gateB' }, { root: MOD_GE, path: '5' }, { root: MOD_LT, path: '9' }, { root: MOD_NE, path: '7' }]
+      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, mods)
+      h(null, 6, null)
+      _dm.set('gateB', true)
+      h(null, 4, null)
+      h(null, 7, null)
+      h(null, 8, null)
+      return c
+    }
+    assert(tTrigModsRepeatedPermitChecks, [], 1, 'applyTrigMods: repeated and/check permit mods');
 
     _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     function dSub(el, aName, aVal) {
@@ -964,76 +976,40 @@
       for (let trig of trigs) {
 
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods ?? globMods ?? null // local mods already contain globs, so ?? is fine here
+        const mods = trig.mods ?? globMods ?? EMPTY_ARR // local mods already contain globs, so ?? is fine here
         if (kind === SIGNAL) {
           if (!expected(root)) return
           if (!_subs.has(root)) _subs.set(root, []);
 
-          const throttle = getModOrNull(mods, MOD_THROTTLE)
-          const needPermit = hasPermitMods(mods)
-          let subFn = null
-          if (!throttle && !needPermit)
-            subFn = () => fn(DM, el, trig, getSignalValOrIt(trig), null)
-          else if (!throttle)
-            subFn = () => {
-              const trigVal = getSignalValOrIt(trig)
-              if (modsPermitVal(mods, trigVal)) fn(DM, el, trig, trigVal, null)
-            }
-          else {
-            let lastTime = 0
-            subFn = () => {
-              const delay = +getSignalValOrIt(throttle.path)
-              if (delay > 0) {
-                const t = Date.now()
-                if (t - lastTime < delay) return
-                lastTime = t
-              }
-              const trigVal = getSignalValOrIt(trig)
-              if (modsPermitVal(mods, trigVal)) fn(DM, el, trig, trigVal, null)
-            }
-          }
-
-          const debounce = getModOrNull(mods, MOD_DEBOUNCE)
-          if (debounce) {
-            const dInterval = +getSignalValOrIt(debounce.path)
-            if (dInterval > 0) {
-              let dTimeout = 0
-              fn = subFn
-              subFn = () => {
-                if (dTimeout) clearTimeout(dTimeout); dTimeout = setTimeout(fn, dInterval); return
-              }
-            }
-          }
-
-          const shape = getSgChangeShape(mods) // todo: @wip do we need this as a separate thing 
-          _subs.get(root).push({ fn, shape, path })
-          fn.unsub = () => {
+          const subFn = applyTrigMods((_ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.unsub = () => {
             const subs = _subs.get(root)
-            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== fn))
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
           }
+          subFn.remove = wrappedSubFn.unsub
 
           // todo: @wip can we use _KIND instead of type?
-          elSubs.push({ type: 'signal', el, kind, root, path, fn })
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
-            fn(DM, el, trig, getSignalValOrIt(trig), null)
+            subFn(null, getSignalValOrIt(trig), null)
           }
 
         } else if (kind === EV_PROP || kind === SPECIAL) {
-          let targetEl = root ? getElById(root, aName) : el
-          if (!targetEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
-
           let ev = path && path.length ? path[0] : null
-          if (kind === SPECIAL) {
-            if (root === SPEC_WIN) {
-              const onWin = (e) => fn(DM, el, SRC_WIN, e?.type, e)
+            if (kind === SPECIAL) {
+              if (root === SPEC_WIN) {
+              const onWin = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
               const modded = applyTrigMods(onWin, trig, mods)
               window.addEventListener(ev ?? SPEC_WIN_EV, modded)
               elSubs.push({ type: 'event', targetEl: window, eventName: (ev ?? SPEC_WIN_EV), handler: modded })
               continue;
             }
             if (root === SPEC_DOC) {
-              const onDoc = (e) => fn(DM, el, SRC_DOC, e?.type, e)
+              const onDoc = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
               const modded = applyTrigMods(onDoc, trig, mods)
               document.addEventListener(ev ?? SPEC_DOC_EV, modded)
               elSubs.push({ type: 'event', targetEl: document, eventName: (ev ?? SPEC_DOC_EV), handler: modded })
@@ -1042,21 +1018,24 @@
             if (root === SPEC_INTERVAL) {
               const ms = parseInt(ev) || SPEC_INTERVAL_MS
               let count = 0
-              const onInt = () => fn(DM, el, SRC_INTERVAL, ms, count++)
+              const onInt = (_e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onInt, trig, mods)
               const id = setInterval(() => {
-                try { modded(undefined, null, ms) } catch (e) { }
+                try {
+                  const tick = count++
+                  const detail = { tick, ms, type: SPEC_INTERVAL }
+                  modded(undefined, ms, detail)
+                } catch (e) { console.error(`[dmax] Error: interval handler (${ms}ms) failed:`, e?.message ?? e) }
               }, ms);
               elSubs.push({ type: 'interval', id });
               continue;
             }
             if (root === SPEC_TIMEOUT) {
               const ms = parseInt(ev) || SPEC_TIMEOUT_MS;
-              let count = 0
-              const onTimeout = () => fn(DM, el, SRC_TIMEOUT, ms, count++)
+              const onTimeout = (_e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onTimeout, trig, mods)
               const id = setTimeout(() => {
-                try { modded(undefined, null, ms) } catch (e) { }
+                try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error(`[dmax] Error: timeout handler (${ms}ms) failed:`, e?.message ?? e) }
               }, ms);
               elSubs.push({ type: 'timeout', id });
               continue;
@@ -1066,7 +1045,7 @@
               const formEl = el && el.closest ? el.closest('form') : null;
               if (formEl) {
                 const formEv = ev || 'submit';
-                const onForm = (e) => fn(DM, el, SRC_EVENT, e, null)
+                const onForm = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
                 const modded = applyTrigMods(onForm, trig, mods)
                 formEl.addEventListener(formEv, modded);
                 elSubs.push({ type: 'event', targetEl: formEl, eventName: formEv, handler: modded });
@@ -1076,14 +1055,23 @@
             }
           }
 
+          let targetEl = root ? getElById(root, aName) : el
+          if (!targetEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
+          const defaultProp = getDefaultProp(targetEl)
+          let propPath = null
+          if (path && path.length) {
+            const maybeProp = path[0]
+            if (maybeProp === defaultProp || maybeProp === 'value' || maybeProp === 'checked' || maybeProp === 'textContent') {
+              propPath = path.slice()
+              ev = getDefaultEvent(targetEl)
+            }
+          }
           ev = ev ?? getDefaultEvent(targetEl)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
 
           const finalEvent = ev
           const baseHandler = (eventObj) => {
-            const prop = getDefaultProp(targetEl)
-            const trigVal = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
-            fn(DM, el, SRC_EVENT, trigVal, eventObj)
+            fn(DM, el, trig, getElPropVal(targetEl, propPath), eventObj)
           }
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
           moddedHandler.remove = () => { try { targetEl.removeEventListener(finalEvent, moddedHandler); } catch (e) { } };
@@ -1155,6 +1143,118 @@
       return { im, after };
     }
     assert(tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+
+    function tSubExplicitIdEventPath() {
+      reset();
+      const id = 'evtbtnexplicit'
+      const btn = document.createElement('button');
+      btn.id = id;
+      btn.textContent = 'C';
+      document.body.appendChild(btn);
+      try {
+        dSub(btn, `data-sub:eventMeta@#${id}.click`, `({kind: trig.kind, root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+        btn.dispatchEvent(mkEv('click'));
+        return DM['eventMeta'];
+      } finally { btn.remove(); }
+    }
+    assert(tSubExplicitIdEventPath, [], { kind: EV_PROP, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dSub explicit #id event path metadata');
+
+    function tSubExplicitIdPropPath() {
+      reset();
+      const id = 'evtinputprop'
+      const inp = document.createElement('input');
+      inp.id = id;
+      inp.value = 'Alpha';
+      document.body.appendChild(inp);
+      try {
+        dSub(inp, `data-sub:propMeta@#${id}.value`, `({kind: trig.kind, root: trig.root, path: trig.path, val})`);
+        inp.dispatchEvent(mkEv('change'));
+        return DM['propMeta'];
+      } finally { inp.remove(); }
+    }
+    assert(tSubExplicitIdPropPath, [], { kind: EV_PROP, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dSub explicit #id prop trigger path');
+
+    function tSubSpecialWindowAndDocument() {
+      reset();
+      const host = document.createElement('div');
+      dSub(host, 'data-sub:winMeta@_window.resize', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+      dSub(host, 'data-sub:docMeta@_document.visibilitychange', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+      window.dispatchEvent(mkEv('resize'));
+      document.dispatchEvent(mkEv('visibilitychange'));
+      return { win: DM['winMeta'], doc: DM['docMeta'] };
+    }
+    assert(tSubSpecialWindowAndDocument, [], {
+      win: { root: 'window', path: ['resize'], val: 'resize', detailType: 'resize' },
+      doc: { root: 'document', path: ['visibilitychange'], val: 'visibilitychange', detailType: 'visibilitychange' }
+    }, 'dSub window/document special triggers');
+
+    function tSubSpecialFormPath() {
+      reset();
+      const form = document.createElement('form');
+      const input = document.createElement('input');
+      form.appendChild(input);
+      document.body.appendChild(form);
+      try {
+        dSub(input, 'data-sub:formMeta@_form.submit', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+        const ev = mkEv('submit')
+        form.dispatchEvent(ev)
+        return DM['formMeta']
+      } finally { form.remove() }
+    }
+    assert(tSubSpecialFormPath, [], { root: 'form', path: ['submit'], val: 'submit', detailType: 'submit' }, 'dSub form special trigger');
+
+    function tSubSpecialIntervalAndTimeout() {
+      reset();
+      const st = setTimeout, si = setInterval
+      const qTo = [], qInt = []
+      setTimeout = (cb, _ms) => (qTo.push(cb), qTo.length)
+      setInterval = (cb, _ms) => (qInt.push(cb), qInt.length)
+      try {
+        const host = document.createElement('div')
+        dSub(host, 'data-sub:intMeta@_interval.25', `({root: trig.root, path: trig.path, val, detail})`)
+        dSub(host, 'data-sub:timeoutMeta@_timeout.50', `({root: trig.root, path: trig.path, val, detail})`)
+        if (qInt[0]) qInt[0]()
+        if (qTo[0]) qTo[0]()
+        return { i: DM['intMeta'], t: DM['timeoutMeta'] }
+      } finally {
+        setTimeout = st
+        setInterval = si
+      }
+    }
+    assert(tSubSpecialIntervalAndTimeout, [], {
+      i: { root: 'interval', path: ['25'], val: 25, detail: { tick: 0, ms: 25, type: 'interval' } },
+      t: { root: 'timeout', path: ['50'], val: 50, detail: { tick: 0, ms: 50, type: 'timeout' } }
+    }, 'dSub interval/timeout special triggers');
+
+    function tSubRepeatedPermitGating() {
+      reset();
+      _dm.set('gateA', true)
+      _dm.set('gateB', false)
+      _dm.set('src', 1)
+      const host = document.createElement('div');
+      dSub(host, 'data-sub:dst@src^and.gateA^and.gateB^ge.5^lt.9^ne.7', 'val')
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 8)
+      _dm.set('gateB', true)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 4)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 7)
+      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 8)
+      return DM['dst'] ?? null
+    }
+    assert(tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
+
+    function initLiveDSubExamples() {
+      const liveForm = document.getElementById('live-form')
+      const liveBtn = document.getElementById('live-btn')
+      const liveName = document.getElementById('live-name')
+      if (!liveForm || !liveBtn || !liveName) return
+      const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500'
+      dSub(liveBtn, `data-sub:#live-raw${liveTrigList}`,
+        `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`)
+      dSub(liveBtn, `data-sub:#live-branch${liveTrigList}`,
+        `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`)
+      liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')))
+    }
+    initLiveDSubExamples()
 
     // // todo: Cleanup the subs bound to the data-attr defined on the removed element
     //   const observer = new MutationObserver(records => {
