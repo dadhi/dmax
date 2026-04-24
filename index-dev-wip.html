@@ -1324,7 +1324,7 @@
         ev = ev ?? getDefaultEvent(targetEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
 
-        const baseHandler = () => {
+        const baseHandler = (_eventObj) => {
           setSignalAndNotifySubsNLevelsDeep(aName, signalWrite, getElPropVal(targetEl, propPath))
         }
         const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TARGET, writeMods)
