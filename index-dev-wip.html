@@ -422,9 +422,9 @@
       return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
     }
 
-    function getElPropVal(el, propPath) {
-      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
-      let val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent)
+    function getElPropVal(targetEl, propPath) {
+      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(targetEl)
+      let val = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -609,9 +609,9 @@
       if (v && v.kind) return getSignalValOrIt(v)
       if (typeof v !== 'string') return v
       if (_dm.has(v)) return _dm.get(v)
-      const maybe = parseItem('mod', TRIG, v)
-      return maybe && maybe.kind
-        ? (maybe.kind === SIGNAL && !maybe.path && !_dm.has(maybe.root) ? v : getSignalValOrIt(maybe))
+      const parsed = parseItem('mod', TRIG, v)
+      return parsed && parsed.kind
+        ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
         : v
     }
 
