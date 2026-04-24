@@ -1411,6 +1411,8 @@
     // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) return
+      // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
+      const sameSubFn = (entry, fn) => (typeof entry === 'function' ? entry === fn : entry && entry.fn === fn)
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -1420,7 +1422,7 @@
             if (l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler)
             else if (l.type === 'signal') {
               const arr = _subs.get(l.root)
-              if (arr && arr.length) _subs.set(l.root, arr.filter(it => (typeof it === 'function' ? it !== l.fn : it.fn !== l.fn)))
+              if (arr && arr.length) _subs.set(l.root, arr.filter(it => !sameSubFn(it, l.fn)))
             }
             else if (l.type === 'interval') clearInterval(l.id)
             else if (l.type === 'timeout') clearTimeout(l.id)
