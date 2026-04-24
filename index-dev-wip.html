@@ -1309,7 +1309,7 @@
         let targetEl = trigRoot ? getElById(trigRoot, aName) : el
         if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
 
-        const writeMods = (trig && trig.mods) ? trig.mods : globMods
+        const writeMods = trig ? ((trig.mods ?? globMods) || EMPTY_ARR) : globMods
         let ev = trigPath && trigPath.length ? trigPath[0] : null
         let propPath = null
         const defaultProp = getDefaultProp(targetEl)
@@ -1324,7 +1324,7 @@
         ev = ev ?? getDefaultEvent(targetEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
 
-        const baseHandler = (_eventObj) => {
+        const baseHandler = () => {
           setSignalAndNotifySubsNLevelsDeep(aName, signalWrite, getElPropVal(targetEl, propPath))
         }
         const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TARGET, writeMods)
