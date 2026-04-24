@@ -590,10 +590,6 @@
       return false
     }
 
-    function isPermitModName(name) {
-      return name in PERMIT_MODS
-    }
-
     function getSignalValOrIt(it) {
       if (!it.kind) return it
       const sg = _dm.get(it.root)
@@ -614,7 +610,7 @@
     }
 
     function hasPermitMods(mods) {
-      for (const m of mods || EMPTY_ARR) if (isPermitModName(m.root)) return true
+      for (const m of mods || EMPTY_ARR) if (m.root in PERMIT_MODS) return true
       return false
     }
 
