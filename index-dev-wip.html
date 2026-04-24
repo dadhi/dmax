@@ -422,6 +422,12 @@
       return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
     }
 
+    function getElPropVal(el, propPath) {
+      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
+      let val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent)
+      return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
+    }
+
     function mkEv(nam) {
       try { return new Event(nam, { bubbles: true }) }
       catch (_) {
@@ -553,52 +559,41 @@
 
     const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
     function getSgChangeShape(mods) {
-      if (!mods) return SG_CHANGED_ANY
+      if (!mods?.length) return SG_CHANGED_ANY
       for (const m of mods) {
-        if (m && m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
-        if (m && m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
+        if (m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
+        if (m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
       }
       return SG_CHANGED_ANY
     }
 
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     function isImmediateMod(mods, defaultVal) {
-      if (!mods || !mods.length) return defaultVal;
+      if (!mods?.length) return defaultVal;
       for (const m of mods) {
-        if (m && m.root === MOD_IMMEDIATE) return true
-        if (m && m.root === MOD_NOTIMMEDIATE) return false;
+        if (m.root === MOD_IMMEDIATE) return true
+        if (m.root === MOD_NOTIMMEDIATE) return false;
       }
       return defaultVal;
     }
 
     const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle", MOD_PREVENT = 'prevent'
     const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
+    const PERMIT_MODS = new Set([MOD_AND, MOD_EQ, MOD_NE, MOD_LT, MOD_GT, MOD_LE, MOD_GE])
     function getModOrNull(mods, name) {
-      if (mods) for (const m of mods) if (m && m.root === name) return m
+      if (!mods?.length) return null
+      for (const m of mods) if (m.root === name) return m
       return null
     }
 
     function hasMod(mods, name) {
-      if (!mods) return false
-      for (const m of mods) if (m && m.root === name) return true
+      if (!mods?.length) return false
+      for (const m of mods) if (m.root === name) return true
       return false
     }
 
     function isPermitModName(name) {
-      return name === MOD_AND || name === MOD_EQ || name === MOD_NE || name === MOD_LT || name === MOD_GT || name === MOD_LE || name === MOD_GE
-    }
-
-    function getModVal(v) {
-      if (v && v.kind) return getSignalValOrIt(v)
-      if (typeof v === 'string') {
-        if (_dm.has(v)) return _dm.get(v)
-        const maybe = parseItem('mod', TRIG, v)
-        if (maybe && maybe.kind) {
-          if (maybe.kind === SIGNAL && !maybe.path && !_dm.has(maybe.root)) return v
-          return getSignalValOrIt(maybe)
-        }
-      }
-      return v
+      return PERMIT_MODS.has(name)
     }
 
     function getSignalValOrIt(it) {
@@ -609,17 +604,27 @@
       return it.not ? !val : val
     }
 
+    // Resolve modifier path values: raw value, direct signal key, or parseable trigger-like signal path.
+    function resolveModPathVal(v) {
+      if (v && v.kind) return getSignalValOrIt(v)
+      if (typeof v !== 'string') return v
+      if (_dm.has(v)) return _dm.get(v)
+      const maybe = parseItem('mod', TRIG, v)
+      return maybe && maybe.kind
+        ? (maybe.kind === SIGNAL && !maybe.path && !_dm.has(maybe.root) ? v : getSignalValOrIt(maybe))
+        : v
+    }
+
     function hasPermitMods(mods) {
-      if (!mods) return false
-      for (const m of mods) if (m && isPermitModName(m.root)) return true
+      if (!mods?.length) return false
+      for (const m of mods) if (isPermitModName(m.root)) return true
       return false
     }
 
     function modsPermitVal(mods, val) {
-      if (!mods) return true
+      if (!mods?.length) return true
       for (const m of mods) {
-        if (!m) continue
-        const mName = m.root, mVal = getModVal(m.path)
+        const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
           if (!mVal) return false
         } else if (mName == MOD_EQ) {
@@ -830,8 +835,8 @@
 
       const h = function (ev, val, detail) {
         if (prv) ev?.preventDefault?.()
-        const deb = +(getModVal(getModOrNull(mods, MOD_DEBOUNCE)?.path) ?? 0)
-        const thr = +(getModVal(getModOrNull(mods, MOD_THROTTLE)?.path) ?? 0)
+        const deb = +(resolveModPathVal(getModOrNull(mods, MOD_DEBOUNCE)?.path) ?? 0)
+        const thr = +(resolveModPathVal(getModOrNull(mods, MOD_THROTTLE)?.path) ?? 0)
         if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, val, detail); return }
         if (thr > 0) {
           const now = Date.now()
@@ -1074,10 +1079,7 @@
 
           const finalEvent = ev
           const baseHandler = (eventObj) => {
-            const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(targetEl)
-            let trigVal = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
-            if (propPath && propPath.length > 1) trigVal = getPropValAndDepth(trigVal, propPath.slice(1))[0]
-            fn(DM, el, trig, trigVal, eventObj)
+            fn(DM, el, trig, getElPropVal(targetEl, propPath), eventObj)
           }
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
           moddedHandler.remove = () => { try { targetEl.removeEventListener(finalEvent, moddedHandler); } catch (e) { } };
