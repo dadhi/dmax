@@ -1242,59 +1242,68 @@
     }
     assert(tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
 
+    const DEFAULT_PROP_TARGET = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null })
     function dSync(el, aName) {
-      let [it] = parse(aName)
-      const tars = it[TARG] ?? EMPTY_ARR
-      const trigs = it[TRIG] ?? EMPTY_ARR
-      const globMods = it[MOD] ?? EMPTY_ARR
+      let [parsedAttr] = parse(aName)
+      const tars = parsedAttr[TARG] ?? EMPTY_ARR
+      const trigs = parsedAttr[TRIG] ?? EMPTY_ARR
+      const globMods = parsedAttr[MOD] ?? EMPTY_ARR
 
-      delete it[TARG]; delete it[TRIG]; delete it[MOD];
-      if (!isObjEmpty(it)) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
+      delete parsedAttr[TARG]; delete parsedAttr[TRIG]; delete parsedAttr[MOD];
+      if (!isObjEmpty(parsedAttr)) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
 
-      const sigTar = tars.find(t => t.kind === SIGNAL) ?? null
-      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
-      const sigTrig = trigs.find(t => t.kind === SIGNAL) ?? null
-      const propTrig = trigs.find(t => t.kind === EV_PROP) ?? null
+      let sigTar = null, propTar = null, sigTrig = null, propTrig = null
+      for (let i = 0; i < tars.length; ++i) {
+        const t = tars[i]
+        if (!sigTar && t.kind === SIGNAL) sigTar = t
+        else if (!propTar && t.kind === EV_PROP) propTar = t
+        if (sigTar && propTar) break
+      }
+      for (let i = 0; i < trigs.length; ++i) {
+        const t = trigs[i]
+        if (!sigTrig && t.kind === SIGNAL) sigTrig = t
+        else if (!propTrig && t.kind === EV_PROP) propTrig = t
+        if (sigTrig && propTrig) break
+      }
 
       if (!sigTar && !sigTrig) {
         console.error('[dmax] Error: dSync requires signal target or signal trigger in:', aName)
         return
       }
 
-      const readSig = sigTrig ?? sigTar
-      const writeSig = sigTar
-      const defaultPropertyTarget = { kind: EV_PROP, not: null, root: '', path: null }
-      const writePropTar = propTar ?? defaultPropertyTarget
-      const shouldReadSignal = !!readSig && (sigTrig || !propTrig)
-      const shouldWriteSignal = !!writeSig && (propTrig || !sigTrig)
+      const signalRead = sigTrig ?? sigTar
+      const signalWrite = sigTar
+      const writePropTar = propTar ?? DEFAULT_PROP_TARGET
+      const shouldReadSignal = !!signalRead && (sigTrig || !propTrig)
+      const shouldWriteSignal = !!signalWrite && (propTrig || !sigTrig)
 
       let elSubs = _cleanupBoundSubs.get(el);
       if (!elSubs) _cleanupBoundSubs.set(el, elSubs = []);
 
       if (shouldReadSignal) {
-        if (!expected(readSig.root)) return
-        if (!_subs.has(readSig.root)) _subs.set(readSig.root, []);
+        if (!expected(signalRead.root)) return
+        if (!_subs.has(signalRead.root)) _subs.set(signalRead.root, []);
 
         const readMods = (sigTrig?.mods ?? sigTar?.mods ?? globMods) || EMPTY_ARR
         const subFn = applyTrigMods((_ev, _trigVal, detail) => {
-          const v = getSignalValOrIt(readSig)
+          const v = getSignalValOrIt(signalRead)
           setProp(el, aName, writePropTar, v)
-        }, readSig, readMods)
-        const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(readSig), detail)
+        }, signalRead, readMods)
+        const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(signalRead), detail)
         const changeMod = getSgChangeShape(readMods)
-        _subs.get(readSig.root).push({ fn: wrappedSubFn, changeMod, path: readSig.path })
+        _subs.get(signalRead.root).push({ fn: wrappedSubFn, changeMod, path: signalRead.path })
         wrappedSubFn.remove = () => {
-          const subs = _subs.get(readSig.root)
-          if (subs && subs.length) _subs.set(readSig.root, subs.filter(s => s.fn !== wrappedSubFn))
+          const subs = _subs.get(signalRead.root)
+          if (subs && subs.length) _subs.set(signalRead.root, subs.filter(s => s.fn !== wrappedSubFn))
         }
         subFn.remove = wrappedSubFn.remove
-        elSubs.push({ type: 'signal', el, kind: readSig.kind, root: readSig.root, path: readSig.path, fn: wrappedSubFn })
+        elSubs.push({ type: 'signal', el, kind: signalRead.kind, root: signalRead.root, path: signalRead.path, fn: wrappedSubFn })
 
-        if (isImmediateMod(readMods, true)) subFn(null, getSignalValOrIt(readSig), null)
+        if (isImmediateMod(readMods, true)) subFn(null, getSignalValOrIt(signalRead), null)
       }
 
       if (shouldWriteSignal) {
-        const trig = propTrig ?? { ...defaultPropertyTarget, mods: globMods }
+        const trig = propTrig ?? { kind: EV_PROP, not: null, root: '', path: null, mods: globMods }
         let targetEl = trig.root ? getElById(trig.root, aName) : el
         if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig, 'in:', aName); return }
 
@@ -1313,8 +1322,8 @@
         ev = ev ?? getDefaultEvent(targetEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig, 'in:', aName); return }
 
-        const baseHandler = (eventObj) => {
-          setSignalAndNotifySubsNLevelsDeep(aName, writeSig, getElPropVal(targetEl, propPath))
+        const baseHandler = (_eventObj) => {
+          setSignalAndNotifySubsNLevelsDeep(aName, signalWrite, getElPropVal(targetEl, propPath))
         }
         const moddedHandler = applyTrigMods(baseHandler, trig, writeMods)
         moddedHandler.remove = () => { try { targetEl.removeEventListener(ev, moddedHandler); } catch (e) { } };
