@@ -559,7 +559,7 @@
 
     const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
     function getSgChangeShape(mods) {
-      for (const m of mods) {
+      for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
         if (m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
       }
@@ -568,7 +568,7 @@
 
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     function isImmediateMod(mods, defaultVal) {
-      for (const m of mods) {
+      for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
         if (m.root === MOD_NOTIMMEDIATE) return false;
       }
@@ -577,18 +577,21 @@
 
     const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle", MOD_PREVENT = 'prevent'
     const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
+    const PERMIT_MODS = Object.assign(Object.create(null), {
+      [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
+    })
     function getModOrNull(mods, name) {
-      for (const m of mods) if (m.root === name) return m
+      for (const m of mods || EMPTY_ARR) if (m.root === name) return m
       return null
     }
 
     function hasMod(mods, name) {
-      for (const m of mods) if (m.root === name) return true
+      for (const m of mods || EMPTY_ARR) if (m.root === name) return true
       return false
     }
 
     function isPermitModName(name) {
-      return name === MOD_AND || name === MOD_EQ || name === MOD_NE || name === MOD_LT || name === MOD_GT || name === MOD_LE || name === MOD_GE
+      return name in PERMIT_MODS
     }
 
     function getSignalValOrIt(it) {
@@ -611,12 +614,12 @@
     }
 
     function hasPermitMods(mods) {
-      for (const m of mods) if (isPermitModName(m.root)) return true
+      for (const m of mods || EMPTY_ARR) if (isPermitModName(m.root)) return true
       return false
     }
 
     function modsPermitVal(mods, val) {
-      for (const m of mods) {
+      for (const m of mods || EMPTY_ARR) {
         const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
           if (!mVal) return false
