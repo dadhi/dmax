@@ -1413,7 +1413,11 @@
       if (!rootNode || rootNode.nodeType !== 1) { return }
       // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
       // Return true when an entry points to the same subscriber callback.
-      const matchesSubscriberFn = (entry, fn) => typeof entry === 'function' ? entry === fn : !!entry && typeof entry === 'object' && entry.fn === fn
+      const matchesSubscriberFn = (entry, fn) => {
+        if (typeof entry === 'function') return entry === fn
+        if (!entry || typeof entry !== 'object') return false
+        return entry.fn === fn
+      }
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -1432,7 +1436,7 @@
                   // After match: append only non-matching entries.
                   if (matchesSubscriberFn(arr[i], l.fn)) {
                     if (!filtered) filtered = arr.slice(0, i)
-                  } else if (filtered) filtered.push(arr[i])
+                  } else if (filtered) filtered.push(arr[i]) // only append after lazy allocation starts
                 }
                 if (filtered) _subs.set(l.root, filtered)
               }
