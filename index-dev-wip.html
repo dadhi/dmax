@@ -1242,6 +1242,157 @@
     }
     assert(tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
 
+    const DEFAULT_PROP_TARGET = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null })
+    function dSync(el, aName) {
+      let [parsedAttr] = parse(aName)
+      const tars = parsedAttr[TARG] ?? EMPTY_ARR
+      const trigs = parsedAttr[TRIG] ?? EMPTY_ARR
+      const globMods = parsedAttr[MOD] ?? EMPTY_ARR
+
+      delete parsedAttr[TARG]; delete parsedAttr[TRIG]; delete parsedAttr[MOD];
+      if (!isObjEmpty(parsedAttr)) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
+
+      let sigTar = null, propTar = null, sigTrig = null, propTrig = null
+      for (let i = 0; i < tars.length; ++i) {
+        const t = tars[i]
+        if (!sigTar && t.kind === SIGNAL) sigTar = t
+        else if (!propTar && t.kind === EV_PROP) propTar = t
+        if (sigTar && propTar) break
+      }
+      for (let i = 0; i < trigs.length; ++i) {
+        const t = trigs[i]
+        if (!sigTrig && t.kind === SIGNAL) sigTrig = t
+        else if (!propTrig && t.kind === EV_PROP) propTrig = t
+        if (sigTrig && propTrig) break
+      }
+
+      if (!sigTar && !sigTrig) {
+        console.error('[dmax] Error: dSync requires signal target or signal trigger in:', aName)
+        return
+      }
+
+      const signalRead = sigTrig ?? sigTar
+      const signalWrite = sigTar
+      const writePropTar = propTar ?? DEFAULT_PROP_TARGET
+      const shouldReadSignal = !!signalRead && (sigTrig || !propTrig)
+      const shouldWriteSignal = !!signalWrite && (propTrig || !sigTrig)
+
+      let elSubs = _cleanupBoundSubs.get(el);
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = []);
+
+      if (shouldReadSignal) {
+        if (!expected(signalRead.root)) return
+        if (!_subs.has(signalRead.root)) _subs.set(signalRead.root, []);
+
+        const readMods = (sigTrig?.mods ?? sigTar?.mods ?? globMods) || EMPTY_ARR
+        const subFn = applyTrigMods((_ev, _trigVal, detail) => {
+          const v = getSignalValOrIt(signalRead)
+          setProp(el, aName, writePropTar, v)
+        }, signalRead, readMods)
+        const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(signalRead), detail)
+        const changeMod = getSgChangeShape(readMods)
+        _subs.get(signalRead.root).push({ fn: wrappedSubFn, changeMod, path: signalRead.path })
+        wrappedSubFn.remove = () => {
+          const subs = _subs.get(signalRead.root)
+          if (subs && subs.length) _subs.set(signalRead.root, subs.filter(s => s.fn !== wrappedSubFn))
+        }
+        subFn.remove = wrappedSubFn.remove
+        elSubs.push({ type: 'signal', el, kind: signalRead.kind, root: signalRead.root, path: signalRead.path, fn: wrappedSubFn })
+
+        if (isImmediateMod(readMods, true)) subFn(null, getSignalValOrIt(signalRead), null)
+      }
+
+      if (shouldWriteSignal) {
+        const trig = propTrig
+        const trigRoot = trig ? trig.root : ''
+        const trigPath = trig ? trig.path : null
+        let targetEl = trigRoot ? getElById(trigRoot, aName) : el
+        if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
+
+        const writeMods = trig ? ((trig.mods ?? globMods) || EMPTY_ARR) : globMods
+        let ev = trigPath && trigPath.length ? trigPath[0] : null
+        let propPath = null
+        const defaultProp = getDefaultProp(targetEl)
+        if (trigPath && trigPath.length) {
+          const maybeProp = trigPath[0]
+          if (maybeProp === defaultProp || maybeProp === 'value' || maybeProp === 'checked' || maybeProp === 'textContent') {
+            propPath = trigPath.slice()
+            ev = getDefaultEvent(targetEl)
+          }
+        }
+        if (!propPath && propTar && propTar.path) propPath = propTar.path.slice()
+        ev = ev ?? getDefaultEvent(targetEl)
+        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
+
+        const baseHandler = (_eventObj) => {
+          setSignalAndNotifySubsNLevelsDeep(aName, signalWrite, getElPropVal(targetEl, propPath))
+        }
+        const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TARGET, writeMods)
+        moddedHandler.remove = () => { try { targetEl.removeEventListener(ev, moddedHandler); } catch (e) { } };
+        targetEl.addEventListener(ev, moddedHandler)
+        elSubs.push({ type: 'event', targetEl, eventName: ev, handler: moddedHandler })
+        if (isImmediateMod(writeMods, false)) moddedHandler()
+      }
+    }
+
+    function tSyncTwoWayDefault() {
+      reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      dSync(inp, 'data-sync:name')
+      const before = inp.value
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['name']
+      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      return { before, sigAfterWrite, elAfterSignal: inp.value }
+    }
+    assert(tSyncTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSync two-way default');
+
+    function tSyncSignalToPropOnly() {
+      reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      dSync(inp, 'data-sync@name')
+      const before = inp.value
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterLocalEvent = DM['name']
+      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      return { before, sigAfterLocalEvent, elAfterSignal: inp.value }
+    }
+    assert(tSyncSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSync signal->prop one-way');
+
+    function tSyncPropToSignalOnly() {
+      reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      inp.value = 'Initial'
+      dSync(inp, 'data-sync:name@.')
+      const before = inp.value
+      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      const elAfterSignal = inp.value
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      return { before, elAfterSignal, sigAfterEvent: DM['name'] }
+    }
+    assert(tSyncPropToSignalOnly, [], { before: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way');
+
+    function tSyncCheckboxDefaultProp() {
+      reset();
+      const cb = document.createElement('input')
+      cb.type = 'checkbox'
+      DM['isOn'] = true
+      dSync(cb, 'data-sync:is-on')
+      const before = cb.checked
+      cb.checked = false
+      cb.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['isOn']
+      _setSignalAndNotifySubs('t', { root: 'isOn', path: null }, true)
+      return { before, sigAfterWrite, afterSignal: cb.checked }
+    }
+    assert(tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
@@ -1256,27 +1407,55 @@
     }
     initLiveDSubExamples()
 
-    // // todo: Cleanup the subs bound to the data-attr defined on the removed element
-    //   const observer = new MutationObserver(records => {
-    //     for(const rec of records){
-    //       for(const node of rec.removedNodes){
-    //         if(node.nodeType !== 1) continue;
-    //         const boundSubs = _cleanupBoundSubs.get(node);
-    //         if(boundSubs){
-    //           for(const l of boundSubs){
-    //             if(l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler);
-    //             if(l.type === 'signal'){
-    //               const arr = subs.get(l.root);
-    //               if(arr) subs.set(l.root, arr.filter(it => it.fn !== l.handler));
-    //             }
-    //             if(l.type === 'interval') clearInterval(l.id);
-    //           }
-    //           _cleanupBoundSubs.delete(node);
-    //         }
-    //       }
-    //     }
-    //   });
-    //   observer.observe(document.body, {childList:true, subtree:true});
+    // Production cleanup path: when DOM nodes are removed, detach all their bound listeners/subscribers.
+    // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
+    function cleanupBoundSubsDeep(rootNode) {
+      if (!rootNode || rootNode.nodeType !== 1) { return }
+      // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
+      // Return true when an entry points to the same subscriber callback.
+      const matchesSubscriberFn = (entry, fn) => {
+        if (typeof entry === 'function') return entry === fn
+        if (!entry || typeof entry !== 'object') return false
+        return entry.fn === fn
+      }
+      const stack = [rootNode]
+      while (stack.length) {
+        const node = stack.pop()
+        const boundSubs = _cleanupBoundSubs.get(node)
+        if (boundSubs) {
+          for (const l of boundSubs) {
+            if (l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler)
+            else if (l.type === 'signal') {
+              const arr = _subs.get(l.root)
+              if (arr && arr.length) {
+                // Allocate only when we actually find a match to remove.
+                let filtered = null
+                for (let i = 0; i < arr.length; ++i) {
+                  // Before first match: keep `filtered` null (no allocation).
+                  // At match: allocate with prefix (matched entry is skipped).
+                  // After match: append only non-matching entries.
+                  if (matchesSubscriberFn(arr[i], l.fn)) {
+                    if (!filtered) filtered = arr.slice(0, i)
+                  } else if (filtered) filtered.push(arr[i]) // only append after lazy allocation starts
+                }
+                if (filtered) _subs.set(l.root, filtered)
+              }
+            }
+            else if (l.type === 'interval') clearInterval(l.id)
+            else if (l.type === 'timeout') clearTimeout(l.id)
+          }
+          _cleanupBoundSubs.delete(node)
+        }
+        const children = node.children
+        for (let i = 0; i < children.length; ++i) stack.push(children[i])
+      }
+    }
+    const observer = new MutationObserver(records => {
+      for (const rec of records)
+        for (const node of rec.removedNodes)
+          cleanupBoundSubsDeep(node)
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
     // </script>
 </body>
 
