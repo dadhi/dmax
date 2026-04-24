@@ -1242,6 +1242,145 @@
     }
     assert(tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
 
+    function dSync(el, aName) {
+      let [it, _p] = parse(aName)
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      delete it[TARG]; delete it[TRIG]; delete it[MOD];
+      if (!isObjEmpty(it)) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
+
+      const sigTar = tars.find(t => t.kind === SIGNAL) ?? null
+      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
+      const sigTrig = trigs.find(t => t.kind === SIGNAL) ?? null
+      const propTrig = trigs.find(t => t.kind === EV_PROP) ?? null
+
+      if (!sigTar && !sigTrig) {
+        console.error('[dmax] Error: dSync requires signal target or signal trigger in:', aName)
+        return
+      }
+
+      const readSig = sigTrig ?? sigTar
+      const writeSig = sigTar
+      const writePropTar = propTar ?? { kind: EV_PROP, not: null, root: '', path: null }
+      const shouldReadSignal = !!readSig && (sigTrig || !propTrig)
+      const shouldWriteSignal = !!writeSig && (propTrig || !sigTrig)
+
+      let elSubs = _cleanupBoundSubs.get(el);
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = []);
+
+      if (shouldReadSignal) {
+        if (!expected(readSig.root)) return
+        if (!_subs.has(readSig.root)) _subs.set(readSig.root, []);
+
+        const readMods = (sigTrig?.mods ?? sigTar?.mods ?? globMods) || EMPTY_ARR
+        const subFn = applyTrigMods((_ev, _trigVal, detail) => {
+          const v = getSignalValOrIt(readSig)
+          setProp(el, aName, writePropTar, v)
+        }, readSig, readMods)
+        const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(readSig), detail)
+        const changeMod = getSgChangeShape(readMods)
+        _subs.get(readSig.root).push({ fn: wrappedSubFn, changeMod, path: readSig.path })
+        wrappedSubFn.unsub = () => {
+          const subs = _subs.get(readSig.root)
+          if (subs && subs.length) _subs.set(readSig.root, subs.filter(s => s.fn !== wrappedSubFn))
+        }
+        subFn.remove = wrappedSubFn.unsub
+        elSubs.push({ type: 'signal', el, kind: readSig.kind, root: readSig.root, path: readSig.path, fn: wrappedSubFn })
+
+        if (isImmediateMod(readMods, true)) subFn(null, getSignalValOrIt(readSig), null)
+      }
+
+      if (shouldWriteSignal) {
+        const trig = propTrig ?? { kind: EV_PROP, not: null, root: '', path: null, mods: globMods }
+        let targetEl = trig.root ? getElById(trig.root, aName) : el
+        if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig, 'in:', aName); return }
+
+        const writeMods = (trig.mods ?? globMods) || EMPTY_ARR
+        let ev = trig.path && trig.path.length ? trig.path[0] : null
+        let propPath = null
+        const defaultProp = getDefaultProp(targetEl)
+        if (trig.path && trig.path.length) {
+          const maybeProp = trig.path[0]
+          if (maybeProp === defaultProp || maybeProp === 'value' || maybeProp === 'checked' || maybeProp === 'textContent') {
+            propPath = trig.path.slice()
+            ev = getDefaultEvent(targetEl)
+          }
+        }
+        if (!propPath && propTar && propTar.path) propPath = propTar.path.slice()
+        ev = ev ?? getDefaultEvent(targetEl)
+        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig, 'in:', aName); return }
+
+        const baseHandler = (eventObj) => {
+          setSignalAndNotifySubsNLevelsDeep(aName, writeSig, getElPropVal(targetEl, propPath))
+        }
+        const moddedHandler = applyTrigMods(baseHandler, trig, writeMods)
+        moddedHandler.remove = () => { try { targetEl.removeEventListener(ev, moddedHandler); } catch (e) { } };
+        targetEl.addEventListener(ev, moddedHandler)
+        elSubs.push({ type: 'event', targetEl, eventName: ev, handler: moddedHandler })
+        if (isImmediateMod(writeMods, false)) moddedHandler()
+      }
+    }
+
+    function tSyncTwoWayDefault() {
+      reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      dSync(inp, 'data-sync:name')
+      const before = inp.value
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['name']
+      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      return { before, sigAfterWrite, elAfterSignal: inp.value }
+    }
+    assert(tSyncTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSync two-way default');
+
+    function tSyncSignalToPropOnly() {
+      reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      dSync(inp, 'data-sync@name')
+      const before = inp.value
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterLocalEvent = DM['name']
+      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      return { before, sigAfterLocalEvent, elAfterSignal: inp.value }
+    }
+    assert(tSyncSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSync signal->prop one-way');
+
+    function tSyncPropToSignalOnly() {
+      reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      inp.value = 'Initial'
+      dSync(inp, 'data-sync:name@.')
+      const before = inp.value
+      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      const elAfterSignal = inp.value
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      return { before, elAfterSignal, sigAfterEvent: DM['name'] }
+    }
+    assert(tSyncPropToSignalOnly, [], { before: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way');
+
+    function tSyncCheckboxDefaultProp() {
+      reset();
+      const cb = document.createElement('input')
+      cb.type = 'checkbox'
+      _dm.set('isOn', true)
+      dSync(cb, 'data-sync:is-on')
+      const before = cb.checked
+      cb.checked = false
+      cb.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['isOn']
+      _setSignalAndNotifySubs('t', { root: 'isOn', path: null }, true)
+      return { before, sigAfterWrite, afterSignal: cb.checked }
+    }
+    assert(tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
