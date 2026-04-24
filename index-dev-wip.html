@@ -1412,6 +1412,7 @@
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
       // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
+      // Return true when an entry points to the same subscriber callback.
       const matchesSubscriberFn = (entry, fn) => typeof entry === 'function' ? entry === fn : !!entry && typeof entry === 'object' && entry.fn === fn
       const stack = [rootNode]
       while (stack.length) {
@@ -1426,6 +1427,9 @@
                 // Allocate only when we actually find a match to remove.
                 let filtered = null
                 for (let i = 0; i < arr.length; ++i) {
+                  // Before first match: keep `filtered` null (no allocation).
+                  // At match: allocate with prefix (matched entry is skipped).
+                  // After match: append only non-matching entries.
                   if (matchesSubscriberFn(arr[i], l.fn)) {
                     if (!filtered) filtered = arr.slice(0, i)
                   } else if (filtered) filtered.push(arr[i])
