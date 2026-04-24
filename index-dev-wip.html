@@ -1410,11 +1410,9 @@
     // Production cleanup path: when DOM nodes are removed, detach all their bound listeners/subscribers.
     // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
     function cleanupBoundSubsDeep(rootNode) {
-      if (!rootNode || rootNode.nodeType !== 1) return
+      if (!rootNode || rootNode.nodeType !== 1) { return }
       // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
-      const matchesSubscriberFn = (entry, fn) => (typeof entry === 'function'
-        ? entry === fn
-        : !!entry && typeof entry === 'object' && entry.fn === fn)
+      const matchesSubscriberFn = (entry, fn) => typeof entry === 'function' ? entry === fn : !!entry && typeof entry === 'object' && entry.fn === fn
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -1425,6 +1423,7 @@
             else if (l.type === 'signal') {
               const arr = _subs.get(l.root)
               if (arr && arr.length) {
+                // Allocate only when we actually find a match to remove.
                 let filtered = null
                 for (let i = 0; i < arr.length; ++i) {
                   if (matchesSubscriberFn(arr[i], l.fn)) {
