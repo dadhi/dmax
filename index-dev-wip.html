@@ -1303,29 +1303,31 @@
       }
 
       if (shouldWriteSignal) {
-        const trig = propTrig ?? { kind: EV_PROP, not: null, root: '', path: null, mods: globMods }
-        let targetEl = trig.root ? getElById(trig.root, aName) : el
-        if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig, 'in:', aName); return }
+        const trig = propTrig
+        const trigRoot = trig ? trig.root : ''
+        const trigPath = trig ? trig.path : null
+        let targetEl = trigRoot ? getElById(trigRoot, aName) : el
+        if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
 
-        const writeMods = (trig.mods ?? globMods) || EMPTY_ARR
-        let ev = trig.path && trig.path.length ? trig.path[0] : null
+        const writeMods = (trig && trig.mods) ? trig.mods : globMods
+        let ev = trigPath && trigPath.length ? trigPath[0] : null
         let propPath = null
         const defaultProp = getDefaultProp(targetEl)
-        if (trig.path && trig.path.length) {
-          const maybeProp = trig.path[0]
+        if (trigPath && trigPath.length) {
+          const maybeProp = trigPath[0]
           if (maybeProp === defaultProp || maybeProp === 'value' || maybeProp === 'checked' || maybeProp === 'textContent') {
-            propPath = trig.path.slice()
+            propPath = trigPath.slice()
             ev = getDefaultEvent(targetEl)
           }
         }
         if (!propPath && propTar && propTar.path) propPath = propTar.path.slice()
         ev = ev ?? getDefaultEvent(targetEl)
-        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig, 'in:', aName); return }
+        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
 
         const baseHandler = (_eventObj) => {
           setSignalAndNotifySubsNLevelsDeep(aName, signalWrite, getElPropVal(targetEl, propPath))
         }
-        const moddedHandler = applyTrigMods(baseHandler, trig, writeMods)
+        const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TARGET, writeMods)
         moddedHandler.remove = () => { try { targetEl.removeEventListener(ev, moddedHandler); } catch (e) { } };
         targetEl.addEventListener(ev, moddedHandler)
         elSubs.push({ type: 'event', targetEl, eventName: ev, handler: moddedHandler })
