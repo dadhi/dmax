@@ -1243,7 +1243,7 @@
     assert(tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
 
     function dSync(el, aName) {
-      let [it, _p] = parse(aName)
+      let [it] = parse(aName)
       const tars = it[TARG] ?? EMPTY_ARR
       const trigs = it[TRIG] ?? EMPTY_ARR
       const globMods = it[MOD] ?? EMPTY_ARR
@@ -1263,7 +1263,8 @@
 
       const readSig = sigTrig ?? sigTar
       const writeSig = sigTar
-      const writePropTar = propTar ?? { kind: EV_PROP, not: null, root: '', path: null }
+      const defaultPropertyTarget = { kind: EV_PROP, not: null, root: '', path: null }
+      const writePropTar = propTar ?? defaultPropertyTarget
       const shouldReadSignal = !!readSig && (sigTrig || !propTrig)
       const shouldWriteSignal = !!writeSig && (propTrig || !sigTrig)
 
@@ -1282,18 +1283,18 @@
         const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(readSig), detail)
         const changeMod = getSgChangeShape(readMods)
         _subs.get(readSig.root).push({ fn: wrappedSubFn, changeMod, path: readSig.path })
-        wrappedSubFn.unsub = () => {
+        wrappedSubFn.remove = () => {
           const subs = _subs.get(readSig.root)
           if (subs && subs.length) _subs.set(readSig.root, subs.filter(s => s.fn !== wrappedSubFn))
         }
-        subFn.remove = wrappedSubFn.unsub
+        subFn.remove = wrappedSubFn.remove
         elSubs.push({ type: 'signal', el, kind: readSig.kind, root: readSig.root, path: readSig.path, fn: wrappedSubFn })
 
         if (isImmediateMod(readMods, true)) subFn(null, getSignalValOrIt(readSig), null)
       }
 
       if (shouldWriteSignal) {
-        const trig = propTrig ?? { kind: EV_PROP, not: null, root: '', path: null, mods: globMods }
+        const trig = propTrig ?? { ...defaultPropertyTarget, mods: globMods }
         let targetEl = trig.root ? getElById(trig.root, aName) : el
         if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig, 'in:', aName); return }
 
@@ -1370,7 +1371,7 @@
       reset();
       const cb = document.createElement('input')
       cb.type = 'checkbox'
-      _dm.set('isOn', true)
+      DM['isOn'] = true
       dSync(cb, 'data-sync:is-on')
       const before = cb.checked
       cb.checked = false
