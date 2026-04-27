@@ -10,7 +10,7 @@ A tiny declarative web runtime driven by `data-*` attributes.
 
 ## Runtime size
 
-`dmax.js` (uncompressed): **110,147 bytes**.
+`dmax.js` (uncompressed, as of this change): **110,147 bytes**.
 
 ## Syntax used by current `index.html`
 
