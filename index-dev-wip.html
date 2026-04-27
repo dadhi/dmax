@@ -80,6 +80,124 @@
       <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
       <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
     </section>
+    <section id="ported-examples" style="padding:12px;border-top:1px solid #e2e8f0">
+      <h3 style="margin:0 0 8px 0">Ported examples (index.html → updated syntax)</h3>
+      <div data-def='{
+        "user":{"name":"Alice","age":25,"ui":{"theme-color":"#007bff","is-active":true,"font-size":16}},
+        "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
+        "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
+        "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
+        "once-test":0,"always-test":0,"guard-val":3,"other-flag":false,
+        "mod-once":0,"mod-deb":0,"mod-thr":0,"mod-and":0,"gate":false,
+        "busy":false,"err":null,"post-result":null,"created-post":null,"oob-html":""
+      }'></div>
+      <h4>1. Deep Nested Signal Sync</h4>
+      <label>User Name: <input type="text" data-sync:user.name></label>
+      <p>Hello, <strong data-sync:user.name></strong>!</p>
+      <label>Age: <input type="number" data-sync:user.age></label>
+      <p>Age: <span data-sync:user.age></span> years old</p>
+      <h4>1.a data-sync Direction Examples</h4>
+      <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
+      <label>Element -> Signal: <input id="elToSig" data-sync:user.name@.></label>
+      <label>Two-way: <input id="twoWay" data-sync:user.name></label>
+      <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
+      <h4>2. Style &amp; Boolean Deep Sync</h4>
+      <label>Theme Color: <input type="color" data-sync:user.ui.theme-color></label>
+      <div style="padding:8px;border:1px solid #ccc;margin:6px 0" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
+      <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
+      <input type="range" min="12" max="32" data-sync:user.ui.font-size>
+      <p data-sub:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">Resizable text</p>
+      <label><input type="checkbox" data-sync:user.ui.is-active> Active</label>
+      <p>Status: <strong data-sub:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+      <h4>3. Multiple Triggers &amp; Targets</h4>
+      <button data-sub:count@.click="dm.count + 1">+1</button>
+      <button data-sub:count@.click="dm.count - 1">-1</button>
+      <button data-sub:count@.click="0">Reset</button>
+      <p>Count: <strong data-sub:.@count="dm.count"></strong></p>
+      <p>Doubled: <span data-sub:.:doubled@count="dm.count * 2"></span></p>
+      <button id="probeBtn" data-sub:.@.click="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
+      <span id="probeOut" data-sub:.@count="trig ? trig.root : ''"></span>
+      <div>
+        <button id="gOnceBtn" data-sub^once:once-test@.click="(dm.onceTest || 0) + 1">Once +1</button>
+        <span data-sub:.@once-test="dm.onceTest"></span>
+        <button id="gAlwaysBtn" data-sub^once:always-test@.click^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
+        <span data-sub:.@always-test="dm.alwaysTest"></span>
+      </div>
+      <div>
+        <button id="incGuard" data-sub:guard-val@.click="dm.guardVal + 1">Inc Guard</button>
+        <span data-sub:.@guard-val="dm.guardVal"></span>
+        <span data-sub:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
+        <span data-sub:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
+        <span data-sub^notand.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
+      </div>
+      <div>
+        <span data-sub:.@_interval.1000="(detail && detail.ms) ? ('interval ' + detail.ms) : ''"></span>
+        <span data-sub:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
+      </div>
+      <h4>4. Side Effects &amp; Multiple Triggers</h4>
+      <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
+      <p><span data-sub:.@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
+      <p><strong data-sub:.@count@#btn1.click@#btn2.click="dm.count + ' (updated)'"></strong></p>
+      <h4>5. Cross-Element Property Sync</h4>
+      <input id="src" placeholder="Type here..." data-sync:message>
+      <p data-sub:.@#src.input="document.getElementById('src').value"></p>
+      <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
+      <h4>6. Window Events &amp; Intervals</h4>
+      <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
+      <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
+      <h4>7. Default Props &amp; Events</h4>
+      <input id="inp1" placeholder="Default event (change)">
+      <p><span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
+      <button id="btn3">Click me</button>
+      <p><span data-sub:.@#btn3="'Clicked!'"></span></p>
+      <h4>8. Classes &amp; Display</h4>
+      <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
+      <div id="classBox" data-class+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+      <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
+      <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
+      <h4>9. List Rendering (data-dump)</h4>
+      <template id="tpl-post">
+        <li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0">
+          <span class="num" data-sub:.@posts="$index + 1"></span>
+          <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
+        </li>
+      </template>
+      <ul data-dump+#tpl-post@posts></ul>
+      <ul id="inline-posts" data-dump@posts><template><li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0"><span data-sub:.@posts="$index + 1"></span> <span data-sub:.@posts="dm.posts[$index]"></span></li></template></ul>
+      <div>
+        <button id="addPost" data-sub:posts@.click="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
+        <button id="removeFirst" data-sub:posts@.click="(dm.posts || []).slice(1)">Remove First</button>
+        <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
+      </div>
+      <h4>10. Modifiers demo</h4>
+      <button id="onceBtn" data-sub:mod-once@.click^once="(dm.modOnce || 0) + 1">Once</button>
+      <span data-sub:.@mod-once="dm.modOnce"></span>
+      <button id="debBtn" data-sub:mod-deb@.click^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
+      <span data-sub:.@mod-deb="dm.modDeb"></span>
+      <button id="thrBtn" data-sub:mod-thr@.click^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
+      <span data-sub:.@mod-thr="dm.modThr"></span>
+      <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
+      <button id="andBtn" data-sub:mod-and@.click^and.gate="(dm.modAnd || 0) + 1">AND</button>
+      <span data-sub:.@mod-and="dm.modAnd"></span>
+      <h4>State Tree (Live Debug)</h4>
+      <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+      <h4>11. Actions demo + OOB HTML morph</h4>
+      <button id="loadPost" data-get:post-result?busy?err@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (GET)</button>
+      <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span></div>
+      <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
+      <div>
+        <input id="new-title" placeholder="Title" />
+        <input id="new-user-name" placeholder="Name" />
+        <input id="new-user-email" placeholder="Email" />
+        <button id="create-post" data-post^json:created-post?busy?err@.click+#new-title.value+#new-user-name.value+#new-user-email.value="'https://jsonplaceholder.typicode.com/posts'">Create post (POST ^json)</button>
+        <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
+      </div>
+      <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
+        <button id="oobLoad" data-get:oob-html?busy?err@.click="'/mock/oob'">Load OOB HTML + morph</button>
+        <div id="oobTarget"><strong>Initial target content</strong></div>
+        <div data-sub:.@oob-html="applyOobHtml(dm.oobHtml)"></div>
+      </div>
+    </section>
   </main>
   <script>
     // Mirror console to <pre>, count tests
@@ -231,9 +349,9 @@
 
       let d = n.indexOf(DOT, p)
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
-      if (root) root = kebabToCamel(root)
 
       if (type === MOD) {
+        if (root) root = kebabToCamel(root)
         if (!root) { console.error('[dmax] Error: Mod name should not be empty for:', n, 'in:', aName); return null }
         if (d < 0 || d + 1 >= n.length) return { kind: MOD, not, root, path: null } // accepts trailing dot in ^mod-foo.
         let val = n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseItem(aName, TRIG, n, p) // recurse for mod val being a signal
@@ -247,7 +365,10 @@
           kind = id ? EV_PROP : SPECIAL
           root = root.slice(1)
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
-        } else kind = SIGNAL
+        } else {
+          kind = SIGNAL
+          root = kebabToCamel(root)
+        }
       }
 
       if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
@@ -398,6 +519,12 @@
 
     assert(_signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
     assert(_signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+
+    function dDebug(el) {
+      if (!el) return
+      _debugEls.add(el)
+      updateDebug()
+    }
 
     function getElById(id, aName) {
       if (!id) return null
@@ -577,10 +704,21 @@
       return defaultVal;
     }
 
-    const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle", MOD_PREVENT = 'prevent'
-    const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
+    const MOD_ONCE = 'once'
+    const MOD_ALWAYS = 'always'
+    const MOD_DEBOUNCE = 'debounce'
+    const MOD_THROTTLE = 'throttle'
+    const MOD_PREVENT = 'prevent'
+    const MOD_AND = 'and'
+    const MOD_NOTAND = 'notand'
+    const MOD_EQ = 'eq'
+    const MOD_NE = 'ne'
+    const MOD_LT = 'lt'
+    const MOD_GT = 'gt'
+    const MOD_LE = 'le'
+    const MOD_GE = 'ge'
     const PERMIT_MODS = Object.assign(Object.create(null), {
-      [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
+      [MOD_AND]: 1, [MOD_NOTAND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
     function getModOrNull(mods, name) {
       for (const m of mods || EMPTY_ARR) if (m.root === name) return m
@@ -621,6 +759,8 @@
         const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
           if (!mVal) return false
+        } else if (mName === MOD_NOTAND) { // inverse of ^and: permit only when the mod value is falsy
+          if (mVal) return false
         } else if (mName == MOD_EQ) {
           if (val != mVal) return false
         } else if (mName == MOD_NE) {
@@ -639,6 +779,19 @@
     }
 
     const _subs = new Map()
+    const _debugEls = new Set()
+    let _debugQueued = false
+    function updateDebug() {
+      if (!_debugEls.size || _debugQueued) return
+      _debugQueued = true
+      queueMicrotask(() => {
+        _debugQueued = false
+        const state = {}
+        for (const [k, v] of _dm.entries()) state[k] = v
+        const txt = JSON.stringify(state, null, 2)
+        for (const el of _debugEls) el.textContent = txt
+      })
+    }
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
     function _setSignalAndNotifySubs(aName, tar, val) {
@@ -731,7 +884,7 @@
         h.fn(h.changeMod === SG_CHANGED_ANY ? null : col[1])
       }
 
-      // updateDebug(); // @wip don't bother until later
+      updateDebug()
     }
 
     // @TEST register sink subscriber
@@ -816,6 +969,7 @@
     function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
       const one = hasMod(mods, MOD_ONCE)
+      const always = hasMod(mods, MOD_ALWAYS)
       const prv = hasMod(mods, MOD_PREVENT)
       // Precompute mod lookups once at setup; path values are still resolved lazily (may reference signals)
       const debMod = getModOrNull(mods, MOD_DEBOUNCE)
@@ -827,7 +981,7 @@
         if (isSg && trig.not) trigVal = !trigVal
         if (!modsPermitVal(mods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (one && h.remove) h.remove()
+        if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
       }
 
       const h = function (ev, val, detail) {
@@ -1653,11 +1807,14 @@
 
     // Dispatch table used by dDump (and future clone-wiring contexts) to call the right setup fn per data-* attr
     function wireNode(n, an, v) {
-      if (an.indexOf('data-sub') === 0) dSub(n, an, v)
+      if (an.indexOf('data-def') === 0) dDef(n, an, v)
+      else if (an === 'data-debug') dDebug(n)
+      else if (an.indexOf('data-sub') === 0) dSub(n, an, v)
       else if (an.indexOf('data-sync') === 0) dSync(n, an)
       else if (an.indexOf('data-class') === 0) dClass(n, an, v)
       else if (an.indexOf('data-disp') === 0) dDisp(n, an, v)
       else if (an.indexOf('data-dump') === 0) dDump(n, an)
+      else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
 
     // data-dump@items^immediate          (inline <template> child, array signal, immediate render)
@@ -2269,6 +2426,21 @@
       morphChildren(from, to)
     }
 
+    function applyOobHtml(html) {
+      if (!html) return ''
+      const t = document.createElement('template')
+      t.innerHTML = html
+      const src = t.content.querySelector('[data-oob]')
+      if (!src) return ''
+      const mode = src.getAttribute('data-oob')
+      const id = src.getAttribute('id')
+      const tar = id ? document.getElementById(id) : null
+      if (!tar) return ''
+      if (mode === 'morph') morph(tar, src)
+      else tar.replaceWith(src.cloneNode(true))
+      return 'applied:' + mode
+    }
+
     // morph tests -------------------------------------------------------
 
     function tMorphTextUpdate() {
@@ -2362,7 +2534,42 @@
         `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`)
       liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')))
     }
+    function installDemoFetchMock() {
+      if (window.__dmaxDemoFetchInstalled) return
+      const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null
+      window.fetch = function (url, init) {
+        const u = String(url || '')
+        if (u === '/mock/oob') {
+          const html = `<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`
+          return Promise.resolve({
+            ok: true,
+            headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
+            text: async () => html
+          })
+        }
+        if (baseFetch) return baseFetch(url, init)
+        return Promise.reject(new Error('fetch not available'))
+      }
+      window.__dmaxDemoFetchInstalled = true
+    }
+    function initPortedExamples() {
+      const root = document.getElementById('ported-examples')
+      if (!root) return
+      const nodes = [root].concat(Array.from(root.querySelectorAll('*')))
+      const deferred = []
+      for (const n of nodes) {
+        for (const a of Array.from(n.attributes || [])) {
+          if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value)
+          else deferred.push([n, a.name, a.value])
+        }
+      }
+      for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal)
+      installDemoFetchMock()
+    }
     initLiveDSubExamples()
+    window.addEventListener('dmax:tests:done', () => {
+      initPortedExamples()
+    }, { once: true })
 
     // Production cleanup path: when DOM nodes are removed, detach all their bound listeners/subscribers.
     // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
