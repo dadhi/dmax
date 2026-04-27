@@ -941,7 +941,7 @@
     }
     __assert(__tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
 
-    function __assert_setC() {
+    function __tSetC() {
       reset();
       _dm.set('sg', [1, 2]);
       const c0 = [], c1 = [], c2 = [];
@@ -953,7 +953,7 @@
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
     }
-    __assert(__assert_setC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
+    __assert(__tSetC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
     function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
