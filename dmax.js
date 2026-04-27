@@ -867,13 +867,15 @@
         const rawFn = fn
         fn = (dm, el, trig, trigVal, detail) => {
           const exprVal = rawFn(dm, el, trig, trigVal, detail)
+          let failedTar = null
           try {
             for (const tar of tars) {
+              failedTar = tar
               console.assert(tar.kind)
               if (tar.kind == SIGNAL) setSignalAndNotifySubsNLevelsDeep(aName, tar, exprVal)
               else setProp(el, aName, tar, exprVal)
             }
-          } catch (e) { console.error('[dmax] Error: setting targets in', aName, 'ended with ex:', e) }
+          } catch (e) { console.error('[dmax] Error: setting target', failedTar, 'in', aName, 'ended with ex:', e) }
         }
       }
 
