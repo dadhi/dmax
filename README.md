@@ -44,9 +44,11 @@ A tiny declarative web runtime driven by `data-*` attributes.
 <input data-sync:user.name>
 <div data-class+active+!inactive@active="dm.active"></div>
 
-<button data-get:post-result?busy?err@.click="'https://jsonplaceholder.typicode.com/posts/1'">
+<button data-get:post-result?post-loading?post-error@.click="'https://jsonplaceholder.typicode.com/posts/1'">
   Load
 </button>
+<strong data-disp:.@post-loading="dm.postLoading">Loading…</strong>
+<span data-sub:.@post-error="dm.postError"></span>
 ```
 
 ## Compression question

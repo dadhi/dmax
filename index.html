@@ -89,7 +89,8 @@
         "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
-        "busy":false,"err":null,"postResult":null,"createdPost":null,"oobHtml":""
+        "busy":false,"err":null,"postResult":null,"createdPost":null,"oobHtml":"",
+        "post-loading":false,"post-error":null,"post-result-custom":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
       <label>User Name: <input type="text" data-sync:user.name></label>
@@ -185,6 +186,12 @@
       <button id="loadPost" data-get:post-result?busy?err@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (GET)</button>
       <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
+      <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
+        <button id="loadPostCustomBusy" data-get:post-result-custom?post-loading?post-error@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (custom busy/error signals)</button>
+        <strong style="margin-left:8px" data-disp:.@post-loading="dm.postLoading">Loading…</strong>
+        <div>Error: <span data-sub:.@post-error="dm.postError"></span></div>
+        <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
+      </div>
       <div>
         <input id="new-title" placeholder="Title" />
         <input id="new-user-name" placeholder="Name" />
