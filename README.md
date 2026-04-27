@@ -23,6 +23,9 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `data-disp` — show/hide elements
 - `data-dump` — render array items via templates
 - `data-get|post|put|patch|delete` — declarative HTTP actions
+- Datastar SSE (`text/event-stream`) in actions:
+  - `event: datastar-patch-elements` (`mode`: `outer|inner|replace|prepend|append|before|after|remove`, `selector`, `namespace`, `elements`)
+  - `event: datastar-patch-signals` (`signals` JSON merge patch, optional `onlyIfMissing true`)
 
 ### Token grammar
 
@@ -52,6 +55,8 @@ A tiny declarative web runtime driven by `data-*` attributes.
 ```
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
+
+For `datastar-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 
 ## Compression question
 

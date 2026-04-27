@@ -1884,7 +1884,13 @@
 
           const res = await window.fetch(finalUrl, init)
           const ct = (res.headers && res.headers.get('content-type')) || ''
-          const payload = ct.includes('application/json') ? await res.json() : await res.text()
+          let payload
+          if (ct.includes('text/event-stream')) {
+            const sseRaw = await res.text()
+            payload = applyDatastarSse(sseRaw)
+          } else {
+            payload = ct.includes('application/json') ? await res.json() : await res.text()
+          }
 
           if (resultTar) setSignalAndNotifySubsNLevelsDeep(aName, resultTar, payload)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
@@ -2206,6 +2212,164 @@
       return 'applied:' + mode
     }
 
+    const JSON_MERGE_DELETE = Symbol('json_merge_delete')
+
+    function parseSseEvents(raw) {
+      if (!raw) return []
+      const events = []
+      let curEvent = '', curData = []
+      const lines = String(raw).replace(/\r/g, '').split('\n')
+      const flush = () => {
+        if (curEvent || curData.length) events.push({ event: curEvent || 'message', data: curData.join('\n') })
+        curEvent = ''; curData = []
+      }
+      for (const line of lines) {
+        if (!line) { flush(); continue }
+        if (line[0] === ':') continue
+        const p = line.indexOf(':')
+        const field = p >= 0 ? line.slice(0, p) : line
+        let val = p >= 0 ? line.slice(p + 1) : ''
+        if (val[0] === ' ') val = val.slice(1)
+        if (field === 'event') curEvent = val
+        else if (field === 'data') curData.push(val)
+      }
+      flush()
+      return events
+    }
+
+    function parseDatastarArgs(rawData) {
+      const out = {}
+      if (!rawData) return out
+      for (const line of String(rawData).split('\n')) {
+        const i = line.indexOf(' ')
+        if (i <= 0) continue
+        const k = line.slice(0, i), v = line.slice(i + 1)
+        if (!out[k]) out[k] = v
+        else out[k] += '\n' + v
+      }
+      return out
+    }
+
+    function parseDatastarElements(html, namespace) {
+      if (!html) return []
+      const ns = (namespace || 'html').toLowerCase()
+      if (ns === 'html') {
+        const t = document.createElement('template')
+        t.innerHTML = html
+        return Array.from(t.content.children)
+      }
+      const wrap = ns === 'svg'
+        ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
+        : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
+      const doc = new DOMParser().parseFromString(wrap, 'image/svg+xml')
+      const root = doc.documentElement
+      return root ? Array.from(root.children) : []
+    }
+
+    function insertFragmentRelative(target, sourceEls, mode) {
+      if (!target || !sourceEls || !sourceEls.length) return
+      const frag = document.createDocumentFragment()
+      for (const src of sourceEls) frag.appendChild(src.cloneNode(true))
+      if (mode === 'append') target.appendChild(frag)
+      else if (mode === 'prepend') target.insertBefore(frag, target.firstChild || null)
+      else if (mode === 'before' && target.parentNode) target.parentNode.insertBefore(frag, target)
+      else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
+    }
+
+    function applyDatastarPatchElements(args) {
+      const mode = String(args.mode || 'outer').toLowerCase()
+      const selector = args.selector ? String(args.selector) : ''
+      const namespace = args.namespace ? String(args.namespace) : 'html'
+      const sourceEls = parseDatastarElements(args.elements || '', namespace)
+
+      if (mode === 'remove') {
+        if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
+        else for (const src of sourceEls) if (src.id) document.getElementById(src.id)?.remove()
+        return
+      }
+
+      if (mode === 'append' || mode === 'prepend' || mode === 'before' || mode === 'after') {
+        if (!selector || !sourceEls.length) return
+        for (const t of document.querySelectorAll(selector)) insertFragmentRelative(t, sourceEls, mode)
+        return
+      }
+
+      const applyPair = (targetEl, srcEl) => {
+        if (!targetEl || !srcEl) return
+        if (mode === 'replace') {
+          targetEl.replaceWith(srcEl.cloneNode(true))
+          return
+        }
+        if (mode === 'inner') {
+          const to = targetEl.cloneNode(false)
+          for (const ch of Array.from(srcEl.childNodes)) to.appendChild(ch.cloneNode(true))
+          morphChildren(targetEl, to)
+          return
+        }
+        morph(targetEl, srcEl)
+      }
+
+      if (selector) {
+        const targets = Array.from(document.querySelectorAll(selector))
+        for (let i = 0; i < targets.length; i++) applyPair(targets[i], sourceEls[i] || sourceEls[0])
+        return
+      }
+
+      for (const src of sourceEls) if (src.id) applyPair(document.getElementById(src.id), src)
+    }
+
+    function applyJsonMergePatch(prev, patch) {
+      if (patch === null) return JSON_MERGE_DELETE
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch
+      const out = (prev && typeof prev === 'object' && !Array.isArray(prev)) ? { ...prev } : {}
+      for (const k of Object.keys(patch)) {
+        const next = applyJsonMergePatch(out[k], patch[k])
+        if (next === JSON_MERGE_DELETE) delete out[k]
+        else out[k] = next
+      }
+      return out
+    }
+
+    function applyDatastarPatchSignals(aName, args) {
+      const raw = args.signals
+      if (!raw) return
+      let patchObj = null
+      try { patchObj = JSON.parse(raw) } catch (_e) { return }
+      if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
+      const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
+      for (const root of Object.keys(patchObj)) {
+        if (onlyIfMissing && _dm.has(root)) continue
+        const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
+        if (next === JSON_MERGE_DELETE) {
+          if (_dm.has(root)) {
+            setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, undefined)
+            _dm.delete(root)
+            updateDebug()
+          }
+        } else {
+          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, next)
+        }
+      }
+    }
+
+    function applyDatastarSse(raw, aName = 'datastar-sse') {
+      const events = parseSseEvents(raw)
+      const applied = []
+      for (const evt of events) {
+        if (!evt || typeof evt.event !== 'string') continue
+        if (evt.event === 'datastar-patch-elements') {
+          const args = parseDatastarArgs(evt.data)
+          applyDatastarPatchElements(args)
+          applied.push({ event: evt.event, args })
+        } else if (evt.event === 'datastar-patch-signals') {
+          const args = parseDatastarArgs(evt.data)
+          applyDatastarPatchSignals(aName, args)
+          applied.push({ event: evt.event, args })
+        }
+      }
+      return applied
+    }
+
     // morph tests -------------------------------------------------------
 
     function __tMorphTextUpdate() {
@@ -2287,6 +2451,69 @@
     }
     __assert(__tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
 
+    function __tDatastarPatchSignalsMergeAndRemove() {
+      __reset()
+      _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
+      applyDatastarPatchSignals('t', { signals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
+      const user = _dm.get('user') || {}
+      return { name: user.name, keep: user.keep, hasRemove: Object.prototype.hasOwnProperty.call(user, 'removeMe'), newSg: _dm.get('newSg') }
+    }
+    __assert(__tDatastarPatchSignalsMergeAndRemove, [], { name: 'Bob', keep: 1, hasRemove: false, newSg: 7 }, 'datastar: patch-signals merges RFC7386 and removes null fields')
+
+    function __tDatastarPatchSignalsOnlyIfMissing() {
+      __reset()
+      _dm.set('existing', 1)
+      applyDatastarPatchSignals('t', { onlyIfMissing: 'true', signals: '{"existing":2,"added":3}' })
+      return { existing: _dm.get('existing'), added: _dm.get('added') }
+    }
+    __assert(__tDatastarPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'datastar: patch-signals onlyIfMissing skips existing roots')
+
+    function __tDatastarPatchElementsOuterMorphKeepsListener() {
+      const root = document.createElement('div')
+      root.innerHTML = '<button id="ds-btn" class="old">old</button>'
+      document.body.appendChild(root)
+      try {
+        const btn = root.querySelector('#ds-btn')
+        let clicks = 0
+        btn.addEventListener('click', () => clicks++)
+        applyDatastarPatchElements({ mode: 'outer', elements: '<button id="ds-btn" class="new">new</button>' })
+        const after = root.querySelector('#ds-btn')
+        after.click()
+        return { sameNode: after === btn, clicks, className: after.className, text: after.textContent }
+      } finally { root.remove() }
+    }
+    __assert(__tDatastarPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'datastar: patch-elements outer uses morph and preserves listeners')
+
+    function __tDatastarSseStreamAppliesBothEvents() {
+      __reset()
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="ds-target">old</div><div class="rm">bye</div>'
+      document.body.appendChild(root)
+      try {
+        const stream = [
+          'event: datastar-patch-signals',
+          'data: signals {"sseVal":11}',
+          '',
+          'event: datastar-patch-elements',
+          'data: mode outer',
+          'data: elements <div id="ds-target">new</div>',
+          '',
+          'event: datastar-patch-elements',
+          'data: mode remove',
+          'data: selector .rm',
+          ''
+        ].join('\n')
+        const applied = applyDatastarSse(stream, 't')
+        return {
+          events: applied.length,
+          sseVal: _dm.get('sseVal'),
+          txt: root.querySelector('#ds-target')?.textContent || '',
+          removed: root.querySelector('.rm') === null
+        }
+      } finally { root.remove() }
+    }
+    __assert(__tDatastarSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'datastar: SSE stream applies patch-signals and patch-elements')
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
@@ -2310,6 +2537,22 @@
             ok: true,
             headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
             text: async () => html
+          })
+        }
+        if (u === '/mock/datastar-sse') {
+          const body = [
+            'event: datastar-patch-signals',
+            'data: signals {"sseMessage":"hello from datastar","sseCount":1}',
+            '',
+            'event: datastar-patch-elements',
+            'data: mode outer',
+            'data: elements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+            ''
+          ].join('\n')
+          return Promise.resolve({
+            ok: true,
+            headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+            text: async () => body
           })
         }
         if (baseFetch) return baseFetch(url, init)
