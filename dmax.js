@@ -723,18 +723,25 @@
 
     function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
-      const one = hasMod(mods, MOD_ONCE)
-      const always = hasMod(mods, MOD_ALWAYS)
-      const prv = hasMod(mods, MOD_PREVENT)
-      // Precompute mod lookups once at setup; path values are still resolved lazily (may reference signals)
-      const debMod = getModOrNull(mods, MOD_DEBOUNCE)
-      const thrMod = getModOrNull(mods, MOD_THROTTLE)
+      let one = false, always = false, prv = false
+      let debMod = null, thrMod = null, permitMods = null
+      for (const m of mods || EMPTY_ARR) {
+        if (m.root === MOD_ONCE) one = true
+        else if (m.root === MOD_ALWAYS) always = true
+        else if (m.root === MOD_PREVENT) prv = true
+        else if (m.root === MOD_DEBOUNCE) debMod = m
+        else if (m.root === MOD_THROTTLE) thrMod = m
+        else if (m.root in PERMIT_MODS) {
+          if (!permitMods) permitMods = []
+          permitMods.push(m)
+        }
+      }
       let tm = 0, last = 0
 
       const run = (ev, val, detail) => {
         let trigVal = (isSg ? getSignalValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (isSg && trig.not) trigVal = !trigVal
-        if (!modsPermitVal(mods, trigVal)) return
+        if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
       }
@@ -857,23 +864,16 @@
       let fn = compileFn(aVal, aName)
       if (!fn) return
       if (tars) {
-        let tarSetters = []
-        for (const tar of tars) {
-          console.assert(tar.kind)
-          let setTar = tar.kind == SIGNAL
-            ? (el, n, t, val) => setSignalAndNotifySubsNLevelsDeep(n, t, val)
-            : (el, n, t, val) => setProp(el, n, t, val)
-          tarSetters.push([tar, setTar])
-        }
         const rawFn = fn
-        if (tarSetters.length > 0) {
-          fn = (dm, el, trig, trigVal, detail) => {
-            // // const detail = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
-            const exprVal = rawFn(dm, el, trig, trigVal, detail)
-            try {
-              for (const [t, st] of tarSetters) st(el, aName, t, exprVal)
-            } catch (e) { console.error('[dmax] Error: setting the target:', t, 'ended with ex:', e) }
-          }
+        fn = (dm, el, trig, trigVal, detail) => {
+          const exprVal = rawFn(dm, el, trig, trigVal, detail)
+          try {
+            for (const tar of tars) {
+              console.assert(tar.kind)
+              if (tar.kind == SIGNAL) setSignalAndNotifySubsNLevelsDeep(aName, tar, exprVal)
+              else setProp(el, aName, tar, exprVal)
+            }
+          } catch (e) { console.error('[dmax] Error: setting targets in', aName, 'ended with ex:', e) }
         }
       }
 
