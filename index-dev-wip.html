@@ -276,16 +276,8 @@
     //------- lib code starts here-------------
     // Returns the index of the first found char (from chars) in the s, or -1 if none found,
     // then you can check s[returnedIndex] to see which char it is.
-    const __diffShapeShallow = diffShapeShallow;
-    const __getPropValAndDepth = getPropValAndDepth;
-    const __indexFirst = indexFirst;
-    const __kebabToCamel = kebabToCamel;
-    const __parse = parse;
-    const __parseItem = parseItem;
-    const __setProp = setProp;
-    const __valChangedDeep = valChangedDeep;
 
-    function indexFirst(s, chars, pos = 0) {
+    function __indexFirst(s, chars, pos = 0) {
       let i, first = s.length
       for (let c of chars) if ((i = s.indexOf(c, pos)) != -1 && i < first) first = i
       return first === s.length ? -1 : first
@@ -297,7 +289,7 @@
     assert(__indexFirst, ['abcdefg', ['a'], 10], -1, 'pos out of range');
 
     const CAMEL_NAMES = new Map()
-    function kebabToCamel(s) {
+    function __kebabToCamel(s) {
       if (!s) return s
       let p = s.indexOf('-')
       if (p < 0) return s
@@ -332,7 +324,7 @@
     const MODS = [MOD]
 
     const DOT = '.', ID = '#', NOT = '!'
-    const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
+    const NAME_DELIMS = [DOT] //'[', ']' // @wip __parse brackets later
     const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
 
     // Applied only to the signals!
@@ -349,7 +341,7 @@
 
     const _KIND = [MOD, SIGNAL, EV_PROP, SPECIAL]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
-    function parseItem(aName, type, n, pos = 0) {
+    function __parseItem(aName, type, n, pos = 0) {
       if (!n) return null
 
       let p = pos
@@ -360,10 +352,10 @@
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
 
       if (type === MOD) {
-        if (root) root = kebabToCamel(root)
+        if (root) root = __kebabToCamel(root)
         if (!root) { console.error('[dmax] Error: Mod name should not be empty for:', n, 'in:', aName); return null }
         if (d < 0 || d + 1 >= n.length) return { kind: MOD, not, root, path: null } // accepts trailing dot in ^mod-foo.
-        let val = n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseItem(aName, TRIG, n, p) // recurse for mod val being a signal
+        let val = n.indexOf(DOT, p = d + 1) < 0 ? __kebabToCamel(n.slice(p)) : __parseItem(aName, TRIG, n, p) // recurse for mod val being a signal
         return { kind: MOD, root, not, path: val }
       }
 
@@ -376,7 +368,7 @@
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
         } else {
           kind = SIGNAL
-          root = kebabToCamel(root)
+          root = __kebabToCamel(root)
         }
       }
 
@@ -389,7 +381,7 @@
         d = n.indexOf(DOT, p)
         const part = n.slice(p, p = d < 0 ? n.length : d)
         if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', aName); return null }
-        path.push(kebabToCamel(part))
+        path.push(__kebabToCamel(part))
         ++p
       }
       return { kind, not, root, path }
@@ -409,16 +401,16 @@
     assert(__parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     assert(__parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
 
-    // parse() invariants: empty mods -> null
-    function parse(aName, p = 'data-'.length, it = ALL) {
+    // __parse() invariants: empty mods -> null
+    function __parse(aName, p = 'data-'.length, it = ALL) {
       let items = {}, modItems = null
       while (p >= 0 && p < aName.length) {
-        if ((p = indexFirst(aName, it, p)) == -1) { p = aName.length; break }
+        if ((p = __indexFirst(aName, it, p)) == -1) { p = aName.length; break }
         let t = aName[p], item = null
         if (++p < aName.length) {
-          let end = indexFirst(aName, ALL, p)
+          let end = __indexFirst(aName, ALL, p)
           let name = aName.slice(p, p = end != -1 ? end : aName.length)
-          if (name) item = parseItem(aName, t, name)
+          if (name) item = __parseItem(aName, t, name)
         }
 
         if (!item) continue // skip null/errors, avoid later null checks
@@ -431,7 +423,7 @@
           item.mods = items[MOD] ?? null // set to glob mods if any
           ts.push(item);
         } else {
-          [modItems, p] = parse(aName, p, MODS)
+          [modItems, p] = __parse(aName, p, MODS)
           let mods = modItems?.[MOD] ?? null
           if (items[MOD]) mods = mods ? mods.concat(items[MOD]) : items[MOD].slice()
           item.mods = mods
@@ -471,7 +463,7 @@
     function compileFn(aVal, aName, args = FN_ARGS) {
       let val = '' + aVal
       var r = val.indexOf('return')
-      let body = r != -1 && (r + 6 >= val.length || indexFirst(val, RETURN_THEN, r + 6) == r + 6) ? val : `return(${val})`
+      let body = r != -1 && (r + 6 >= val.length || __indexFirst(val, RETURN_THEN, r + 6) == r + 6) ? val : `return(${val})`
       body = `try{ ${body} }catch(e){ console.error('[dmax] Error: eval ${aName} value as function:', e.message, '>>>', ${val}); return }`
       let fn;
       try { fn = Function(...args, body) }
@@ -494,7 +486,7 @@
     // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
     function dDef(el, aName, aVal) {
-      let [it, _p] = parse(aName)
+      let [it, _p] = __parse(aName)
       let tars = it[TARG]
       delete it[TARG]
       if (!isObjEmpty(it)) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
@@ -509,7 +501,7 @@
         }
       } else if (val && typeof val === 'object') {
         for (const t in val)
-          _dm.set(kebabToCamel(t), val[t])
+          _dm.set(__kebabToCamel(t), val[t])
       } else {
         console.error('[dmax] Error: Attribute', aName, 'value should contain object with signal fields, but found', aVal)
       }
@@ -558,7 +550,7 @@
     function getElPropVal(targetEl, propPath) {
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(targetEl)
       let val = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
-      return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
+      return propPath && propPath.length > 1 ? __getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
     function mkEv(nam) {
@@ -572,7 +564,7 @@
 
     function isNil(v) { return v === null || v === undefined }
 
-    function getPropValAndDepth(obj, path, depth = -1) {
+    function __getPropValAndDepth(obj, path, depth = -1) {
       let v = obj
       if (isNil(v) || !path) return [v, 0]
       let n = depth == -1 || depth > path.length ? path.length : depth
@@ -585,17 +577,17 @@
     assert(__getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
 
     const VAL_CHANGE_DEPTH_MAX = 32
-    function valChangedDeep(before, after, depth = 0) {
+    function __valChangedDeep(before, after, depth = 0) {
       if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] Warning: too deep to compare for signal value change, consider it changed, stopped at:', VAL_CHANGE_DEPTH_MAX); return true }
       const b = before, a = after
       if (Array.isArray(b)) { // means b is also an array
         if (!Array.isArray(a) || b.length != a.length) return true
-        for (let i = 0; i < b.length; ++i) if (valChangedDeep(b[i], a[i], ++depth)) return true
+        for (let i = 0; i < b.length; ++i) if (__valChangedDeep(b[i], a[i], ++depth)) return true
       } else if (b && typeof b === 'object') {
         if (!a || typeof a !== 'object') return true
         for (const k in b) {
           if (!(k in a)) return true
-          if (valChangedDeep(b[k], a[k], ++depth)) return true
+          if (__valChangedDeep(b[k], a[k], ++depth)) return true
         }
         for (const k in a) if (!(k in b)) return true
       } else if (a !== b) return true
@@ -619,19 +611,19 @@
       return false
     }
 
-    function setProp(el, aName, tar, val) {
+    function __setProp(el, aName, tar, val) {
       if (!expected(tar.kind === EV_PROP)) return null;
       let obj = tar.root ? getElById(tar.root, aName) : el
       let path = tar.path, prop = null
       if (!path)
         prop = getDefaultProp(el);
       else if (path.length > 0) {
-        [obj, _] = getPropValAndDepth(obj, path, path.length - 1)
+        [obj, _] = __getPropValAndDepth(obj, path, path.length - 1)
         prop = path[path.length - 1]
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', aName); return }
       try {
-        if (valChangedDeep(obj[prop], val)) obj[prop] = val;
+        if (__valChangedDeep(obj[prop], val)) obj[prop] = val;
       } catch (e) {
         console.error('[dmax] Error: Failed to set property:', e.message, '>>>', tar, 'on', el);
       }
@@ -650,7 +642,7 @@
     const EMPTY_ARR = []
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
 
-    function diffShapeShallow(before, after) {
+    function __diffShapeShallow(before, after) {
       let b = before, a = after
       if (!b || typeof b != 'object') b = EMPTY_ARR
       if (!a || typeof a != 'object') a = EMPTY_ARR
@@ -739,7 +731,7 @@
       if (!it.kind) return it
       const sg = _dm.get(it.root)
       const path = it.path
-      const val = path && path.length ? getPropValAndDepth(sg, path)[0] : sg
+      const val = path && path.length ? __getPropValAndDepth(sg, path)[0] : sg
       return it.not ? !val : val
     }
 
@@ -748,7 +740,7 @@
       if (v && v.kind) return getSignalValOrIt(v)
       if (typeof v !== 'string') return v
       if (_dm.has(v)) return _dm.get(v)
-      const parsed = parseItem('mod', TRIG, v)
+      const parsed = __parseItem('mod', TRIG, v)
       return parsed && parsed.kind
         ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
         : v
@@ -807,13 +799,13 @@
       let sgVal = _dm.get(root), curVal = sgVal, parent = sgVal, d = 0, last = null
       if (path) {
         if (!expected(path.length)) return null;
-        [parent, d] = getPropValAndDepth(parent, path, path.length - 1)
+        [parent, d] = __getPropValAndDepth(parent, path, path.length - 1)
         if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', aName); return }
         curVal = parent[last = path[d]]
       }
 
       // if change detected it means ALL parents of cur  and SOME of children changed
-      if (!valChangedDeep(curVal, val)) return;
+      if (!__valChangedDeep(curVal, val)) return;
 
       const handlers = _subs.get(root);
       if (!handlers) {
@@ -829,7 +821,7 @@
         if (!hp) {
           if (!path && !diffed && changeMod !== SG_CHANGED_ANY) {// compare roots if it is the first time
             diffed = true
-            diff = diffShapeShallow(curVal, val)
+            diff = __diffShapeShallow(curVal, val)
           }
           if (path || changeMod !== SG_CHANGED_SHAPE_ONLY || diff)
             collected.push([h, path ? null : diff]) // ignore diff later for NOTIFY_SG_CHANGE
@@ -846,7 +838,7 @@
           if (path.length == hp.length) {
             if (!diffed && changeMod !== SG_CHANGED_ANY) {
               diffed = true
-              diff = diffShapeShallow(curVal, val)
+              diff = __diffShapeShallow(curVal, val)
             }
             if (changeMod !== SG_CHANGED_SHAPE_ONLY || diff)
               collected.push([h, diff])
@@ -860,18 +852,18 @@
         for (const col of collected) // check if the same
           if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
 
-        let [pathCur, _] = getPropValAndDepth(sgVal, hp), pathVal
+        let [pathCur, _] = __getPropValAndDepth(sgVal, hp), pathVal
         if (hCol) pathVal = hCol[2]
         else {
-          [pathVal, _] = getPropValAndDepth(val, hp)
-          if (!valChangedDeep(pathCur, pathVal)) continue
+          [pathVal, _] = __getPropValAndDepth(val, hp)
+          if (!__valChangedDeep(pathCur, pathVal)) continue
         }
 
         let pathDiffed = false, pathDiff = null
         if (changeMod != SG_CHANGED_ANY) {
           for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
           if (!pathDiffed) {
-            pathDiff = diffShapeShallow(pathCur, pathVal)
+            pathDiff = __diffShapeShallow(pathCur, pathVal)
             pathDiffs.push([hp, pathDiff])
           }
         }
@@ -1097,7 +1089,7 @@
 
     _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     function dSub(el, aName, aVal) {
-      let [it, _p] = parse(aName)
+      let [it, _p] = __parse(aName)
       let tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
 
       delete it[TARG]; delete it[TRIG]; delete it[MOD];
@@ -1111,7 +1103,7 @@
           console.assert(tar.kind)
           let setTar = tar.kind == SIGNAL
             ? (el, n, t, val) => setSignalAndNotifySubsNLevelsDeep(n, t, val)
-            : (el, n, t, val) => setProp(el, n, t, val)
+            : (el, n, t, val) => __setProp(el, n, t, val)
           tarSetters.push([tar, setTar])
         }
         const rawFn = fn
@@ -1406,7 +1398,7 @@
 
     const DEFAULT_PROP_TARGET = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null })
     function dSync(el, aName) {
-      let [parsedAttr] = parse(aName)
+      let [parsedAttr] = __parse(aName)
       const tars = parsedAttr[TARG] ?? EMPTY_ARR
       const trigs = parsedAttr[TRIG] ?? EMPTY_ARR
       const globMods = parsedAttr[MOD] ?? EMPTY_ARR
@@ -1449,7 +1441,7 @@
         const readMods = (sigTrig?.mods ?? sigTar?.mods ?? globMods) || EMPTY_ARR
         const subFn = applyTrigMods((_ev, _trigVal, detail) => {
           const v = getSignalValOrIt(signalRead)
-          setProp(el, aName, writePropTar, v)
+          __setProp(el, aName, writePropTar, v)
         }, signalRead, readMods)
         const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(signalRead), detail)
         const changeMod = getSgChangeShape(readMods)
@@ -1565,7 +1557,7 @@
     //   +!className → add class when expr falsy (inverted), remove when truthy
     // aVal is optional; without it the raw signal/trigger value is used as the boolean
     function dClass(el, aName, aVal) {
-      let [it] = parse(aName)
+      let [it] = __parse(aName)
       const adds = it[ADD] ?? EMPTY_ARR
       const tars = it[TARG] ?? EMPTY_ARR
       const trigs = it[TRIG] ?? EMPTY_ARR
@@ -1688,7 +1680,7 @@
     // data-disp:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
     function dDisp(el, aName, aVal) {
-      let [it] = parse(aName)
+      let [it] = __parse(aName)
       const tars = it[TARG] ?? EMPTY_ARR
       const trigs = it[TRIG] ?? EMPTY_ARR
       const globMods = it[MOD] ?? EMPTY_ARR
@@ -1825,7 +1817,7 @@
     // Inside templates: $item → dm.signal[idx], $index → String(idx) in attr values;
     //                   $item → signal.idx, $index → String(idx) in attr names
     function dDump(el, aName) {
-      let [it] = parse(aName)
+      let [it] = __parse(aName)
       const trigs = it[TRIG] ?? EMPTY_ARR
       const adds = it[ADD] ?? EMPTY_ARR
       const globMods = it[MOD] ?? EMPTY_ARR
@@ -2048,13 +2040,13 @@
     // Method is derived from the attribute prefix; aVal is compiled as a URL expression.
     function dAction(el, aName, aVal) {
       const afterData = aName.slice(5) // strip 'data-'
-      const methodEnd = indexFirst(afterData, ALL, 0)
+      const methodEnd = __indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const prefixToMethod = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }
       const method = prefixToMethod[methodName]
       if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', aName); return }
 
-      let [it] = parse(aName)
+      let [it] = __parse(aName)
       const tars = it[TARG] ?? EMPTY_ARR
       const trigs = it[TRIG] ?? EMPTY_ARR
       const stats = it[STAT] ?? EMPTY_ARR
