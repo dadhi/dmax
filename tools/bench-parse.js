@@ -3,7 +3,7 @@ const { parseDataAttrTable } = require('./parse_table');
 const fs = require('fs');
 
 const samples = [
-  ':testArr__append?busy__busy@.click',
+  '^busy.busy:testArr__append@.click',
   ':#myId.value__replace__json',
   '.value__prepend@.input',
   ':user.name__replace@.change',
@@ -14,7 +14,7 @@ const samples = [
   ':simpleSignal@signalName',
   ':complexSignal__debounce.250__throttle.100@.click',
   ':mixed__json.1.2@_special.arg',
-  ':#id.prop.sub__append?busy__busy@_special.arg',
+  '^busy.busy:#id.prop.sub__append@_special.arg',
 ];
 
 function bench(fn, label, itersPerSample) {

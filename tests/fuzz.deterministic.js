@@ -212,13 +212,13 @@ function* generateDataActionCombinations() {
     yield { attr: `data-${method}:result@#.click`, valid: true, category: `${method}-basic` };
     yield { attr: `data-${method}^json:result@#.click`, valid: true, category: `${method}-json` };
     yield { attr: `data-${method}+#input.value:result@#.click`, valid: true, category: `${method}-input` };
-    yield { attr: `data-${method}:result?busy,err@#.click`, valid: true, category: `${method}-state` };
+    yield { attr: `data-${method}^busy.busy^err.err:result@#.click`, valid: true, category: `${method}-state` };
     // Test hyphenated signal names (must convert to camelCase)
     yield { attr: `data-${method}:post-result@#.click`, valid: true, category: `${method}-hyphenated-target` };
     // Note: Actions don't support signal triggers (only event triggers like @#.click or @_interval.1000)
-    // Test state signals with different modes
-    yield { attr: `data-${method}:result?busy__busy,err__err,done__done@#.click`, valid: true, category: `${method}-state-modes` };
-    yield { attr: `data-${method}:result?status__all@#.click`, valid: true, category: `${method}-state-all` };
+    // Test state signals via modifiers
+    yield { attr: `data-${method}^busy.req-busy^err.req-err^code.req-code:result@#.click`, valid: true, category: `${method}-state-modes` };
+    yield { attr: `data-${method}^busy.status:result@#.click`, valid: true, category: `${method}-state-all` };
     // Test header shortcuts and combinations
     yield { attr: `data-${method}^json^auth.Bearer+token:result@#.click`, valid: true, category: `${method}-multi-headers` };
     // Test body modifiers

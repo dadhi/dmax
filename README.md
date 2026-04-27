@@ -29,7 +29,6 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `:target` signal/prop targets
 - `@trigger` signal/event/prop triggers
 - `+input` action inputs
-- `?state` action state signals (`busy`, `err`, etc.)
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
 
@@ -44,14 +43,15 @@ A tiny declarative web runtime driven by `data-*` attributes.
 <input data-sync:user.name>
 <div data-class+active+!inactive@active="dm.active"></div>
 
-<button data-get:post-result?post-loading?post-error@.click="'https://jsonplaceholder.typicode.com/posts/1'">
+<button data-get^busy.post-loading^err.post-error^code.post-code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">
   Load
 </button>
 <strong data-disp:.@post-loading="dm.postLoading">Loading…</strong>
 <span data-sub:.@post-error="dm.postError"></span>
+<span data-sub:.@post-code="dm.postCode"></span>
 ```
 
-`?post-loading?post-error` are custom tracker signal names (instead of common `?busy?err`) and are useful when multiple actions need separate loading/error indicators.
+`^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
 
 ## Compression question
 

@@ -78,8 +78,8 @@
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
     // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
     // Use ^ for modifiers (trigger guards/timing/options): data-get^no-cache:posts^replace+user.name^query.username
-    const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
-    const ALL = [MOD, TARG, TRIG, STAT, ADD]
+    const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
+    const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
 
     const DOT = '.', ID = '#', NOT = '!'
@@ -1792,10 +1792,10 @@
     }
     __assert(__tDumpExplicitTemplate, [], 2, 'dDump +#tplId explicit template reference appends 2 clones')
 
-    // data-get:result?busy@.click^immediate="url"
-    // data-post^json:result?busy@.click+#id.prop+signal="url"
+    // data-get^busy.busy:result@.click^immediate="url"
+    // data-post^json^busy.busy:result@.click+#id.prop+signal="url"
     // data-put^json:result@.click+body="url"
-    // data-delete:ok?busy@.click="url"
+    // data-delete^busy.busy:ok@.click="url"
     // Method is derived from the attribute prefix; aVal is compiled as a URL expression.
     function dAction(el, aName, aVal) {
       const afterData = aName.slice(5) // strip 'data-'
@@ -1808,7 +1808,6 @@
       let [it] = parse(aName)
       const tars = it[TARG] ?? EMPTY_ARR
       const trigs = it[TRIG] ?? EMPTY_ARR
-      const stats = it[STAT] ?? EMPTY_ARR
       const adds = it[ADD] ?? EMPTY_ARR
       const globMods = it[MOD] ?? EMPTY_ARR
 
@@ -1816,15 +1815,24 @@
       if (aVal && !urlFn) return
 
       const resultTar = tars.find(t => t.kind === SIGNAL) ?? null
-      // First ?stat = busy signal, second ?stat = error signal
-      const busyStat = stats[0] ?? null
-      const errStat = stats[1] ?? null
+      const resolveStatusSignal = (mod, fallbackRoot) => {
+        if (!mod) return null
+        const p = mod.path
+        if (typeof p === 'string') return { kind: SIGNAL, not: null, root: p || fallbackRoot, path: null }
+        if (p && p.kind === SIGNAL) return p
+        return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
+      }
+
+      const busyStat = resolveStatusSignal(findMod(globMods, 'busy'), 'busy')
+      const errStat = resolveStatusSignal(findMod(globMods, 'err'), 'err')
+      const codeStat = resolveStatusSignal(findMod(globMods, 'code'), 'code')
 
       const isJson = hasMod(globMods, 'json')
 
       // Initialise state signals to defaults if not yet defined
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
       if (errStat && !_dm.has(errStat.root)) _dm.set(errStat.root, null)
+      if (codeStat && !_dm.has(codeStat.root)) _dm.set(codeStat.root, null)
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
 
@@ -1834,6 +1842,7 @@
 
         if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, true)
         if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
+        if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, null)
 
         try {
           const queryParams = {}, bodyFields = {}
@@ -1880,9 +1889,11 @@
           if (resultTar) setSignalAndNotifySubsNLevelsDeep(aName, resultTar, payload)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
+          if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
         } catch (err) {
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
+          if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
           console.error('[dmax] Error: dAction fetch failed:', err)
         }
       }
@@ -2004,7 +2015,7 @@
       } finally { delete window.fetch }
     })
 
-    __asyncAssert('?busy signal goes true while fetching then false on success', async () => {
+    __asyncAssert('^busy.<signal> goes true while fetching then false on success', async () => {
       __reset()
       let resolveFetch
       window.fetch = () => new Promise(r => { resolveFetch = r })
@@ -2012,7 +2023,7 @@
         const btn = document.createElement('button')
         _dm.set('busy', false)
         _dm.set('data', null)
-        dAction(btn, 'data-get:data?busy@.click', '"https://api.test/data"')
+        dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         // busy is set synchronously before the first await inside doRequest
@@ -2027,14 +2038,14 @@
       } finally { delete window.fetch }
     })
 
-    __asyncAssert('fetch failure sets ?err signal and clears ?busy', async () => {
+    __asyncAssert('fetch failure sets ^err.<signal> and clears ^busy.<signal>', async () => {
       __reset()
       window.fetch = () => Promise.reject(new Error('Network error'))
       try {
         const btn = document.createElement('button')
         _dm.set('busy', false)
         _dm.set('errMsg', null)
-        dAction(btn, 'data-get:data?busy?errMsg@.click', '"https://api.test/data"')
+        dAction(btn, 'data-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))

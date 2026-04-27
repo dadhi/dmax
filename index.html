@@ -89,8 +89,8 @@
         "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
-        "busy":false,"err":null,"postResult":null,"createdPost":null,"oobHtml":"",
-        "post-loading":false,"post-error":null,"post-result-custom":null
+        "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,"oobHtml":"",
+        "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
       <label>User Name: <input type="text" data-sync:user.name></label>
@@ -183,24 +183,24 @@
       <h4>State Tree (Live Debug)</h4>
       <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <button id="loadPost" data-get:post-result?busy?err@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (GET)</button>
-      <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span></div>
+      <button id="loadPost" data-get^busy.busy^err.err^code.code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (GET)</button>
+      <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span> | Code: <span data-sub:.@code="dm.code"></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <button id="loadPostCustomBusy" data-get:post-result-custom?post-loading?post-error@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (custom busy/error signals)</button>
+        <button id="loadPostCustomBusy" data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (custom busy/error/code signals)</button>
         <strong style="margin-left:8px" data-disp:.@post-loading="dm.postLoading">Loading…</strong>
-        <div>Error: <span data-sub:.@post-error="dm.postError"></span></div>
+        <div>Error: <span data-sub:.@post-error="dm.postError"></span> | Code: <span data-sub:.@post-code="dm.postCode"></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>
       <div>
         <input id="new-title" placeholder="Title" />
         <input id="new-user-name" placeholder="Name" />
         <input id="new-user-email" placeholder="Email" />
-        <button id="create-post" data-post^json:created-post?busy?err@.click+#new-title.value+#new-user-name.value+#new-user-email.value="'https://jsonplaceholder.typicode.com/posts'">Create post (POST ^json)</button>
+        <button id="create-post" data-post^json^busy.busy^err.err^code.code:created-post@.click+#new-title.value+#new-user-name.value+#new-user-email.value="'https://jsonplaceholder.typicode.com/posts'">Create post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
       <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <button id="oobLoad" data-get:oob-html?busy?err@.click="'/mock/oob'">Load OOB HTML + morph</button>
+        <button id="oobLoad" data-get^busy.busy^err.err^code.code:oob-html@.click="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
         <div data-sub:.@oob-html="applyOobHtml(dm.oobHtml)"></div>
       </div>
