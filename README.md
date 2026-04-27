@@ -51,6 +51,8 @@ A tiny declarative web runtime driven by `data-*` attributes.
 <span data-sub:.@post-error="dm.postError"></span>
 ```
 
+`?post-loading?post-error` are custom tracker signal names (instead of common `?busy?err`) and are useful when multiple actions need separate loading/error indicators.
+
 ## Compression question
 
 Yes — you can compress `dmax.js` without Node/npm libraries.
