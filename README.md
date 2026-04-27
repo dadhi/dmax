@@ -57,6 +57,7 @@ A tiny declarative web runtime driven by `data-*` attributes.
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
 
 For `datastar-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
+When `datastar-patch-elements` is sent without a `selector`, each top-level `elements` node must include an `id` so dmax can target existing DOM nodes.
 
 ## Compression question
 

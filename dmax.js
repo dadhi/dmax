@@ -2261,7 +2261,7 @@
       const wrap = ns === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
         : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
-      const doc = new DOMParser().parseFromString(wrap, 'image/svg+xml')
+      const doc = new DOMParser().parseFromString(wrap, ns === 'svg' ? 'image/svg+xml' : 'application/xml')
       const root = doc.documentElement
       return root ? Array.from(root.children) : []
     }
@@ -2284,7 +2284,10 @@
 
       if (mode === 'remove') {
         if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
-        else for (const src of sourceEls) if (src.id) document.getElementById(src.id)?.remove()
+        else for (const src of sourceEls) {
+          if (src.id) document.getElementById(src.id)?.remove()
+          else console.warn('[dmax] datastar-patch-elements remove without selector requires element ids')
+        }
         return
       }
 
@@ -2311,11 +2314,17 @@
 
       if (selector) {
         const targets = Array.from(document.querySelectorAll(selector))
-        for (let i = 0; i < targets.length; i++) applyPair(targets[i], sourceEls[i] || sourceEls[0])
+        for (let i = 0; i < targets.length; i++) {
+          const src = sourceEls[i] || sourceEls[0]
+          applyPair(targets[i], src)
+        }
         return
       }
 
-      for (const src of sourceEls) if (src.id) applyPair(document.getElementById(src.id), src)
+      for (const src of sourceEls) {
+        if (src.id) applyPair(document.getElementById(src.id), src)
+        else console.warn('[dmax] datastar-patch-elements without selector requires element ids')
+      }
     }
 
     function applyJsonMergePatch(prev, patch) {
