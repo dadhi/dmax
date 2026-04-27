@@ -83,13 +83,13 @@
     <section id="ported-examples" style="padding:12px;border-top:1px solid #e2e8f0">
       <h3 style="margin:0 0 8px 0">Ported examples (index.html → updated syntax)</h3>
       <div data-def='{
-        "user":{"name":"Alice","age":25,"ui":{"theme-color":"#007bff","is-active":true,"font-size":16}},
+        "user":{"name":"Alice","age":25,"ui":{"themeColor":"#007bff","isActive":true,"fontSize":16}},
         "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
         "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
         "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
-        "once-test":0,"always-test":0,"guard-val":3,"other-flag":false,
-        "mod-once":0,"mod-deb":0,"mod-thr":0,"mod-and":0,"gate":false,
-        "busy":false,"err":null,"post-result":null,"created-post":null,"oob-html":""
+        "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
+        "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
+        "busy":false,"err":null,"postResult":null,"createdPost":null,"oobHtml":""
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
       <label>User Name: <input type="text" data-sync:user.name></label>
@@ -314,7 +314,7 @@
     assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
     assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
 
-    // todo: @wip
+    // Updated attribute-token syntax reference
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
     // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
     // Use ^ for modifiers (trigger guards/timing/options): data-get^no-cache:posts^replace+user.name^query.username
@@ -400,7 +400,7 @@
     assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
 
-    // return invariants: empty mods -> null, todo: @wip the rest
+    // parse() invariants: empty mods -> null
     function parse(aName, p = 'data-'.length, it = ALL) {
       let items = {}, modItems = null
       while (p >= 0 && p < aName.length) {
@@ -455,9 +455,6 @@
     }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
-
-    // todo: @remove - replaced by trigger object or null itself
-    // const SRC_IMMEDIATE = 0, SRC_SIGNAL = 1, SRC_PROP = 2, SRC_EVENT = 3, SRC_WIN = 4, SRC_DOC = 5, SRC_INTERVAL = 4
 
     // args available in right data-attr value expression, `trig` maybe null for no triggers or any of the _KIND except MOD
     const FN_ARGS = ['dm', 'el', 'trig', 'val', 'detail']
@@ -941,7 +938,7 @@
     }
     assert(tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
 
-    function assert_setC() {
+    function tSetC() {
       reset();
       _dm.set('sg', [1, 2]);
       const c0 = [], c1 = [], c2 = [];
@@ -953,7 +950,7 @@
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
     }
-    assert(assert_setC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
+    assert(tSetC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
     function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
@@ -1148,7 +1145,6 @@
           }
           subFn.remove = wrappedSubFn.remove
 
-          // todo: @wip can we use _KIND instead of type?
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
