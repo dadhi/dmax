@@ -476,15 +476,6 @@
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
-    function getModOrNull(mods, name) {
-      for (const m of mods || EMPTY_ARR) if (m.root === name) return m
-      return null
-    }
-
-    function hasMod(mods, name) {
-      for (const m of mods || EMPTY_ARR) if (m.root === name) return true
-      return false
-    }
 
     function getSignalValOrIt(it) {
       if (!it.kind) return it
@@ -503,11 +494,6 @@
       return parsed && parsed.kind
         ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
         : v
-    }
-
-    function hasPermitMods(mods) {
-      for (const m of mods || EMPTY_ARR) if (m.root in PERMIT_MODS) return true
-      return false
     }
 
     function modsPermitVal(mods, val) {
@@ -1825,11 +1811,18 @@
         return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
       }
 
-      const busyStat = resolveStatusSignal(findMod(globMods, 'busy'), 'busy')
-      const errStat = resolveStatusSignal(findMod(globMods, 'err'), 'err')
-      const codeStat = resolveStatusSignal(findMod(globMods, 'code'), 'code')
-
-      const isJson = hasMod(globMods, 'json')
+      let busyMod = null, errMod = null, codeMod = null
+      let isJson = false
+      for (const m of globMods) {
+        const mr = m.root
+        if (mr === 'json') isJson = true
+        else if (mr === 'busy' && !busyMod) busyMod = m
+        else if (mr === 'err' && !errMod) errMod = m
+        else if (mr === 'code' && !codeMod) codeMod = m
+      }
+      const busyStat = resolveStatusSignal(busyMod, 'busy')
+      const errStat = resolveStatusSignal(errMod, 'err')
+      const codeStat = resolveStatusSignal(codeMod, 'code')
 
       // Initialise state signals to defaults if not yet defined
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
