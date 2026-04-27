@@ -317,7 +317,7 @@
     // todo: @wip
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
     // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
-    // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
+    // Use ^ for modifiers (trigger guards/timing/options): data-get^no-cache:posts^replace+user.name^query.username
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
     const ALL = [MOD, TARG, TRIG, STAT, ADD]
     const MODS = [MOD]
@@ -2573,13 +2573,7 @@
     // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
-      // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
-      // Return true when an entry points to the same subscriber callback.
-      const matchesSubscriberFn = (entry, fn) => {
-        if (typeof entry === 'function') return entry === fn
-        if (!entry || typeof entry !== 'object') return false
-        return entry.fn === fn
-      }
+      const matchesSubscriberFn = (entry, fn) => !!entry && !Array.isArray(entry) && typeof entry === 'object' && entry.fn === fn
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
