@@ -128,7 +128,7 @@
         <span data-sub:.@guard-val="dm.guardVal"></span>
         <span data-sub:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
         <span data-sub:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
-        <span data-sub^notand.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
+        <span data-sub^!and.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
       </div>
       <div>
         <span data-sub:.@_interval.1000="(detail && detail.ms) ? ('interval ' + detail.ms) : ''"></span>
@@ -710,7 +710,6 @@
     const MOD_THROTTLE = 'throttle'
     const MOD_PREVENT = 'prevent'
     const MOD_AND = 'and'
-    const MOD_NOTAND = 'notand'
     const MOD_EQ = 'eq'
     const MOD_NE = 'ne'
     const MOD_LT = 'lt'
@@ -718,7 +717,7 @@
     const MOD_LE = 'le'
     const MOD_GE = 'ge'
     const PERMIT_MODS = Object.assign(Object.create(null), {
-      [MOD_AND]: 1, [MOD_NOTAND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
+      [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
     function getModOrNull(mods, name) {
       for (const m of mods || EMPTY_ARR) if (m.root === name) return m
@@ -758,9 +757,8 @@
       for (const m of mods || EMPTY_ARR) {
         const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
-          if (!mVal) return false
-        } else if (mName === MOD_NOTAND) { // inverse of ^and: permit only when the mod value is falsy
-          if (mVal) return false
+          const ok = !!mVal
+          if (m.not ? ok : !ok) return false
         } else if (mName == MOD_EQ) {
           if (val != mVal) return false
         } else if (mName == MOD_NE) {
