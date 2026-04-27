@@ -241,35 +241,35 @@
   <script>
     // @js-check
     //-------------test code-------------------
-    stableStringify = (val) => {
-      if (Array.isArray(val)) return `[${val.map(stableStringify).join(',')}]`;
+    __stableStringify = (val) => {
+      if (Array.isArray(val)) return `[${val.map(__stableStringify).join(',')}]`;
       if (val && typeof val === 'object' && !(val instanceof Date)) {
-        return `{${Object.keys(val).sort().map(key => `${JSON.stringify(key)}:${stableStringify(val[key])}`).join(',')}}`;
+        return `{${Object.keys(val).sort().map(key => `${JSON.stringify(key)}:${__stableStringify(val[key])}`).join(',')}}`;
       }
       return JSON.stringify(val);
     };
-    deepEqual = (a, b) => {
+    __deepEqual = (a, b) => {
       if (a === b) return true;
       const aObj = a && typeof a === 'object';
       const bObj = b && typeof b === 'object';
       if (!aObj && !bObj) return Object.is(a, b);
-      return stableStringify(a) === stableStringify(b);
+      return __stableStringify(a) === __stableStringify(b);
     };
-    fmt = (val) => (typeof val === 'string' ? `'${val}'` : stableStringify(val));
-    assert = (fn, args, expected, label) => {
+    __fmt = (val) => (typeof val === 'string' ? `'${val}'` : __stableStringify(val));
+    __assert = (fn, args, expected, label) => {
       const fname = fn && fn.name ? fn.name : '(anonymous)';
       const head = label ? `${fname} — ${label}` : fname;
       try {
         const actual = Array.isArray(args) ? fn(...args) : fn(args);
-        const pass = deepEqual(actual, expected);
+        const pass = __deepEqual(actual, expected);
         if (pass)
-          console.log('✓', head, '>>>', fmt(actual));
+          console.log('✓', head, '>>>', __fmt(actual));
         else
-          console.error('✗', head, '>>> expected:', fmt(expected), 'actual:', fmt(actual));
+          console.error('✗', head, '>>> expected:', __fmt(expected), 'actual:', __fmt(actual));
       } catch (err) {
         const em = err && err.message ? err.message : String(err)
         const es = err && err.stack ? err.stack : ''
-        console.error('✗', head, '>>> threw:', em, es, '>>> expected:', fmt(expected));
+        console.error('✗', head, '>>> threw:', em, es, '>>> expected:', __fmt(expected));
       }
     };
 
@@ -282,10 +282,10 @@
       return first === s.length ? -1 : first
     }
 
-    assert(indexFirst, ['abcdefg', ['x', 'y', 'z']], -1, 'none found');
-    assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
-    assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
-    assert(indexFirst, ['abcdefg', ['a'], 10], -1, 'pos out of range');
+    __assert(indexFirst, ['abcdefg', ['x', 'y', 'z']], -1, 'none found');
+    __assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
+    __assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
+    __assert(indexFirst, ['abcdefg', ['a'], 10], -1, 'pos out of range');
 
     const CAMEL_NAMES = new Map()
     function kebabToCamel(s) {
@@ -305,14 +305,14 @@
       return res
     }
 
-    assert(kebabToCamel, ['foo-bar'], 'fooBar', 'basic case');
-    assert(kebabToCamel, ['-bar'], 'Bar', 'lead single');
-    assert(kebabToCamel, ['bar-'], 'bar', 'trail single');
-    assert(kebabToCamel, ['multi-part-key'], 'multiPartKey', 'multi part');
-    assert(kebabToCamel, ['-'], '', 'single dash');
-    assert(kebabToCamel, ['--'], '', 'multi dashes only');
-    assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
-    assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
+    __assert(kebabToCamel, ['foo-bar'], 'fooBar', 'basic case');
+    __assert(kebabToCamel, ['-bar'], 'Bar', 'lead single');
+    __assert(kebabToCamel, ['bar-'], 'bar', 'trail single');
+    __assert(kebabToCamel, ['multi-part-key'], 'multiPartKey', 'multi part');
+    __assert(kebabToCamel, ['-'], '', 'single dash');
+    __assert(kebabToCamel, ['--'], '', 'multi dashes only');
+    __assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
+    __assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
 
     // todo: @wip
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
@@ -386,19 +386,19 @@
       return { kind, not, root, path }
     }
 
-    assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PROP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
-    assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
-    assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PROP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
-    assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SIGNAL, "not": true, "path": null, "root": "foo" }, 'negated once');
-    assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SIGNAL, "not": false, "path": null, "root": "foo" }, 'double negation even');
-    assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
-    assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
-    assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
-    assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
-    assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
-    assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
-    assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
-    assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
+    __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PROP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
+    __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
+    __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PROP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
+    __assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SIGNAL, "not": true, "path": null, "root": "foo" }, 'negated once');
+    __assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SIGNAL, "not": false, "path": null, "root": "foo" }, 'double negation even');
+    __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
+    __assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
+    __assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
+    __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
+    __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
+    __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
+    __assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
+    __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
 
     // return invariants: empty mods -> null, todo: @wip the rest
     function parse(aName, p = 'data-'.length, it = ALL) {
@@ -433,21 +433,21 @@
       return [items, p]
     }
 
-    assert(parse, ['data-def'], [{}, 8], 'empty')
-    assert(parse, ['data-sub:'], [{}, 9], 'single empty')
-    assert(parse, ['data-sub:.'], [{ ":": [{ "kind": EV_PROP, "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
-    assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
-    assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
-    assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
-    assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": SIGNAL, "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
-    assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
-    assert(parse, ['data-sub::'], [{}, 10], '2 empties')
-    assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
-    assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
-    assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
-    assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
-    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine global+local mods and keep repeats')
-    assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
+    __assert(parse, ['data-def'], [{}, 8], 'empty')
+    __assert(parse, ['data-sub:'], [{}, 9], 'single empty')
+    __assert(parse, ['data-sub:.'], [{ ":": [{ "kind": EV_PROP, "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
+    __assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
+    __assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
+    __assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
+    __assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": SIGNAL, "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
+    __assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
+    __assert(parse, ['data-sub::'], [{}, 10], '2 empties')
+    __assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
+    __assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
+    __assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
+    __assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
+    __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine global+local mods and keep repeats')
+    __assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
 
     function isObjEmpty(o) {
       for (const _ in o) return false
@@ -509,16 +509,16 @@
       }
     }
 
-    const _sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
-    const _signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
-    const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
-    assert(_sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
-    assert(_sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
-    assert(_sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
-    assert(_sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
+    const __sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
+    const __signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
+    const __signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
+    __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
+    __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
+    __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
+    __assert(__sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
 
-    assert(_signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
-    assert(_signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+    __assert(__signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
+    __assert(__signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
 
     function dDebug(el) {
       if (!el) return
@@ -533,9 +533,9 @@
       return el;
     };
 
-    const _getElById = (id, aName) => getElById(id, aName)?.textContent ?? null;
+    const __getElById = (id, aName) => getElById(id, aName)?.textContent ?? null;
 
-    assert(_getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
+    __assert(__getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
 
     function getDefaultProp(el) {
       if (!el) return 'textContent'
@@ -574,9 +574,9 @@
       return [v, n]
     }
 
-    assert(getPropValAndDepth, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
-    assert(getPropValAndDepth, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
-    assert(getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
+    __assert(getPropValAndDepth, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
+    __assert(getPropValAndDepth, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
+    __assert(getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
 
     const VAL_CHANGE_DEPTH_MAX = 32
     function valChangedDeep(before, after, depth = 0) {
@@ -596,16 +596,16 @@
       return false
     }
 
-    assert(valChangedDeep, ['foo', 'bar'], true, '2 diff strings')
-    assert(valChangedDeep, [null, []], true, 'null vs empty arr')
-    assert(valChangedDeep, [[], []], false, '2 empty arrays')
-    assert(valChangedDeep, [[42], [42]], false, '2 value arrays')
-    assert(valChangedDeep, [{ foo: 1 }, { foo: 1 }], false, '2 simple objects')
-    assert(valChangedDeep, [{ foo: 1 }, { foo }], true, '2 simple non equal objects')
-    assert(valChangedDeep, [{ foo: 1 }, null], true, 'object and null')
-    assert(valChangedDeep, [{ foo: 1, bar: [{ baz: [42] }] }, { foo: 1, bar: [{ baz: [42] }] }], false, 'complex objects')
-    assert(valChangedDeep, [[1, 5, 6, 7], [5, 6, 7, 8]], true, 'flat diff arrays')
-    assert(valChangedDeep, [[5, 6, 7, 8], [5, 6, 7, 8]], false, 'flat equal arrays')
+    __assert(valChangedDeep, ['foo', 'bar'], true, '2 diff strings')
+    __assert(valChangedDeep, [null, []], true, 'null vs empty arr')
+    __assert(valChangedDeep, [[], []], false, '2 empty arrays')
+    __assert(valChangedDeep, [[42], [42]], false, '2 value arrays')
+    __assert(valChangedDeep, [{ foo: 1 }, { foo: 1 }], false, '2 simple objects')
+    __assert(valChangedDeep, [{ foo: 1 }, { foo }], true, '2 simple non equal objects')
+    __assert(valChangedDeep, [{ foo: 1 }, null], true, 'object and null')
+    __assert(valChangedDeep, [{ foo: 1, bar: [{ baz: [42] }] }, { foo: 1, bar: [{ baz: [42] }] }], false, 'complex objects')
+    __assert(valChangedDeep, [[1, 5, 6, 7], [5, 6, 7, 8]], true, 'flat diff arrays')
+    __assert(valChangedDeep, [[5, 6, 7, 8], [5, 6, 7, 8]], false, 'flat equal arrays')
 
     function expected(cond, ctx = 'expect') {
       if (cond) return true
@@ -632,13 +632,13 @@
       return obj[prop]
     }
 
-    assert(setProp, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV_PROP, not: null, root: "", path: null }, 'Seaman!'],
+    __assert(setProp, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV_PROP, not: null, root: "", path: null }, 'Seaman!'],
       'Seaman!', 'default prop')
-    assert(setProp, [null, 'data-eval:#foo.', { kind: EV_PROP, not: null, root: 'foo', path: null }, 'Seaman!'],
+    __assert(setProp, [null, 'data-eval:#foo.', { kind: EV_PROP, not: null, root: 'foo', path: null }, 'Seaman!'],
       'Seaman!', '#foo default prop')
-    assert(setProp, [null, 'data-eval:#foo.style.color', { kind: EV_PROP, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    __assert(setProp, [null, 'data-eval:#foo.style.color', { kind: EV_PROP, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       'lime', '#foo nested prop')
-    assert(setProp, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    __assert(setProp, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
 
     const EMPTY_ARR = []
@@ -667,17 +667,17 @@
       return added.length ? (removed.length ? { added, removed } : { added }) : (removed.length ? { removed } : null)
     }
 
-    assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
-    assert(diffShapeShallow, [[1, 2], [3, 4]], null, 'arrays same length')
-    assert(diffShapeShallow, [[1, 2], [1, 2, 3, 4, 5]], { addedRange: [2, 3] }, 'arrays added tail')
-    assert(diffShapeShallow, [[1, 2, 3, 4, 5], [1, 2]], { removedRange: [2, 3] }, 'arrays removed tail')
-    assert(diffShapeShallow, [[], []], null, 'arrays both empty')
-    assert(diffShapeShallow, [{ a: 1 }, { a: 2 }], null, 'objects same keys different values')
-    assert(diffShapeShallow, [{ a: 1 }, { a: 1, b: 2 }], { added: ['b'] }, 'objects add key')
-    assert(diffShapeShallow, [{ a: 1, b: 2 }, { a: 1 }], { removed: ['b'] }, 'objects remove key')
-    assert(diffShapeShallow, [{ a: 1, b: 2 }, { a: 1, c: 3 }], { added: ['c'], removed: ['b'] }, 'objects add+remove')
-    assert(diffShapeShallow, [[1, 2, 3], { a: 1, b: 2 }], { added: ['a', 'b'], removedRange: [0, 3] }, 'array to object')
-    assert(diffShapeShallow, [{ a: 1, b: 2 }, [1, 2, 3]], { removed: ['a', 'b'], addedRange: [0, 3] }, 'object to array')
+    __assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
+    __assert(diffShapeShallow, [[1, 2], [3, 4]], null, 'arrays same length')
+    __assert(diffShapeShallow, [[1, 2], [1, 2, 3, 4, 5]], { addedRange: [2, 3] }, 'arrays added tail')
+    __assert(diffShapeShallow, [[1, 2, 3, 4, 5], [1, 2]], { removedRange: [2, 3] }, 'arrays removed tail')
+    __assert(diffShapeShallow, [[], []], null, 'arrays both empty')
+    __assert(diffShapeShallow, [{ a: 1 }, { a: 2 }], null, 'objects same keys different values')
+    __assert(diffShapeShallow, [{ a: 1 }, { a: 1, b: 2 }], { added: ['b'] }, 'objects add key')
+    __assert(diffShapeShallow, [{ a: 1, b: 2 }, { a: 1 }], { removed: ['b'] }, 'objects remove key')
+    __assert(diffShapeShallow, [{ a: 1, b: 2 }, { a: 1, c: 3 }], { added: ['c'], removed: ['b'] }, 'objects add+remove')
+    __assert(diffShapeShallow, [[1, 2, 3], { a: 1, b: 2 }], { added: ['a', 'b'], removedRange: [0, 3] }, 'array to object')
+    __assert(diffShapeShallow, [{ a: 1, b: 2 }, [1, 2, 3]], { removed: ['a', 'b'], addedRange: [0, 3] }, 'object to array')
 
     function samePath(a, b) {
       if (a.length !== b.length) return false
@@ -894,7 +894,7 @@
 
     function reset() { _subs.clear(); _dm.clear() }
 
-    function tSetD() {
+    function __tSetD() {
       reset();
       _dm.set('user', { name: 'Alice', age: 30 });
       const sh = [], nm = [], age = [], deep = [];
@@ -905,9 +905,9 @@
       _setSignalAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
       return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
     }
-    assert(tSetD, [], { r: 1, nm: 1, age: 0, deep: 0, val: 'Bob' }, 'path update, exact match');
+    __assert(__tSetD, [], { r: 1, nm: 1, age: 0, deep: 0, val: 'Bob' }, 'path update, exact match');
 
-    function tSetE() {
+    function __tSetE() {
       reset();
       _dm.set('user', { children: [1, 2] });
       const c0 = [], c1 = [], c2 = [];
@@ -919,17 +919,17 @@
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('user')?.children };
     }
-    assert(tSetE, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'path update shape arrays');
+    __assert(__tSetE, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'path update shape arrays');
 
-    function tSetA() {
+    function __tSetA() {
       reset()
       _dm.set('sg', 1);
       _setSignalAndNotifySubs('t', { root: 'sg', path: null }, 2);
       return _dm.get('sg');
     }
-    assert(tSetA, [], 2, 'root update no subs');
+    __assert(__tSetA, [], 2, 'root update no subs');
 
-    function tSetB() {
+    function __tSetB() {
       reset();
       _dm.set('sg', 'a');
       const c0 = [], c1 = [], c2 = [];
@@ -939,9 +939,9 @@
       _setSignalAndNotifySubs('t', { root: 'sg', path: null }, 'b');
       return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
     }
-    assert(tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
+    __assert(__tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
 
-    function assert_setC() {
+    function __assert_setC() {
       reset();
       _dm.set('sg', [1, 2]);
       const c0 = [], c1 = [], c2 = [];
@@ -953,7 +953,7 @@
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
     }
-    assert(assert_setC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
+    __assert(__assert_setC, [], { c0: 1, c1: 1, c2: 1, d1: { addedRange: [2, 2] }, d2: { addedRange: [2, 2] }, val: [1, 2, 3, 4] }, 'root shape change arrays');
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
     function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
@@ -997,7 +997,7 @@
       return h
     }
 
-    function tTrigModsEqNe() {
+    function __tTrigModsEqNe() {
       reset();
       _dm.set('a', 5)
       let c = 0
@@ -1007,9 +1007,9 @@
       h()
       return c
     }
-    assert(tTrigModsEqNe, [], 1, 'applyTrigMods: eq/ne filter');
+    __assert(__tTrigModsEqNe, [], 1, 'applyTrigMods: eq/ne filter');
 
-    function tTrigModsAnd() {
+    function __tTrigModsAnd() {
       reset();
       _dm.set('gate', false)
       let c = 0
@@ -1019,9 +1019,9 @@
       h(null, null, 2)
       return c
     }
-    assert(tTrigModsAnd, [], 1, 'applyTrigMods: and gate');
+    __assert(__tTrigModsAnd, [], 1, 'applyTrigMods: and gate');
 
-    function tTrigModsPreventOnce() {
+    function __tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
       const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
@@ -1029,9 +1029,9 @@
       h(ev, null, null)
       return { p, r, c }
     }
-    assert(tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrigMods: prevent + once');
+    __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrigMods: prevent + once');
 
-    function tTrigModsDebounce() {
+    function __tTrigModsDebounce() {
       const st = setTimeout, ct = clearTimeout
       let id = 0
       const q = new Map()
@@ -1052,9 +1052,9 @@
         clearTimeout = ct
       }
     }
-    assert(tTrigModsDebounce, [], [2], 'applyTrigMods: debounce keeps last call');
+    __assert(__tTrigModsDebounce, [], [2], 'applyTrigMods: debounce keeps last call');
 
-    function tTrigModsThrottle() {
+    function __tTrigModsThrottle() {
       const dn = Date.now
       let now = 100
       Date.now = () => now
@@ -1071,9 +1071,9 @@
         Date.now = dn
       }
     }
-    assert(tTrigModsThrottle, [], [1, 3], 'applyTrigMods: throttle rate limit');
+    __assert(__tTrigModsThrottle, [], [1, 3], 'applyTrigMods: throttle rate limit');
 
-    function tTrigModsRepeatedPermitChecks() {
+    function __tTrigModsRepeatedPermitChecks() {
       reset();
       _dm.set('gateA', true)
       _dm.set('gateB', false)
@@ -1087,7 +1087,7 @@
       h(null, 8, null)
       return c
     }
-    assert(tTrigModsRepeatedPermitChecks, [], 1, 'applyTrigMods: repeated and/check permit mods');
+    __assert(__tTrigModsRepeatedPermitChecks, [], 1, 'applyTrigMods: repeated and/check permit mods');
 
     _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     function dSub(el, aName, aVal) {
@@ -1242,7 +1242,7 @@
       } // end of triggers loop
     }
 
-    function tSubImmediateProp() {
+    function __tSubImmediateProp() {
       reset();
       const fooEl = getElById('foo', 'probe'); if (fooEl) fooEl.textContent = 'good';
       const before = fooEl?.textContent || '';
@@ -1250,9 +1250,9 @@
       const after = fooEl?.textContent || '';
       return { before, after };
     }
-    assert(tSubImmediateProp, [], { before: 'good', after: 'Seaman!' }, 'dSub immediate prop set on #foo');
+    __assert(__tSubImmediateProp, [], { before: 'good', after: 'Seaman!' }, 'dSub immediate prop set on #foo');
 
-    function tSubEventSignal() {
+    function __tSubEventSignal() {
       reset();
       try {
         const btn = document.createElement('button');
@@ -1268,9 +1268,9 @@
         return { sg: DM['sg'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    assert(tSubEventSignal, [], { sg: 'A', diag: 'direct-handler' }, 'dSub event click sets signal');
+    __assert(__tSubEventSignal, [], { sg: 'A', diag: 'direct-handler' }, 'dSub event click sets signal');
 
-    function tSubEventPropToSignal() {
+    function __tSubEventPropToSignal() {
       reset();
       try {
         const inp = document.createElement('input');
@@ -1287,9 +1287,9 @@
         return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    assert(tSubEventPropToSignal, [], { out: 'Zed', diag: 'direct-handler' }, 'dSub event passes element value to signal');
+    __assert(__tSubEventPropToSignal, [], { out: 'Zed', diag: 'direct-handler' }, 'dSub event passes element value to signal');
 
-    function tSubSignalImmediateAndChange() {
+    function __tSubSignalImmediateAndChange() {
       reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
@@ -1299,9 +1299,9 @@
       const after = DM['bar'];
       return { im, after };
     }
-    assert(tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+    __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
 
-    function tSubExplicitIdEventPath() {
+    function __tSubExplicitIdEventPath() {
       reset();
       const id = 'evtbtnexplicit'
       const btn = document.createElement('button');
@@ -1314,9 +1314,9 @@
         return DM['eventMeta'];
       } finally { btn.remove(); }
     }
-    assert(tSubExplicitIdEventPath, [], { kind: EV_PROP, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dSub explicit #id event path metadata');
+    __assert(__tSubExplicitIdEventPath, [], { kind: EV_PROP, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dSub explicit #id event path metadata');
 
-    function tSubExplicitIdPropPath() {
+    function __tSubExplicitIdPropPath() {
       reset();
       const id = 'evtinputprop'
       const inp = document.createElement('input');
@@ -1329,9 +1329,9 @@
         return DM['propMeta'];
       } finally { inp.remove(); }
     }
-    assert(tSubExplicitIdPropPath, [], { kind: EV_PROP, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dSub explicit #id prop trigger path');
+    __assert(__tSubExplicitIdPropPath, [], { kind: EV_PROP, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dSub explicit #id prop trigger path');
 
-    function tSubSpecialWindowAndDocument() {
+    function __tSubSpecialWindowAndDocument() {
       reset();
       const host = document.createElement('div');
       dSub(host, 'data-sub:winMeta@_window.resize', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
@@ -1340,12 +1340,12 @@
       document.dispatchEvent(mkEv('visibilitychange'));
       return { win: DM['winMeta'], doc: DM['docMeta'] };
     }
-    assert(tSubSpecialWindowAndDocument, [], {
+    __assert(__tSubSpecialWindowAndDocument, [], {
       win: { root: 'window', path: ['resize'], val: 'resize', detailType: 'resize' },
       doc: { root: 'document', path: ['visibilitychange'], val: 'visibilitychange', detailType: 'visibilitychange' }
     }, 'dSub window/document special triggers');
 
-    function tSubSpecialFormPath() {
+    function __tSubSpecialFormPath() {
       reset();
       const form = document.createElement('form');
       const input = document.createElement('input');
@@ -1358,9 +1358,9 @@
         return DM['formMeta']
       } finally { form.remove() }
     }
-    assert(tSubSpecialFormPath, [], { root: 'form', path: ['submit'], val: 'submit', detailType: 'submit' }, 'dSub form special trigger');
+    __assert(__tSubSpecialFormPath, [], { root: 'form', path: ['submit'], val: 'submit', detailType: 'submit' }, 'dSub form special trigger');
 
-    function tSubSpecialIntervalAndTimeout() {
+    function __tSubSpecialIntervalAndTimeout() {
       reset();
       const st = setTimeout, si = setInterval
       const qTo = [], qInt = []
@@ -1378,12 +1378,12 @@
         setInterval = si
       }
     }
-    assert(tSubSpecialIntervalAndTimeout, [], {
+    __assert(__tSubSpecialIntervalAndTimeout, [], {
       i: { root: 'interval', path: ['25'], val: 25, detail: { tick: 0, ms: 25, type: 'interval' } },
       t: { root: 'timeout', path: ['50'], val: 50, detail: { tick: 0, ms: 50, type: 'timeout' } }
     }, 'dSub interval/timeout special triggers');
 
-    function tSubRepeatedPermitGating() {
+    function __tSubRepeatedPermitGating() {
       reset();
       _dm.set('gateA', true)
       _dm.set('gateB', false)
@@ -1397,7 +1397,7 @@
       _setSignalAndNotifySubs('t', { root: 'src', path: null }, 8)
       return DM['dst'] ?? null
     }
-    assert(tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
+    __assert(__tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
 
     const DEFAULT_PROP_TARGET = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null })
     function dSync(el, aName) {
@@ -1492,7 +1492,7 @@
       }
     }
 
-    function tSyncTwoWayDefault() {
+    function __tSyncTwoWayDefault() {
       reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
@@ -1504,9 +1504,9 @@
       _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, elAfterSignal: inp.value }
     }
-    assert(tSyncTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSync two-way default');
+    __assert(__tSyncTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSync two-way default');
 
-    function tSyncSignalToPropOnly() {
+    function __tSyncSignalToPropOnly() {
       reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
@@ -1518,9 +1518,9 @@
       _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterLocalEvent, elAfterSignal: inp.value }
     }
-    assert(tSyncSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSync signal->prop one-way');
+    __assert(__tSyncSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSync signal->prop one-way');
 
-    function tSyncPropToSignalOnly() {
+    function __tSyncPropToSignalOnly() {
       reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
@@ -1533,9 +1533,9 @@
       inp.dispatchEvent(mkEv('change'))
       return { before, elAfterSignal, sigAfterEvent: DM['name'] }
     }
-    assert(tSyncPropToSignalOnly, [], { before: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way');
+    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way');
 
-    function tSyncCheckboxDefaultProp() {
+    function __tSyncCheckboxDefaultProp() {
       reset();
       const cb = document.createElement('input')
       cb.type = 'checkbox'
@@ -1548,7 +1548,7 @@
       _setSignalAndNotifySubs('t', { root: 'isOn', path: null }, true)
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
-    assert(tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
+    __assert(__tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
 
     // Converts camelCase back to kebab-case for classList (e.g. zebraEven -> zebra-even)
     function camelToKebab(s) {
@@ -1628,7 +1628,7 @@
       }
     }
 
-    function tClassSignalToggle() {
+    function __tClassSignalToggle() {
       reset()
       const div = document.createElement('div')
       _dm.set('active', false)
@@ -1640,9 +1640,9 @@
       const hadFinal = div.classList.contains('active')
       return { hadBefore, hadAfter, hadFinal }
     }
-    assert(tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dClass signal toggle with immediate');
+    __assert(__tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dClass signal toggle with immediate');
 
-    function tClassInvertedClass() {
+    function __tClassInvertedClass() {
       reset()
       const div = document.createElement('div')
       _dm.set('active', false)
@@ -1652,9 +1652,9 @@
       const hadAfter = div.classList.contains('inactive')
       return { hadBefore, hadAfter }
     }
-    assert(tClassInvertedClass, [], { hadBefore: true, hadAfter: false }, 'dClass inverted +! adds when falsy');
+    __assert(__tClassInvertedClass, [], { hadBefore: true, hadAfter: false }, 'dClass inverted +! adds when falsy');
 
-    function tClassMultiClass() {
+    function __tClassMultiClass() {
       reset()
       const div = document.createElement('div')
       _dm.set('active', true)
@@ -1666,9 +1666,9 @@
       const inactiveAfter = div.classList.contains('is-inactive')
       return { activeBefore, inactiveBefore, activeAfter, inactiveAfter }
     }
-    assert(tClassMultiClass, [], { activeBefore: true, inactiveBefore: false, activeAfter: false, inactiveAfter: true }, 'dClass multi-class kebab toggle');
+    __assert(__tClassMultiClass, [], { activeBefore: true, inactiveBefore: false, activeAfter: false, inactiveAfter: true }, 'dClass multi-class kebab toggle');
 
-    function tClassWithExpr() {
+    function __tClassWithExpr() {
       reset()
       const div = document.createElement('div')
       _dm.set('count', 2)
@@ -1678,7 +1678,7 @@
       const hadAfter = div.classList.contains('even')
       return { hadBefore, hadAfter }
     }
-    assert(tClassWithExpr, [], { hadBefore: true, hadAfter: false }, 'dClass compiled expression controls class');
+    __assert(__tClassWithExpr, [], { hadBefore: true, hadAfter: false }, 'dClass compiled expression controls class');
 
     // data-disp:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
@@ -1758,7 +1758,7 @@
       }
     }
 
-    function tDispHideShow() {
+    function __tDispHideShow() {
       reset()
       const div = document.createElement('div')
       div.style.display = 'block'
@@ -1771,9 +1771,9 @@
       const displayAfterShow = div.style.display
       return { displayBefore, displayAfterHide, displayAfterShow }
     }
-    assert(tDispHideShow, [], { displayBefore: 'block', displayAfterHide: 'none', displayAfterShow: 'block' }, 'dDisp show/hide cycle');
+    __assert(__tDispHideShow, [], { displayBefore: 'block', displayAfterHide: 'none', displayAfterShow: 'block' }, 'dDisp show/hide cycle');
 
-    function tDispWithExpr() {
+    function __tDispWithExpr() {
       reset()
       const div = document.createElement('div')
       div.style.display = 'flex'
@@ -1784,9 +1784,9 @@
       const displayAfter = div.style.display
       return { displayBefore, displayAfter }
     }
-    assert(tDispWithExpr, [], { displayBefore: 'none', displayAfter: 'flex' }, 'dDisp compiled expression show/hide');
+    __assert(__tDispWithExpr, [], { displayBefore: 'none', displayAfter: 'flex' }, 'dDisp compiled expression show/hide');
 
-    function tDispTargetElSignal() {
+    function __tDispTargetElSignal() {
       reset()
       const box = document.createElement('div')
       box.id = 'dispBox'
@@ -1801,7 +1801,7 @@
         return { displayBefore, displayAfter }
       } finally { box.remove() }
     }
-    assert(tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dDisp hides element on false signal');
+    __assert(__tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dDisp hides element on false signal');
 
     // Dispatch table used by dDump (and future clone-wiring contexts) to call the right setup fn per data-* attr
     function wireNode(n, an, v) {
@@ -1922,7 +1922,7 @@
       if (isImmediateMod(mods, false)) doRender(null)
     }
 
-    function tDumpAppendOnly() {
+    function __tDumpAppendOnly() {
       reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
@@ -1938,9 +1938,9 @@
         return { before, after }
       } finally { el.remove() }
     }
-    assert(tDumpAppendOnly, [], { before: 0, after: 2 }, 'dDump append-only: signal grows from [] to 2 items')
+    __assert(__tDumpAppendOnly, [], { before: 0, after: 2 }, 'dDump append-only: signal grows from [] to 2 items')
 
-    function tDumpRemoveFromEnd() {
+    function __tDumpRemoveFromEnd() {
       reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
@@ -1956,9 +1956,9 @@
         return { before, after }
       } finally { el.remove() }
     }
-    assert(tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump remove from end: 3 items shrinks to 1')
+    __assert(__tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump remove from end: 3 items shrinks to 1')
 
-    function tDumpIndexPlaceholder() {
+    function __tDumpIndexPlaceholder() {
       reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
@@ -1971,9 +1971,9 @@
         return Array.from(el.children).map(n => n.getAttribute('data-idx'))
       } finally { el.remove() }
     }
-    assert(tDumpIndexPlaceholder, [], ['0', '1'], 'dDump $index placeholder rewritten in cloned attribute values')
+    __assert(__tDumpIndexPlaceholder, [], ['0', '1'], 'dDump $index placeholder rewritten in cloned attribute values')
 
-    function tDumpItemPlaceholder() {
+    function __tDumpItemPlaceholder() {
       reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
@@ -1986,9 +1986,9 @@
         return Array.from(el.children).map(n => n.getAttribute('data-val'))
       } finally { el.remove() }
     }
-    assert(tDumpItemPlaceholder, [], ['dm.rows[0]', 'dm.rows[1]'], 'dDump $item placeholder rewritten to dm.signal[idx] in attribute values')
+    __assert(__tDumpItemPlaceholder, [], ['dm.rows[0]', 'dm.rows[1]'], 'dDump $item placeholder rewritten to dm.signal[idx] in attribute values')
 
-    function tDumpInlineTemplate() {
+    function __tDumpInlineTemplate() {
       reset()
       const el = document.createElement('div')
       const tpl = document.createElement('template')
@@ -2003,9 +2003,9 @@
         return { count, tplStillChild }
       } finally { el.remove() }
     }
-    assert(tDumpInlineTemplate, [], { count: 3, tplStillChild: false }, 'dDump inline <template> detached after read, 3 clones appended')
+    __assert(__tDumpInlineTemplate, [], { count: 3, tplStillChild: false }, 'dDump inline <template> detached after read, 3 clones appended')
 
-    function tDumpImmediate() {
+    function __tDumpImmediate() {
       reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
@@ -2018,9 +2018,9 @@
         return el.children.length
       } finally { el.remove() }
     }
-    assert(tDumpImmediate, [], 3, 'dDump ^immediate renders existing signal array on setup')
+    __assert(__tDumpImmediate, [], 3, 'dDump ^immediate renders existing signal array on setup')
 
-    function tDumpExplicitTemplate() {
+    function __tDumpExplicitTemplate() {
       reset()
       const tplEl = document.createElement('template')
       tplEl.id = 'myTpl'
@@ -2034,7 +2034,7 @@
         return el.children.length
       } finally { tplEl.remove(); el.remove() }
     }
-    assert(tDumpExplicitTemplate, [], 2, 'dDump +#tplId explicit template reference appends 2 clones')
+    __assert(__tDumpExplicitTemplate, [], 2, 'dDump +#tplId explicit template reference appends 2 clones')
 
     // data-get:result?busy@.click^immediate="url"
     // data-post^json:result?busy@.click+#id.prop+signal="url"
@@ -2185,10 +2185,10 @@
     function _asyncAssert(label, promiseFn) {
       _asyncChain = _asyncChain.then(() =>
         promiseFn().then(({ actual, expected }) => {
-          if (deepEqual(actual, expected))
-            console.log('✓', 'dAction —', label, '>>>', fmt(actual))
+          if (__deepEqual(actual, expected))
+            console.log('✓', 'dAction —', label, '>>>', __fmt(actual))
           else
-            console.error('✗', 'dAction —', label, '>>> expected:', fmt(expected), 'actual:', fmt(actual))
+            console.error('✗', 'dAction —', label, '>>> expected:', __fmt(expected), 'actual:', __fmt(actual))
         }).catch(err => {
           console.error('✗', 'dAction —', label, '>>> threw:', err && err.message ? err.message : String(err))
         })
@@ -2441,7 +2441,7 @@
 
     // morph tests -------------------------------------------------------
 
-    function tMorphTextUpdate() {
+    function __tMorphTextUpdate() {
       const from = document.createElement('div')
       from.textContent = 'old'
       const to = document.createElement('div')
@@ -2450,9 +2450,9 @@
       morph(from, to)
       return { sameNode: from.firstChild === originalTextNode, text: from.textContent }
     }
-    assert(tMorphTextUpdate, [], { sameNode: true, text: 'new' }, 'morph: text node updated in place')
+    __assert(__tMorphTextUpdate, [], { sameNode: true, text: 'new' }, 'morph: text node updated in place')
 
-    function tMorphAttrUpdate() {
+    function __tMorphAttrUpdate() {
       const from = document.createElement('div')
       from.setAttribute('class', 'old')
       from.setAttribute('title', 'keep')
@@ -2462,9 +2462,9 @@
       morph(from, to)
       return { id: from.getAttribute('id'), title: from.getAttribute('title'), hasClass: from.hasAttribute('class') }
     }
-    assert(tMorphAttrUpdate, [], { id: 'new-id', title: 'keep', hasClass: false }, 'morph: attrs added/removed/kept')
+    __assert(__tMorphAttrUpdate, [], { id: 'new-id', title: 'keep', hasClass: false }, 'morph: attrs added/removed/kept')
 
-    function tMorphChildAdd() {
+    function __tMorphChildAdd() {
       const from = document.createElement('ul')
       from.innerHTML = '<li>a</li>'
       const to = document.createElement('ul')
@@ -2472,9 +2472,9 @@
       morph(from, to)
       return Array.from(from.querySelectorAll('li')).map(li => li.textContent)
     }
-    assert(tMorphChildAdd, [], ['a', 'b'], 'morph: child add appends new node')
+    __assert(__tMorphChildAdd, [], ['a', 'b'], 'morph: child add appends new node')
 
-    function tMorphChildRemove() {
+    function __tMorphChildRemove() {
       const from = document.createElement('ul')
       from.innerHTML = '<li>a</li><li>b</li><li>c</li>'
       const to = document.createElement('ul')
@@ -2482,9 +2482,9 @@
       morph(from, to)
       return from.children.length
     }
-    assert(tMorphChildRemove, [], 1, 'morph: child remove trims extra nodes')
+    __assert(__tMorphChildRemove, [], 1, 'morph: child remove trims extra nodes')
 
-    function tMorphKeyedReorder() {
+    function __tMorphKeyedReorder() {
       const from = document.createElement('div')
       from.innerHTML = '<p id="ka">1</p><p id="kb">2</p>'
       const nodeA = from.querySelector('#ka')
@@ -2494,9 +2494,9 @@
       morph(from, to)
       return { firstIsB: from.firstChild === nodeB, secondIsA: from.lastChild === nodeA, count: from.children.length }
     }
-    assert(tMorphKeyedReorder, [], { firstIsB: true, secondIsA: true, count: 2 }, 'morph: keyed nodes moved by id, not replaced')
+    __assert(__tMorphKeyedReorder, [], { firstIsB: true, secondIsA: true, count: 2 }, 'morph: keyed nodes moved by id, not replaced')
 
-    function tMorphTagMismatch() {
+    function __tMorphTagMismatch() {
       const container = document.createElement('div')
       const from = document.createElement('div')
       from.textContent = 'I am a div'
@@ -2506,9 +2506,9 @@
       morph(from, to)
       return { tag: container.firstChild.tagName, text: container.firstChild.textContent }
     }
-    assert(tMorphTagMismatch, [], { tag: 'P', text: 'I am a p' }, 'morph: tag mismatch replaces node')
+    __assert(__tMorphTagMismatch, [], { tag: 'P', text: 'I am a p' }, 'morph: tag mismatch replaces node')
 
-    function tMorphEventListenerPreserved() {
+    function __tMorphEventListenerPreserved() {
       const from = document.createElement('button')
       let clicked = 0
       from.addEventListener('click', () => clicked++)
@@ -2518,7 +2518,7 @@
       from.click()
       return { clicked, hasClass: from.classList.contains('updated') }
     }
-    assert(tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
+    __assert(__tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
 
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
