@@ -80,6 +80,124 @@
       <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
       <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
     </section>
+    <section id="ported-examples" style="padding:12px;border-top:1px solid #e2e8f0">
+      <h3 style="margin:0 0 8px 0">Ported examples (index.html → updated syntax)</h3>
+      <div data-def='{
+        "user":{"name":"Alice","age":25,"ui":{"theme-color":"#007bff","is-active":true,"font-size":16}},
+        "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
+        "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
+        "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
+        "once-test":0,"always-test":0,"guard-val":3,"other-flag":false,
+        "mod-once":0,"mod-deb":0,"mod-thr":0,"mod-and":0,"gate":false,
+        "busy":false,"err":null,"post-result":null,"created-post":null,"oob-html":""
+      }'></div>
+      <h4>1. Deep Nested Signal Sync</h4>
+      <label>User Name: <input type="text" data-sync:user.name></label>
+      <p>Hello, <strong data-sync:user.name></strong>!</p>
+      <label>Age: <input type="number" data-sync:user.age></label>
+      <p>Age: <span data-sync:user.age></span> years old</p>
+      <h4>1.a data-sync Direction Examples</h4>
+      <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
+      <label>Element -> Signal: <input id="elToSig" data-sync:user.name@.></label>
+      <label>Two-way: <input id="twoWay" data-sync:user.name></label>
+      <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
+      <h4>2. Style &amp; Boolean Deep Sync</h4>
+      <label>Theme Color: <input type="color" data-sync:user.ui.theme-color></label>
+      <div style="padding:8px;border:1px solid #ccc;margin:6px 0" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
+      <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
+      <input type="range" min="12" max="32" data-sync:user.ui.font-size>
+      <p data-sub:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">Resizable text</p>
+      <label><input type="checkbox" data-sync:user.ui.is-active> Active</label>
+      <p>Status: <strong data-sub:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+      <h4>3. Multiple Triggers &amp; Targets</h4>
+      <button data-sub:count@.click="dm.count + 1">+1</button>
+      <button data-sub:count@.click="dm.count - 1">-1</button>
+      <button data-sub:count@.click="0">Reset</button>
+      <p>Count: <strong data-sub:.@count="dm.count"></strong></p>
+      <p>Doubled: <span data-sub:.:doubled@count="dm.count * 2"></span></p>
+      <button id="probeBtn" data-sub:.@.click="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
+      <span id="probeOut" data-sub:.@count="trig ? trig.root : ''"></span>
+      <div>
+        <button id="gOnceBtn" data-sub^once:once-test@.click="(dm.onceTest || 0) + 1">Once +1</button>
+        <span data-sub:.@once-test="dm.onceTest"></span>
+        <button id="gAlwaysBtn" data-sub^once:always-test@.click^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
+        <span data-sub:.@always-test="dm.alwaysTest"></span>
+      </div>
+      <div>
+        <button id="incGuard" data-sub:guard-val@.click="dm.guardVal + 1">Inc Guard</button>
+        <span data-sub:.@guard-val="dm.guardVal"></span>
+        <span data-sub:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
+        <span data-sub:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
+        <span data-sub^!and.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
+      </div>
+      <div>
+        <span data-sub:.@_interval.1000="(detail && detail.ms) ? ('interval ' + detail.ms) : ''"></span>
+        <span data-sub:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
+      </div>
+      <h4>4. Side Effects &amp; Multiple Triggers</h4>
+      <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
+      <p><span data-sub:.@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
+      <p><strong data-sub:.@count@#btn1.click@#btn2.click="dm.count + ' (updated)'"></strong></p>
+      <h4>5. Cross-Element Property Sync</h4>
+      <input id="src" placeholder="Type here..." data-sync:message>
+      <p data-sub:.@#src.input="document.getElementById('src').value"></p>
+      <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
+      <h4>6. Window Events &amp; Intervals</h4>
+      <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
+      <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
+      <h4>7. Default Props &amp; Events</h4>
+      <input id="inp1" placeholder="Default event (change)">
+      <p><span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
+      <button id="btn3">Click me</button>
+      <p><span data-sub:.@#btn3="'Clicked!'"></span></p>
+      <h4>8. Classes &amp; Display</h4>
+      <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
+      <div id="classBox" data-class+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+      <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
+      <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
+      <h4>9. List Rendering (data-dump)</h4>
+      <template id="tpl-post">
+        <li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0">
+          <span class="num" data-sub:.@posts="$index + 1"></span>
+          <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
+        </li>
+      </template>
+      <ul data-dump+#tpl-post@posts></ul>
+      <ul id="inline-posts" data-dump@posts><template><li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0"><span data-sub:.@posts="$index + 1"></span> <span data-sub:.@posts="dm.posts[$index]"></span></li></template></ul>
+      <div>
+        <button id="addPost" data-sub:posts@.click="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
+        <button id="removeFirst" data-sub:posts@.click="(dm.posts || []).slice(1)">Remove First</button>
+        <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
+      </div>
+      <h4>10. Modifiers demo</h4>
+      <button id="onceBtn" data-sub:mod-once@.click^once="(dm.modOnce || 0) + 1">Once</button>
+      <span data-sub:.@mod-once="dm.modOnce"></span>
+      <button id="debBtn" data-sub:mod-deb@.click^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
+      <span data-sub:.@mod-deb="dm.modDeb"></span>
+      <button id="thrBtn" data-sub:mod-thr@.click^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
+      <span data-sub:.@mod-thr="dm.modThr"></span>
+      <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
+      <button id="andBtn" data-sub:mod-and@.click^and.gate="(dm.modAnd || 0) + 1">AND</button>
+      <span data-sub:.@mod-and="dm.modAnd"></span>
+      <h4>State Tree (Live Debug)</h4>
+      <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+      <h4>11. Actions demo + OOB HTML morph</h4>
+      <button id="loadPost" data-get:post-result?busy?err@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (GET)</button>
+      <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span></div>
+      <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
+      <div>
+        <input id="new-title" placeholder="Title" />
+        <input id="new-user-name" placeholder="Name" />
+        <input id="new-user-email" placeholder="Email" />
+        <button id="create-post" data-post^json:created-post?busy?err@.click+#new-title.value+#new-user-name.value+#new-user-email.value="'https://jsonplaceholder.typicode.com/posts'">Create post (POST ^json)</button>
+        <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
+      </div>
+      <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
+        <button id="oobLoad" data-get:oob-html?busy?err@.click="'/mock/oob'">Load OOB HTML + morph</button>
+        <div id="oobTarget"><strong>Initial target content</strong></div>
+        <div data-sub:.@oob-html="applyOobHtml(dm.oobHtml)"></div>
+      </div>
+    </section>
   </main>
   <script>
     // Mirror console to <pre>, count tests
@@ -199,7 +317,7 @@
     // todo: @wip
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
     // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
-    // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
+    // Use ^ for modifiers (trigger guards/timing/options): data-get^no-cache:posts^replace+user.name^query.username
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
     const ALL = [MOD, TARG, TRIG, STAT, ADD]
     const MODS = [MOD]
@@ -231,9 +349,9 @@
 
       let d = n.indexOf(DOT, p)
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
-      if (root) root = kebabToCamel(root)
 
       if (type === MOD) {
+        if (root) root = kebabToCamel(root)
         if (!root) { console.error('[dmax] Error: Mod name should not be empty for:', n, 'in:', aName); return null }
         if (d < 0 || d + 1 >= n.length) return { kind: MOD, not, root, path: null } // accepts trailing dot in ^mod-foo.
         let val = n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseItem(aName, TRIG, n, p) // recurse for mod val being a signal
@@ -247,7 +365,10 @@
           kind = id ? EV_PROP : SPECIAL
           root = root.slice(1)
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
-        } else kind = SIGNAL
+        } else {
+          kind = SIGNAL
+          root = kebabToCamel(root)
+        }
       }
 
       if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
@@ -399,6 +520,12 @@
     assert(_signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
     assert(_signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
 
+    function dDebug(el) {
+      if (!el) return
+      _debugEls.add(el)
+      updateDebug()
+    }
+
     function getElById(id, aName) {
       if (!id) return null
       const el = document.getElementById(id)
@@ -515,6 +642,8 @@
       null, 'unexpected signal')
 
     const EMPTY_ARR = []
+    const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
+
     function diffShapeShallow(before, after) {
       let b = before, a = after
       if (!b || typeof b != 'object') b = EMPTY_ARR
@@ -575,8 +704,18 @@
       return defaultVal;
     }
 
-    const MOD_ONCE = 'once', MOD_DEBOUNCE = "debounce", MOD_THROTTLE = "throttle", MOD_PREVENT = 'prevent'
-    const MOD_AND = "and", MOD_EQ = "eq", MOD_NE = "ne", MOD_LT = "lt", MOD_GT = "gt", MOD_LE = "le", MOD_GE = "ge"
+    const MOD_ONCE = 'once'
+    const MOD_ALWAYS = 'always'
+    const MOD_DEBOUNCE = 'debounce'
+    const MOD_THROTTLE = 'throttle'
+    const MOD_PREVENT = 'prevent'
+    const MOD_AND = 'and'
+    const MOD_EQ = 'eq'
+    const MOD_NE = 'ne'
+    const MOD_LT = 'lt'
+    const MOD_GT = 'gt'
+    const MOD_LE = 'le'
+    const MOD_GE = 'ge'
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
@@ -618,7 +757,8 @@
       for (const m of mods || EMPTY_ARR) {
         const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
-          if (!mVal) return false
+          const ok = !!mVal
+          if (m.not ? ok : !ok) return false
         } else if (mName == MOD_EQ) {
           if (val != mVal) return false
         } else if (mName == MOD_NE) {
@@ -637,6 +777,19 @@
     }
 
     const _subs = new Map()
+    const _debugEls = new Set()
+    let _debugQueued = false
+    function updateDebug() {
+      if (!_debugEls.size || _debugQueued) return
+      _debugQueued = true
+      queueMicrotask(() => {
+        _debugQueued = false
+        const state = {}
+        for (const [k, v] of _dm.entries()) state[k] = v
+        const txt = JSON.stringify(state, null, 2)
+        for (const el of _debugEls) el.textContent = txt
+      })
+    }
 
     // If sg not exist in the _dm, then we will create it -> creating missing target on demand
     function _setSignalAndNotifySubs(aName, tar, val) {
@@ -729,7 +882,7 @@
         h.fn(h.changeMod === SG_CHANGED_ANY ? null : col[1])
       }
 
-      // updateDebug(); // @wip don't bother until later
+      updateDebug()
     }
 
     // @TEST register sink subscriber
@@ -814,7 +967,11 @@
     function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
       const one = hasMod(mods, MOD_ONCE)
+      const always = hasMod(mods, MOD_ALWAYS)
       const prv = hasMod(mods, MOD_PREVENT)
+      // Precompute mod lookups once at setup; path values are still resolved lazily (may reference signals)
+      const debMod = getModOrNull(mods, MOD_DEBOUNCE)
+      const thrMod = getModOrNull(mods, MOD_THROTTLE)
       let tm = 0, last = 0
 
       const run = (ev, val, detail) => {
@@ -822,13 +979,13 @@
         if (isSg && trig.not) trigVal = !trigVal
         if (!modsPermitVal(mods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (one && h.remove) h.remove()
+        if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
       }
 
       const h = function (ev, val, detail) {
         if (prv) ev?.preventDefault?.()
-        const deb = +(resolveModPathVal(getModOrNull(mods, MOD_DEBOUNCE)?.path) ?? 0)
-        const thr = +(resolveModPathVal(getModOrNull(mods, MOD_THROTTLE)?.path) ?? 0)
+        const deb = debMod ? +(resolveModPathVal(debMod.path) ?? 0) : 0
+        const thr = thrMod ? +(resolveModPathVal(thrMod.path) ?? 0) : 0
         if (deb > 0) { clearTimeout(tm); tm = setTimeout(run, deb, ev, val, detail); return }
         if (thr > 0) {
           const now = Date.now()
@@ -985,11 +1142,11 @@
           const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
           const changeMod = getSgChangeShape(mods)
           _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.unsub = () => {
+          wrappedSubFn.remove = () => {
             const subs = _subs.get(root)
             if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
           }
-          subFn.remove = wrappedSubFn.unsub
+          subFn.remove = wrappedSubFn.remove
 
           // todo: @wip can we use _KIND instead of type?
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
@@ -1393,6 +1550,976 @@
     }
     assert(tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
 
+    // Converts camelCase back to kebab-case for classList (e.g. zebraEven -> zebra-even)
+    function camelToKebab(s) {
+      return s.replace(/([A-Z])/g, (_, c) => '-' + c.toLowerCase())
+    }
+
+    // data-class+my-class+!my-other@signal="expr"
+    //   +className  → add class when expr truthy, remove when falsy
+    //   +!className → add class when expr falsy (inverted), remove when truthy
+    // aVal is optional; without it the raw signal/trigger value is used as the boolean
+    function dClass(el, aName, aVal) {
+      let [it] = parse(aName)
+      const adds = it[ADD] ?? EMPTY_ARR
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
+      if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
+
+      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
+      const targetEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
+      if (!targetEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
+
+      const classes = adds.map(a => ({ name: camelToKebab(a.root), invert: a.not === true }))
+      const fn = aVal ? compileFn(aVal, aName) : null
+      if (aVal && !fn) return
+
+      function applyClasses(val) {
+        for (const c of classes) {
+          const active = c.invert ? !val : !!val
+          if (active) targetEl.classList.add(c.name)
+          else targetEl.classList.remove(c.name)
+        }
+      }
+
+      // Pre-select handler variants at setup time to avoid fn-null check on every trigger fire
+      const sigApply = fn
+        ? (trig, trigVal, detail) => applyClasses(fn(DM, el, trig, trigVal, detail))
+        : (_t, trigVal) => applyClasses(trigVal)
+      const evApply = fn
+        ? (evTarEl, trig, eventObj) => applyClasses(fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj))
+        : () => applyClasses(true)
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+
+      for (const trig of trigs) {
+        const kind = trig.kind, root = trig.root, path = trig.path
+        const mods = (trig.mods ?? globMods) || EMPTY_ARR
+        if (kind === SIGNAL) {
+          if (!expected(root)) return
+          if (!_subs.has(root)) _subs.set(root, [])
+          const subFn = applyTrigMods((_ev, trigVal, detail) => { sigApply(trig, trigVal, detail) }, trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+          }
+          subFn.remove = wrappedSubFn.remove
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
+        } else if (kind === EV_PROP) {
+          const evTarEl = root ? getElById(root, aName) : el
+          if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
+          const baseHandler = (eventObj) => { evApply(evTarEl, trig, eventObj) }
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          evTarEl.addEventListener(ev, moddedHandler)
+          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          if (isImmediateMod(mods, false)) moddedHandler()
+        }
+      }
+    }
+
+    function tClassSignalToggle() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('active', false)
+      dClass(div, 'data-class+active@active^immediate')
+      const hadBefore = div.classList.contains('active')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, true)
+      const hadAfter = div.classList.contains('active')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, false)
+      const hadFinal = div.classList.contains('active')
+      return { hadBefore, hadAfter, hadFinal }
+    }
+    assert(tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dClass signal toggle with immediate');
+
+    function tClassInvertedClass() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('active', false)
+      dClass(div, 'data-class+!inactive@active^immediate')
+      const hadBefore = div.classList.contains('inactive')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, true)
+      const hadAfter = div.classList.contains('inactive')
+      return { hadBefore, hadAfter }
+    }
+    assert(tClassInvertedClass, [], { hadBefore: true, hadAfter: false }, 'dClass inverted +! adds when falsy');
+
+    function tClassMultiClass() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('active', true)
+      dClass(div, 'data-class+is-active+!is-inactive@active^immediate')
+      const activeBefore = div.classList.contains('is-active')
+      const inactiveBefore = div.classList.contains('is-inactive')
+      _setSignalAndNotifySubs('t', { root: 'active', path: null }, false)
+      const activeAfter = div.classList.contains('is-active')
+      const inactiveAfter = div.classList.contains('is-inactive')
+      return { activeBefore, inactiveBefore, activeAfter, inactiveAfter }
+    }
+    assert(tClassMultiClass, [], { activeBefore: true, inactiveBefore: false, activeAfter: false, inactiveAfter: true }, 'dClass multi-class kebab toggle');
+
+    function tClassWithExpr() {
+      reset()
+      const div = document.createElement('div')
+      _dm.set('count', 2)
+      dClass(div, 'data-class+even@count^immediate', 'dm.count % 2 === 0')
+      const hadBefore = div.classList.contains('even')
+      _setSignalAndNotifySubs('t', { root: 'count', path: null }, 3)
+      const hadAfter = div.classList.contains('even')
+      return { hadBefore, hadAfter }
+    }
+    assert(tClassWithExpr, [], { hadBefore: true, hadAfter: false }, 'dClass compiled expression controls class');
+
+    // data-disp:.@signal="expr"
+    //   shows/hides the target element based on the truthy/falsy result of the expression
+    function dDisp(el, aName, aVal) {
+      let [it] = parse(aName)
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', aName); return }
+
+      const propTar = tars.find(t => t.kind === EV_PROP) ?? null
+      const targetEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
+      if (!targetEl) { console.error('[dmax] Error: dDisp target element not found in:', aName); return }
+
+      // Cache original display to restore on show
+      const inline = (targetEl.style && targetEl.style.display) || ''
+      const hadInline = inline !== ''
+      const computed = getComputedDisplay(targetEl)
+      const origDisplay = hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
+
+      const fn = aVal ? compileFn(aVal, aName) : null
+      if (aVal && !fn) return
+
+      function applyDisp(val) {
+        if (val) {
+          if (hadInline) targetEl.style.display = origDisplay
+          else {
+            if (getComputedDisplay(targetEl) === 'none') targetEl.style.display = origDisplay
+            else targetEl.style.removeProperty('display')
+          }
+        } else {
+          targetEl.style.display = 'none'
+        }
+      }
+
+      // Pre-select handler variants at setup time to avoid fn-null check on every trigger fire
+      const sigApply = fn
+        ? (trig, trigVal, detail) => applyDisp(fn(DM, el, trig, trigVal, detail))
+        : (_t, trigVal) => applyDisp(trigVal)
+      const evApply = fn
+        ? (evTarEl, trig, eventObj) => applyDisp(fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj))
+        : () => applyDisp(true)
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+
+      for (const trig of trigs) {
+        const kind = trig.kind, root = trig.root, path = trig.path
+        const mods = (trig.mods ?? globMods) || EMPTY_ARR
+        if (kind === SIGNAL) {
+          if (!expected(root)) return
+          if (!_subs.has(root)) _subs.set(root, [])
+          const subFn = applyTrigMods((_ev, trigVal, detail) => { sigApply(trig, trigVal, detail) }, trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+          }
+          subFn.remove = wrappedSubFn.remove
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
+        } else if (kind === EV_PROP) {
+          const evTarEl = root ? getElById(root, aName) : el
+          if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
+          const baseHandler = (eventObj) => { evApply(evTarEl, trig, eventObj) }
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          evTarEl.addEventListener(ev, moddedHandler)
+          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          if (isImmediateMod(mods, false)) moddedHandler()
+        }
+      }
+    }
+
+    function tDispHideShow() {
+      reset()
+      const div = document.createElement('div')
+      div.style.display = 'block'
+      _dm.set('visible', true)
+      dDisp(div, 'data-disp:.@visible^immediate')
+      const displayBefore = div.style.display
+      _setSignalAndNotifySubs('t', { root: 'visible', path: null }, false)
+      const displayAfterHide = div.style.display
+      _setSignalAndNotifySubs('t', { root: 'visible', path: null }, true)
+      const displayAfterShow = div.style.display
+      return { displayBefore, displayAfterHide, displayAfterShow }
+    }
+    assert(tDispHideShow, [], { displayBefore: 'block', displayAfterHide: 'none', displayAfterShow: 'block' }, 'dDisp show/hide cycle');
+
+    function tDispWithExpr() {
+      reset()
+      const div = document.createElement('div')
+      div.style.display = 'flex'
+      _dm.set('count', 0)
+      dDisp(div, 'data-disp:.@count^immediate', 'dm.count > 0')
+      const displayBefore = div.style.display
+      _setSignalAndNotifySubs('t', { root: 'count', path: null }, 5)
+      const displayAfter = div.style.display
+      return { displayBefore, displayAfter }
+    }
+    assert(tDispWithExpr, [], { displayBefore: 'none', displayAfter: 'flex' }, 'dDisp compiled expression show/hide');
+
+    function tDispTargetElSignal() {
+      reset()
+      const box = document.createElement('div')
+      box.id = 'dispBox'
+      box.style.display = 'block'
+      document.body.appendChild(box)
+      try {
+        _dm.set('show', true)
+        dDisp(box, 'data-disp:.@show^immediate')
+        const displayBefore = box.style.display
+        _setSignalAndNotifySubs('t', { root: 'show', path: null }, false)
+        const displayAfter = box.style.display
+        return { displayBefore, displayAfter }
+      } finally { box.remove() }
+    }
+    assert(tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dDisp hides element on false signal');
+
+    // Dispatch table used by dDump (and future clone-wiring contexts) to call the right setup fn per data-* attr
+    function wireNode(n, an, v) {
+      if (an.indexOf('data-def') === 0) dDef(n, an, v)
+      else if (an === 'data-debug') dDebug(n)
+      else if (an.indexOf('data-sub') === 0) dSub(n, an, v)
+      else if (an.indexOf('data-sync') === 0) dSync(n, an)
+      else if (an.indexOf('data-class') === 0) dClass(n, an, v)
+      else if (an.indexOf('data-disp') === 0) dDisp(n, an, v)
+      else if (an.indexOf('data-dump') === 0) dDump(n, an)
+      else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
+    }
+
+    // data-dump@items^immediate          (inline <template> child, array signal, immediate render)
+    // data-dump+#tplId@items^shape_only  (explicit template ref, shape-only subscription)
+    // Inside templates: $item → dm.signal[idx], $index → String(idx) in attr values;
+    //                   $item → signal.idx, $index → String(idx) in attr names
+    function dDump(el, aName) {
+      let [it] = parse(aName)
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const adds = it[ADD] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
+
+      const trig = trigs[0]
+      if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', aName); return }
+
+      const mods = (trig.mods ?? globMods) || EMPTY_ARR
+
+      // Find template: +#tplId add-slot first, then inline <template> child
+      let tpl = null
+      if (adds.length && adds[0].kind === EV_PROP && adds[0].root) {
+        tpl = getElById(adds[0].root, aName)
+      }
+      if (!tpl) tpl = el.querySelector('template')
+      // Detach inline template so it doesn't remain as an empty child
+      if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
+      if (!tpl) { console.error('[dmax] Error: dDump template not found for:', aName); return }
+
+      if (!el.__dump) el.__dump = { nodes: [], count: 0 }
+
+      const sigRoot = trig.root
+      const sigPath = trig.path
+
+      function doRender(detail) {
+        const val = getSignalValOrIt(trig)
+        if (!Array.isArray(val)) return
+        const newLen = val.length
+        const oldLen = el.__dump.count || 0
+
+        // Remove clones from the end when array shrank
+        if (newLen < oldLen) {
+          const removeCount = oldLen - newLen
+          for (let i = 0; i < removeCount; i++) {
+            const node = el.__dump.nodes.pop()
+            if (node && node.parentNode) node.parentNode.removeChild(node)
+          }
+          el.__dump.count = newLen
+        }
+
+        // Append new clones when array grew
+        if (newLen > oldLen) {
+          const frag = document.createDocumentFragment()
+          for (let idx = oldLen; idx < newLen; idx++) {
+            try {
+              if (!tpl.content || !tpl.content.firstElementChild) break
+              const node = tpl.content.firstElementChild.cloneNode(true)
+              // Rewrite $item/$index placeholders in all descendant attribute names and values
+              const walk = [node].concat(Array.from(node.querySelectorAll('*')))
+              for (const n of walk) {
+                const attrs = Array.from(n.attributes || [])
+                for (const a of attrs) {
+                  let atrName = a.name, atrVal = a.value
+                  if (atrName.indexOf('$item') !== -1 || atrName.indexOf('$index') !== -1) {
+                    atrName = atrName.replace(/\$item/g, sigRoot + '.' + idx).replace(/\$index/g, String(idx))
+                  }
+                  if (typeof atrVal === 'string' && (atrVal.indexOf('$item') !== -1 || atrVal.indexOf('$index') !== -1)) {
+                    atrVal = atrVal.replace(/\$index/g, String(idx)).replace(/\$item/g, 'dm.' + sigRoot + '[' + idx + ']')
+                  }
+                  try {
+                    if (atrName !== a.name) { n.removeAttribute(a.name); n.setAttribute(atrName, atrVal) }
+                    else if (atrVal !== a.value) n.setAttribute(atrName, atrVal)
+                  } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', atrName, e.message) }
+                }
+              }
+              frag.appendChild(node)
+              el.__dump.nodes.push(node)
+            } catch (e) {}
+          }
+          el.appendChild(frag)
+          // Wire up data-* attributes on newly inserted nodes
+          for (const node of el.__dump.nodes.slice(-(newLen - oldLen))) {
+            const walk2 = [node].concat(Array.from(node.querySelectorAll('*')))
+            for (const n of walk2)
+              for (const a of Array.from(n.attributes || [])) wireNode(n, a.name, a.value)
+          }
+          el.__dump.count = newLen
+        }
+      }
+
+      const root = sigRoot, path = sigPath
+      if (!_subs.has(root)) _subs.set(root, [])
+      const changeMod = getSgChangeShape(mods)
+      const subFn = applyTrigMods((_ev, _trigVal, detail) => doRender(detail), trig, mods)
+      const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+      _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+      wrappedSubFn.remove = () => {
+        const subs = _subs.get(root)
+        if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+      }
+      subFn.remove = wrappedSubFn.remove
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+      elSubs.push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
+
+      if (isImmediateMod(mods, false)) doRender(null)
+    }
+
+    function tDumpAppendOnly() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', [])
+        dDump(el, 'data-dump@items')
+        const before = el.children.length
+        _setSignalAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
+        const after = el.children.length
+        return { before, after }
+      } finally { el.remove() }
+    }
+    assert(tDumpAppendOnly, [], { before: 0, after: 2 }, 'dDump append-only: signal grows from [] to 2 items')
+
+    function tDumpRemoveFromEnd() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['a', 'b', 'c'])
+        dDump(el, 'data-dump@items^immediate')
+        const before = el.children.length
+        _setSignalAndNotifySubs('t', { root: 'items', path: null }, ['a'])
+        const after = el.children.length
+        return { before, after }
+      } finally { el.remove() }
+    }
+    assert(tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump remove from end: 3 items shrinks to 1')
+
+    function tDumpIndexPlaceholder() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-idx="$index">item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('rows', ['x', 'y'])
+        dDump(el, 'data-dump@rows^immediate')
+        return Array.from(el.children).map(n => n.getAttribute('data-idx'))
+      } finally { el.remove() }
+    }
+    assert(tDumpIndexPlaceholder, [], ['0', '1'], 'dDump $index placeholder rewritten in cloned attribute values')
+
+    function tDumpItemPlaceholder() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-val="$item">item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('rows', ['x', 'y'])
+        dDump(el, 'data-dump@rows^immediate')
+        return Array.from(el.children).map(n => n.getAttribute('data-val'))
+      } finally { el.remove() }
+    }
+    assert(tDumpItemPlaceholder, [], ['dm.rows[0]', 'dm.rows[1]'], 'dDump $item placeholder rewritten to dm.signal[idx] in attribute values')
+
+    function tDumpInlineTemplate() {
+      reset()
+      const el = document.createElement('div')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<span>child</span>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('list', ['a', 'b', 'c'])
+        dDump(el, 'data-dump@list^immediate')
+        const count = el.children.length
+        const tplStillChild = !!el.querySelector('template')
+        return { count, tplStillChild }
+      } finally { el.remove() }
+    }
+    assert(tDumpInlineTemplate, [], { count: 3, tplStillChild: false }, 'dDump inline <template> detached after read, 3 clones appended')
+
+    function tDumpImmediate() {
+      reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['x', 'y', 'z'])
+        dDump(el, 'data-dump@items^immediate')
+        return el.children.length
+      } finally { el.remove() }
+    }
+    assert(tDumpImmediate, [], 3, 'dDump ^immediate renders existing signal array on setup')
+
+    function tDumpExplicitTemplate() {
+      reset()
+      const tplEl = document.createElement('template')
+      tplEl.id = 'myTpl'
+      tplEl.innerHTML = '<li>item</li>'
+      document.body.appendChild(tplEl)
+      const el = document.createElement('ul')
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['a', 'b'])
+        dDump(el, 'data-dump+#myTpl@items^immediate')
+        return el.children.length
+      } finally { tplEl.remove(); el.remove() }
+    }
+    assert(tDumpExplicitTemplate, [], 2, 'dDump +#tplId explicit template reference appends 2 clones')
+
+    // data-get:result?busy@.click^immediate="url"
+    // data-post^json:result?busy@.click+#id.prop+signal="url"
+    // data-put^json:result@.click+body="url"
+    // data-delete:ok?busy@.click="url"
+    // Method is derived from the attribute prefix; aVal is compiled as a URL expression.
+    function dAction(el, aName, aVal) {
+      const afterData = aName.slice(5) // strip 'data-'
+      const methodEnd = indexFirst(afterData, ALL, 0)
+      const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
+      const prefixToMethod = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }
+      const method = prefixToMethod[methodName]
+      if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', aName); return }
+
+      let [it] = parse(aName)
+      const tars = it[TARG] ?? EMPTY_ARR
+      const trigs = it[TRIG] ?? EMPTY_ARR
+      const stats = it[STAT] ?? EMPTY_ARR
+      const adds = it[ADD] ?? EMPTY_ARR
+      const globMods = it[MOD] ?? EMPTY_ARR
+
+      const urlFn = aVal ? compileFn(aVal, aName) : null
+      if (aVal && !urlFn) return
+
+      const resultTar = tars.find(t => t.kind === SIGNAL) ?? null
+      // First ?stat = busy signal, second ?stat = error signal
+      const busyStat = stats[0] ?? null
+      const errStat = stats[1] ?? null
+
+      const isJson = hasMod(globMods, 'json')
+
+      // Initialise state signals to defaults if not yet defined
+      if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
+      if (errStat && !_dm.has(errStat.root)) _dm.set(errStat.root, null)
+
+      const isGetOrDelete = method === 'GET' || method === 'DELETE'
+
+      const doRequest = async () => {
+        const url = urlFn ? urlFn(DM, el, null, null, null) : ''
+        if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
+
+        if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, true)
+        if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
+
+        try {
+          const queryParams = {}, bodyFields = {}
+          for (const add of adds) {
+            const addKind = add.kind, addRoot = add.root, addPath = add.path
+            let val, key
+            if (addKind === EV_PROP) {
+              const addEl = addRoot ? getElById(addRoot, aName) : el
+              val = addEl ? getElPropVal(addEl, addPath) : null
+              key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
+            } else {
+              val = getSignalValOrIt(add)
+              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
+            }
+            if (isGetOrDelete) queryParams[key] = val
+            else bodyFields[key] = val
+          }
+
+          let finalUrl = url
+          const paramKeys = Object.keys(queryParams)
+          if (paramKeys.length) {
+            const q = paramKeys.map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))).join('&')
+            finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
+          }
+
+          const headers = {}
+          if (isJson) { headers['Content-Type'] = 'application/json'; headers['Accept'] = 'application/json' }
+
+          const bodyKeys = Object.keys(bodyFields)
+          let body = null
+          if (bodyKeys.length) {
+            // Single input → unwrap the value (matches reference behaviour); multiple → send as object
+            const raw = bodyKeys.length === 1 ? bodyFields[bodyKeys[0]] : bodyFields
+            body = (isJson || (raw !== null && typeof raw === 'object')) ? JSON.stringify(raw) : String(raw)
+          }
+
+          const init = { method, headers }
+          if (body != null) init.body = body
+
+          const res = await window.fetch(finalUrl, init)
+          const ct = (res.headers && res.headers.get('content-type')) || ''
+          const payload = ct.includes('application/json') ? await res.json() : await res.text()
+
+          if (resultTar) setSignalAndNotifySubsNLevelsDeep(aName, resultTar, payload)
+          if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
+        } catch (err) {
+          if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
+          console.error('[dmax] Error: dAction fetch failed:', err)
+        }
+      }
+
+      if (!trigs.length) { doRequest(); return }
+
+      let elSubs = _cleanupBoundSubs.get(el)
+      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
+
+      let ranImmediate = false
+
+      for (const trig of trigs) {
+        const kind = trig.kind, root = trig.root, path = trig.path
+        const mods = (trig.mods ?? globMods) || EMPTY_ARR
+        if (kind === SIGNAL) {
+          if (!expected(root)) return
+          if (!_subs.has(root)) _subs.set(root, [])
+          const subFn = applyTrigMods((_ev, _trigVal, _detail) => doRequest(), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
+          const changeMod = getSgChangeShape(mods)
+          _subs.get(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => {
+            const subs = _subs.get(root)
+            if (subs && subs.length) _subs.set(root, subs.filter(s => s.fn !== wrappedSubFn))
+          }
+          subFn.remove = wrappedSubFn.remove
+          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          if (!ranImmediate && isImmediateMod(mods, false)) {
+            ranImmediate = true
+            doRequest()
+          }
+        } else if (kind === EV_PROP) {
+          const evTarEl = root ? getElById(root, aName) : el
+          if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
+          const baseHandler = (_eventObj) => doRequest()
+          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          evTarEl.addEventListener(ev, moddedHandler)
+          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          if (!ranImmediate && isImmediateMod(mods, false)) {
+            ranImmediate = true
+            moddedHandler()
+          }
+        } else {
+          console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', aName)
+        }
+      }
+    }
+
+    // ---- dAction async tests ----
+    // Tests run sequentially to avoid concurrent reset() interference with shared _subs/_dm state.
+    let _asyncChain = Promise.resolve()
+
+    function _asyncAssert(label, promiseFn) {
+      _asyncChain = _asyncChain.then(() =>
+        promiseFn().then(({ actual, expected }) => {
+          if (deepEqual(actual, expected))
+            console.log('✓', 'dAction —', label, '>>>', fmt(actual))
+          else
+            console.error('✗', 'dAction —', label, '>>> expected:', fmt(expected), 'actual:', fmt(actual))
+        }).catch(err => {
+          console.error('✗', 'dAction —', label, '>>> threw:', err && err.message ? err.message : String(err))
+        })
+      )
+    }
+
+    _asyncAssert('GET ^immediate fires fetch and sets result', async () => {
+      reset()
+      const fetchCalls = []
+      window.fetch = (url, init) => {
+        fetchCalls.push({ url, method: init.method })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => [1, 2, 3]
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('items', null)
+        dAction(btn, 'data-get:items@.click^immediate', '"https://api.test/items"')
+        // click trigger registers the event; immediate also fires doRequest once at setup
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, items: DM['items'] },
+          expected: { calls: 2, method: 'GET', url: 'https://api.test/items', items: [1, 2, 3] }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('POST ^json sends Content-Type and JSON body', async () => {
+      reset()
+      let sentBody = null, sentHeaders = null
+      window.fetch = (_url, init) => {
+        sentBody = init.body
+        sentHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ id: 1 })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('postResult', null)
+        _dm.set('titleVal', 'Hello World')
+        dAction(btn, 'data-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { contentType: sentHeaders?.['Content-Type'], body: JSON.parse(sentBody), result: DM['postResult'] },
+          expected: { contentType: 'application/json', body: 'Hello World', result: { id: 1 } }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('?busy signal goes true while fetching then false on success', async () => {
+      reset()
+      let resolveFetch
+      window.fetch = () => new Promise(r => { resolveFetch = r })
+      try {
+        const btn = document.createElement('button')
+        _dm.set('busy', false)
+        _dm.set('data', null)
+        dAction(btn, 'data-get:data?busy@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        // busy is set synchronously before the first await inside doRequest
+        const busyDuring = DM['busy']
+        resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { busyDuring, busyAfter: DM['busy'] },
+          expected: { busyDuring: true, busyAfter: false }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('fetch failure sets ?err signal and clears ?busy', async () => {
+      reset()
+      window.fetch = () => Promise.reject(new Error('Network error'))
+      try {
+        const btn = document.createElement('button')
+        _dm.set('busy', false)
+        _dm.set('errMsg', null)
+        dAction(btn, 'data-get:data?busy?errMsg@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { busy: DM['busy'], err: DM['errMsg'] },
+          expected: { busy: false, err: 'Network error' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    _asyncAssert('@signal^immediate fires immediately and on signal change', async () => {
+      reset()
+      const fetchUrls = []
+      window.fetch = (url) => {
+        fetchUrls.push(url)
+        return Promise.resolve({ ok: true, headers: { get: () => 'text/plain' }, text: async () => 'ok' })
+      }
+      try {
+        const div = document.createElement('div')
+        _dm.set('reload', 0)
+        _dm.set('content', null)
+        dAction(div, 'data-get:content@reload^immediate', '"https://api.test/content"')
+        await new Promise(r => setTimeout(r, 0))
+        const afterImmediate = fetchUrls.length
+        _setSignalAndNotifySubs('t', { root: 'reload', path: null }, 1)
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { afterImmediate, total: fetchUrls.length, content: DM['content'] },
+          expected: { afterImmediate: 1, total: 2, content: 'ok' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    // Wait for all sequential async tests before signalling completion
+    _asyncChain.then(() => {
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    }).catch(() => {
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    })
+
+    // --- morph: fast in-place DOM reconciliation ---
+    //
+    // WHY morph beats innerHTML replacement:
+    //   • innerHTML destroys and recreates all event listeners (requires re-wiring)
+    //   • innerHTML triggers forced layout/style recalculation for all descendants
+    //   • innerHTML loses form state (input values, focus, scroll position)
+    //   • morph reuses matched DOM nodes, only patching what changed
+    //
+    // Algorithm (inspired by Idiomorph / keyed reconciliation):
+    //   1. Match by `id` first  → stable identity across reorders
+    //   2. Fallback to same tagName → morph in place
+    //   3. No match → replace/clone
+    //   Build a single Map<id, node> per morphChildren call (O(1) lookup, no double scan).
+
+    // Returns true if two nodes can be morphed in place (same type, same tag or same id).
+    function sameKind(a, b) {
+      if (a.nodeType !== b.nodeType) return false
+      if (a.nodeType !== 1 /*ELEMENT*/) return true
+      if (a.id && b.id) return a.id === b.id
+      return a.tagName === b.tagName
+    }
+
+    // Sync attributes from `to` onto `from`: remove missing, add/update present.
+    function updateAttrs(from, to) {
+      const toAttrs = to.attributes
+      for (let i = 0; i < toAttrs.length; i++) {
+        const { name, value } = toAttrs[i]
+        if (from.getAttribute(name) !== value) from.setAttribute(name, value)
+      }
+      // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
+      // so we iterate backwards to avoid skipping entries.
+      const fromAttrs = from.attributes
+      for (let i = fromAttrs.length - 1; i >= 0; i--) {
+        const name = fromAttrs[i].name
+        if (!to.hasAttribute(name)) from.removeAttribute(name)
+      }
+    }
+
+    // Reconcile children of `from` to match children of `to`.
+    // Single forward pass; reuses a Map allocated once per call for O(1) id lookup.
+    function morphChildren(from, to) {
+      // Build id→node map for all keyed existing children
+      const idMap = new Map()
+      for (let n = from.firstChild; n; n = n.nextSibling)
+        if (n.nodeType === 1 && n.id) idMap.set(n.id, n)
+
+      let cur = from.firstChild
+
+      for (let toChild = to.firstChild; toChild; toChild = toChild.nextSibling) {
+        let match = null
+
+        if (toChild.nodeType === 1 && toChild.id && idMap.has(toChild.id)) {
+          // Keyed match: pull by id regardless of position
+          match = idMap.get(toChild.id)
+          idMap.delete(toChild.id)
+        } else {
+          // Skip over keyed (id'd) nodes that are still awaiting their own keyed toChild match.
+          // Moving `cur` past them prevents an unkeyed child from "stealing" a node that belongs
+          // to a later id-matched slot, which would require an extra insertBefore to fix.
+          while (cur && cur.nodeType === 1 && cur.id && idMap.has(cur.id))
+            cur = cur.nextSibling
+          if (cur && sameKind(cur, toChild)) {
+            match = cur
+          }
+        }
+
+        if (match) {
+          if (match !== cur) {
+            from.insertBefore(match, cur || null)
+          } else {
+            cur = cur.nextSibling
+          }
+          morph(match, toChild)
+        } else {
+          // No reusable node found — clone and insert
+          from.insertBefore(toChild.cloneNode(true), cur || null)
+        }
+      }
+
+      // Remove any remaining unprocessed old nodes
+      while (cur) {
+        const next = cur.nextSibling
+        from.removeChild(cur)
+        cur = next
+      }
+    }
+
+    // Update `from` DOM node in place to match `to`. Does not disturb event
+    // listeners, __dump state, or _cleanupBoundSubs on matched nodes.
+    function morph(from, to) {
+      if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
+        if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
+        return
+      }
+      if (from.nodeType !== 1 || to.nodeType !== 1) return
+      if (from.tagName !== to.tagName) {
+        // Different element type — replace entirely (cannot morph safely)
+        if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
+        return
+      }
+      updateAttrs(from, to)
+      morphChildren(from, to)
+    }
+
+    function applyOobHtml(html) {
+      if (!html) return ''
+      const t = document.createElement('template')
+      t.innerHTML = html
+      const src = t.content.querySelector('[data-oob]')
+      if (!src) return ''
+      const mode = src.getAttribute('data-oob')
+      const id = src.getAttribute('id')
+      const tar = id ? document.getElementById(id) : null
+      if (!tar) return ''
+      if (mode === 'morph') morph(tar, src)
+      else tar.replaceWith(src.cloneNode(true))
+      return 'applied:' + mode
+    }
+
+    // morph tests -------------------------------------------------------
+
+    function tMorphTextUpdate() {
+      const from = document.createElement('div')
+      from.textContent = 'old'
+      const to = document.createElement('div')
+      to.textContent = 'new'
+      const originalTextNode = from.firstChild
+      morph(from, to)
+      return { sameNode: from.firstChild === originalTextNode, text: from.textContent }
+    }
+    assert(tMorphTextUpdate, [], { sameNode: true, text: 'new' }, 'morph: text node updated in place')
+
+    function tMorphAttrUpdate() {
+      const from = document.createElement('div')
+      from.setAttribute('class', 'old')
+      from.setAttribute('title', 'keep')
+      const to = document.createElement('div')
+      to.setAttribute('id', 'new-id')
+      to.setAttribute('title', 'keep')
+      morph(from, to)
+      return { id: from.getAttribute('id'), title: from.getAttribute('title'), hasClass: from.hasAttribute('class') }
+    }
+    assert(tMorphAttrUpdate, [], { id: 'new-id', title: 'keep', hasClass: false }, 'morph: attrs added/removed/kept')
+
+    function tMorphChildAdd() {
+      const from = document.createElement('ul')
+      from.innerHTML = '<li>a</li>'
+      const to = document.createElement('ul')
+      to.innerHTML = '<li>a</li><li>b</li>'
+      morph(from, to)
+      return Array.from(from.querySelectorAll('li')).map(li => li.textContent)
+    }
+    assert(tMorphChildAdd, [], ['a', 'b'], 'morph: child add appends new node')
+
+    function tMorphChildRemove() {
+      const from = document.createElement('ul')
+      from.innerHTML = '<li>a</li><li>b</li><li>c</li>'
+      const to = document.createElement('ul')
+      to.innerHTML = '<li>a</li>'
+      morph(from, to)
+      return from.children.length
+    }
+    assert(tMorphChildRemove, [], 1, 'morph: child remove trims extra nodes')
+
+    function tMorphKeyedReorder() {
+      const from = document.createElement('div')
+      from.innerHTML = '<p id="ka">1</p><p id="kb">2</p>'
+      const nodeA = from.querySelector('#ka')
+      const nodeB = from.querySelector('#kb')
+      const to = document.createElement('div')
+      to.innerHTML = '<p id="kb">2</p><p id="ka">1</p>'
+      morph(from, to)
+      return { firstIsB: from.firstChild === nodeB, secondIsA: from.lastChild === nodeA, count: from.children.length }
+    }
+    assert(tMorphKeyedReorder, [], { firstIsB: true, secondIsA: true, count: 2 }, 'morph: keyed nodes moved by id, not replaced')
+
+    function tMorphTagMismatch() {
+      const container = document.createElement('div')
+      const from = document.createElement('div')
+      from.textContent = 'I am a div'
+      container.appendChild(from)
+      const to = document.createElement('p')
+      to.textContent = 'I am a p'
+      morph(from, to)
+      return { tag: container.firstChild.tagName, text: container.firstChild.textContent }
+    }
+    assert(tMorphTagMismatch, [], { tag: 'P', text: 'I am a p' }, 'morph: tag mismatch replaces node')
+
+    function tMorphEventListenerPreserved() {
+      const from = document.createElement('button')
+      let clicked = 0
+      from.addEventListener('click', () => clicked++)
+      const to = document.createElement('button')
+      to.setAttribute('class', 'updated')
+      morph(from, to)
+      from.click()
+      return { clicked, hasClass: from.classList.contains('updated') }
+    }
+    assert(tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
@@ -1405,19 +2532,48 @@
         `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`)
       liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')))
     }
+    function installDemoFetchMock() {
+      if (window.__dmaxDemoFetchInstalled) return
+      const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null
+      window.fetch = function (url, init) {
+        const u = String(url || '')
+        if (u === '/mock/oob') {
+          const html = `<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`
+          return Promise.resolve({
+            ok: true,
+            headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
+            text: async () => html
+          })
+        }
+        if (baseFetch) return baseFetch(url, init)
+        return Promise.reject(new Error('fetch not available'))
+      }
+      window.__dmaxDemoFetchInstalled = true
+    }
+    function initPortedExamples() {
+      const root = document.getElementById('ported-examples')
+      if (!root) return
+      const nodes = [root].concat(Array.from(root.querySelectorAll('*')))
+      const deferred = []
+      for (const n of nodes) {
+        for (const a of Array.from(n.attributes || [])) {
+          if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value)
+          else deferred.push([n, a.name, a.value])
+        }
+      }
+      for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal)
+      installDemoFetchMock()
+    }
     initLiveDSubExamples()
+    window.addEventListener('dmax:tests:done', () => {
+      initPortedExamples()
+    }, { once: true })
 
     // Production cleanup path: when DOM nodes are removed, detach all their bound listeners/subscribers.
     // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
-      // _subs entries may be raw functions (legacy shape) or descriptor objects with .fn.
-      // Return true when an entry points to the same subscriber callback.
-      const matchesSubscriberFn = (entry, fn) => {
-        if (typeof entry === 'function') return entry === fn
-        if (!entry || typeof entry !== 'object') return false
-        return entry.fn === fn
-      }
+      const matchesSubscriberFn = (entry, fn) => !!entry && !Array.isArray(entry) && typeof entry === 'object' && entry.fn === fn
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
