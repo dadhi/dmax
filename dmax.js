@@ -453,6 +453,20 @@
     }
 
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
+    const MOD_JSON = 'json'
+    const MOD_TEXT = 'text'
+    const MOD_FORM = 'form'
+    const MOD_NO_CACHE = 'noCache'
+    const MOD_HEADERS = 'headers'
+    const MOD_BROTLI = 'brotli'
+    const MOD_BR = 'br'
+    const MOD_GZIP = 'gzip'
+    const MOD_DEFLATE = 'deflate'
+    const MOD_COMPRESS = 'compress'
+    const MOD_REPLACE = 'replace'
+    const MOD_MERGE = 'merge'
+    const MOD_APPEND = 'append'
+    const MOD_PREPEND = 'prepend'
     function isImmediateMod(mods, defaultVal) {
       for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
@@ -494,6 +508,82 @@
       return parsed && parsed.kind
         ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
         : v
+    }
+
+    function resolveStatusSignal(mod, fallbackRoot) {
+      if (!mod) return null
+      const p = mod.path
+      if (typeof p === 'string') return { kind: SIGNAL, not: null, root: p || fallbackRoot, path: null }
+      if (p && p.kind === SIGNAL) return p
+      return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
+    }
+
+    function isJsonContentType(ct) {
+      const low = String(ct || '').toLowerCase()
+      return low.indexOf('application/json') !== -1 || low.indexOf('+json') !== -1
+    }
+
+    function isTextLikeContentType(ct) {
+      const low = String(ct || '').toLowerCase()
+      if (low.indexOf('text/') !== -1) return true
+      if (low.indexOf('application/xml') !== -1) return true
+      if (low.indexOf('application/xhtml+xml') !== -1) return true
+      if (low.indexOf('application/x-www-form-urlencoded') !== -1) return true
+      if (low.indexOf('application/javascript') !== -1) return true
+      return false
+    }
+
+    function isPlainObj(val) {
+      return !!val && typeof val === 'object' && !Array.isArray(val)
+    }
+
+    function hasOwn(obj, key) {
+      return Object.prototype.hasOwnProperty.call(obj, key)
+    }
+
+    function mergeActionVals(prev, next) {
+      if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
+      if (!isPlainObj(prev) || !isPlainObj(next)) return next
+      const out = Object.create(null)
+      for (const k in prev) if (hasOwn(prev, k)) out[k] = prev[k]
+      for (const k in next) if (hasOwn(next, k)) out[k] = hasOwn(out, k) ? mergeActionVals(out[k], next[k]) : next[k]
+      return out
+    }
+
+    function combineActionResult(prev, next, mode) {
+      if (mode === MOD_MERGE) return mergeActionVals(prev, next)
+      if (mode === MOD_APPEND) {
+        if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
+        if (typeof prev === 'string' || typeof next === 'string') return String(prev ?? '') + String(next ?? '')
+        return next
+      }
+      if (mode === MOD_PREPEND) {
+        if (Array.isArray(prev) && Array.isArray(next)) return next.concat(prev)
+        if (typeof prev === 'string' || typeof next === 'string') return String(next ?? '') + String(prev ?? '')
+        return next
+      }
+      return next
+    }
+
+    function applyActionPayload(aName, resultTar, payload, resultMode) {
+      if (!resultTar) return
+      const isAllTarget = resultTar.kind === SIGNAL && resultTar.root === '_all' && !resultTar.path
+      if (isAllTarget) {
+        if (Array.isArray(payload)) {
+          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root: '_arr', path: null }, payload)
+          return
+        }
+        if (!payload || typeof payload !== 'object') return
+        for (const key in payload) {
+          if (!hasOwn(payload, key)) continue
+          const root = kebabToCamel(key)
+          const prev = _dm.get(root)
+          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
+        }
+        return
+      }
+      const prev = getSignalValOrIt(resultTar)
+      setSignalAndNotifySubsNLevelsDeep(aName, resultTar, combineActionResult(prev, payload, resultMode))
     }
 
     function modsPermitVal(mods, val) {
@@ -1802,24 +1892,42 @@
       const urlFn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !urlFn) return
 
-      const resultTar = tars.find(t => t.kind === SIGNAL) ?? null
-      const resolveStatusSignal = (mod, fallbackRoot) => {
-        if (!mod) return null
-        const p = mod.path
-        if (typeof p === 'string') return { kind: SIGNAL, not: null, root: p || fallbackRoot, path: null }
-        if (p && p.kind === SIGNAL) return p
-        return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
+      let resultTar = null
+      for (let i = 0; i < tars.length; i++) {
+        if (tars[i].kind === SIGNAL) { resultTar = tars[i]; break }
       }
 
       let busyMod = null, errMod = null, codeMod = null
-      let isJson = false
+      let isJson = false, isText = false, isForm = false, noCache = false
+      let encBr = false, encGzip = false, encDeflate = false, encCompress = false
+      let hdrsMod = null
+      let resultMode = MOD_REPLACE
       for (const m of globMods) {
         const mr = m.root
-        if (mr === 'json') isJson = true
+        if (mr === MOD_JSON) isJson = true
+        else if (mr === MOD_TEXT) isText = true
+        else if (mr === MOD_FORM) isForm = true
+        else if (mr === MOD_NO_CACHE) noCache = true
+        else if (mr === MOD_BROTLI || mr === MOD_BR) encBr = true
+        else if (mr === MOD_GZIP) encGzip = true
+        else if (mr === MOD_DEFLATE) encDeflate = true
+        else if (mr === MOD_COMPRESS) encCompress = true
+        else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
+        else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
         else if (mr === 'busy' && !busyMod) busyMod = m
         else if (mr === 'err' && !errMod) errMod = m
         else if (mr === 'code' && !codeMod) codeMod = m
       }
+      if (resultTar && resultTar.mods) {
+        for (const m of resultTar.mods) {
+          const mr = m.root
+          if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) {
+            resultMode = mr
+            break
+          }
+        }
+      }
+
       const busyStat = resolveStatusSignal(busyMod, 'busy')
       const errStat = resolveStatusSignal(errMod, 'err')
       const codeStat = resolveStatusSignal(codeMod, 'code')
@@ -1840,54 +1948,107 @@
         if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, null)
 
         try {
-          const queryParams = {}, bodyFields = {}
+          const queryParams = Object.create(null), bodyFields = Object.create(null)
           for (const add of adds) {
             const addKind = add.kind, addRoot = add.root, addPath = add.path
-            let val, key
+            let val = null, key = null, spreadAll = false
             if (addKind === EV_PROP) {
               const addEl = addRoot ? getElById(addRoot, aName) : el
               val = addEl ? getElPropVal(addEl, addPath) : null
               key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
             } else {
-              val = getSignalValOrIt(add)
-              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
+              const pathLen = addPath ? addPath.length : 0
+              if (addRoot === '_all' && !pathLen) {
+                val = {}
+                for (const [sgName, sgVal] of _dm.entries()) val[sgName] = sgVal
+                spreadAll = true
+              } else if (pathLen && addPath[pathLen - 1] === '_all') {
+                const basePath = pathLen === 1 ? null : addPath.slice(0, pathLen - 1)
+                val = getSignalValOrIt({ kind: SIGNAL, not: add.not, root: addRoot, path: basePath })
+                spreadAll = true
+              } else {
+                val = getSignalValOrIt(add)
+                key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
+              }
             }
-            if (isGetOrDelete) queryParams[key] = val
+            if (spreadAll) {
+              if (val && typeof val === 'object') {
+                for (const k in val) {
+                  if (!hasOwn(val, k)) continue
+                  if (isGetOrDelete) queryParams[k] = val[k]
+                  else bodyFields[k] = val[k]
+                }
+              } else if (isGetOrDelete) queryParams.value = val
+              else bodyFields.value = val
+            } else if (isGetOrDelete) queryParams[key] = val
             else bodyFields[key] = val
           }
 
           let finalUrl = url
-          const paramKeys = Object.keys(queryParams)
-          if (paramKeys.length) {
-            const q = paramKeys.map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))).join('&')
+          let q = '', hasQ = false
+          for (const k in queryParams) {
+            if (hasQ) q += '&'
+            q += encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))
+            hasQ = true
+          }
+          if (hasQ) {
             finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
           }
 
-          const headers = {}
+          const headers = Object.create(null)
           if (isJson) { headers['Content-Type'] = 'application/json'; headers['Accept'] = 'application/json' }
+          else if (isForm) headers['Content-Type'] = 'application/x-www-form-urlencoded'
+          else if (isText) headers['Content-Type'] = 'text/plain;charset=UTF-8'
+          if (noCache) { headers['Cache-Control'] = 'no-cache'; headers['Pragma'] = 'no-cache' }
+          let enc = ''
+          if (encBr) enc = 'br'
+          if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
+          if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
+          if (encCompress) enc += (enc ? ', ' : '') + 'compress'
+          if (enc) headers['Accept-Encoding'] = enc
+          if (hdrsMod) {
+            const hdrObj = resolveModPathVal(hdrsMod.path)
+            if (hdrObj && typeof hdrObj === 'object')
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
+          }
 
-          const bodyKeys = Object.keys(bodyFields)
+          let bodyCount = 0, firstBodyKey = null
+          for (const bk in bodyFields) {
+            if (!hasOwn(bodyFields, bk)) continue
+            if (!bodyCount) firstBodyKey = bk
+            bodyCount++
+          }
           let body = null
-          if (bodyKeys.length) {
+          if (bodyCount) {
             // Single input → unwrap the value (matches reference behaviour); multiple → send as object
-            const raw = bodyKeys.length === 1 ? bodyFields[bodyKeys[0]] : bodyFields
-            body = (isJson || (raw !== null && typeof raw === 'object')) ? JSON.stringify(raw) : String(raw)
+            const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
+            if (isForm && raw && typeof raw === 'object') {
+              const params = new URLSearchParams()
+              if (Array.isArray(raw)) {
+                for (let i = 0; i < raw.length; i++) params.append(String(i), String(raw[i] ?? ''))
+              } else {
+                for (const k in raw) if (hasOwn(raw, k)) params.append(k, String(raw[k] ?? ''))
+              }
+              body = params.toString()
+            } else if (isJson || (raw !== null && typeof raw === 'object'))
+              body = JSON.stringify(raw)
+            else body = String(raw)
           }
 
           const init = { method, headers }
           if (body != null) init.body = body
 
           const res = await window.fetch(finalUrl, init)
-          const ct = (res.headers && res.headers.get('content-type')) || ''
+          const ct = ((res.headers && res.headers.get('content-type')) || '').toLowerCase()
           let payload
           if (ct.includes('text/event-stream')) {
             const sseRaw = await res.text()
             payload = applyDmaxSse(sseRaw)
-          } else {
-            payload = ct.includes('application/json') ? await res.json() : await res.text()
-          }
+          } else if (isJsonContentType(ct)) payload = await res.json()
+          else if (!ct || isTextLikeContentType(ct)) payload = await res.text()
+          else payload = await res.text()
 
-          if (resultTar) setSignalAndNotifySubsNLevelsDeep(aName, resultTar, payload)
+          applyActionPayload(aName, resultTar, payload, resultMode)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
           if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
@@ -2077,6 +2238,106 @@
         return {
           actual: { afterImmediate, total: fetchUrls.length, content: DM['content'] },
           expected: { afterImmediate: 1, total: 2, content: 'ok' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('+_all and +path._all spread signal object fields into request payload', async () => {
+      __reset()
+      let sentBody = null
+      window.fetch = (_url, init) => {
+        sentBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('a', 1)
+        _dm.set('nested', { x: 7, y: 8 })
+        dAction(btn, 'data-post^json:req@.click+_all+nested._all', '"https://api.test/all"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: JSON.parse(sentBody),
+          expected: { a: 1, nested: { x: 7, y: 8 }, x: 7, y: 8 }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert(':_all target unpacks object payload into root signals', async () => {
+      __reset()
+      window.fetch = () => Promise.resolve({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ alpha: 1, 'foo-bar': 2 })
+      })
+      try {
+        const btn = document.createElement('button')
+        dAction(btn, 'data-get:_all@.click', '"https://api.test/obj"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { alpha: DM['alpha'], fooBar: DM['fooBar'] },
+          expected: { alpha: 1, fooBar: 2 }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert(':_all target unpacks top-level array payload into _arr signal', async () => {
+      __reset()
+      window.fetch = () => Promise.resolve({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => [3, 4, 5]
+      })
+      try {
+        const btn = document.createElement('button')
+        dAction(btn, 'data-get:_all@.click', '"https://api.test/arr"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: DM['_arr'],
+          expected: [3, 4, 5]
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^merge and header mods combine response state and attach extra headers', async () => {
+      __reset()
+      let sentHeaders = null
+      window.fetch = (_url, init) => {
+        sentHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/problem+json' },
+          json: async () => ({ meta: { age: 2 }, active: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
+        _dm.set('reqHeaders', { authorization: 'Bearer 123', 'x-trace': 'abc' })
+        dAction(btn, 'data-get^merge^no-cache^headers.req-headers:profile@.click', '"https://api.test/profile"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: {
+            profile: DM['profile'],
+            cacheControl: sentHeaders?.['Cache-Control'],
+            auth: sentHeaders?.authorization
+          },
+          expected: {
+            profile: { name: 'Alice', meta: { age: 2, city: 'Riga' }, active: true },
+            cacheControl: 'no-cache',
+            auth: 'Bearer 123'
+          }
         }
       } finally { delete window.fetch }
     })
