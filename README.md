@@ -73,7 +73,7 @@ five very small libraries:
 ### What is still missing on both sides
 
 - A unified parity matrix against Datastar's broader scenarios such as unusual attribute updates (`style`, links, canvas, etc.).
-- Stronger story for keyed list reconciliation / stable DOM preservation during collection updates.
+- Better support for keyed list reconciliation and stable DOM preservation during collection updates.
 - A final integrated design for SSE + morph together in dmax.
 - A clear decision on whether dmax should add imperative escape hatches, or keep the current signal-first model intentionally strict.
 
