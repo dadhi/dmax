@@ -2280,13 +2280,13 @@
       const mode = String(args.mode || 'outer').toLowerCase()
       const selector = args.selector ? String(args.selector) : ''
       const namespace = args.namespace ? String(args.namespace) : 'html'
-      const sourceEls = parseDatastarElements(args.elements || '', namespace)
+      const sourceEls = parseDatastarElements(args.dmaxElements || args.elements || '', namespace)
 
       if (mode === 'remove') {
         if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
         else for (const src of sourceEls) {
           if (src.id) document.getElementById(src.id)?.remove()
-          else console.warn('[dmax] datastar-patch-elements remove without selector requires element ids')
+          else console.warn('[dmax] dmax-patch-elements remove without selector requires element ids')
         }
         return
       }
@@ -2323,7 +2323,7 @@
 
       for (const src of sourceEls) {
         if (src.id) applyPair(document.getElementById(src.id), src)
-        else console.warn('[dmax] datastar-patch-elements without selector requires element ids')
+        else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
       }
     }
 
@@ -2340,7 +2340,7 @@
     }
 
     function applyDatastarPatchSignals(aName, args) {
-      const raw = args.signals
+      const raw = args.dmaxSignals || args.signals
       if (!raw) return
       let patchObj = null
       try { patchObj = JSON.parse(raw) } catch (_e) { return }
@@ -2361,16 +2361,16 @@
       }
     }
 
-    function applyDatastarSse(raw, aName = 'datastar-sse') {
+    function applyDatastarSse(raw, aName = 'dmax-sse') {
       const events = parseSseEvents(raw)
       const applied = []
       for (const evt of events) {
         if (!evt || typeof evt.event !== 'string') continue
-        if (evt.event === 'datastar-patch-elements') {
+        if (evt.event === 'dmax-patch-elements' || evt.event === 'datastar-patch-elements') {
           const args = parseDatastarArgs(evt.data)
           applyDatastarPatchElements(args)
           applied.push({ event: evt.event, args })
-        } else if (evt.event === 'datastar-patch-signals') {
+        } else if (evt.event === 'dmax-patch-signals' || evt.event === 'datastar-patch-signals') {
           const args = parseDatastarArgs(evt.data)
           applyDatastarPatchSignals(aName, args)
           applied.push({ event: evt.event, args })
@@ -2463,19 +2463,19 @@
     function __tDatastarPatchSignalsMergeAndRemove() {
       __reset()
       _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
-      applyDatastarPatchSignals('t', { signals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
+      applyDatastarPatchSignals('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
       const user = _dm.get('user') || {}
       return { name: user.name, keep: user.keep, hasRemove: Object.prototype.hasOwnProperty.call(user, 'removeMe'), newSg: _dm.get('newSg') }
     }
-    __assert(__tDatastarPatchSignalsMergeAndRemove, [], { name: 'Bob', keep: 1, hasRemove: false, newSg: 7 }, 'datastar: patch-signals merges RFC7386 and removes null fields')
+    __assert(__tDatastarPatchSignalsMergeAndRemove, [], { name: 'Bob', keep: 1, hasRemove: false, newSg: 7 }, 'dmax: patch-signals merges RFC7386 and removes null fields')
 
     function __tDatastarPatchSignalsOnlyIfMissing() {
       __reset()
       _dm.set('existing', 1)
-      applyDatastarPatchSignals('t', { onlyIfMissing: 'true', signals: '{"existing":2,"added":3}' })
+      applyDatastarPatchSignals('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
       return { existing: _dm.get('existing'), added: _dm.get('added') }
     }
-    __assert(__tDatastarPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'datastar: patch-signals onlyIfMissing skips existing roots')
+    __assert(__tDatastarPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'dmax: patch-signals onlyIfMissing skips existing roots')
 
     function __tDatastarPatchElementsOuterMorphKeepsListener() {
       const root = document.createElement('div')
@@ -2485,13 +2485,13 @@
         const btn = root.querySelector('#ds-btn')
         let clicks = 0
         btn.addEventListener('click', () => clicks++)
-        applyDatastarPatchElements({ mode: 'outer', elements: '<button id="ds-btn" class="new">new</button>' })
+        applyDatastarPatchElements({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
         const after = root.querySelector('#ds-btn')
         after.click()
         return { sameNode: after === btn, clicks, className: after.className, text: after.textContent }
       } finally { root.remove() }
     }
-    __assert(__tDatastarPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'datastar: patch-elements outer uses morph and preserves listeners')
+    __assert(__tDatastarPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'dmax: patch-elements outer uses morph and preserves listeners')
 
     function __tDatastarSseStreamAppliesBothEvents() {
       __reset()
@@ -2500,14 +2500,14 @@
       document.body.appendChild(root)
       try {
         const stream = [
-          'event: datastar-patch-signals',
-          'data: signals {"sseVal":11}',
+          'event: dmax-patch-signals',
+          'data: dmaxSignals {"sseVal":11}',
           '',
-          'event: datastar-patch-elements',
+          'event: dmax-patch-elements',
           'data: mode outer',
-          'data: elements <div id="ds-target">new</div>',
+          'data: dmaxElements <div id="ds-target">new</div>',
           '',
-          'event: datastar-patch-elements',
+          'event: dmax-patch-elements',
           'data: mode remove',
           'data: selector .rm',
           ''
@@ -2521,7 +2521,7 @@
         }
       } finally { root.remove() }
     }
-    __assert(__tDatastarSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'datastar: SSE stream applies patch-signals and patch-elements')
+    __assert(__tDatastarSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
 
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
@@ -2548,14 +2548,14 @@
             text: async () => html
           })
         }
-        if (u === '/mock/datastar-sse') {
+        if (u === '/mock/dmax-sse' || u === '/mock/datastar-sse') {
           const body = [
-            'event: datastar-patch-signals',
-            'data: signals {"sseMessage":"hello from datastar","sseCount":1}',
+            'event: dmax-patch-signals',
+            'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
             '',
-            'event: datastar-patch-elements',
+            'event: dmax-patch-elements',
             'data: mode outer',
-            'data: elements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+            'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
             ''
           ].join('\n')
           return Promise.resolve({

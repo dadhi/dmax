@@ -23,9 +23,9 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `data-disp` — show/hide elements
 - `data-dump` — render array items via templates
 - `data-get|post|put|patch|delete` — declarative HTTP actions
-- Datastar SSE (`text/event-stream`) in actions:
-  - `event: datastar-patch-elements` (`mode`: `outer|inner|replace|prepend|append|before|after|remove`, `selector`, `namespace`, `elements`)
-  - `event: datastar-patch-signals` (`signals` JSON merge patch, optional `onlyIfMissing true`)
+- dmax SSE (`text/event-stream`) in actions:
+  - `event: dmax-patch-elements` (`mode`: `outer|inner|replace|prepend|append|before|after|remove`, `selector`, `namespace`, `dmaxElements`)
+  - `event: dmax-patch-signals` (`dmaxSignals` JSON merge patch, optional `onlyIfMissing true`)
 
 ### Token grammar
 
@@ -56,8 +56,9 @@ A tiny declarative web runtime driven by `data-*` attributes.
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
 
-For `datastar-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
-When `datastar-patch-elements` is sent without a `selector`, each top-level `elements` node must include an `id` so dmax can target existing DOM nodes.
+For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
+When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
+`datastar-patch-elements`/`datastar-patch-signals` and `elements`/`signals` are also accepted for migration compatibility.
 
 ## Compression question
 
