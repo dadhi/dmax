@@ -576,6 +576,7 @@
         if (!payload || typeof payload !== 'object') return
         for (const key in payload) {
           if (!hasOwn(payload, key)) continue
+          // Keep signal naming consistent with parser conventions (kebab-case attr names -> camelCase signals).
           const root = kebabToCamel(key)
           const prev = _dm.get(root)
           setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
