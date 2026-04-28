@@ -585,7 +585,7 @@
         if (!payload || typeof payload !== 'object') return
         for (const key in payload) {
           if (!hasOwn(payload, key)) continue
-          // :_all target unpacks payload object fields into root signals; normalize keys to mirror attr parser naming
+          // :_all target unpacks payload object fields into root signals; normalize keys to mirror attribute parser naming
           // so kebab-case fields (e.g. foo-bar) map to the same camelCase signal names used elsewhere in dmax.
           const root = kebabToCamel(key)
           const prev = _dm.get(root)
@@ -2333,7 +2333,7 @@
         const btn = document.createElement('button')
         _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
         _dm.set('reqHeaders', { authorization: 'Bearer 123', 'x-trace': 'abc' })
-        dAction(btn, 'data-get^merge^no-cache^headers.req-headers:profile@.click', '"https://api.test/profile"')
+        dAction(btn, 'data-get^merge^no-cache^headers.reqHeaders:profile@.click', '"https://api.test/profile"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
