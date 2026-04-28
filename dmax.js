@@ -2290,6 +2290,7 @@
       if (selector) {
         if (!sourceEls.length) return
         const targets = Array.from(document.querySelectorAll(selector))
+        // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
         const defaultSrc = sourceEls[0]
         for (let i = 0; i < targets.length; i++) {
           applyPair(targets[i], sourceEls[i] || defaultSrc)
@@ -2297,6 +2298,7 @@
         return
       }
 
+      if (!sourceEls.length) return
       for (const src of sourceEls) {
         if (src.id) applyPair(document.getElementById(src.id), src)
         else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
