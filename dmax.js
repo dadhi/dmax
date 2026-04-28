@@ -2236,21 +2236,14 @@
       if (ns === 'html') {
         const t = document.createElement('template')
         t.innerHTML = html
-        const out = []
-        const kids = t.content.children
-        for (let i = 0; i < kids.length; i++) out.push(kids[i])
-        return out
+        return Array.from(t.content.children)
       }
       const wrap = ns === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
         : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
       const doc = new DOMParser().parseFromString(wrap, ns === 'svg' ? 'image/svg+xml' : 'application/xml')
       const root = doc.documentElement
-      if (!root) return []
-      const out = []
-      const kids = root.children
-      for (let i = 0; i < kids.length; i++) out.push(kids[i])
-      return out
+      return root ? Array.from(root.children) : []
     }
 
     function insertFragmentRelative(target, sourceEls, mode) {
@@ -2284,18 +2277,18 @@
         return
       }
 
-      const applyPair = function (targetEl, srcEl) {
+      const applyPair = (targetEl, srcEl) => {
         if (!targetEl || !srcEl) return
         if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
         else if (mode === PATCH_MODE_INNER) {
           const to = targetEl.cloneNode(false)
-          for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
+          for (const ch of Array.from(srcEl.childNodes)) to.appendChild(ch.cloneNode(true))
           morphChildren(targetEl, to)
         } else morph(targetEl, srcEl)
       }
 
       if (selector) {
-        const targets = document.querySelectorAll(selector)
+        const targets = Array.from(document.querySelectorAll(selector))
         const defaultSrc = sourceEls[0]
         for (let i = 0; i < targets.length; i++) {
           applyPair(targets[i], sourceEls[i] || defaultSrc)
@@ -2328,8 +2321,7 @@
       try { patchObj = JSON.parse(raw) } catch (_e) { return }
       if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
       const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
-      for (const root in patchObj) {
-        if (!Object.prototype.hasOwnProperty.call(patchObj, root)) continue
+      for (const root of Object.keys(patchObj)) {
         if (onlyIfMissing && _dm.has(root)) continue
         const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
         if (next === JSON_MERGE_DELETE) {
@@ -2351,7 +2343,7 @@
       let curEvent = 'message'
       let curArgs = null
       let hasData = false
-      const flush = function () {
+      const flush = () => {
         if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
         if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS || curEvent === SSE_EVENT_LEGACY_PATCH_ELEMENTS) {
           applyDmaxPatchElements(curArgs)
