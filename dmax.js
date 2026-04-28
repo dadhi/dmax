@@ -2215,12 +2215,8 @@
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
     const SSE_EVENT_DMAX_PATCH_ELEMENTS = 'dmax-patch-elements'
     const SSE_EVENT_DMAX_PATCH_SIGNALS = 'dmax-patch-signals'
-    const SSE_EVENT_LEGACY_PATCH_ELEMENTS = 'datastar-patch-elements'
-    const SSE_EVENT_LEGACY_PATCH_SIGNALS = 'datastar-patch-signals'
     const SSE_DATA_DMAX_ELEMENTS = 'dmaxElements'
     const SSE_DATA_DMAX_SIGNALS = 'dmaxSignals'
-    const SSE_DATA_LEGACY_ELEMENTS = 'elements'
-    const SSE_DATA_LEGACY_SIGNALS = 'signals'
     const PATCH_MODE_OUTER = 'outer'
     const PATCH_MODE_INNER = 'inner'
     const PATCH_MODE_REPLACE = 'replace'
@@ -2260,7 +2256,7 @@
       const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
       const selector = args.selector ? String(args.selector) : ''
       const namespace = args.namespace ? String(args.namespace) : 'html'
-      const sourceEls = parseSseElements(args[SSE_DATA_DMAX_ELEMENTS] || args[SSE_DATA_LEGACY_ELEMENTS] || '', namespace)
+      const sourceEls = parseSseElements(args[SSE_DATA_DMAX_ELEMENTS] || '', namespace)
 
       if (mode === PATCH_MODE_REMOVE) {
         if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
@@ -2318,7 +2314,7 @@
     }
 
     function applyDmaxPatchSignals(aName, args) {
-      const raw = args[SSE_DATA_DMAX_SIGNALS] || args[SSE_DATA_LEGACY_SIGNALS]
+      const raw = args[SSE_DATA_DMAX_SIGNALS]
       if (!raw) return
       let patchObj = null
       try { patchObj = JSON.parse(raw) } catch (_e) { return }
@@ -2366,10 +2362,10 @@
       }
       const flush = () => {
         if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
-        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS || curEvent === SSE_EVENT_LEGACY_PATCH_ELEMENTS) {
+        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
           applyDmaxPatchElements(curArgs)
           applied.push({ event: curEvent, args: curArgs })
-        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS || curEvent === SSE_EVENT_LEGACY_PATCH_SIGNALS) {
+        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS) {
           applyDmaxPatchSignals(aName, curArgs)
           applied.push({ event: curEvent, args: curArgs })
         }
@@ -2557,7 +2553,7 @@
             text: async () => html
           })
         }
-        if (u === '/mock/dmax-sse' || u === '/mock/datastar-sse') {
+        if (u === '/mock/dmax-sse') {
           const body = [
             'event: dmax-patch-signals',
             'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',

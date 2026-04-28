@@ -58,7 +58,7 @@ A tiny declarative web runtime driven by `data-*` attributes.
 
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
-`datastar-patch-elements`/`datastar-patch-signals` and `elements`/`signals` are also accepted for migration compatibility.
+Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` are supported.
 
 ## Compression question
 
