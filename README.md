@@ -23,6 +23,9 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `data-disp` — show/hide elements
 - `data-dump` — render array items via templates
 - `data-get|post|put|patch|delete` — declarative HTTP actions
+- dmax SSE (`text/event-stream`) in actions:
+  - `event: dmax-patch-elements` (`mode`: `outer|inner|replace|prepend|append|before|after|remove`, `selector`, `namespace`, `dmaxElements`)
+  - `event: dmax-patch-signals` (`dmaxSignals` JSON merge patch, optional `onlyIfMissing true`)
 
 ### Token grammar
 
@@ -52,6 +55,10 @@ A tiny declarative web runtime driven by `data-*` attributes.
 ```
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
+
+For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
+When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
+Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` are supported.
 
 ## Compression question
 

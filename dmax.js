@@ -1879,7 +1879,13 @@
 
           const res = await window.fetch(finalUrl, init)
           const ct = (res.headers && res.headers.get('content-type')) || ''
-          const payload = ct.includes('application/json') ? await res.json() : await res.text()
+          let payload
+          if (ct.includes('text/event-stream')) {
+            const sseRaw = await res.text()
+            payload = applyDmaxSse(sseRaw)
+          } else {
+            payload = ct.includes('application/json') ? await res.json() : await res.text()
+          }
 
           if (resultTar) setSignalAndNotifySubsNLevelsDeep(aName, resultTar, payload)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
@@ -2201,6 +2207,178 @@
       return 'applied:' + mode
     }
 
+    const JSON_MERGE_DELETE = Symbol('json_merge_delete')
+    const SSE_EVENT_DMAX_PATCH_ELEMENTS = 'dmax-patch-elements'
+    const SSE_EVENT_DMAX_PATCH_SIGNALS = 'dmax-patch-signals'
+    const SSE_DATA_DMAX_ELEMENTS = 'dmaxElements'
+    const SSE_DATA_DMAX_SIGNALS = 'dmaxSignals'
+    const PATCH_MODE_OUTER = 'outer'
+    const PATCH_MODE_INNER = 'inner'
+    const PATCH_MODE_REPLACE = 'replace'
+    const PATCH_MODE_PREPEND = 'prepend'
+    const PATCH_MODE_APPEND = 'append'
+    const PATCH_MODE_BEFORE = 'before'
+    const PATCH_MODE_AFTER = 'after'
+    const PATCH_MODE_REMOVE = 'remove'
+
+    function parseSseElements(html, namespace) {
+      if (!html) return []
+      const ns = (namespace || 'html').toLowerCase()
+      if (ns === 'html') {
+        const t = document.createElement('template')
+        t.innerHTML = html
+        return Array.from(t.content.children)
+      }
+      const wrap = ns === 'svg'
+        ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
+        : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
+      const doc = new DOMParser().parseFromString(wrap, ns === 'svg' ? 'image/svg+xml' : 'application/xml')
+      const root = doc.documentElement
+      return root ? Array.from(root.children) : []
+    }
+
+    function insertFragmentRelative(target, sourceEls, mode) {
+      if (!target || !sourceEls || !sourceEls.length) return
+      const frag = document.createDocumentFragment()
+      for (const src of sourceEls) frag.appendChild(src.cloneNode(true))
+      if (mode === 'append') target.appendChild(frag)
+      else if (mode === 'prepend') target.insertBefore(frag, target.firstChild || null)
+      else if (mode === 'before' && target.parentNode) target.parentNode.insertBefore(frag, target)
+      else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
+    }
+
+    function applyDmaxPatchElements(args) {
+      const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
+      const selector = args.selector ? String(args.selector) : ''
+      const namespace = args.namespace ? String(args.namespace) : 'html'
+      const sourceEls = parseSseElements(args[SSE_DATA_DMAX_ELEMENTS] || '', namespace)
+
+      if (mode === PATCH_MODE_REMOVE) {
+        if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
+        else for (const src of sourceEls) {
+          if (src.id) document.getElementById(src.id)?.remove()
+          else console.warn('[dmax] dmax-patch-elements remove without selector requires element ids')
+        }
+        return
+      }
+
+      if (mode === PATCH_MODE_APPEND || mode === PATCH_MODE_PREPEND || mode === PATCH_MODE_BEFORE || mode === PATCH_MODE_AFTER) {
+        if (!selector || !sourceEls.length) return
+        for (const t of document.querySelectorAll(selector)) insertFragmentRelative(t, sourceEls, mode)
+        return
+      }
+
+      const applyPair = (targetEl, srcEl) => {
+        if (!targetEl || !srcEl) return
+        if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
+        else if (mode === PATCH_MODE_INNER) {
+          const to = targetEl.cloneNode(false)
+          for (const ch of Array.from(srcEl.childNodes)) to.appendChild(ch.cloneNode(true))
+          morphChildren(targetEl, to)
+        } else morph(targetEl, srcEl)
+      }
+
+      if (selector) {
+        if (!sourceEls.length) return
+        const targets = Array.from(document.querySelectorAll(selector))
+        // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
+        const defaultSrc = sourceEls[0]
+        for (let i = 0; i < targets.length; i++) {
+          applyPair(targets[i], sourceEls[i] || defaultSrc)
+        }
+        return
+      }
+
+      if (!sourceEls.length) return
+      for (const src of sourceEls) {
+        if (src.id) applyPair(document.getElementById(src.id), src)
+        else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
+      }
+    }
+
+    function applyJsonMergePatch(prev, patch) {
+      if (patch === null) return JSON_MERGE_DELETE
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch
+      const out = (prev && typeof prev === 'object' && !Array.isArray(prev)) ? { ...prev } : {}
+      for (const k of Object.keys(patch)) {
+        const next = applyJsonMergePatch(out[k], patch[k])
+        if (next === JSON_MERGE_DELETE) delete out[k]
+        else out[k] = next
+      }
+      return out
+    }
+
+    function applyDmaxPatchSignals(aName, args) {
+      const raw = args[SSE_DATA_DMAX_SIGNALS]
+      if (!raw) return
+      let patchObj = null
+      try { patchObj = JSON.parse(raw) } catch (_e) { return }
+      if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
+      const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
+      for (const root of Object.keys(patchObj)) {
+        if (onlyIfMissing && _dm.has(root)) continue
+        const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
+        if (next === JSON_MERGE_DELETE) {
+          if (_dm.has(root)) {
+            setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, undefined)
+            _dm.delete(root)
+            updateDebug()
+          }
+        } else {
+          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, next)
+        }
+      }
+    }
+
+    function applyDmaxSse(raw, aName = 'dmax-sse') {
+      if (!raw) return []
+      const applied = []
+      const text = String(raw).replace(/\r/g, '')
+      let curEvent = 'message'
+      let curArgs = null
+      let hasData = false
+      const consumeLine = (line) => {
+        if (!line) { flush(); return }
+        if (line[0] === ':') return
+        const colonIndex = line.indexOf(':')
+        const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
+        let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
+        if (val[0] === ' ') val = val.slice(1)
+        if (field === 'event') curEvent = val || 'message'
+        else if (field === 'data') {
+          const spaceIndex = val.indexOf(' ')
+          if (spaceIndex < 0) return
+          const key = val.slice(0, spaceIndex), value = val.slice(spaceIndex + 1)
+          if (!curArgs) curArgs = {}
+          hasData = true
+          if (!curArgs[key]) curArgs[key] = value
+          else curArgs[key] += '\n' + value
+        }
+      }
+      const flush = () => {
+        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
+        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
+          applyDmaxPatchElements(curArgs)
+          applied.push({ event: curEvent, args: curArgs })
+        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS) {
+          applyDmaxPatchSignals(aName, curArgs)
+          applied.push({ event: curEvent, args: curArgs })
+        }
+        curEvent = 'message'
+        curArgs = null
+        hasData = false
+      }
+      let start = 0
+      for (let end = 0; end < text.length; end++) {
+        if (text[end] !== '\n') continue
+        consumeLine(text.slice(start, end))
+        start = end + 1
+      }
+      if (start < text.length) consumeLine(text.slice(start))
+      flush()
+      return applied
+    }
+
     // morph tests -------------------------------------------------------
 
     function __tMorphTextUpdate() {
@@ -2282,6 +2460,69 @@
     }
     __assert(__tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
 
+    function __tDmaxPatchSignalsMergeAndRemove() {
+      __reset()
+      _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
+      applyDmaxPatchSignals('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
+      const user = _dm.get('user') || {}
+      return { name: user.name, keep: user.keep, hasRemove: Object.prototype.hasOwnProperty.call(user, 'removeMe'), newSg: _dm.get('newSg') }
+    }
+    __assert(__tDmaxPatchSignalsMergeAndRemove, [], { name: 'Bob', keep: 1, hasRemove: false, newSg: 7 }, 'dmax: patch-signals merges RFC7386 and removes null fields')
+
+    function __tDmaxPatchSignalsOnlyIfMissing() {
+      __reset()
+      _dm.set('existing', 1)
+      applyDmaxPatchSignals('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
+      return { existing: _dm.get('existing'), added: _dm.get('added') }
+    }
+    __assert(__tDmaxPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'dmax: patch-signals onlyIfMissing skips existing roots')
+
+    function __tDmaxPatchElementsOuterMorphKeepsListener() {
+      const root = document.createElement('div')
+      root.innerHTML = '<button id="ds-btn" class="old">old</button>'
+      document.body.appendChild(root)
+      try {
+        const btn = root.querySelector('#ds-btn')
+        let clicks = 0
+        btn.addEventListener('click', () => clicks++)
+        applyDmaxPatchElements({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
+        const after = root.querySelector('#ds-btn')
+        after.click()
+        return { sameNode: after === btn, clicks, className: after.className, text: after.textContent }
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'dmax: patch-elements outer uses morph and preserves listeners')
+
+    function __tDmaxSseStreamAppliesBothEvents() {
+      __reset()
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="ds-target">old</div><div class="rm">bye</div>'
+      document.body.appendChild(root)
+      try {
+        const stream = [
+          'event: dmax-patch-signals',
+          'data: dmaxSignals {"sseVal":11}',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="ds-target">new</div>',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode remove',
+          'data: selector .rm',
+          ''
+        ].join('\n')
+        const applied = applyDmaxSse(stream, 't')
+        return {
+          events: applied.length,
+          sseVal: _dm.get('sseVal'),
+          txt: root.querySelector('#ds-target')?.textContent || '',
+          removed: root.querySelector('.rm') === null
+        }
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
+
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
       const liveBtn = document.getElementById('live-btn')
@@ -2305,6 +2546,22 @@
             ok: true,
             headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
             text: async () => html
+          })
+        }
+        if (u === '/mock/dmax-sse') {
+          const body = [
+            'event: dmax-patch-signals',
+            'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
+            '',
+            'event: dmax-patch-elements',
+            'data: mode outer',
+            'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+            ''
+          ].join('\n')
+          return Promise.resolve({
+            ok: true,
+            headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+            text: async () => body
           })
         }
         if (baseFetch) return baseFetch(url, init)

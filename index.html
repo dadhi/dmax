@@ -90,7 +90,8 @@
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
         "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,"oobHtml":"",
-        "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null
+        "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null,
+        "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
       <label>User Name: <input type="text" data-sync:user.name></label>
@@ -203,6 +204,12 @@
         <button id="oobLoad" data-get^busy.busy^err.err^code.code:oob-html@.click="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
         <div data-sub:.@oob-html="applyOobHtml(dm.oobHtml)"></div>
+      </div>
+      <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
+        <button id="sseLoad" data-get^busy.busy^err.err:sse-status@.click="'/mock/dmax-sse'">Run dmax SSE stream</button>
+        <div>Message: <span data-sub:.@sse-message="dm.sseMessage"></span> | Count: <span data-sub:.@sse-count="dm.sseCount"></span></div>
+        <div id="sseTarget"><strong>Initial SSE target</strong></div>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
       </div>
     </section>
   </main>
