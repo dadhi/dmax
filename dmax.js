@@ -456,6 +456,9 @@
     const MOD_JSON = 'json'
     const MOD_TEXT = 'text'
     const MOD_FORM = 'form'
+    const MOD_BUSY = 'busy'
+    const MOD_ERR = 'err'
+    const MOD_CODE = 'code'
     const MOD_NO_CACHE = 'noCache'
     const MOD_HEADERS = 'headers'
     const MOD_BROTLI = 'brotli'
@@ -1925,9 +1928,9 @@
         else if (mr === MOD_COMPRESS) encCompress = true
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
-        else if (mr === 'busy' && !busyMod) busyMod = m
-        else if (mr === 'err' && !errMod) errMod = m
-        else if (mr === 'code' && !codeMod) codeMod = m
+        else if (mr === MOD_BUSY && !busyMod) busyMod = m
+        else if (mr === MOD_ERR && !errMod) errMod = m
+        else if (mr === MOD_CODE && !codeMod) codeMod = m
       }
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
@@ -1939,9 +1942,9 @@
         }
       }
 
-      const busyStat = resolveStatusSignal(busyMod, 'busy')
-      const errStat = resolveStatusSignal(errMod, 'err')
-      const codeStat = resolveStatusSignal(codeMod, 'code')
+      const busyStat = resolveStatusSignal(busyMod, MOD_BUSY)
+      const errStat = resolveStatusSignal(errMod, MOD_ERR)
+      const codeStat = resolveStatusSignal(codeMod, MOD_CODE)
 
       // Initialise state signals to defaults if not yet defined
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
@@ -2348,6 +2351,31 @@
             cacheControl: 'no-cache',
             auth: 'Bearer 123'
           }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('compression mods set Accept-Encoding header consistently', async () => {
+      __reset()
+      let sentHeaders = null
+      window.fetch = (_url, init) => {
+        sentHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('res', null)
+        dAction(btn, 'data-get^br^gzip^deflate^compress:res@.click', '"https://api.test/enc"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: sentHeaders?.['Accept-Encoding'],
+          expected: 'br, gzip, deflate, compress'
         }
       } finally { delete window.fetch }
     })
