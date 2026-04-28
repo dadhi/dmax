@@ -538,6 +538,9 @@
       if (low.indexOf('application/javascript') !== -1) return true
       return false
     }
+    __assert(isJsonContentType, ['application/problem+json; charset=utf-8'], true, 'json content-type +json with semicolon')
+    __assert(isJsonContentType, ['application/problem+json\tcharset=utf-8'], true, 'json content-type +json with tab separator')
+    __assert(isJsonContentType, ['application/problem+jsonified'], false, 'json content-type +json boundary check')
 
     function isPlainObj(val) {
       return !!val && typeof val === 'object' && !Array.isArray(val)
@@ -582,7 +585,8 @@
         if (!payload || typeof payload !== 'object') return
         for (const key in payload) {
           if (!hasOwn(payload, key)) continue
-          // For :_all target unpacking, keep key normalization consistent with parser attr naming conventions.
+          // :_all target unpacks payload object fields into root signals; normalize keys to mirror attr parser naming
+          // so kebab-case fields (e.g. foo-bar) map to the same camelCase signal names used elsewhere in dmax.
           const root = kebabToCamel(key)
           const prev = _dm.get(root)
           setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
