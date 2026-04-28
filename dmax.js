@@ -476,15 +476,6 @@
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
-    function getModOrNull(mods, name) {
-      for (const m of mods || EMPTY_ARR) if (m.root === name) return m
-      return null
-    }
-
-    function hasMod(mods, name) {
-      for (const m of mods || EMPTY_ARR) if (m.root === name) return true
-      return false
-    }
 
     function getSignalValOrIt(it) {
       if (!it.kind) return it
@@ -503,11 +494,6 @@
       return parsed && parsed.kind
         ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
         : v
-    }
-
-    function hasPermitMods(mods) {
-      for (const m of mods || EMPTY_ARR) if (m.root in PERMIT_MODS) return true
-      return false
     }
 
     function modsPermitVal(mods, val) {
@@ -723,18 +709,25 @@
 
     function applyTrigMods(fn, trig, mods) {
       const isSg = trig.kind === SIGNAL
-      const one = hasMod(mods, MOD_ONCE)
-      const always = hasMod(mods, MOD_ALWAYS)
-      const prv = hasMod(mods, MOD_PREVENT)
-      // Precompute mod lookups once at setup; path values are still resolved lazily (may reference signals)
-      const debMod = getModOrNull(mods, MOD_DEBOUNCE)
-      const thrMod = getModOrNull(mods, MOD_THROTTLE)
+      let one = false, always = false, prv = false
+      let debMod = null, thrMod = null, permitMods = null
+      for (const m of mods || EMPTY_ARR) {
+        if (m.root === MOD_ONCE) one = true
+        else if (m.root === MOD_ALWAYS) always = true
+        else if (m.root === MOD_PREVENT) prv = true
+        else if (m.root === MOD_DEBOUNCE) debMod = m
+        else if (m.root === MOD_THROTTLE) thrMod = m
+        else if (m.root in PERMIT_MODS) {
+          if (!permitMods) permitMods = []
+          permitMods.push(m)
+        }
+      }
       let tm = 0, last = 0
 
       const run = (ev, val, detail) => {
         let trigVal = (isSg ? getSignalValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (isSg && trig.not) trigVal = !trigVal
-        if (!modsPermitVal(mods, trigVal)) return
+        if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
       }
@@ -857,23 +850,18 @@
       let fn = compileFn(aVal, aName)
       if (!fn) return
       if (tars) {
-        let tarSetters = []
-        for (const tar of tars) {
-          console.assert(tar.kind)
-          let setTar = tar.kind == SIGNAL
-            ? (el, n, t, val) => setSignalAndNotifySubsNLevelsDeep(n, t, val)
-            : (el, n, t, val) => setProp(el, n, t, val)
-          tarSetters.push([tar, setTar])
-        }
         const rawFn = fn
-        if (tarSetters.length > 0) {
-          fn = (dm, el, trig, trigVal, detail) => {
-            // // const detail = ev && ev.detail && ev.detail.change ? ev.detail.change : detailArg;
-            const exprVal = rawFn(dm, el, trig, trigVal, detail)
-            try {
-              for (const [t, st] of tarSetters) st(el, aName, t, exprVal)
-            } catch (e) { console.error('[dmax] Error: setting the target:', t, 'ended with ex:', e) }
-          }
+        fn = (dm, el, trig, trigVal, detail) => {
+          const exprVal = rawFn(dm, el, trig, trigVal, detail)
+          let failedTar = null
+          try {
+            for (const tar of tars) {
+              failedTar = tar
+              console.assert(tar.kind)
+              if (tar.kind == SIGNAL) setSignalAndNotifySubsNLevelsDeep(aName, tar, exprVal)
+              else setProp(el, aName, tar, exprVal)
+            }
+          } catch (e) { console.error('[dmax] Error: setting target', failedTar, 'in', aName, 'ended with ex:', e) }
         }
       }
 
@@ -1823,11 +1811,18 @@
         return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
       }
 
-      const busyStat = resolveStatusSignal(findMod(globMods, 'busy'), 'busy')
-      const errStat = resolveStatusSignal(findMod(globMods, 'err'), 'err')
-      const codeStat = resolveStatusSignal(findMod(globMods, 'code'), 'code')
-
-      const isJson = hasMod(globMods, 'json')
+      let busyMod = null, errMod = null, codeMod = null
+      let isJson = false
+      for (const m of globMods) {
+        const mr = m.root
+        if (mr === 'json') isJson = true
+        else if (mr === 'busy' && !busyMod) busyMod = m
+        else if (mr === 'err' && !errMod) errMod = m
+        else if (mr === 'code' && !codeMod) codeMod = m
+      }
+      const busyStat = resolveStatusSignal(busyMod, 'busy')
+      const errStat = resolveStatusSignal(errMod, 'err')
+      const codeStat = resolveStatusSignal(codeMod, 'code')
 
       // Initialise state signals to defaults if not yet defined
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
