@@ -2356,25 +2356,25 @@
         curArgs = null
         hasData = false
       }
-      for (let s = 0, e = 0; e <= text.length; e++) {
-        if (e < text.length && text[e] !== '\n') continue
-        const line = text.slice(s, e)
-        s = e + 1
+      for (let start = 0, end = 0; end <= text.length; end++) {
+        if (end < text.length && text[end] !== '\n') continue
+        const line = text.slice(start, end)
+        start = end + 1
         if (!line) { flush(); continue }
         if (line[0] === ':') continue
-        const p = line.indexOf(':')
-        const field = p >= 0 ? line.slice(0, p) : line
-        let val = p >= 0 ? line.slice(p + 1) : ''
+        const colonIndex = line.indexOf(':')
+        const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
+        let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
         if (val[0] === ' ') val = val.slice(1)
         if (field === 'event') curEvent = val || 'message'
         else if (field === 'data') {
-          const i = val.indexOf(' ')
-          if (i <= 0) continue
-          const k = val.slice(0, i), v = val.slice(i + 1)
+          const spaceIndex = val.indexOf(' ')
+          if (spaceIndex < 0) continue
+          const key = val.slice(0, spaceIndex), value = val.slice(spaceIndex + 1)
           if (!curArgs) curArgs = {}
           hasData = true
-          if (!curArgs[k]) curArgs[k] = v
-          else curArgs[k] += '\n' + v
+          if (!curArgs[key]) curArgs[key] = value
+          else curArgs[key] += '\n' + value
         }
       }
       flush()
