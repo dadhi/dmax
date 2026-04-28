@@ -2288,6 +2288,7 @@
       }
 
       if (selector) {
+        if (!sourceEls.length) return
         const targets = Array.from(document.querySelectorAll(selector))
         const defaultSrc = sourceEls[0]
         for (let i = 0; i < targets.length; i++) {
@@ -2343,6 +2344,24 @@
       let curEvent = 'message'
       let curArgs = null
       let hasData = false
+      const consumeLine = (line) => {
+        if (!line) { flush(); return }
+        if (line[0] === ':') return
+        const colonIndex = line.indexOf(':')
+        const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
+        let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
+        if (val[0] === ' ') val = val.slice(1)
+        if (field === 'event') curEvent = val || 'message'
+        else if (field === 'data') {
+          const spaceIndex = val.indexOf(' ')
+          if (spaceIndex < 0) return
+          const key = val.slice(0, spaceIndex), value = val.slice(spaceIndex + 1)
+          if (!curArgs) curArgs = {}
+          hasData = true
+          if (!curArgs[key]) curArgs[key] = value
+          else curArgs[key] += '\n' + value
+        }
+      }
       const flush = () => {
         if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
         if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS || curEvent === SSE_EVENT_LEGACY_PATCH_ELEMENTS) {
@@ -2356,27 +2375,13 @@
         curArgs = null
         hasData = false
       }
-      for (let start = 0, end = 0; end <= text.length; end++) {
-        if (end < text.length && text[end] !== '\n') continue
-        const line = text.slice(start, end)
+      let start = 0
+      for (let end = 0; end < text.length; end++) {
+        if (text[end] !== '\n') continue
+        consumeLine(text.slice(start, end))
         start = end + 1
-        if (!line) { flush(); continue }
-        if (line[0] === ':') continue
-        const colonIndex = line.indexOf(':')
-        const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
-        let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
-        if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEvent = val || 'message'
-        else if (field === 'data') {
-          const spaceIndex = val.indexOf(' ')
-          if (spaceIndex < 0) continue
-          const key = val.slice(0, spaceIndex), value = val.slice(spaceIndex + 1)
-          if (!curArgs) curArgs = {}
-          hasData = true
-          if (!curArgs[key]) curArgs[key] = value
-          else curArgs[key] += '\n' + value
-        }
       }
+      if (start < text.length) consumeLine(text.slice(start))
       flush()
       return applied
     }
