@@ -32,6 +32,51 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
 
+## Fixi feature matrix (aligned to dmax)
+
+This extends the earlier Datastar-gap research with the [Fixi Project](https://fixiproject.org/), which is split into
+five very small libraries:
+
+- `fixi.js` — declarative HTTP requests + HTML swapping
+- `moxi.js` — inline handlers + DOM-driven reactivity
+- `ssexi.js` — SSE streaming for `fixi`
+- `paxi.js` — DOM morphing
+- `rexi.js` — tiny imperative `fetch()` wrapper
+
+### Matrix
+
+| Fixi piece | What it does | dmax status today | Gap / takeaway |
+| --- | --- | --- | --- |
+| `fixi.js` | Declarative HTTP requests triggered from HTML, with target selection and swap strategies | **Partial overlap** via `data-get|post|put|patch|delete`, plus `^busy`, `^err`, `^code` result/status signals | dmax already covers the *request* side, but not the hypermedia *HTML swap* side (`fx-target`, `fx-swap`, lifecycle-style DOM replacement) |
+| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-def`, `data-sub`, `data-sync`, `data-class`, `data-disp`, `data-dump` | dmax is stronger on explicit signals, sync, list rendering, and shape-aware updates; moxi is stronger on imperative DOM escape hatches and query ergonomics |
+| `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Missing / planned** | This aligns directly with open issue #10: dmax still needs Datastar-compatible SSE/event-stream support and a clean way to route streamed updates |
+| `paxi.js` | Morph-based DOM patching that preserves focus/form state better than replacement | **Missing** | dmax currently has no general morph/patch layer; this looks like the clearest Fixi idea to grab beyond Datastar |
+| `rexi.js` | Tiny imperative `fetch()` helper for code paths where declarative HTML is not enough | **Mostly missing** | dmax actions cover declarative requests, but there is no small JS helper for imperative API calls, aborts, or response decoding |
+| Combined bundle | Composable micro-libraries that can be mixed as needed | **Different trade-off**: dmax is one integrated signal-first runtime | Fixi wins on modularity; dmax wins on having one coherent DSL instead of five separate concepts |
+
+### What dmax already has that Fixi does not
+
+- A first-class signal store (`data-def`) rather than DOM-only/local imperative state.
+- Declarative signal/property synchronization (`data-sync`) including one-way and two-way flows.
+- Signal-driven class/visibility/list directives (`data-class`, `data-disp`, `data-dump`).
+- Shape-aware updates and signal modifiers for gating/timing.
+- A more unified attribute grammar across signals, props, events, and actions.
+
+### What Fixi has that dmax can likely borrow
+
+- A dedicated HTML swap model (`target` + `swap`) rather than only mapping request results into signals.
+- Opt-in DOM morphing (`paxi`) instead of full replace/append style updates.
+- Built-in SSE streaming semantics (`ssexi`) with clear lifecycle hooks.
+- A tiny imperative fetch helper (`rexi`) for non-declarative code paths.
+- A lightweight imperative companion (`moxi`) for the cases where declarative dataflow is awkward.
+
+### What is still missing on both sides
+
+- A unified parity matrix against Datastar's broader scenarios such as unusual attribute updates (`style`, links, canvas, etc.).
+- Stronger story for keyed list reconciliation / stable DOM preservation during collection updates.
+- A final integrated design for SSE + morph together in dmax.
+- A clear decision on whether dmax should add imperative escape hatches, or keep the current signal-first model intentionally strict.
+
 ### Example
 
 ```html
