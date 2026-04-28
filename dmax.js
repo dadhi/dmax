@@ -520,7 +520,13 @@
 
     function isJsonContentType(ct) {
       const low = String(ct || '').toLowerCase()
-      return low.indexOf('application/json') !== -1 || low.indexOf('+json') !== -1
+      if (low.indexOf('application/json') !== -1) return true
+      const p = low.indexOf('+json')
+      if (p < 0) return false
+      const end = p + 5
+      if (end >= low.length) return true
+      const c = low[end]
+      return c === ';' || c === ' ' || c === '\t'
     }
 
     function isTextLikeContentType(ct) {
@@ -576,7 +582,7 @@
         if (!payload || typeof payload !== 'object') return
         for (const key in payload) {
           if (!hasOwn(payload, key)) continue
-          // Keep signal naming consistent with parser conventions (kebab-case attr names -> camelCase signals).
+          // For :_all target unpacking, keep key normalization consistent with parser attr naming conventions.
           const root = kebabToCamel(key)
           const prev = _dm.get(root)
           setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
@@ -2040,13 +2046,12 @@
           if (body != null) init.body = body
 
           const res = await window.fetch(finalUrl, init)
-          const ct = ((res.headers && res.headers.get('content-type')) || '').toLowerCase()
+          const ct = (res.headers && res.headers.get('content-type')) || ''
           let payload
           if (ct.includes('text/event-stream')) {
             const sseRaw = await res.text()
             payload = applyDmaxSse(sseRaw)
           } else if (isJsonContentType(ct)) payload = await res.json()
-          else if (!ct || isTextLikeContentType(ct)) payload = await res.text()
           else payload = await res.text()
 
           applyActionPayload(aName, resultTar, payload, resultMode)
