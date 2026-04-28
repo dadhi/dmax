@@ -1887,7 +1887,7 @@
           let payload
           if (ct.includes('text/event-stream')) {
             const sseRaw = await res.text()
-            payload = applyDatastarSse(sseRaw)
+            payload = applyDmaxSse(sseRaw)
           } else {
             payload = ct.includes('application/json') ? await res.json() : await res.text()
           }
@@ -2213,57 +2213,44 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
+    const SSE_EVENT_DMAX_PATCH_ELEMENTS = 'dmax-patch-elements'
+    const SSE_EVENT_DMAX_PATCH_SIGNALS = 'dmax-patch-signals'
+    const SSE_EVENT_LEGACY_PATCH_ELEMENTS = 'datastar-patch-elements'
+    const SSE_EVENT_LEGACY_PATCH_SIGNALS = 'datastar-patch-signals'
+    const SSE_DATA_DMAX_ELEMENTS = 'dmaxElements'
+    const SSE_DATA_DMAX_SIGNALS = 'dmaxSignals'
+    const SSE_DATA_LEGACY_ELEMENTS = 'elements'
+    const SSE_DATA_LEGACY_SIGNALS = 'signals'
+    const PATCH_MODE_OUTER = 'outer'
+    const PATCH_MODE_INNER = 'inner'
+    const PATCH_MODE_REPLACE = 'replace'
+    const PATCH_MODE_PREPEND = 'prepend'
+    const PATCH_MODE_APPEND = 'append'
+    const PATCH_MODE_BEFORE = 'before'
+    const PATCH_MODE_AFTER = 'after'
+    const PATCH_MODE_REMOVE = 'remove'
 
-    function parseSseEvents(raw) {
-      if (!raw) return []
-      const events = []
-      let curEvent = '', curData = []
-      const lines = String(raw).replace(/\r/g, '').split('\n')
-      const flush = () => {
-        if (curEvent || curData.length) events.push({ event: curEvent || 'message', data: curData.join('\n') })
-        curEvent = ''; curData = []
-      }
-      for (const line of lines) {
-        if (!line) { flush(); continue }
-        if (line[0] === ':') continue
-        const p = line.indexOf(':')
-        const field = p >= 0 ? line.slice(0, p) : line
-        let val = p >= 0 ? line.slice(p + 1) : ''
-        if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEvent = val
-        else if (field === 'data') curData.push(val)
-      }
-      flush()
-      return events
-    }
-
-    function parseDatastarArgs(rawData) {
-      const out = {}
-      if (!rawData) return out
-      for (const line of String(rawData).split('\n')) {
-        const i = line.indexOf(' ')
-        if (i <= 0) continue
-        const k = line.slice(0, i), v = line.slice(i + 1)
-        if (!out[k]) out[k] = v
-        else out[k] += '\n' + v
-      }
-      return out
-    }
-
-    function parseDatastarElements(html, namespace) {
+    function parseSseElements(html, namespace) {
       if (!html) return []
       const ns = (namespace || 'html').toLowerCase()
       if (ns === 'html') {
         const t = document.createElement('template')
         t.innerHTML = html
-        return Array.from(t.content.children)
+        const out = []
+        const kids = t.content.children
+        for (let i = 0; i < kids.length; i++) out.push(kids[i])
+        return out
       }
       const wrap = ns === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
         : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
       const doc = new DOMParser().parseFromString(wrap, ns === 'svg' ? 'image/svg+xml' : 'application/xml')
       const root = doc.documentElement
-      return root ? Array.from(root.children) : []
+      if (!root) return []
+      const out = []
+      const kids = root.children
+      for (let i = 0; i < kids.length; i++) out.push(kids[i])
+      return out
     }
 
     function insertFragmentRelative(target, sourceEls, mode) {
@@ -2276,13 +2263,13 @@
       else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
     }
 
-    function applyDatastarPatchElements(args) {
-      const mode = String(args.mode || 'outer').toLowerCase()
+    function applyDmaxPatchElements(args) {
+      const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
       const selector = args.selector ? String(args.selector) : ''
       const namespace = args.namespace ? String(args.namespace) : 'html'
-      const sourceEls = parseDatastarElements(args.dmaxElements || args.elements || '', namespace)
+      const sourceEls = parseSseElements(args[SSE_DATA_DMAX_ELEMENTS] || args[SSE_DATA_LEGACY_ELEMENTS] || '', namespace)
 
-      if (mode === 'remove') {
+      if (mode === PATCH_MODE_REMOVE) {
         if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
         else for (const src of sourceEls) {
           if (src.id) document.getElementById(src.id)?.remove()
@@ -2291,32 +2278,27 @@
         return
       }
 
-      if (mode === 'append' || mode === 'prepend' || mode === 'before' || mode === 'after') {
+      if (mode === PATCH_MODE_APPEND || mode === PATCH_MODE_PREPEND || mode === PATCH_MODE_BEFORE || mode === PATCH_MODE_AFTER) {
         if (!selector || !sourceEls.length) return
         for (const t of document.querySelectorAll(selector)) insertFragmentRelative(t, sourceEls, mode)
         return
       }
 
-      const applyPair = (targetEl, srcEl) => {
+      const applyPair = function (targetEl, srcEl) {
         if (!targetEl || !srcEl) return
-        if (mode === 'replace') {
-          targetEl.replaceWith(srcEl.cloneNode(true))
-          return
-        }
-        if (mode === 'inner') {
+        if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
+        else if (mode === PATCH_MODE_INNER) {
           const to = targetEl.cloneNode(false)
-          for (const ch of Array.from(srcEl.childNodes)) to.appendChild(ch.cloneNode(true))
+          for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
           morphChildren(targetEl, to)
-          return
-        }
-        morph(targetEl, srcEl)
+        } else morph(targetEl, srcEl)
       }
 
       if (selector) {
-        const targets = Array.from(document.querySelectorAll(selector))
+        const targets = document.querySelectorAll(selector)
+        const defaultSrc = sourceEls[0]
         for (let i = 0; i < targets.length; i++) {
-          const src = sourceEls[i] || sourceEls[0]
-          applyPair(targets[i], src)
+          applyPair(targets[i], sourceEls[i] || defaultSrc)
         }
         return
       }
@@ -2339,14 +2321,15 @@
       return out
     }
 
-    function applyDatastarPatchSignals(aName, args) {
-      const raw = args.dmaxSignals || args.signals
+    function applyDmaxPatchSignals(aName, args) {
+      const raw = args[SSE_DATA_DMAX_SIGNALS] || args[SSE_DATA_LEGACY_SIGNALS]
       if (!raw) return
       let patchObj = null
       try { patchObj = JSON.parse(raw) } catch (_e) { return }
       if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
       const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
-      for (const root of Object.keys(patchObj)) {
+      for (const root in patchObj) {
+        if (!Object.prototype.hasOwnProperty.call(patchObj, root)) continue
         if (onlyIfMissing && _dm.has(root)) continue
         const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
         if (next === JSON_MERGE_DELETE) {
@@ -2361,21 +2344,48 @@
       }
     }
 
-    function applyDatastarSse(raw, aName = 'dmax-sse') {
-      const events = parseSseEvents(raw)
+    function applyDmaxSse(raw, aName = 'dmax-sse') {
+      if (!raw) return []
       const applied = []
-      for (const evt of events) {
-        if (!evt || typeof evt.event !== 'string') continue
-        if (evt.event === 'dmax-patch-elements' || evt.event === 'datastar-patch-elements') {
-          const args = parseDatastarArgs(evt.data)
-          applyDatastarPatchElements(args)
-          applied.push({ event: evt.event, args })
-        } else if (evt.event === 'dmax-patch-signals' || evt.event === 'datastar-patch-signals') {
-          const args = parseDatastarArgs(evt.data)
-          applyDatastarPatchSignals(aName, args)
-          applied.push({ event: evt.event, args })
+      const text = String(raw).replace(/\r/g, '')
+      let curEvent = 'message'
+      let curArgs = null
+      let hasData = false
+      const flush = function () {
+        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
+        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS || curEvent === SSE_EVENT_LEGACY_PATCH_ELEMENTS) {
+          applyDmaxPatchElements(curArgs)
+          applied.push({ event: curEvent, args: curArgs })
+        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS || curEvent === SSE_EVENT_LEGACY_PATCH_SIGNALS) {
+          applyDmaxPatchSignals(aName, curArgs)
+          applied.push({ event: curEvent, args: curArgs })
+        }
+        curEvent = 'message'
+        curArgs = null
+        hasData = false
+      }
+      for (let s = 0, e = 0; e <= text.length; e++) {
+        if (e < text.length && text[e] !== '\n') continue
+        const line = text.slice(s, e)
+        s = e + 1
+        if (!line) { flush(); continue }
+        if (line[0] === ':') continue
+        const p = line.indexOf(':')
+        const field = p >= 0 ? line.slice(0, p) : line
+        let val = p >= 0 ? line.slice(p + 1) : ''
+        if (val[0] === ' ') val = val.slice(1)
+        if (field === 'event') curEvent = val || 'message'
+        else if (field === 'data') {
+          const i = val.indexOf(' ')
+          if (i <= 0) continue
+          const k = val.slice(0, i), v = val.slice(i + 1)
+          if (!curArgs) curArgs = {}
+          hasData = true
+          if (!curArgs[k]) curArgs[k] = v
+          else curArgs[k] += '\n' + v
         }
       }
+      flush()
       return applied
     }
 
@@ -2460,24 +2470,24 @@
     }
     __assert(__tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
 
-    function __tDatastarPatchSignalsMergeAndRemove() {
+    function __tDmaxPatchSignalsMergeAndRemove() {
       __reset()
       _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
-      applyDatastarPatchSignals('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
+      applyDmaxPatchSignals('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
       const user = _dm.get('user') || {}
       return { name: user.name, keep: user.keep, hasRemove: Object.prototype.hasOwnProperty.call(user, 'removeMe'), newSg: _dm.get('newSg') }
     }
-    __assert(__tDatastarPatchSignalsMergeAndRemove, [], { name: 'Bob', keep: 1, hasRemove: false, newSg: 7 }, 'dmax: patch-signals merges RFC7386 and removes null fields')
+    __assert(__tDmaxPatchSignalsMergeAndRemove, [], { name: 'Bob', keep: 1, hasRemove: false, newSg: 7 }, 'dmax: patch-signals merges RFC7386 and removes null fields')
 
-    function __tDatastarPatchSignalsOnlyIfMissing() {
+    function __tDmaxPatchSignalsOnlyIfMissing() {
       __reset()
       _dm.set('existing', 1)
-      applyDatastarPatchSignals('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
+      applyDmaxPatchSignals('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
       return { existing: _dm.get('existing'), added: _dm.get('added') }
     }
-    __assert(__tDatastarPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'dmax: patch-signals onlyIfMissing skips existing roots')
+    __assert(__tDmaxPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'dmax: patch-signals onlyIfMissing skips existing roots')
 
-    function __tDatastarPatchElementsOuterMorphKeepsListener() {
+    function __tDmaxPatchElementsOuterMorphKeepsListener() {
       const root = document.createElement('div')
       root.innerHTML = '<button id="ds-btn" class="old">old</button>'
       document.body.appendChild(root)
@@ -2485,15 +2495,15 @@
         const btn = root.querySelector('#ds-btn')
         let clicks = 0
         btn.addEventListener('click', () => clicks++)
-        applyDatastarPatchElements({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
+        applyDmaxPatchElements({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
         const after = root.querySelector('#ds-btn')
         after.click()
         return { sameNode: after === btn, clicks, className: after.className, text: after.textContent }
       } finally { root.remove() }
     }
-    __assert(__tDatastarPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'dmax: patch-elements outer uses morph and preserves listeners')
+    __assert(__tDmaxPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'dmax: patch-elements outer uses morph and preserves listeners')
 
-    function __tDatastarSseStreamAppliesBothEvents() {
+    function __tDmaxSseStreamAppliesBothEvents() {
       __reset()
       const root = document.createElement('div')
       root.innerHTML = '<div id="ds-target">old</div><div class="rm">bye</div>'
@@ -2512,7 +2522,7 @@
           'data: selector .rm',
           ''
         ].join('\n')
-        const applied = applyDatastarSse(stream, 't')
+        const applied = applyDmaxSse(stream, 't')
         return {
           events: applied.length,
           sseVal: _dm.get('sseVal'),
@@ -2521,7 +2531,7 @@
         }
       } finally { root.remove() }
     }
-    __assert(__tDatastarSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
+    __assert(__tDmaxSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
 
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
