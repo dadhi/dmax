@@ -2056,8 +2056,14 @@
           const ct = (res.headers && res.headers.get('content-type')) || ''
           let payload
           if (ct.includes('text/event-stream')) {
-            const sseRaw = await res.text()
-            payload = applyDmaxSse(sseRaw)
+            // Use incremental streaming when the browser exposes a ReadableStream body;
+            // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
+            if (res.body && typeof res.body.getReader === 'function') {
+              payload = await consumeDmaxSseStream(res.body, aName)
+            } else {
+              const sseRaw = await res.text()
+              payload = applyDmaxSse(sseRaw, aName)
+            }
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
 
@@ -2380,6 +2386,59 @@
       } finally { delete window.fetch }
     })
 
+    __asyncAssert('SSE action uses body.getReader streaming path and applies events incrementally', async () => {
+      __reset()
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="sse-incr-tgt">initial</div>'
+      document.body.appendChild(root)
+      try {
+        const lines = [
+          'event: dmax-patch-signals',
+          'data: dmaxSignals {"incrVal":99}',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="sse-incr-tgt">streamed</div>',
+          ''
+        ].join('\n')
+        const encoder = new TextEncoder()
+        const bytes = encoder.encode(lines)
+        const half = Math.floor(bytes.length / 2)
+        let step = 0
+        const fakeBody = {
+          getReader() {
+            return {
+              async read() {
+                if (step === 0) { step++; return { done: false, value: bytes.slice(0, half) } }
+                if (step === 1) { step++; return { done: false, value: bytes.slice(half) } }
+                return { done: true }
+              }
+            }
+          }
+        }
+        const btn = document.createElement('button')
+        window.fetch = () => Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: n => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+          body: fakeBody
+        })
+        try {
+          dAction(btn, 'data-get@.click', "'/mock/sse-incr'")
+          const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+          if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+          await new Promise(r => setTimeout(r, 20))
+        } finally { delete window.fetch }
+        return {
+          actual: {
+            incrVal: _dm.get('incrVal'),
+            txt: root.querySelector('#sse-incr-tgt') ? root.querySelector('#sse-incr-tgt').textContent : ''
+          },
+          expected: { incrVal: 99, txt: 'streamed' }
+        }
+      } finally { root.remove() }
+    })
+
     // Wait for all sequential async tests before signalling completion
     _asyncChain.then(() => {
       window.dispatchEvent(new CustomEvent('dmax:tests:done'))
@@ -2476,6 +2535,8 @@
 
     // Update `from` DOM node in place to match `to`. Does not disturb event
     // listeners, __dump state, or _cleanupBoundSubs on matched nodes.
+    // Preserves caret/selection for focused text inputs and textareas, and
+    // restores scroll position so large streamed updates do not jump the viewport.
     function morph(from, to) {
       if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
@@ -2487,8 +2548,26 @@
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
         return
       }
+      // Preserve caret/selection for focused text inputs and textareas so that
+      // an in-flight SSE patch does not reset the user's cursor position.
+      const tag = from.tagName
+      const isFocused = from === document.activeElement
+      let selStart = -1, selEnd = -1, selDir = 'none'
+      if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
+        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {}
+      }
+      // Save scroll position so content updates do not unexpectedly jump the
+      // user's scroll offset (mirrors idiomorph / paxi discipline).
+      const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
       updateAttrs(from, to)
       morphChildren(from, to)
+      // Restore scroll position after children are reconciled
+      if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
+      if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
+      // Restore caret/selection for focused inputs/textareas
+      if (isFocused && selStart >= 0) {
+        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {}
+      }
     }
 
     function applyOobHtml(html) {
@@ -2678,6 +2757,72 @@
       return applied
     }
 
+    // Consume a text/event-stream response body incrementally using the Streams API.
+    // Applies dmax-patch-elements and dmax-patch-signals events as each SSE event
+    // arrives rather than after the full response is buffered, lowering first-update
+    // latency and peak memory for large or long-lived streams.
+    // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
+    async function consumeDmaxSseStream(body, aName) {
+      if (!body || typeof body.getReader !== 'function') return []
+      const applied = []
+      const reader = body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      let curEvent = 'message', curArgs = null, hasData = false
+
+      const flush = () => {
+        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
+        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
+          applyDmaxPatchElements(curArgs)
+          applied.push({ event: curEvent, args: curArgs })
+        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS) {
+          applyDmaxPatchSignals(aName, curArgs)
+          applied.push({ event: curEvent, args: curArgs })
+        }
+        curEvent = 'message'; curArgs = null; hasData = false
+      }
+
+      const consumeLine = (line) => {
+        if (!line) { flush(); return }
+        if (line[0] === ':') return
+        const ci = line.indexOf(':')
+        const field = ci >= 0 ? line.slice(0, ci) : line
+        let val = ci >= 0 ? line.slice(ci + 1) : ''
+        if (val[0] === ' ') val = val.slice(1)
+        if (field === 'event') curEvent = val || 'message'
+        else if (field === 'data') {
+          const si = val.indexOf(' ')
+          if (si < 0) return
+          const key = val.slice(0, si), value = val.slice(si + 1)
+          if (!curArgs) curArgs = {}
+          hasData = true
+          if (!curArgs[key]) curArgs[key] = value
+          else curArgs[key] += '\n' + value
+        }
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buf += decoder.decode(value, { stream: true })
+          let nl
+          while ((nl = buf.indexOf('\n')) >= 0) {
+            consumeLine(buf.slice(0, nl).replace(/\r$/, ''))
+            buf = buf.slice(nl + 1)
+          }
+        }
+        // Flush the TextDecoder and process any remaining partial line
+        const trailing = decoder.decode()
+        if (trailing) buf += trailing
+        if (buf) consumeLine(buf.replace(/\r$/, ''))
+        flush()
+      } catch (e) {
+        console.error('[dmax] SSE stream error:', e)
+      }
+      return applied
+    }
+
     // morph tests -------------------------------------------------------
 
     function __tMorphTextUpdate() {
@@ -2758,6 +2903,45 @@
       return { clicked, hasClass: from.classList.contains('updated') }
     }
     __assert(__tMorphEventListenerPreserved, [], { clicked: 1, hasClass: true }, 'morph: event listener preserved after attr update')
+
+    function __tMorphScrollPreserved() {
+      const from = document.createElement('div')
+      from.style.cssText = 'overflow:scroll;height:50px'
+      from.innerHTML = '<p>line1</p><p>line2</p><p>line3</p><p>line4</p>'
+      document.body.appendChild(from)
+      try {
+        from.scrollTop = 30
+        const to = document.createElement('div')
+        to.style.cssText = 'overflow:scroll;height:50px'
+        to.innerHTML = '<p>line1 updated</p><p>line2</p><p>line3</p><p>line4</p>'
+        morph(from, to)
+        return { scrollTop: from.scrollTop, firstText: from.firstElementChild ? from.firstElementChild.textContent : '' }
+      } finally { from.remove() }
+    }
+    __assert(__tMorphScrollPreserved, [], { scrollTop: 30, firstText: 'line1 updated' }, 'morph: scroll position preserved after content update')
+
+    function __tMorphCaretPreserved() {
+      const input = document.createElement('input')
+      input.type = 'text'
+      input.value = 'hello world'
+      document.body.appendChild(input)
+      try {
+        input.focus()
+        input.setSelectionRange(3, 7)
+        const selBefore = input.selectionStart === 3 && input.selectionEnd === 7
+        const to = document.createElement('input')
+        to.type = 'text'
+        to.setAttribute('placeholder', 'updated placeholder')
+        morph(input, to)
+        return {
+          selBefore,
+          focused: document.activeElement === input,
+          selStart: input.selectionStart,
+          selEnd: input.selectionEnd
+        }
+      } finally { input.remove() }
+    }
+    __assert(__tMorphCaretPreserved, [], { selBefore: true, focused: true, selStart: 3, selEnd: 7 }, 'morph: caret/selection preserved for focused input')
 
     function __tDmaxPatchSignalsMergeAndRemove() {
       __reset()
@@ -2848,7 +3032,7 @@
           })
         }
         if (u === '/mock/dmax-sse') {
-          const body = [
+          const bodyText = [
             'event: dmax-patch-signals',
             'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
             '',
@@ -2857,10 +3041,20 @@
             'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
             ''
           ].join('\n')
+          // Provide a streaming body when the Streams API is available so the demo exercises
+          // the incremental consumeDmaxSseStream path; fall back to text() otherwise.
+          let streamBody = null
+          if (typeof ReadableStream !== 'undefined' && typeof TextEncoder !== 'undefined') {
+            const encoded = new TextEncoder().encode(bodyText)
+            streamBody = new ReadableStream({
+              start(ctrl) { ctrl.enqueue(encoded); ctrl.close() }
+            })
+          }
           return Promise.resolve({
             ok: true,
             headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
-            text: async () => body
+            body: streamBody,
+            text: async () => bodyText
           })
         }
         if (baseFetch) return baseFetch(url, init)
