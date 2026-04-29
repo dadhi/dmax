@@ -474,6 +474,9 @@
     const MOD_SSE_CLOSE = 'close'
     const MOD_RETRY = 'retry'
     const MOD_ABORT = 'abort'
+    const MOD_URL = 'url'
+    const MOD_BODY = 'body'
+    const MOD_HDR = 'header'
     function isImmediateMod(mods, defaultVal) {
       for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
@@ -1921,6 +1924,7 @@
       let hdrsMod = null
       let resultMode = MOD_REPLACE
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
+      const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
         const mr = m.root
         if (mr === MOD_JSON) isJson = true
@@ -1940,6 +1944,9 @@
         else if (mr === MOD_SSE_CLOSE && !closeMod) closeMod = m
         else if (mr === MOD_RETRY && !retryMod) retryMod = m
         else if (mr === MOD_ABORT && !abortMod) abortMod = m
+        else if (mr === MOD_URL) urlMods.push(m)
+        else if (mr === MOD_BODY) bodyMods.push(m)
+        else if (mr === MOD_HDR) hdrMods.push(m)
       }
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
@@ -2018,6 +2025,22 @@
             else bodyFields[key] = val
           }
 
+          // ^url.<signalPath> — force named signal to URL query params (any HTTP method)
+          // ^body.<signalPath> — force named signal to request body (any HTTP method)
+          for (let _mi = 0; _mi < 2; _mi++) {
+            const _mArr = _mi === 0 ? urlMods : bodyMods
+            const _dest = _mi === 0 ? queryParams : bodyFields
+            for (const _m of _mArr) {
+              const _mp = _m.path
+              if (!_mp) continue
+              let _k, _v
+              if (typeof _mp === 'string') { _k = _mp; _v = _dm.has(_mp) ? _dm.get(_mp) : undefined }
+              else if (_mp.kind === SIGNAL) { _k = _mp.path && _mp.path.length ? _mp.path[_mp.path.length - 1] : _mp.root; _v = getSignalValOrIt(_mp) }
+              else continue
+              _dest[_k] = _v
+            }
+          }
+
           let finalUrl = url
           let q = '', hasQ = false
           for (const k in queryParams) {
@@ -2044,6 +2067,16 @@
             const hdrObj = resolveModPathVal(hdrsMod.path)
             if (hdrObj && typeof hdrObj === 'object')
               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
+          }
+          // ^header.<name> — set a single request header from a named signal value
+          for (const _m of hdrMods) {
+            const _mp = _m.path
+            if (!_mp) continue
+            let _k, _v
+            if (typeof _mp === 'string') { _k = _mp; _v = _dm.has(_mp) ? _dm.get(_mp) : undefined }
+            else if (_mp.kind === SIGNAL) { _k = _mp.path && _mp.path.length ? _mp.path[_mp.path.length - 1] : _mp.root; _v = getSignalValOrIt(_mp) }
+            else continue
+            headers[_k] = String(_v ?? '')
           }
 
           let bodyCount = 0, firstBodyKey = null
@@ -2444,6 +2477,87 @@
       } finally { delete window.fetch }
     })
 
+    __asyncAssert('^url.X forces signal to URL query string even on POST', async () => {
+      __reset()
+      let capturedUrl = null, capturedBody = null
+      window.fetch = (url, init) => {
+        capturedUrl = url
+        capturedBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('page', 2)
+        _dm.set('payload', 'hello')
+        dAction(btn, 'data-post^url.page:res@.click+payload', '"https://api.test/items"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { url: capturedUrl, body: capturedBody },
+          expected: { url: 'https://api.test/items?page=2', body: 'hello' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^body.X forces signal to request body even on GET', async () => {
+      __reset()
+      let capturedUrl = null, capturedBody = null
+      window.fetch = (url, init) => {
+        capturedUrl = url
+        capturedBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('cursor', 'abc123')
+        _dm.set('filter', 'active')
+        dAction(btn, 'data-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        // On GET: +filter → query string; ^body.cursor → request body (single value unwrapped)
+        return {
+          actual: { url: capturedUrl, body: capturedBody },
+          expected: { url: 'https://api.test/stream?filter=active', body: 'abc123' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^header.X sets individual request header from named signal', async () => {
+      __reset()
+      let capturedHeaders = null
+      window.fetch = (_url, init) => {
+        capturedHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('authorization', 'Bearer tok-xyz')
+        _dm.set('xTraceId', 'req-001')
+        dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { auth: capturedHeaders?.authorization, trace: capturedHeaders?.xTraceId },
+          expected: { auth: 'Bearer tok-xyz', trace: 'req-001' }
+        }
+      } finally { delete window.fetch }
+    })
+
     __asyncAssert('SSE action uses body.getReader streaming path and applies events incrementally', async () => {
       __reset()
       const root = document.createElement('div')
@@ -2581,6 +2695,10 @@
         const next = cur.nextSibling
         from.removeChild(cur)
         cur = next
+      }
+      // Remove keyed nodes that were in the original children but not matched by any toChild
+      for (const n of idMap.values()) {
+        if (n.parentNode === from) from.removeChild(n)
       }
     }
 

@@ -210,17 +210,40 @@ This is a key design difference with meaningful trade-offs:
 
 ### Request inputs (`+parameter`)
 
-Inputs control what data is included in the request. For **GET/DELETE** requests, inputs become URL query parameters; for **POST/PUT/PATCH/DELETE** (with a body) they become the request body.
+Inputs control what data is included in the request. By default, for **GET/DELETE** requests, inputs become URL query parameters; for **POST/PUT/PATCH** they become the request body. The `^url.X`, `^body.X`, and `^header.X` modifiers override this default per-signal.
 
 | Token | Description |
 | --- | --- |
-| `+signalName` | Sends the named signal's value |
+| `+signalName` | Sends the named signal's value (query string on GET/DELETE, body otherwise) |
 | `+signal.nested.path` | Sends the value at the given signal path |
 | `+#elId.prop` | Reads the DOM property from the element with `id="elId"` |
 | `+_all` | Sends every signal in the store as a flat object |
 | `+some.path._all` | Spreads all fields of the nested object at `some.path` |
 
-There is no separate `^body.X` or `^url.X` modifier — the routing of input values is determined by the HTTP method: GET/DELETE → query string, everything else → request body.
+### Explicit routing modifiers: `^url`, `^body`, `^header`
+
+These modifiers let you override the default routing for individual signals, independent of the HTTP method. Multiple instances can be combined on one action.
+
+| Modifier | Description | Example |
+| --- | --- | --- |
+| `^url.<signalPath>` | Force `dm.<signalPath>` into the URL query string (even on POST/PUT). Key = last path segment. | `^url.page` appends `?page=<dm.page>` to the URL |
+| `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (even on GET/DELETE). Key = last path segment. | `^body.cursor` sends `dm.cursor` as a body field |
+| `^header.<name>` | Set a single request header from `dm.<camelCase(name)>`. | `^header.authorization` sets header `authorization` from `dm.authorization` |
+
+Note: `^header.<name>` converts the header name from kebab-case to camelCase to form the signal key (e.g. `^header.x-trace-id` reads `dm.xTraceId` and sets header `xTraceId`). For multi-header scenarios use `^headers.<signal>` with a signal object instead.
+
+Examples:
+
+```html
+<!-- POST with page as query param and payload in body -->
+<button data-post^url.page:res@.click+payload="'/api/items'">Load</button>
+
+<!-- GET with cursor forced to request body -->
+<button data-get^body.cursor+filter:res@.click="'/api/stream'">Stream</button>
+
+<!-- GET with individual auth header from signal -->
+<button data-get^header.authorization^header.x-trace-id:res@.click="'/api/secure'">Fetch</button>
+```
 
 ### Request modifiers (`^modifier`)
 
@@ -230,6 +253,9 @@ There is no separate `^body.X` or `^url.X` modifier — the routing of input val
 - **`^no-cache`** — adds `Cache-Control: no-cache` / `Pragma: no-cache`
 - **`^brotli`/`^br`, `^gzip`, `^deflate`, `^compress`** — set `Accept-Encoding`
 - **`^headers.<signal>`** — copies all key-value pairs from the named signal object into request headers (e.g. `^headers.reqHeaders` where `dm.reqHeaders = { Authorization: 'Bearer …' }`)
+- **`^url.<signalPath>`** — force specific signal to URL query string (see above)
+- **`^body.<signalPath>`** — force specific signal to request body (see above)
+- **`^header.<name>`** — set a single header from a named signal (see above)
 - **`^replace`** (default), **`^merge`**, **`^append`**, **`^prepend`** — response result mode
 
 ### Response status signals
