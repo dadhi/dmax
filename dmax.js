@@ -2554,7 +2554,9 @@
       const isFocused = from === document.activeElement
       let selStart = -1, selEnd = -1, selDir = 'none'
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
-        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {}
+        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {
+          // selection not supported for this input type (e.g. type=number, type=email)
+        }
       }
       // Save scroll position so content updates do not unexpectedly jump the
       // user's scroll offset (mirrors idiomorph / paxi discipline).
@@ -2566,7 +2568,9 @@
       if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
       // Restore caret/selection for focused inputs/textareas
       if (isFocused && selStart >= 0) {
-        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {}
+        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {
+          // setSelectionRange not supported for this input type
+        }
       }
     }
 
@@ -2767,6 +2771,7 @@
       const applied = []
       const reader = body.getReader()
       const decoder = new TextDecoder()
+      const RE_TRAILING_CR = /\r$/
       let buf = ''
       let curEvent = 'message', curArgs = null, hasData = false
 
@@ -2808,14 +2813,14 @@
           buf += decoder.decode(value, { stream: true })
           let nl
           while ((nl = buf.indexOf('\n')) >= 0) {
-            consumeLine(buf.slice(0, nl).replace(/\r$/, ''))
+            consumeLine(buf.slice(0, nl).replace(RE_TRAILING_CR, ''))
             buf = buf.slice(nl + 1)
           }
         }
         // Flush the TextDecoder and process any remaining partial line
         const trailing = decoder.decode()
         if (trailing) buf += trailing
-        if (buf) consumeLine(buf.replace(/\r$/, ''))
+        if (buf) consumeLine(buf.replace(RE_TRAILING_CR, ''))
         flush()
       } catch (e) {
         console.error('[dmax] SSE stream error:', e)
@@ -3046,8 +3051,14 @@
           let streamBody = null
           if (typeof ReadableStream !== 'undefined' && typeof TextEncoder !== 'undefined') {
             const encoded = new TextEncoder().encode(bodyText)
+            // Split into two chunks to exercise the incremental streaming path
+            const half = Math.floor(encoded.length / 2)
             streamBody = new ReadableStream({
-              start(ctrl) { ctrl.enqueue(encoded); ctrl.close() }
+              start(ctrl) {
+                ctrl.enqueue(encoded.slice(0, half))
+                ctrl.enqueue(encoded.slice(half))
+                ctrl.close()
+              }
             })
           }
           return Promise.resolve({
