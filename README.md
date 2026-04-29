@@ -230,7 +230,7 @@ These modifiers let you override the default routing for individual signals, ind
 | `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (even on GET/DELETE). Key = last path segment. | `^body.cursor` sends `dm.cursor` as a body field |
 | `^header.<name>` | Set a single request header from `dm.<camelCase(name)>`. | `^header.authorization` sets header `authorization` from `dm.authorization` |
 
-Note: `^header.<name>` converts the header name from kebab-case to camelCase to form the signal key (e.g. `^header.x-trace-id` reads `dm.xTraceId` and sets header `xTraceId`). For multi-header scenarios use `^headers.<signal>` with a signal object instead.
+Note: all modifier names are converted from kebab-case to camelCase by the parser, so the resulting signal key and header key are always camelCase. For example, `^header.x-trace-id` reads `dm.xTraceId` and sets header `xTraceId` (HTTP headers are case-insensitive so `xTraceId` is valid). If you need exact header name control (e.g. `X-Trace-Id`), use `^headers.<signal>` with a plain object whose keys are your exact header names instead.
 
 Examples:
 

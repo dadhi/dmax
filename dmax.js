@@ -2532,7 +2532,7 @@
       } finally { delete window.fetch }
     })
 
-    __asyncAssert('^header.X sets individual request header from named signal', async () => {
+    __asyncAssert('^header.X sets individual request header from named signal (camelCase conversion)', async () => {
       __reset()
       let capturedHeaders = null
       window.fetch = (_url, init) => {
@@ -2545,15 +2545,23 @@
       }
       try {
         const btn = document.createElement('button')
+        // ^header.authorization → signal dm.authorization, header name 'authorization'
+        // ^header.x-trace-id   → parser converts to 'xTraceId'; reads dm.xTraceId, sets header 'xTraceId'
+        // HTTP headers are case-insensitive so camelCase header names are valid.
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
         dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
+        // x-trace-id is converted to xTraceId by the mod parser (kebab→camelCase)
         return {
-          actual: { auth: capturedHeaders?.authorization, trace: capturedHeaders?.xTraceId },
-          expected: { auth: 'Bearer tok-xyz', trace: 'req-001' }
+          actual: {
+            auth: capturedHeaders?.authorization,
+            traceKey: Object.prototype.hasOwnProperty.call(capturedHeaders, 'xTraceId'),
+            traceVal: capturedHeaders?.xTraceId
+          },
+          expected: { auth: 'Bearer tok-xyz', traceKey: true, traceVal: 'req-001' }
         }
       } finally { delete window.fetch }
     })
