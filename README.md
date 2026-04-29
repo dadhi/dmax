@@ -163,7 +163,7 @@ The comparison suggests dmax should borrow **techniques** from Fixi, not its pac
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
 
-## dAction features covered by this PR
+## New dAction features added
 
 - Request packing:
   - `+_all` sends the full signal map
