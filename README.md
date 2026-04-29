@@ -174,27 +174,76 @@ The comparison suggests dmax should borrow **techniques** from Fixi, not its pac
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
 
-## New dAction features added
+## SSE transport: `fetch` vs native `EventSource`
 
-- Request packing:
-  - `+_all` sends the full signal map
-  - `+some.path._all` spreads object fields from that signal path
-- Response unpacking:
-  - `:_all` unpacks top-level object fields into root signals
-  - top-level arrays map to `_arr`
-- Result modes:
-  - `^replace` (default), `^merge`, `^append`, `^prepend`
-- Headers/body mods:
-  - `^headers.<signal>` to copy raw headers from a signal object
-  - `^no-cache` adds `Cache-Control: no-cache`
-  - `^brotli`/`^br`, `^gzip`, `^deflate`, `^compress` set `Accept-Encoding`
-  - `^json`, `^text`, `^form` request body/content shortcuts
-- Response content parsing recognizes `application/json` and `*+json` media types (with boundary-safe suffix detection).
-- SSE lifecycle modifiers (for `text/event-stream` responses):
-  - `^open.<signal>` — transitions `false→true` when the first stream chunk arrives; `true→false` when the stream ends or errors
-  - `^close.<signal>` — set to `true` on a clean (no-error) stream close
-  - `^retry.N` — auto-reconnect N ms after drop or error (default 1000 ms); skipped on deliberate abort via `^abort`
-  - `^abort.<signal>` — stores a cancel function in the signal; calling `dm.<signal>()` aborts the request (treated as a clean cancel, not an error)
+Both dmax and Datastar use `fetch` + `ReadableStream` for SSE rather than the browser-native `EventSource` API. The trade-offs are:
+
+| Capability | Native `EventSource` | `fetch` + `ReadableStream` (dmax & Datastar) |
+| --- | --- | --- |
+| HTTP methods | **GET only** | Any method (POST, PUT, DELETE, …) |
+| Custom request headers | **No** | Yes — `^headers.<signal>` |
+| Request body | **No** | Yes — `+parameter` inputs |
+| Cancellation | `.close()` on the instance only | `AbortController` via `^abort.<signal>` |
+| Reconnect hooks | Browser-managed, uninterruptable | Fully controlled — `^retry.N` |
+| Progressive stream processing | Browser-buffered internally | Chunk-by-chunk via `ReadableStream` |
+| CORS credentials | `withCredentials` only | Full `fetch` options |
+
+The main limitation of `fetch`-based SSE is that it does **not** get the browser's built-in automatic reconnect on network drop that `EventSource` provides; dmax therefore implements its own reconnect via `^retry.N`.
+
+### Request data: Datastar sends all signals; dmax sends only what you name
+
+This is a key design difference with meaningful trade-offs:
+
+**Datastar's approach:** every signal in the store is bundled and sent to the server on each action request automatically (unless excluded). This minimises the attribute verbosity on the HTML element but sends the full client state on every call.
+
+**dmax's approach:** nothing is sent unless you explicitly list it with a `+parameter` token. This gives precise control over what leaves the browser but requires more explicit attribute syntax. The `+_all` shorthand exists for the rare case where you genuinely want to send everything.
+
+| | Datastar | dmax |
+| --- | --- | --- |
+| Default payload | All signals | Nothing (empty) |
+| Send a specific signal | Always included | `+signalName` |
+| Send all signals | Always | `+_all` |
+| Spread object fields | Not applicable | `+some.path._all` |
+| Per-call custom headers | Configured once | `^headers.<signal>` |
+
+## Action input and modifier reference
+
+### Request inputs (`+parameter`)
+
+Inputs control what data is included in the request. For **GET/DELETE** requests, inputs become URL query parameters; for **POST/PUT/PATCH/DELETE** (with a body) they become the request body.
+
+| Token | Description |
+| --- | --- |
+| `+signalName` | Sends the named signal's value |
+| `+signal.nested.path` | Sends the value at the given signal path |
+| `+#elId.prop` | Reads the DOM property from the element with `id="elId"` |
+| `+_all` | Sends every signal in the store as a flat object |
+| `+some.path._all` | Spreads all fields of the nested object at `some.path` |
+
+There is no separate `^body.X` or `^url.X` modifier — the routing of input values is determined by the HTTP method: GET/DELETE → query string, everything else → request body.
+
+### Request modifiers (`^modifier`)
+
+- **`^json`** — `Content-Type: application/json` + `Accept: application/json`; body serialised as JSON
+- **`^text`** — `Content-Type: text/plain`
+- **`^form`** — `Content-Type: application/x-www-form-urlencoded`
+- **`^no-cache`** — adds `Cache-Control: no-cache` / `Pragma: no-cache`
+- **`^brotli`/`^br`, `^gzip`, `^deflate`, `^compress`** — set `Accept-Encoding`
+- **`^headers.<signal>`** — copies all key-value pairs from the named signal object into request headers (e.g. `^headers.reqHeaders` where `dm.reqHeaders = { Authorization: 'Bearer …' }`)
+- **`^replace`** (default), **`^merge`**, **`^append`**, **`^prepend`** — response result mode
+
+### Response status signals
+
+- **`^busy.<signal>`** — `true` while the request is in-flight
+- **`^err.<signal>`** — set to the error if the request fails
+- **`^code.<signal>`** — set to the HTTP status code
+
+### SSE lifecycle modifiers (for `text/event-stream` responses)
+
+- **`^open.<signal>`** — transitions `false→true` when the first stream chunk arrives; `true→false` when the stream ends or errors
+- **`^close.<signal>`** — set to `true` on a clean (no-error) stream close
+- **`^retry.N`** — auto-reconnect N ms after drop or error (default 1000 ms); skipped on deliberate abort via `^abort`
+- **`^abort.<signal>`** — stores a cancel function in the signal; calling `dm.<signal>()` aborts the request (treated as a clean cancel, not an error)
 
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
