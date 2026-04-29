@@ -227,7 +227,7 @@ These modifiers let you override the default routing for individual signals, ind
 | Modifier | Description | Example |
 | --- | --- | --- |
 | `^url.<signalPath>` | Force `dm.<signalPath>` into the URL query string (even on POST/PUT). Key = last path segment. | `^url.page` appends `?page=<dm.page>` to the URL |
-| `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (even on GET/DELETE). Key = last path segment. | `^body.cursor` sends `dm.cursor` as a body field |
+| `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (useful on DELETE; avoid on GET — bodies are non-standard there). Key = last path segment. | `^body.targetId` sends `dm.targetId` as a body field on DELETE |
 | `^header.<name>` | Set a single request header from `dm.<camelCase(name)>`. | `^header.authorization` sets header `authorization` from `dm.authorization` |
 
 Note: all modifier names are converted from kebab-case to camelCase by the parser, so the resulting signal key and header key are always camelCase. For example, `^header.x-trace-id` reads `dm.xTraceId` and sets header `xTraceId` (HTTP headers are case-insensitive so `xTraceId` is valid). If you need exact header name control (e.g. `X-Trace-Id`), use `^headers.<signal>` with a plain object whose keys are your exact header names instead.
@@ -235,15 +235,17 @@ Note: all modifier names are converted from kebab-case to camelCase by the parse
 Examples:
 
 ```html
-<!-- POST with page as query param and payload in body -->
-<button data-post^url.page:res@.click+payload="'/api/items'">Load</button>
+<!-- POST — force page/sort into URL query string, send payload in body -->
+<button data-post^url.page^url.sort:res@.click+payload="'/api/items'">Create</button>
 
-<!-- GET with cursor forced to request body -->
-<button data-get^body.cursor+filter:res@.click="'/api/stream'">Stream</button>
+<!-- DELETE — force the ID into the request body instead of URL query string -->
+<button data-delete^body.targetId:res@.click="'/api/items'">Delete</button>
 
-<!-- GET with individual auth header from signal -->
-<button data-get^header.authorization^header.x-trace-id:res@.click="'/api/secure'">Fetch</button>
+<!-- GET with individual auth header from a signal -->
+<button data-get^header.authorization:res@.click="'/api/secure'">Fetch</button>
 ```
+
+> **Note on `^body.X` and GET**: sending a request body on GET is non-standard and many servers/proxies ignore it. Prefer using `^body.X` with POST/PUT/PATCH/DELETE where a body is semantically appropriate.
 
 ### Request modifiers (`^modifier`)
 
