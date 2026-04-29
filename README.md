@@ -8,10 +8,6 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `dmax.js` — extracted runtime script loaded by `index.html`
 - `index-wotking-slop.html` — previous `index.html` snapshot
 
-## Runtime size
-
-`dmax.js` (uncompressed, as of this change): **110,147 bytes**.
-
 ## Syntax used by current `index.html`
 
 ### Core directives
@@ -52,23 +48,36 @@ A tiny declarative web runtime driven by `data-*` attributes.
 <strong data-disp:.@post-loading="dm.postLoading">Loading…</strong>
 <span data-sub:.@post-error="dm.postError"></span>
 <span data-sub:.@post-code="dm.postCode"></span>
+
+<!-- request spread + dynamic headers + merge result -->
+<button
+  data-post^json^merge^headers.reqHeaders:profile@.click+_all+user._all
+  ="'/api/profile/update'">
+</button>
+
+<!-- unpack top-level object fields into root signals; arrays -> _arr -->
+<button data-get:_all@.click="'/api/bootstrap'"></button>
 ```
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
 
+## dAction features covered by this PR
+
+- Request packing:
+  - `+_all` sends the full signal map
+  - `+some.path._all` spreads object fields from that signal path
+- Response unpacking:
+  - `:_all` unpacks top-level object fields into root signals
+  - top-level arrays map to `_arr`
+- Result modes:
+  - `^replace` (default), `^merge`, `^append`, `^prepend`
+- Headers/body mods:
+  - `^headers.<signal>` to copy raw headers from a signal object
+  - `^no-cache` adds `Cache-Control: no-cache`
+  - `^brotli`/`^br`, `^gzip`, `^deflate`, `^compress` set `Accept-Encoding`
+  - `^json`, `^text`, `^form` request body/content shortcuts
+- Response content parsing recognizes `application/json` and `*+json` media types (with boundary-safe suffix detection).
+
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
 Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` are supported.
-
-## Compression question
-
-Yes — you can compress `dmax.js` without Node/npm libraries.
-
-Examples:
-
-```bash
-gzip -k -9 dmax.js
-brotli -k -q 11 dmax.js
-```
-
-Then serve compressed assets with `Content-Encoding: gzip` or `br`.
