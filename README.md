@@ -51,9 +51,9 @@ five very small libraries:
 | --- | --- | --- | --- |
 | `fixi.js` | Declarative HTTP requests triggered from HTML, with target selection and swap strategies | **Partial overlap** via `data-get|post|put|patch|delete`, plus `^busy`, `^err`, `^code` result/status signals | dmax covers declarative requests. It does **not** yet expose Fixi's small HTML-targeted swap model (`fx-target`, `fx-swap`) as directly. |
 | `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-def`, `data-sub`, `data-sync`, `data-class`, `data-disp`, `data-dump` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
-| `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Good overlap** — action responses accept `text/event-stream` and apply `dmax-patch-elements` / `dmax-patch-signals` **incrementally** via `ReadableStream` + `TextDecoder` (falls back to `res.text()` where the Streams API is unavailable) | Reconnect/cancel semantics and SSE lifecycle events (`open`, `error`, `close`) are still absent. Long-lived persistent SSE connections (as opposed to one-shot action responses) are not yet covered. |
-| `paxi.js` | Morph-based DOM patching that preserves focus/form state better than replacement | **Good overlap** — dmax morphs matched nodes, preserves event listeners, **now also preserves caret/selection for focused inputs and scroll position for scrollable elements** during streamed fragment updates | Stronger keyed-list reconciliation and a parity test matrix against Datastar's unusual attribute scenarios (`style`, canvas, etc.) are still missing. |
-| `rexi.js` | Tiny imperative `fetch()` helper for code paths where declarative HTML is not enough | **Mostly missing** | dmax actions cover declarative requests. There is still no tiny JS helper for imperative API calls, aborts, or decoding helpers. |
+| `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Strong overlap** — action responses accept `text/event-stream` and apply `dmax-patch-elements` / `dmax-patch-signals` **incrementally** via `ReadableStream` + `TextDecoder`; **`^open.<signal>`/`^close.<signal>` lifecycle signals and `^retry.N` auto-reconnect on drop are now supported; `^abort.<signal>` lets callers cancel in-flight requests declaratively** | Long-lived persistent SSE connections use the same `data-get` grammar; reconnect semantics and lifecycle signals are now first-class. |
+| `paxi.js` | Morph-based DOM patching that preserves focus/form state better than replacement | **Strong overlap** — dmax morphs matched nodes, preserves event listeners, caret/selection for focused inputs, and scroll position; **parity matrix tests now cover `style`, `href`, `data-*`, `aria-*`, canvas attribute updates, keyed list reconciliation, and mixed keyed/unkeyed collection stability** | Keyed-list reconciliation and stable DOM during collection updates are covered by the id-matching algorithm and validated by inline assertions. |
+| `rexi.js` | Tiny imperative `fetch()` helper for code paths where declarative HTML is not enough | **Not planned** — the `^abort.<signal>` modifier covers the cancel use-case declaratively; uncommon imperative paths can use vanilla `fetch()` directly | dmax deliberately keeps the declarative grammar complete for the 80/20 cases; explicit imperative helpers are intentionally out-of-scope for the core runtime. |
 | Combined bundle | Composable micro-libraries that can be mixed as needed | **Different trade-off**: dmax is one integrated signal-first runtime | Fixi is more modular. dmax is more unified. |
 
 ### What dmax already has that Fixi does not
@@ -90,16 +90,16 @@ alive, and makes hot paths easier to optimize.
 | Fixi technique / style | Why it is fast or small | dmax today | What to apply in dmax |
 | --- | --- | --- | --- |
 | Hard feature budget | Smaller code tends to allocate less, branch less, and stay easier to reason about in hot paths | dmax is feature-rich and currently much larger than Fixi | Add a stricter "fast-path only" rule for new features: if a capability needs many modes, keep it out of the core runtime or make it a narrow optional layer |
-| Native APIs first (`fetch`, `MutationObserver`, Streams, `TextDecoder`) | Avoids wrapper layers and duplicate state | dmax already leans this way — **the SSE action path now uses `ReadableStream` + `TextDecoder` for incremental consumption** | Keep extending features through native primitives rather than introducing generic abstraction layers |
+| Native APIs first (`fetch`, `MutationObserver`, Streams, `TextDecoder`) | Avoids wrapper layers and duplicate state | dmax already leans this way — **the SSE action path now uses `ReadableStream` + `TextDecoder` for incremental consumption; `AbortController` is used for cancellation** | Keep extending features through native primitives rather than introducing generic abstraction layers |
 | Small, direct code over large plugin surfaces | Avoids hook-dispatch overhead, keeps hot paths explicit, and makes the code easier to copy/fork/modify | dmax already prefers direct runtime code over plugin APIs | Keep internal helpers composable and readable instead of introducing a plugin boundary for every feature |
 | Very small surface per library | Optional functionality does not bloat the base runtime | dmax is intentionally a single integrated runtime | Borrow the implementation ideas, but integrate them behind one consistent terse grammar instead of copying Fixi's package split |
 | Single interception seam (`ssexi` uses one `fx:config` hook) | Extensions can piggyback on one stable hook instead of spreading logic across many call sites | dmax tends to wire behavior directly into the runtime | Reuse one internal action/SSE path so streaming, morphing, and signal patching stay consistent even without a public plugin system |
-| Streaming parse with async generator + incremental reader | Lowers peak memory and improves first-update latency because the full response is never buffered | **Done:** `consumeDmaxSseStream` uses `body.getReader()` + `TextDecoder` for per-chunk incremental parsing; falls back to `res.text()` where the Streams API is unavailable | Keep the streaming path lean; extend only for reconnect/cancel semantics when needed |
-| Strict morph fast path (`paxi`) | Keeps node reuse cheap by focusing on id matching and direct tree reconciliation, not callbacks/plugins | dmax already has an in-place morph implementation — **now also preserves caret/selection for focused inputs and scroll position for scrollable elements** | Keep dmax morph small and opinionated; resist adding callback-heavy or plugin-heavy morph features that would slow the common case |
+| Streaming parse with async generator + incremental reader | Lowers peak memory and improves first-update latency because the full response is never buffered | **Done:** `consumeDmaxSseStream` uses `body.getReader()` + `TextDecoder` for per-chunk incremental parsing; falls back to `res.text()` where the Streams API is unavailable | Keep the streaming path lean; lifecycle callbacks are now threaded through without extra allocations |
+| Strict morph fast path (`paxi`) | Keeps node reuse cheap by focusing on id matching and direct tree reconciliation, not callbacks/plugins | dmax already has an in-place morph implementation — **now also preserves caret/selection for focused inputs and scroll position for scrollable elements; parity matrix tests validate style/href/data-*/aria/canvas attribute scenarios** | Keep dmax morph small and opinionated; resist adding callback-heavy or plugin-heavy morph features that would slow the common case |
 | Targeted discovery instead of broad scans (`moxi` uses XPath to find only relevant nodes) | Avoids visiting unrelated DOM nodes and cuts setup work | dmax still has places where clone wiring walks descendants and repeats directive setup work | Prefer one targeted walk/discovery pass per subtree and avoid repeated `querySelectorAll`-style scans during dump/template wiring |
 | Cheap cleanup of dead reactive work (`moxi` removes `live` expressions for detached nodes) | Reduces memory retention and unnecessary reruns | dmax already preserves some cleanup state on matched nodes | Be stricter about cleaning subscriptions and per-node bookkeeping when nodes are removed or replaced |
 | Narrow non-goals (no queueing/history/interceptor stacks in core) | Prevents permanent runtime cost for rarely used features | dmax already has some explicit minimalism, but keeps accumulating capabilities | Document stronger non-goals for the core runtime so convenience features do not silently become permanent cost centers |
-| Tiny imperative escape hatch (`rexi`) instead of growing the declarative core | Lets uncommon cases exist without complicating the main DSL | dmax has declarative actions but no small imperative helper | If imperative requests are needed, add a tiny helper instead of expanding action grammar for every edge case |
+| Tiny imperative escape hatch (`rexi`) instead of growing the declarative core | Lets uncommon cases exist without complicating the main DSL | **`^abort.<signal>` covers the cancel use-case declaratively**; for genuinely imperative paths, vanilla `fetch()` is always available | The declarative grammar now covers the 80/20 case; an explicit imperative helper is intentionally out-of-scope |
 
 ### Accentuated conclusion: the direction dmax should lean toward
 
@@ -124,13 +124,12 @@ The comparison suggests dmax should borrow **techniques** from Fixi, not its pac
 - **True incremental SSE consumption:** the `dAction` SSE path now uses `consumeDmaxSseStream` — a `ReadableStream` + `TextDecoder`-based incremental parser that applies `dmax-patch-elements` / `dmax-patch-signals` events as each chunk arrives rather than after the full response is buffered. Environments without the Streams API fall back to `res.text()` automatically.
 - **Tighter SSE → morph hot path:** `morph` now preserves the user's **scroll position** (saving and restoring `scrollTop`/`scrollLeft`) and **caret/selection** (saving and restoring `selectionStart`, `selectionEnd`, `selectionDirection` on focused `<input>` and `<textarea>` elements) so large streamed fragment updates do not disrupt the user.
 - **Morph preservation tests:** three new inline assertions cover scroll preservation, caret/selection preservation for focused inputs, and end-to-end SSE streaming via a fake `body.getReader` — all running with the existing in-page test harness.
+- **SSE lifecycle semantics:** `^open.<signal>` fires when the stream opens, `^close.<signal>` when it closes cleanly; `^retry.N` auto-reconnects after drop or error (N = delay in ms, default 1000); `^abort.<signal>` stores a cancel function so a button or signal-driven action can abort the in-flight request via `AbortController`. Abort is treated as a clean cancel (not an error).
+- **Parity matrix tests for unusual attribute updates:** inline assertions now cover `style`, `href`, `data-*`, `aria-*`, and `canvas` attribute patching via `morph`; keyed list reconciliation (reuse/reorder/add/remove by `id`); unkeyed list morphing in-place; and mixed keyed/unkeyed collections — verifying stable DOM node identity across all cases.
 
 ### What is still missing
 
-- **SSE lifecycle semantics:** reconnect on drop, explicit cancel/abort, and `open`/`error`/`close` lifecycle signals for persistent SSE connections (as opposed to one-shot action responses).
-- **A unified parity matrix against Datastar's broader scenarios:** unusual attribute updates (`style`, links, canvas, etc.), keyed list reconciliation, and stable DOM preservation during collection updates.
-- **A tiny imperative escape hatch:** a small `rexi`-style helper for non-declarative API calls, abort signals, and raw stream decoding helpers, so the action grammar does not grow for edge cases.
-- **A clear decision on imperative escape hatches:** whether dmax should add them or keep the current signal-first model intentionally strict.
+- **A clear decision on imperative escape hatches:** whether dmax should add a `rexi`-style helper or keep the current signal-first model intentionally strict (current decision: intentionally strict; `^abort.<signal>` covers the cancel case declaratively).
 
 ### Example
 
@@ -158,6 +157,19 @@ The comparison suggests dmax should borrow **techniques** from Fixi, not its pac
 
 <!-- unpack top-level object fields into root signals; arrays -> _arr -->
 <button data-get:_all@.click="'/api/bootstrap'"></button>
+
+<!-- persistent SSE with lifecycle signals and auto-reconnect -->
+<!-- ^open.liveOn   → false→true when stream opens, true→false when it ends -->
+<!-- ^close.liveDone → set to true on clean stream close                     -->
+<!-- ^retry.2000    → auto-reconnect 2 s after drop or error                -->
+<!-- ^abort.liveStop → dm.liveStop() cancels the in-flight request           -->
+<button
+  data-get^open.liveOn^close.liveDone^retry.2000^abort.liveStop@.click
+  ="'/api/events'">
+  Subscribe
+</button>
+<span data-disp:.@liveOn="dm.liveOn">● live</span>
+<button data-sub:_@.click="dm.liveStop && dm.liveStop()">Cancel</button>
 ```
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals instead of special positional parsing, and lets each action expose independent loading/error/code indicators.
@@ -178,6 +190,11 @@ The comparison suggests dmax should borrow **techniques** from Fixi, not its pac
   - `^brotli`/`^br`, `^gzip`, `^deflate`, `^compress` set `Accept-Encoding`
   - `^json`, `^text`, `^form` request body/content shortcuts
 - Response content parsing recognizes `application/json` and `*+json` media types (with boundary-safe suffix detection).
+- SSE lifecycle modifiers (for `text/event-stream` responses):
+  - `^open.<signal>` — transitions `false→true` when the first stream chunk arrives; `true→false` when the stream ends or errors
+  - `^close.<signal>` — set to `true` on a clean (no-error) stream close
+  - `^retry.N` — auto-reconnect N ms after drop or error (default 1000 ms); skipped on deliberate abort via `^abort`
+  - `^abort.<signal>` — stores a cancel function in the signal; calling `dm.<signal>()` aborts the request (treated as a clean cancel, not an error)
 
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
