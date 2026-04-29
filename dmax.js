@@ -2948,6 +2948,88 @@
     }
     __assert(__tMorphCaretPreserved, [], { selBefore: true, focused: true, selStart: 3, selEnd: 7 }, 'morph: caret/selection preserved for focused input')
 
+    // Form/input state preservation tests
+    // WHY: morph updates HTML *attributes* via setAttribute, never DOM *properties* like
+    // input.value, textarea.value or input.checked. Once the user modifies a field (marking
+    // it "dirty"), the browser decouples the property from the attribute, so setAttribute
+    // can change the default value without clobbering what the user typed. This is the same
+    // pattern used by idiomorph (Datastar) and paxi (Fixi).
+    // To opt out of preservation (i.e. reset a field to the server value), use
+    // mode:replace in dmax-patch-elements, which replaces the element entirely.
+
+    function __tMorphInputValuePreserved() {
+      const container = document.createElement('div')
+      const input = document.createElement('input')
+      input.type = 'text'
+      input.setAttribute('value', 'initial')
+      container.appendChild(input)
+      document.body.appendChild(container)
+      try {
+        input.value = 'user typed'  // mark field dirty (like real user typing)
+        const to = document.createElement('input')
+        to.type = 'text'
+        to.setAttribute('value', 'server update')  // server sends new default
+        to.setAttribute('placeholder', 'new hint')
+        morph(input, to)
+        return {
+          value: input.value,                     // should keep user-typed
+          attr: input.getAttribute('value'),       // attribute updated to server value
+          placeholder: input.getAttribute('placeholder')
+        }
+      } finally { container.remove() }
+    }
+    __assert(__tMorphInputValuePreserved, [], { value: 'user typed', attr: 'server update', placeholder: 'new hint' }, 'morph: user-typed input value preserved; attribute updated independently')
+
+    function __tMorphTextareaValuePreserved() {
+      const container = document.createElement('div')
+      const ta = document.createElement('textarea')
+      container.appendChild(ta)
+      document.body.appendChild(container)
+      try {
+        ta.value = 'partial draft'  // user is mid-edit
+        const to = document.createElement('textarea')
+        to.setAttribute('rows', '5')
+        morph(ta, to)
+        return { value: ta.value, rows: ta.getAttribute('rows') }
+      } finally { container.remove() }
+    }
+    __assert(__tMorphTextareaValuePreserved, [], { value: 'partial draft', rows: '5' }, 'morph: textarea value preserved; attributes updated')
+
+    function __tMorphCheckboxPreserved() {
+      const container = document.createElement('div')
+      const cb = document.createElement('input')
+      cb.type = 'checkbox'
+      container.appendChild(cb)
+      document.body.appendChild(container)
+      try {
+        cb.checked = true  // user checked it
+        const to = document.createElement('input')
+        to.type = 'checkbox'
+        to.setAttribute('class', 'updated')
+        morph(cb, to)
+        return { checked: cb.checked, hasClass: cb.classList.contains('updated') }
+      } finally { container.remove() }
+    }
+    __assert(__tMorphCheckboxPreserved, [], { checked: true, hasClass: true }, 'morph: checkbox checked state preserved; class attribute updated')
+
+    function __tDmaxPatchElementsReplaceDiscardsFormState() {
+      const container = document.createElement('div')
+      container.innerHTML = '<input id="fi-inp" type="text" value="default">'
+      document.body.appendChild(container)
+      try {
+        const input = container.querySelector('#fi-inp')
+        input.value = 'user typed'  // dirty the field
+        // mode:replace replaces the node entirely — opt-out of form state preservation
+        applyDmaxPatchElements({ mode: 'replace', dmaxElements: '<input id="fi-inp" type="text" value="reset">' })
+        const fresh = container.querySelector('#fi-inp')
+        return {
+          isNewNode: fresh !== input,
+          value: fresh ? fresh.value : ''
+        }
+      } finally { container.remove() }
+    }
+    __assert(__tDmaxPatchElementsReplaceDiscardsFormState, [], { isNewNode: true, value: 'reset' }, 'morph: mode:replace is the opt-out — replaces node, discards user-typed value')
+
     function __tDmaxPatchSignalsMergeAndRemove() {
       __reset()
       _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
