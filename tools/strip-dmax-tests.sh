@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-if [[ $# -gt 2 ]]; then
+if [ "$#" -gt 2 ]; then
   echo "Usage: $0 [input-js] [output-js]" >&2
   exit 1
 fi
@@ -9,7 +9,7 @@ fi
 INPUT="${1:-dmax.js}"
 OUTPUT="${2:-}"
 
-if [[ ! -f "$INPUT" ]]; then
+if [ ! -f "$INPUT" ]; then
   echo "Input file not found: $INPUT" >&2
   exit 1
 fi
@@ -54,7 +54,7 @@ strip_file() {
   ' "$INPUT"
 }
 
-if [[ -n "$OUTPUT" ]]; then
+if [ -n "$OUTPUT" ]; then
   strip_file > "$OUTPUT"
 else
   strip_file

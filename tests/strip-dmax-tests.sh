@@ -1,11 +1,11 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-ROOT="/home/runner/work/dmax/dmax"
-OUT_DIR="$(mktemp -d /tmp/dmax-strip-test.XXXXXX)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/dmax-strip-test.XXXXXX")"
 OUT_FILE="$OUT_DIR/dmax.prod.js"
 
-trap 'rm -rf "$OUT_DIR"' EXIT
+trap 'rm -rf "$OUT_DIR"' 0
 
 "$ROOT/tools/strip-dmax-tests.sh" "$ROOT/dmax.js" "$OUT_FILE"
 
