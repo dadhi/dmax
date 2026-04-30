@@ -7,6 +7,7 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `index.html` — current dev notebook (asserts + live examples)
 - `dmax.js` — extracted runtime script loaded by `index.html`
 - `index-wotking-slop.html` — previous `index.html` snapshot
+- `tools/strip-dmax-tests.sh` — shell/awk script to remove inline `__assert` + test helpers from `dmax.js`
 
 ## Syntax used by current `index.html`
 
