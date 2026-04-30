@@ -262,9 +262,26 @@ Examples:
 
 ### Response status signals
 
-- **`^busy.<signal>`** — `true` while the request is in-flight
-- **`^err.<signal>`** — set to the error if the request fails
-- **`^code.<signal>`** — set to the HTTP status code
+Three signals let you track every phase of a request's lifecycle:
+
+| Signal | Not started | In-flight | Completed |
+| --- | --- | --- | --- |
+| `^busy.<signal>` | `false` | `true` | `false` |
+| `^complete.<signal>` | `false` | `false` | `true` |
+
+- **`^busy.<signal>`** — `true` while the request is in-flight; `false` before and after
+- **`^complete.<signal>`** — `false` before the request starts and while it is in-flight; `true` once it finishes (success, error, or abort). Use together with `^busy` to distinguish "not yet started" from "already done".
+- **`^err.<signal>`** — set to the error message if the request fails (not set on abort)
+- **`^code.<signal>`** — set to the HTTP status code on completion
+
+Example:
+
+```html
+<!-- show spinner while busy, show checkmark once done -->
+<button data-get^busy.loading^complete.done:res@.click="'/api/data'">Load</button>
+<span data-disp:.@loading="dm.loading">⏳ loading…</span>
+<span data-disp:.@done="dm.done && !dm.loading">✅ done</span>
+```
 
 ### SSE lifecycle modifiers (for `text/event-stream` responses)
 

@@ -457,6 +457,7 @@
     const MOD_TEXT = 'text'
     const MOD_FORM = 'form'
     const MOD_BUSY = 'busy'
+    const MOD_COMPLETE = 'complete'
     const MOD_ERR = 'err'
     const MOD_CODE = 'code'
     const MOD_NO_CACHE = 'noCache'
@@ -1918,7 +1919,7 @@
         if (tars[i].kind === SIGNAL) { resultTar = tars[i]; break }
       }
 
-      let busyMod = null, errMod = null, codeMod = null
+      let busyMod = null, completeMod = null, errMod = null, codeMod = null
       let isJson = false, isText = false, isForm = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null
@@ -1938,6 +1939,7 @@
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
+        else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
         else if (mr === MOD_ERR && !errMod) errMod = m
         else if (mr === MOD_CODE && !codeMod) codeMod = m
         else if (mr === MOD_SSE_OPEN && !openMod) openMod = m
@@ -1959,6 +1961,7 @@
       }
 
       const busyStat = resolveStatusSignal(busyMod, MOD_BUSY)
+      const completeStat = resolveStatusSignal(completeMod, MOD_COMPLETE)
       const errStat = resolveStatusSignal(errMod, MOD_ERR)
       const codeStat = resolveStatusSignal(codeMod, MOD_CODE)
       const openStat = resolveStatusSignal(openMod, MOD_SSE_OPEN)
@@ -1969,6 +1972,7 @@
 
       // Initialise state signals to defaults if not yet defined
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
+      if (completeStat && !_dm.has(completeStat.root)) _dm.set(completeStat.root, false)
       if (errStat && !_dm.has(errStat.root)) _dm.set(errStat.root, null)
       if (codeStat && !_dm.has(codeStat.root)) _dm.set(codeStat.root, null)
       if (openStat && !_dm.has(openStat.root)) _dm.set(openStat.root, false)
@@ -1985,6 +1989,7 @@
         if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
 
         if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, true)
+        if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, false)
         if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
         if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, null)
 
@@ -2144,6 +2149,7 @@
 
           applyActionPayload(aName, resultTar, payload, resultMode)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
           if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
           if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, null)
@@ -2160,6 +2166,7 @@
           // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
           const isAbort = err && err.name === 'AbortError'
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (!isAbort) {
             if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
             if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
@@ -2306,6 +2313,47 @@
         return {
           actual: { busyDuring, busyAfter: DM['busy'] },
           expected: { busyDuring: true, busyAfter: false }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^complete.<signal> is false before/during fetch then true on success', async () => {
+      __reset()
+      let resolveFetch
+      window.fetch = () => new Promise(r => { resolveFetch = r })
+      try {
+        const btn = document.createElement('button')
+        _dm.set('busy2', false)
+        _dm.set('done', false)
+        _dm.set('data2', null)
+        dAction(btn, 'data-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        const completeDuring = DM['done']
+        resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { completeDuring, completeAfter: DM['done'], busy: DM['busy2'] },
+          expected: { completeDuring: false, completeAfter: true, busy: false }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^complete.<signal> is set true on fetch error', async () => {
+      __reset()
+      window.fetch = () => Promise.reject(new Error('fail'))
+      try {
+        const btn = document.createElement('button')
+        _dm.set('done2', false)
+        dAction(btn, 'data-get^complete.done2:data@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { done: DM['done2'] },
+          expected: { done: true }
         }
       } finally { delete window.fetch }
     })
