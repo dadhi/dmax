@@ -457,6 +457,7 @@
     const MOD_TEXT = 'text'
     const MOD_FORM = 'form'
     const MOD_BUSY = 'busy'
+    const MOD_COMPLETE = 'complete'
     const MOD_ERR = 'err'
     const MOD_CODE = 'code'
     const MOD_NO_CACHE = 'noCache'
@@ -470,6 +471,13 @@
     const MOD_MERGE = 'merge'
     const MOD_APPEND = 'append'
     const MOD_PREPEND = 'prepend'
+    const MOD_SSE_OPEN = 'open'
+    const MOD_SSE_CLOSE = 'close'
+    const MOD_RETRY = 'retry'
+    const MOD_ABORT = 'abort'
+    const MOD_URL = 'url'
+    const MOD_BODY = 'body'
+    const MOD_HDR = 'header'
     function isImmediateMod(mods, defaultVal) {
       for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
@@ -1911,11 +1919,13 @@
         if (tars[i].kind === SIGNAL) { resultTar = tars[i]; break }
       }
 
-      let busyMod = null, errMod = null, codeMod = null
+      let busyMod = null, completeMod = null, errMod = null, codeMod = null
       let isJson = false, isText = false, isForm = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null
       let resultMode = MOD_REPLACE
+      let openMod = null, closeMod = null, retryMod = null, abortMod = null
+      const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
         const mr = m.root
         if (mr === MOD_JSON) isJson = true
@@ -1929,8 +1939,16 @@
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
+        else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
         else if (mr === MOD_ERR && !errMod) errMod = m
         else if (mr === MOD_CODE && !codeMod) codeMod = m
+        else if (mr === MOD_SSE_OPEN && !openMod) openMod = m
+        else if (mr === MOD_SSE_CLOSE && !closeMod) closeMod = m
+        else if (mr === MOD_RETRY && !retryMod) retryMod = m
+        else if (mr === MOD_ABORT && !abortMod) abortMod = m
+        else if (mr === MOD_URL) urlMods.push(m)
+        else if (mr === MOD_BODY) bodyMods.push(m)
+        else if (mr === MOD_HDR) hdrMods.push(m)
       }
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
@@ -1943,21 +1961,35 @@
       }
 
       const busyStat = resolveStatusSignal(busyMod, MOD_BUSY)
+      const completeStat = resolveStatusSignal(completeMod, MOD_COMPLETE)
       const errStat = resolveStatusSignal(errMod, MOD_ERR)
       const codeStat = resolveStatusSignal(codeMod, MOD_CODE)
+      const openStat = resolveStatusSignal(openMod, MOD_SSE_OPEN)
+      const closeStat = resolveStatusSignal(closeMod, MOD_SSE_CLOSE)
+      const abortStat = resolveStatusSignal(abortMod, MOD_ABORT)
+      // ^retry.N — auto-reconnect delay in ms (default 1000) when SSE stream drops unexpectedly
+      const retryDelay = retryMod ? (+(resolveModPathVal(retryMod.path) ?? 1000) || 1000) : 0
 
       // Initialise state signals to defaults if not yet defined
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
+      if (completeStat && !_dm.has(completeStat.root)) _dm.set(completeStat.root, false)
       if (errStat && !_dm.has(errStat.root)) _dm.set(errStat.root, null)
       if (codeStat && !_dm.has(codeStat.root)) _dm.set(codeStat.root, null)
+      if (openStat && !_dm.has(openStat.root)) _dm.set(openStat.root, false)
+      if (closeStat && !_dm.has(closeStat.root)) _dm.set(closeStat.root, false)
+      if (abortStat && !_dm.has(abortStat.root)) _dm.set(abortStat.root, null)
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
+
+      // Tracks the active AbortController for the current SSE request so ^abort works.
+      let _activeAbort = null
 
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
 
         if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, true)
+        if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, false)
         if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
         if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, null)
 
@@ -1998,6 +2030,22 @@
             else bodyFields[key] = val
           }
 
+          // ^url.<signalPath> — force named signal to URL query params (any HTTP method)
+          // ^body.<signalPath> — force named signal to request body (any HTTP method)
+          for (let _mi = 0; _mi < 2; _mi++) {
+            const _mArr = _mi === 0 ? urlMods : bodyMods
+            const _dest = _mi === 0 ? queryParams : bodyFields
+            for (const _m of _mArr) {
+              const _mp = _m.path
+              if (!_mp) continue
+              let _k, _v
+              if (typeof _mp === 'string') { _k = _mp; _v = _dm.has(_mp) ? _dm.get(_mp) : undefined }
+              else if (_mp.kind === SIGNAL) { _k = _mp.path && _mp.path.length ? _mp.path[_mp.path.length - 1] : _mp.root; _v = getSignalValOrIt(_mp) }
+              else continue
+              _dest[_k] = _v
+            }
+          }
+
           let finalUrl = url
           let q = '', hasQ = false
           for (const k in queryParams) {
@@ -2025,6 +2073,16 @@
             if (hdrObj && typeof hdrObj === 'object')
               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
           }
+          // ^header.<name> — set a single request header from a named signal value
+          for (const _m of hdrMods) {
+            const _mp = _m.path
+            if (!_mp) continue
+            let _k, _v
+            if (typeof _mp === 'string') { _k = _mp; _v = _dm.has(_mp) ? _dm.get(_mp) : undefined }
+            else if (_mp.kind === SIGNAL) { _k = _mp.path && _mp.path.length ? _mp.path[_mp.path.length - 1] : _mp.root; _v = getSignalValOrIt(_mp) }
+            else continue
+            headers[_k] = String(_v ?? '')
+          }
 
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
@@ -2049,8 +2107,13 @@
             else body = String(raw)
           }
 
+          // Wire up AbortController so ^abort.<signal> lets callers cancel the request.
+          const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+          _activeAbort = ac ? () => ac.abort() : null
+          if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, _activeAbort)
           const init = { method, headers }
           if (body != null) init.body = body
+          if (ac) init.signal = ac.signal
 
           const res = await window.fetch(finalUrl, init)
           const ct = (res.headers && res.headers.get('content-type')) || ''
@@ -2059,23 +2122,58 @@
             // Use incremental streaming when the browser exposes a ReadableStream body;
             // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
             if (res.body && typeof res.body.getReader === 'function') {
-              payload = await consumeDmaxSseStream(res.body, aName)
+              payload = await consumeDmaxSseStream(
+                res.body, aName,
+                openStat ? () => {
+                  setSignalAndNotifySubsNLevelsDeep(aName, openStat, true)
+                  if (closeStat) setSignalAndNotifySubsNLevelsDeep(aName, closeStat, false)
+                } : null,
+                closeStat || errStat ? (streamErr) => {
+                  if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, false)
+                  if (streamErr) {
+                    if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
+                  } else {
+                    if (closeStat) setSignalAndNotifySubsNLevelsDeep(aName, closeStat, true)
+                  }
+                } : null
+              )
             } else {
+              if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, true)
               const sseRaw = await res.text()
               payload = applyDmaxSse(sseRaw, aName)
+              if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, false)
+              if (closeStat) setSignalAndNotifySubsNLevelsDeep(aName, closeStat, true)
             }
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
 
           applyActionPayload(aName, resultTar, payload, resultMode)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
           if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
+          if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, null)
+          _activeAbort = null
+
+          // ^retry: auto-reconnect after clean close (stream ended without error and retry is requested)
+          if (retryDelay > 0 && ct.includes('text/event-stream') && !(ac && ac.signal.aborted)) {
+            setTimeout(doRequest, retryDelay)
+          }
         } catch (err) {
+          _activeAbort = null
+          if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, null)
+          if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, false)
+          // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
+          const isAbort = err && err.name === 'AbortError'
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
-          if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
-          console.error('[dmax] Error: dAction fetch failed:', err)
+          if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
+          if (!isAbort) {
+            if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
+            if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
+            console.error('[dmax] Error: dAction fetch failed:', err)
+            // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
+            if (retryDelay > 0) setTimeout(doRequest, retryDelay)
+          }
         }
       }
 
@@ -2207,7 +2305,6 @@
         dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
-        // busy is set synchronously before the first await inside doRequest
         const busyDuring = DM['busy']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
         await new Promise(r => setTimeout(r, 0))
@@ -2215,6 +2312,47 @@
         return {
           actual: { busyDuring, busyAfter: DM['busy'] },
           expected: { busyDuring: true, busyAfter: false }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^complete.<signal> is false before/during fetch then true on success', async () => {
+      __reset()
+      let resolveFetch
+      window.fetch = () => new Promise(r => { resolveFetch = r })
+      try {
+        const btn = document.createElement('button')
+        _dm.set('busy2', false)
+        _dm.set('done', false)
+        _dm.set('data2', null)
+        dAction(btn, 'data-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        const completeDuring = DM['done']
+        resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { completeDuring, completeAfter: DM['done'], busy: DM['busy2'] },
+          expected: { completeDuring: false, completeAfter: true, busy: false }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^complete.<signal> is set true on fetch error', async () => {
+      __reset()
+      window.fetch = () => Promise.reject(new Error('fail'))
+      try {
+        const btn = document.createElement('button')
+        _dm.set('done2', false)
+        dAction(btn, 'data-get^complete.done2:data@.click', '"https://api.test/data"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { done: DM['done2'] },
+          expected: { done: true }
         }
       } finally { delete window.fetch }
     })
@@ -2386,6 +2524,91 @@
       } finally { delete window.fetch }
     })
 
+    __asyncAssert('^url.X forces signal to URL query string even on POST', async () => {
+      __reset()
+      let capturedUrl = null, capturedBody = null
+      window.fetch = (url, init) => {
+        capturedUrl = url
+        capturedBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('page', 2)
+        _dm.set('payload', 'hello')
+        dAction(btn, 'data-post^url.page:res@.click+payload', '"https://api.test/items"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { url: capturedUrl, body: capturedBody },
+          expected: { url: 'https://api.test/items?page=2', body: 'hello' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^body.X forces named signal to request body regardless of HTTP method', async () => {
+      __reset()
+      let capturedUrl = null, capturedBody = null
+      window.fetch = (url, init) => {
+        capturedUrl = url
+        capturedBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('cursor', 'abc123')
+        _dm.set('filter', 'active')
+        dAction(btn, 'data-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        // +filter is GET-default → query string; ^body.cursor overrides → request body (single value unwrapped)
+        return {
+          actual: { url: capturedUrl, body: capturedBody },
+          expected: { url: 'https://api.test/stream?filter=active', body: 'abc123' }
+        }
+      } finally { delete window.fetch }
+    })
+
+    __asyncAssert('^header.X sets individual request header from named signal (camelCase conversion)', async () => {
+      __reset()
+      let capturedHeaders = null
+      window.fetch = (_url, init) => {
+        capturedHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('authorization', 'Bearer tok-xyz')
+        _dm.set('xTraceId', 'req-001')
+        dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: {
+            auth: capturedHeaders?.authorization,
+            traceKey: Object.prototype.hasOwnProperty.call(capturedHeaders, 'xTraceId'),
+            traceVal: capturedHeaders?.xTraceId
+          },
+          expected: { auth: 'Bearer tok-xyz', traceKey: true, traceVal: 'req-001' }
+        }
+      } finally { delete window.fetch }
+    })
+
     __asyncAssert('SSE action uses body.getReader streaming path and applies events incrementally', async () => {
       __reset()
       const root = document.createElement('div')
@@ -2437,13 +2660,6 @@
           expected: { incrVal: 99, txt: 'streamed' }
         }
       } finally { root.remove() }
-    })
-
-    // Wait for all sequential async tests before signalling completion
-    _asyncChain.then(() => {
-      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
-    }).catch(() => {
-      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
     })
 
     // --- morph: fast in-place DOM reconciliation ---
@@ -2530,6 +2746,10 @@
         const next = cur.nextSibling
         from.removeChild(cur)
         cur = next
+      }
+      // Remove keyed nodes that were in the original children but not matched by any toChild
+      for (const n of idMap.values()) {
+        if (n.parentNode === from) from.removeChild(n)
       }
     }
 
@@ -2766,7 +2986,8 @@
     // arrives rather than after the full response is buffered, lowering first-update
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
-    async function consumeDmaxSseStream(body, aName) {
+    // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
+    async function consumeDmaxSseStream(body, aName, onOpen, onClose) {
       if (!body || typeof body.getReader !== 'function') return []
       const applied = []
       const reader = body.getReader()
@@ -2774,6 +2995,7 @@
       const RE_TRAILING_CR = /\r$/
       let buf = ''
       let curEvent = 'message', curArgs = null, hasData = false
+      let opened = false
 
       const flush = () => {
         if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
@@ -2806,10 +3028,12 @@
         }
       }
 
+      let streamErr = null
       try {
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
+          if (!opened) { opened = true; if (onOpen) onOpen() }
           buf += decoder.decode(value, { stream: true })
           let nl
           while ((nl = buf.indexOf('\n')) >= 0) {
@@ -2823,8 +3047,10 @@
         if (buf) consumeLine(buf.replace(RE_TRAILING_CR, ''))
         flush()
       } catch (e) {
+        streamErr = e
         console.error('[dmax] SSE stream error:', e)
       }
+      if (onClose) onClose(streamErr)
       return applied
     }
 
@@ -3092,6 +3318,255 @@
       } finally { root.remove() }
     }
     __assert(__tDmaxSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
+
+    // --- parity matrix: unusual attribute updates (style, href, data-*, aria) ---
+
+    function __tMorphStyleAttr() {
+      const from = document.createElement('div')
+      from.setAttribute('style', 'color: red; font-size: 12px')
+      const to = document.createElement('div')
+      to.setAttribute('style', 'color: blue; background: white')
+      morph(from, to)
+      return { style: from.getAttribute('style') }
+    }
+    __assert(__tMorphStyleAttr, [], { style: 'color: blue; background: white' }, 'parity: morph updates style attribute string')
+
+    function __tMorphHref() {
+      const from = document.createElement('a')
+      from.setAttribute('href', '/old')
+      from.setAttribute('class', 'nav')
+      const to = document.createElement('a')
+      to.setAttribute('href', '/new')
+      to.setAttribute('class', 'nav active')
+      morph(from, to)
+      return { href: from.getAttribute('href'), cls: from.getAttribute('class') }
+    }
+    __assert(__tMorphHref, [], { href: '/new', cls: 'nav active' }, 'parity: morph updates href and class on anchor')
+
+    function __tMorphDataAttr() {
+      const from = document.createElement('div')
+      from.setAttribute('data-count', '1')
+      from.setAttribute('data-keep', 'yes')
+      const to = document.createElement('div')
+      to.setAttribute('data-count', '2')
+      const morph_result = (() => { morph(from, to); return from })()
+      return { count: from.getAttribute('data-count'), hasKeep: from.hasAttribute('data-keep') }
+    }
+    __assert(__tMorphDataAttr, [], { count: '2', hasKeep: false }, 'parity: morph updates data-* attributes correctly')
+
+    function __tMorphAriaAttr() {
+      const from = document.createElement('button')
+      from.setAttribute('aria-label', 'Close')
+      from.setAttribute('aria-disabled', 'false')
+      const to = document.createElement('button')
+      to.setAttribute('aria-label', 'Cancel')
+      to.setAttribute('aria-disabled', 'true')
+      to.setAttribute('aria-expanded', 'true')
+      morph(from, to)
+      return {
+        label: from.getAttribute('aria-label'),
+        disabled: from.getAttribute('aria-disabled'),
+        expanded: from.getAttribute('aria-expanded')
+      }
+    }
+    __assert(__tMorphAriaAttr, [], { label: 'Cancel', disabled: 'true', expanded: 'true' }, 'parity: morph updates aria-* attributes correctly')
+
+    function __tMorphCanvasPreserved() {
+      // canvas element: morph should update attributes but keep the same DOM node
+      // (canvas context state is not disturbed as we never replace the node)
+      const container = document.createElement('div')
+      const from = document.createElement('canvas')
+      from.setAttribute('width', '100')
+      from.setAttribute('height', '100')
+      container.appendChild(from)
+      const to = document.createElement('canvas')
+      to.setAttribute('width', '200')
+      to.setAttribute('height', '150')
+      to.setAttribute('class', 'chart')
+      morph(from, to)
+      return {
+        sameNode: container.firstElementChild === from,
+        width: from.getAttribute('width'),
+        height: from.getAttribute('height'),
+        cls: from.getAttribute('class')
+      }
+    }
+    __assert(__tMorphCanvasPreserved, [], { sameNode: true, width: '200', height: '150', cls: 'chart' }, 'parity: morph updates canvas attributes, preserves DOM node identity')
+
+    // --- parity matrix: keyed list reconciliation and stable DOM during collection updates ---
+
+    function __tMorphKeyedListStableNodes() {
+      // Verify keyed nodes are reused (not replaced) during a collection reorder + add
+      const ul = document.createElement('ul')
+      ul.innerHTML = '<li id="k1">A</li><li id="k2">B</li><li id="k3">C</li>'
+      const n1 = ul.querySelector('#k1'), n2 = ul.querySelector('#k2'), n3 = ul.querySelector('#k3')
+      const to = document.createElement('ul')
+      to.innerHTML = '<li id="k3">C updated</li><li id="k1">A updated</li><li id="k4">D new</li>'
+      morph(ul, to)
+      return {
+        k3same: ul.querySelector('#k3') === n3,
+        k1same: ul.querySelector('#k1') === n1,
+        k2gone: ul.querySelector('#k2') === null,
+        k4present: ul.querySelector('#k4') !== null,
+        k3text: ul.querySelector('#k3')?.textContent,
+        k1text: ul.querySelector('#k1')?.textContent,
+        count: ul.children.length
+      }
+    }
+    __assert(__tMorphKeyedListStableNodes, [], {
+      k3same: true, k1same: true, k2gone: true, k4present: true,
+      k3text: 'C updated', k1text: 'A updated', count: 3
+    }, 'parity: keyed list reconciliation reuses nodes, removes missing keys, adds new ones')
+
+    function __tMorphUnkeyedListStable() {
+      // Unkeyed children: morph-in-place by tag order (first child morphed to first child, etc.)
+      const ul = document.createElement('ul')
+      ul.innerHTML = '<li>A</li><li>B</li><li>C</li>'
+      const firstLi = ul.firstElementChild
+      const to = document.createElement('ul')
+      to.innerHTML = '<li>A</li><li>B updated</li>'
+      morph(ul, to)
+      return {
+        sameFirst: ul.firstElementChild === firstLi,
+        count: ul.children.length,
+        secondText: ul.children[1]?.textContent
+      }
+    }
+    __assert(__tMorphUnkeyedListStable, [], { sameFirst: true, count: 2, secondText: 'B updated' }, 'parity: unkeyed list morphs in place and trims extras')
+
+    function __tMorphMixedKeyedUnkeyed() {
+      // Mixed: some children have id (keyed), some don't (unkeyed)
+      const ul = document.createElement('ul')
+      ul.innerHTML = '<li id="k1">K1</li><li>unkeyed</li>'
+      const kn = ul.querySelector('#k1'), un = ul.children[1]
+      const to = document.createElement('ul')
+      to.innerHTML = '<li>unkeyed new</li><li id="k1">K1 updated</li>'
+      morph(ul, to)
+      return {
+        k1same: ul.querySelector('#k1') === kn,
+        k1text: ul.querySelector('#k1')?.textContent,
+        count: ul.children.length
+      }
+    }
+    __assert(__tMorphMixedKeyedUnkeyed, [], { k1same: true, k1text: 'K1 updated', count: 2 }, 'parity: mixed keyed/unkeyed list — keyed node reused and moved, unkeyed morphed in-place')
+
+    // --- SSE lifecycle async tests ---
+
+    __asyncAssert('^open and ^close lifecycle signals are set during SSE stream', async () => {
+      __reset()
+      const lines = [
+        'event: dmax-patch-signals',
+        'data: dmaxSignals {"lcVal":42}',
+        ''
+      ].join('\n')
+      const encoder = new TextEncoder()
+      const bytes = encoder.encode(lines)
+      let step = 0
+      const fakeBody = {
+        getReader() {
+          return {
+            async read() {
+              if (step === 0) { step++; return { done: false, value: bytes } }
+              return { done: true }
+            }
+          }
+        }
+      }
+      _dm.set('sseOpen', false)
+      _dm.set('sseClose', false)
+      await consumeDmaxSseStream(
+        fakeBody,
+        'test-lc',
+        () => setSignalAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, true),
+        (err) => {
+          setSignalAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, false)
+          if (!err) setSignalAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseClose', path: null }, true)
+        }
+      )
+      return {
+        actual: { lcVal: _dm.get('lcVal'), sseOpen: _dm.get('sseOpen'), sseClose: _dm.get('sseClose') },
+        expected: { lcVal: 42, sseOpen: false, sseClose: true }
+      }
+    })
+
+    __asyncAssert('^open lifecycle signal set via dAction ^open.sseOn^close.sseDone modifiers', async () => {
+      __reset()
+      const lines = [
+        'event: dmax-patch-signals',
+        'data: dmaxSignals {"lc2Val":7}',
+        ''
+      ].join('\n')
+      const encoder = new TextEncoder()
+      const bytes = encoder.encode(lines)
+      let step = 0
+      window.fetch = () => Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: n => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+        body: {
+          getReader() {
+            return {
+              async read() {
+                if (step === 0) { step++; return { done: false, value: bytes } }
+                return { done: true }
+              }
+            }
+          }
+        }
+      })
+      try {
+        const btn = document.createElement('button')
+        dAction(btn, 'data-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 30))
+      } finally { delete window.fetch }
+      return {
+        actual: { lc2Val: _dm.get('lc2Val'), sseOn: _dm.get('sseOn'), sseDone: _dm.get('sseDone') },
+        expected: { lc2Val: 7, sseOn: false, sseDone: true }
+      }
+    })
+
+    __asyncAssert('^abort signal lets callers cancel the fetch request', async () => {
+      __reset()
+      let abortCalled = false
+      let signalAborted = false
+      window.fetch = (_url, init) => {
+        // Return a promise that rejects when the AbortSignal fires, matching real fetch behaviour
+        return new Promise((_resolve, reject) => {
+          if (init && init.signal) {
+            init.signal.addEventListener('abort', () => {
+              signalAborted = true
+              const err = new Error('AbortError')
+              err.name = 'AbortError'
+              reject(err)
+            })
+          }
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        dAction(btn, 'data-get^abort.cancelFn@.click', "'/mock/long'")
+        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 10))
+        // Now cancel via the signal stored by ^abort
+        const cancelFn = _dm.get('cancelFn')
+        if (typeof cancelFn === 'function') { cancelFn(); abortCalled = true }
+        await new Promise(r => setTimeout(r, 20))
+      } finally { delete window.fetch }
+      return {
+        actual: { abortCalled, signalAborted },
+        expected: { abortCalled: true, signalAborted: true }
+      }
+    })
+
+    // Wait for all sequential async tests (including SSE lifecycle tests above) before signalling completion
+    _asyncChain.then(() => {
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    }).catch(() => {
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    })
 
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
