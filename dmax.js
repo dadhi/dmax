@@ -2305,7 +2305,6 @@
         dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
-        // busy is set synchronously before the first await inside doRequest
         const busyDuring = DM['busy']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
         await new Promise(r => setTimeout(r, 0))
@@ -2552,7 +2551,7 @@
       } finally { delete window.fetch }
     })
 
-    __asyncAssert('^body.X forces signal to request body even on GET', async () => {
+    __asyncAssert('^body.X forces named signal to request body regardless of HTTP method', async () => {
       __reset()
       let capturedUrl = null, capturedBody = null
       window.fetch = (url, init) => {
@@ -2572,7 +2571,7 @@
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
-        // On GET: +filter → query string; ^body.cursor → request body (single value unwrapped)
+        // +filter is GET-default → query string; ^body.cursor overrides → request body (single value unwrapped)
         return {
           actual: { url: capturedUrl, body: capturedBody },
           expected: { url: 'https://api.test/stream?filter=active', body: 'abc123' }
@@ -2593,16 +2592,12 @@
       }
       try {
         const btn = document.createElement('button')
-        // ^header.authorization → signal dm.authorization, header name 'authorization'
-        // ^header.x-trace-id   → parser converts to 'xTraceId'; reads dm.xTraceId, sets header 'xTraceId'
-        // HTTP headers are case-insensitive so camelCase header names are valid.
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
         dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
-        // x-trace-id is converted to xTraceId by the mod parser (kebab→camelCase)
         return {
           actual: {
             auth: capturedHeaders?.authorization,
