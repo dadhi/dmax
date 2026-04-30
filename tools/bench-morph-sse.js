@@ -5,21 +5,35 @@ const { JSDOM, VirtualConsole } = require('jsdom')
 const ROOT = path.resolve(__dirname, '..')
 const HTML_FILE = path.join(ROOT, 'index.html')
 const DMAX_FILE = path.join(ROOT, 'dmax.js')
+const GRID_FILL_RATIO = 0.66
+const MAX_CELL_VALUE = 100
+const CELL_CLEAR_RATIO = 0.12
+const LCG_MULTIPLIER = 1664525
+const LCG_INCREMENT = 1013904223
 
 function makeRng(seed) {
-  let s = seed >>> 0
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 0x100000000)
+  // Tiny deterministic LCG using the classic Numerical Recipes constants.
+  let state = seed >>> 0
+  return () => ((state = (state * LCG_MULTIPLIER + LCG_INCREMENT) >>> 0) / 0x100000000)
 }
 
 function cloneCells(cells) {
   return cells.map(row => row.slice())
 }
 
+function escapeHtml(val) {
+  return String(val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function buildGrid(rows, cols, seed) {
   const rand = makeRng(seed)
   const cells = Array.from({ length: rows }, () => Array(cols).fill(null))
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
-    cells[r][c] = rand() < 0.66 ? Math.floor(rand() * 100) : null
+    cells[r][c] = rand() < GRID_FILL_RATIO ? Math.floor(rand() * MAX_CELL_VALUE) : null
   return cells
 }
 
@@ -29,7 +43,7 @@ function mutateGrid(cells, seed, changeCount) {
   for (let i = 0; i < changeCount; i++) {
     const r = Math.floor(rand() * next.length)
     const c = Math.floor(rand() * next[0].length)
-    next[r][c] = rand() < 0.12 ? null : Math.floor(rand() * 100)
+    next[r][c] = rand() < CELL_CLEAR_RATIO ? null : Math.floor(rand() * MAX_CELL_VALUE)
   }
   return next
 }
@@ -57,7 +71,7 @@ function renderGridHtml(cells) {
     out += `<tr id="row-${r}">`
     for (let c = 0; c < cols; c++) {
       const val = cells[r][c]
-      out += `<td id="cell-${r}-${c}" data-row="${r}" data-col="${c}">${val == null ? '' : val}</td>`
+      out += `<td id="cell-${r}-${c}" data-row="${r}" data-col="${c}">${val == null ? '' : escapeHtml(val)}</td>`
     }
     out += `<th id="sum-row-${r}">${rowSums[r]}</th></tr>`
   }
@@ -71,7 +85,7 @@ function renderPointedPatch(cells, row, col) {
   const { rowSums, colSums, total } = summarizeGrid(cells)
   const val = cells[row][col]
   return [
-    `<td id="cell-${row}-${col}" data-row="${row}" data-col="${col}">${val == null ? '' : val}</td>`,
+    `<td id="cell-${row}-${col}" data-row="${row}" data-col="${col}">${val == null ? '' : escapeHtml(val)}</td>`,
     `<th id="sum-row-${row}">${rowSums[row]}</th>`,
     `<th id="sum-col-${col}">${colSums[col]}</th>`,
     `<th id="sum-total">${total}</th>`
@@ -80,16 +94,17 @@ function renderPointedPatch(cells, row, col) {
 
 function renderOobPatch(cells, row, col) {
   const val = cells[row][col]
-  return `<td id="cell-${row}-${col}" data-oob="morph" data-row="${row}" data-col="${col}">${val == null ? '' : val}</td>`
+  return `<td id="cell-${row}-${col}" data-oob="morph" data-row="${row}" data-col="${col}">${val == null ? '' : escapeHtml(val)}</td>`
 }
 
 function makeSseOuter(html, selector = '') {
+  const safeHtml = String(html).replace(/\r/g, '')
   const lines = [
     'event: dmax-patch-elements',
     'data: mode outer'
   ]
   if (selector) lines.push(`data: selector ${selector}`)
-  for (const line of String(html).split('\n')) lines.push(`data: dmaxElements ${line}`)
+  for (const line of safeHtml.split('\n')) lines.push(`data: dmaxElements ${line}`)
   lines.push('')
   return lines.join('\n')
 }

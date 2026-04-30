@@ -2684,16 +2684,16 @@
       return a.tagName === b.tagName
     }
 
-    const _DUMMY_ARR = Object.freeze([])
+    const _DUMMY_ARRAY = Object.freeze([])
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const _SIMPLE_ID_SELECTOR_RE = /^#([^\s>+~:.[,]+)$/
 
     function getPatchTargets(selector) {
-      if (!selector) return _DUMMY_ARR
+      if (!selector) return _DUMMY_ARRAY
       const simpleId = _SIMPLE_ID_SELECTOR_RE.exec(selector)
       if (simpleId) {
         const el = document.getElementById(simpleId[1])
-        return el ? [el] : _DUMMY_ARR
+        return el ? [el] : _DUMMY_ARRAY
       }
       return document.querySelectorAll(selector)
     }
@@ -2812,6 +2812,9 @@
           // setSelectionRange not supported for this input type
         }
       } else if (isFocused && tag === 'SELECT') {
+        // Prefer restoring by value so the same logical option stays selected even
+        // if the server reorders options; fall back to the previous index only when
+        // that value no longer exists in the morphed option set.
         from.value = selectValue
         if (from.value !== selectValue && selectIndex >= 0 && selectIndex < from.options.length)
           from.selectedIndex = selectIndex
@@ -2909,8 +2912,7 @@
         const targets = getPatchTargets(selector)
         // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
         const defaultSrc = sourceEls[0]
-        let i = 0
-        for (const target of targets) applyPair(target, sourceEls[i++] || defaultSrc)
+        for (let i = 0; i < targets.length; i++) applyPair(targets[i], sourceEls[i] || defaultSrc)
         return
       }
 
@@ -3369,6 +3371,7 @@
         const stream = [
           'event: dmax-patch-elements',
           'data: mode outer',
+          // Intentional line split: verifies multi-line SSE data fields survive CRLF parsing.
           'data: dmaxElements <div id="ds-multi"><span>line1',
           'data: dmaxElements line2</span></div>',
           ''
