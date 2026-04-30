@@ -7,7 +7,8 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `index.html` — current dev notebook (asserts + live examples)
 - `dmax.js` — extracted runtime script loaded by `index.html`
 - `index-wotking-slop.html` — previous `index.html` snapshot
-- `tools/bench-morph-sse.js` — semi-realistic SSE/morph benchmark for pointed, OOB, and full-page swaps
+- `tools/bench-morph-sse.js` — semi-realistic dmax SSE/morph benchmark for pointed, OOB, and full-page swaps
+- `tools/bench-morph-sse-datastar.js` — matched Datastar benchmark harness for full-page morph/replace comparison
 
 ## Semi-realistic SSE / morph benchmark
 
@@ -247,3 +248,33 @@ Example:
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
 Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` are supported.
+
+## Matched Datastar benchmark
+
+Run (Datastar is pulled from CDN at runtime):
+
+```bash
+npm run bench:morph-sse:datastar
+```
+
+Or run both locally:
+
+```bash
+npm run bench:morph-sse:all
+```
+
+A manual GitHub Actions workflow is available at `.github/workflows/bench-morph-sse.yml` (Node 22) to run both benchmark scripts in cloud CI.
+
+If your Codex environment blocks internet, allow outbound access to `cdn.jsdelivr.net` or `unpkg.com` so the Datastar benchmark can download the runtime bundle.
+Offline fallback (recommended for restricted Codex envs):
+
+```bash
+mkdir -p tools/vendor
+# from any machine with internet:
+curl -L "https://cdn.jsdelivr.net/npm/@starfederation/datastar@latest/dist/datastar.js" -o tools/vendor/datastar.js
+# then run benchmark in your restricted env
+npm run bench:morph-sse:datastar
+```
+
+The benchmark script first checks `tools/vendor/datastar.js`, then falls back to CDN URLs.
+
