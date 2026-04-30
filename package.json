@@ -3,6 +3,7 @@
     "jsdom": "^27.4.0"
   },
   "scripts": {
+    "bench:morph-sse": "node tools/bench-morph-sse.js",
     "test:actions": "node tests/actions.e2e.js",
     "serve": "npx http-server -c-1 -p 8080"
   },

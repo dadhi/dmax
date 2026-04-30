@@ -7,6 +7,28 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `index.html` — current dev notebook (asserts + live examples)
 - `dmax.js` — extracted runtime script loaded by `index.html`
 - `index-wotking-slop.html` — previous `index.html` snapshot
+- `tools/bench-morph-sse.js` — semi-realistic SSE/morph benchmark for pointed, OOB, and full-page swaps
+
+## Semi-realistic SSE / morph benchmark
+
+Run:
+
+```bash
+npm run bench:morph-sse
+# or for cleaner heap deltas
+node --expose-gc tools/bench-morph-sse.js
+```
+
+The benchmark mounts a 32×32 spreadsheet-like grid with ~66% populated numeric cells plus row, column, and grand-total cells in the streamed HTML. It reports timing and heap deltas for:
+
+- pointed SSE patch updates
+- OOB morph updates
+- full-page morph swaps with a small diff
+- full-page replace swaps with a small diff
+- full-page morph swaps with a large diff
+- full-page replace swaps with a large diff
+
+This gives a repeatable local baseline for the exact high-frequency update patterns discussed in the performance issue.
 
 ## Syntax used by current `index.html`
 

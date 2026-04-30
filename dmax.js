@@ -2684,11 +2684,27 @@
       return a.tagName === b.tagName
     }
 
+    const _DUMMY_ARR = Object.freeze([])
+    const _HTML_PARSE_TEMPLATE = document.createElement('template')
+    const _SIMPLE_ID_SELECTOR_RE = /^#([^\s>+~:.[,]+)$/
+
+    function getPatchTargets(selector) {
+      if (!selector) return _DUMMY_ARR
+      const simpleId = _SIMPLE_ID_SELECTOR_RE.exec(selector)
+      if (simpleId) {
+        const el = document.getElementById(simpleId[1])
+        return el ? [el] : _DUMMY_ARR
+      }
+      return document.querySelectorAll(selector)
+    }
+
     // Sync attributes from `to` onto `from`: remove missing, add/update present.
     function updateAttrs(from, to) {
       const toAttrs = to.attributes
+      const toAttrNames = new Set()
       for (let i = 0; i < toAttrs.length; i++) {
         const { name, value } = toAttrs[i]
+        toAttrNames.add(name)
         if (from.getAttribute(name) !== value) from.setAttribute(name, value)
       }
       // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
@@ -2696,7 +2712,7 @@
       const fromAttrs = from.attributes
       for (let i = fromAttrs.length - 1; i >= 0; i--) {
         const name = fromAttrs[i].name
-        if (!to.hasAttribute(name)) from.removeAttribute(name)
+        if (!toAttrNames.has(name)) from.removeAttribute(name)
       }
     }
 
@@ -2773,10 +2789,14 @@
       const tag = from.tagName
       const isFocused = from === document.activeElement
       let selStart = -1, selEnd = -1, selDir = 'none'
+      let selectValue = null, selectIndex = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
         try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {
           // selection not supported for this input type (e.g. type=number, type=email)
         }
+      } else if (isFocused && tag === 'SELECT') {
+        selectValue = from.value
+        selectIndex = from.selectedIndex
       }
       // Save scroll position so content updates do not unexpectedly jump the
       // user's scroll offset (mirrors idiomorph / paxi discipline).
@@ -2791,14 +2811,17 @@
         try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {
           // setSelectionRange not supported for this input type
         }
+      } else if (isFocused && tag === 'SELECT') {
+        from.value = selectValue
+        if (from.value !== selectValue && selectIndex >= 0 && selectIndex < from.options.length)
+          from.selectedIndex = selectIndex
       }
     }
 
     function applyOobHtml(html) {
       if (!html) return ''
-      const t = document.createElement('template')
-      t.innerHTML = html
-      const src = t.content.querySelector('[data-oob]')
+      _HTML_PARSE_TEMPLATE.innerHTML = html
+      const src = _HTML_PARSE_TEMPLATE.content.querySelector('[data-oob]')
       if (!src) return ''
       const mode = src.getAttribute('data-oob')
       const id = src.getAttribute('id')
@@ -2827,9 +2850,10 @@
       if (!html) return []
       const ns = (namespace || 'html').toLowerCase()
       if (ns === 'html') {
-        const t = document.createElement('template')
-        t.innerHTML = html
-        return Array.from(t.content.children)
+        _HTML_PARSE_TEMPLATE.innerHTML = html
+        const out = []
+        for (let el = _HTML_PARSE_TEMPLATE.content.firstElementChild; el; el = el.nextElementSibling) out.push(el)
+        return out
       }
       const wrap = ns === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
@@ -2875,19 +2899,18 @@
         if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
         else if (mode === PATCH_MODE_INNER) {
           const to = targetEl.cloneNode(false)
-          for (const ch of Array.from(srcEl.childNodes)) to.appendChild(ch.cloneNode(true))
+          for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
           morphChildren(targetEl, to)
         } else morph(targetEl, srcEl)
       }
 
       if (selector) {
         if (!sourceEls.length) return
-        const targets = Array.from(document.querySelectorAll(selector))
+        const targets = getPatchTargets(selector)
         // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
         const defaultSrc = sourceEls[0]
-        for (let i = 0; i < targets.length; i++) {
-          applyPair(targets[i], sourceEls[i] || defaultSrc)
-        }
+        let i = 0
+        for (const target of targets) applyPair(target, sourceEls[i++] || defaultSrc)
         return
       }
 
@@ -2935,7 +2958,8 @@
     function applyDmaxSse(raw, aName = 'dmax-sse') {
       if (!raw) return []
       const applied = []
-      const text = String(raw).replace(/\r/g, '')
+      const text = String(raw)
+      const RE_TRAILING_CR = /\r$/
       let curEvent = 'message'
       let curArgs = null
       let hasData = false
@@ -2973,10 +2997,10 @@
       let start = 0
       for (let end = 0; end < text.length; end++) {
         if (text[end] !== '\n') continue
-        consumeLine(text.slice(start, end))
+        consumeLine(text.slice(start, end).replace(RE_TRAILING_CR, ''))
         start = end + 1
       }
-      if (start < text.length) consumeLine(text.slice(start))
+      if (start < text.length) consumeLine(text.slice(start).replace(RE_TRAILING_CR, ''))
       flush()
       return applied
     }
@@ -3238,6 +3262,24 @@
     }
     __assert(__tMorphCheckboxPreserved, [], { checked: true, hasClass: true }, 'morph: checkbox checked state preserved; class attribute updated')
 
+    function __tMorphFocusedSelectPreserved() {
+      const container = document.createElement('div')
+      const sel = document.createElement('select')
+      sel.innerHTML = '<option value="a">A</option><option value="b">B</option><option value="c">C</option>'
+      container.appendChild(sel)
+      document.body.appendChild(container)
+      try {
+        sel.value = 'b'
+        sel.focus()
+        const to = document.createElement('select')
+        to.setAttribute('class', 'updated')
+        to.innerHTML = '<option value="a">A1</option><option value="b">B1</option><option value="c">C1</option>'
+        morph(sel, to)
+        return { focused: document.activeElement === sel, value: sel.value, hasClass: sel.classList.contains('updated') }
+      } finally { container.remove() }
+    }
+    __assert(__tMorphFocusedSelectPreserved, [], { focused: true, value: 'b', hasClass: true }, 'morph: focused select preserves selection and focus')
+
     function __tDmaxPatchElementsReplaceDiscardsFormState() {
       const container = document.createElement('div')
       container.innerHTML = '<input id="fi-inp" type="text" value="default">'
@@ -3318,6 +3360,24 @@
       } finally { root.remove() }
     }
     __assert(__tDmaxSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
+
+    function __tDmaxSseMultilineCrlfElements() {
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="ds-multi">old</div>'
+      document.body.appendChild(root)
+      try {
+        const stream = [
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="ds-multi"><span>line1',
+          'data: dmaxElements line2</span></div>',
+          ''
+        ].join('\r\n')
+        applyDmaxSse(stream, 't')
+        return root.querySelector('#ds-multi')?.textContent || ''
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseMultilineCrlfElements, [], 'line1\nline2', 'dmax: SSE parser preserves CRLF multi-line payloads without full-string normalization')
 
     // --- parity matrix: unusual attribute updates (style, href, data-*, aria) ---
 
