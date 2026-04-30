@@ -183,3 +183,59 @@ The comparison suggests dmax should borrow **techniques** from Fixi, not its pac
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
 Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` are supported.
+
+## Production size snapshot (bare dmax vs Datastar vs Fixi parts)
+
+Measured on `2026-04-30` using raw sources and local compression (`gzip -9`, `brotli`):
+
+| Artifact | Raw bytes | Gzip bytes | Brotli bytes |
+| --- | ---:| ---:| ---:|
+| `dmax.js` (current dev/test inline) | 147,926 | 33,239 | 28,706 |
+| `dmax.js` stripped (`tools/strip-dmax-tests.sh`) | 86,882 | 21,516 | 18,708 |
+| Datastar (`starfederation/datastar` `bundles/datastar.js`) | 30,732 | 12,202 | 11,021 |
+| fixi core (`bigskysoftware/fixi` `fixi.js`) | 3,473 | 1,473 | 1,278 |
+| moxi (`bigskysoftware/moxi` `moxi.js`) | 4,733 | 2,125 | 1,883 |
+| ssexi (`bigskysoftware/ssexi` `ssexi.js`) | 4,177 | 1,599 | 1,386 |
+| paxi (`bigskysoftware/paxi` `paxi.js`) | 1,528 | 690 | 584 |
+| rexi (`bigskysoftware/rexi` `rexi.js`) | 4,355 | 1,608 | 1,417 |
+
+Related bundle rollups:
+
+- fixi + ssexi + paxi (closest to dmax action + SSE + morph overlap): **9,178 raw / 3,762 gzip / 3,248 brotli**
+- fixi + moxi + ssexi + paxi: **13,911 raw / 5,887 gzip / 5,131 brotli**
+- fixi + moxi + ssexi + paxi + rexi: **18,266 raw / 7,495 gzip / 6,548 brotli**
+
+Datastar README currently advertises a single script tag of about **10.76 KiB**.
+
+### Reproduce
+
+```bash
+# dmax bare (stripped)
+sh tools/strip-dmax-tests.sh dmax.js /tmp/dmax.prod.js
+wc -c /tmp/dmax.prod.js
+gzip -9 -c /tmp/dmax.prod.js | wc -c
+brotli -c /tmp/dmax.prod.js | wc -c
+```
+
+## Next step: minifier options
+
+1. **esbuild** (`esbuild dmax.prod.js --minify`)  
+   Fastest iteration; usually good compression.
+2. **terser** (`terser dmax.prod.js -c -m`)  
+   More tuning knobs (`passes`, `pure_funcs`, property mangling).
+3. **SWC minify**  
+   Fast alternative, often close to esbuild output size.
+4. **Google Closure Compiler (ADVANCED)**  
+   Smallest potential output, highest migration risk (requires strict annotations/conventions).
+
+Practical default: start with **esbuild** for speed and compare with **terser** in CI.
+
+## Next step: principled size optimization
+
+- Keep a **size budget** and fail CI if `dmax.prod.js` (raw/gzip/brotli) regresses.
+- Split dev/test and prod paths permanently (current strip script is first step).
+- Mark pure helper calls and collapse repeated literals/constants.
+- Reduce parser/attribute grammar duplication by sharing one fast parsing path.
+- Gate optional features behind explicit flags/build targets (`core`, `core+sse`, `full`).
+- Prefer data-driven tables over repeated branching in hot paths where it reduces bytes.
+- Track every feature with “bytes added / value added” in PR review.
