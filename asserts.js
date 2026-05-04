@@ -1601,5 +1601,14 @@
         expected: { abortCalled: true, signalAborted: true }
       }
     })
-  _asyncChain.then(__restoreAssertState, __restoreAssertState)
+  _asyncChain.then(
+    () => {
+      __restoreAssertState()
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    },
+    () => {
+      __restoreAssertState()
+      window.dispatchEvent(new CustomEvent('dmax:tests:done'))
+    }
+  )
 })()
