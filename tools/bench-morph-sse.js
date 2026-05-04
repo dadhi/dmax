@@ -438,7 +438,7 @@ function makePayloads() {
   }
 }
 
-function stripOobAttrs(html) {
+function stripOobAttributes(html) {
   return html.replace(/ data-oob="morph"/g, '')
 }
 
@@ -555,6 +555,8 @@ function runDatastarScenarios(window, payloads) {
   const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
   const mergeFragments = (fragments, mergeMode, selector = '') => applyDatastarFragments(window, fragments, mergeMode, selector)
   const v = makeValidators(host, () => document.activeElement, payloads, 'datastar')
+  // Datastar form-state parity is reported separately by probeMorphParity so the
+  // timed benchmark can keep running and show the measured reset behavior.
   const validateBase = () => v.assertGrid(payloads.expectedBase, 'base')
   const validateSmall = () => v.assertGrid(payloads.expectedSmall, 'small')
   const validateLarge = () => v.assertGrid(payloads.expectedLarge, 'large')
@@ -574,8 +576,8 @@ function runDatastarScenarios(window, payloads) {
       'oob-morph-small-diff',
       500,
       mountBase,
-      () => mergeFragments(stripOobAttrs(payloads.smallOob), 'morph'),
-      () => mergeFragments(stripOobAttrs(payloads.baseOob), 'morph'),
+      () => mergeFragments(stripOobAttributes(payloads.smallOob), 'morph'),
+      () => mergeFragments(stripOobAttributes(payloads.baseOob), 'morph'),
       v.cellText,
       validateSmall,
       validateBase
