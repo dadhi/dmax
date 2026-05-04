@@ -53,7 +53,11 @@
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
 
-    const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout'
+    const SPEC_WIN = 'window'
+    const SPEC_DOC = 'document'
+    const SPEC_FORM = 'form'
+    const SPEC_INTERVAL = 'interval'
+    const SPEC_TIMEOUT = 'timeout'
     const SPECIALS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
     const SPEC_WIN_EV = 'resize'
     const SPEC_DOC_EV = 'visibilitychange'
