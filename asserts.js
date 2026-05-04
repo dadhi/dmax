@@ -94,6 +94,7 @@
     __assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
     __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine global+local mods and keep repeats')
     __assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
+    __assert(parse, ['data-post+profile^spread'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }, 24], 'add item local spread mod')
     __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -849,7 +850,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('+_all and +path._all spread signal object fields into request payload', async () => {
+    __asyncAssert('^send-all-signals and +path^spread spread signal object fields into request payload', async () => {
       __reset()
       let sentBody = null
       window.fetch = (_url, init) => {
@@ -864,7 +865,7 @@
         const btn = document.createElement('button')
         _dm.set('a', 1)
         _dm.set('nested', { x: 7, y: 8 })
-        dAction(btn, 'data-post^json:req@.click+_all+nested._all', '"https://api.test/all"')
+        dAction(btn, 'data-post^json^send-all-signals:req@.click+nested^spread', '"https://api.test/all"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
@@ -874,41 +875,50 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert(':_all target unpacks object payload into root signals', async () => {
+    __asyncAssert('^patch-all-signals updates matching root signals from response payload', async () => {
       __reset()
+      _dm.set('alpha', 0)
+      _dm.set('fooBar', 0)
       window.fetch = () => Promise.resolve({
         ok: true,
         headers: { get: () => 'application/json' },
-        json: async () => ({ alpha: 1, 'foo-bar': 2 })
+        json: async () => ({ alpha: 1, 'foo-bar': 2, extra: 3 })
       })
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get:_all@.click', '"https://api.test/obj"')
+        dAction(btn, 'data-get^patch-all-signals@.click', '"https://api.test/obj"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: { alpha: DM['alpha'], fooBar: DM['fooBar'] },
-          expected: { alpha: 1, fooBar: 2 }
+          actual: { alpha: DM['alpha'], fooBar: DM['fooBar'], hasExtra: _dm.has('extra') },
+          expected: { alpha: 1, fooBar: 2, hasExtra: false }
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert(':_all target unpacks top-level array payload into _arr signal', async () => {
+    __asyncAssert('^sync-all-signals sends all signals and patches matching response fields', async () => {
       __reset()
-      window.fetch = () => Promise.resolve({
-        ok: true,
-        headers: { get: () => 'application/json' },
-        json: async () => [3, 4, 5]
-      })
+      _dm.set('alpha', 0)
+      _dm.set('fooBar', 0)
+      _dm.set('localOnly', 9)
+      let sentBody = null
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get:_all@.click', '"https://api.test/arr"')
+        window.fetch = (_url, init) => {
+          sentBody = init.body
+          return Promise.resolve({
+            ok: true,
+            headers: { get: () => 'application/json' },
+            json: async () => ({ alpha: 3, 'foo-bar': 4, ignored: 5 })
+          })
+        }
+        dAction(btn, 'data-post^json^sync-all-signals@.click', '"https://api.test/sync"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: DM['_arr'],
-          expected: [3, 4, 5]
+          actual: { sent: JSON.parse(sentBody), alpha: DM['alpha'], fooBar: DM['fooBar'], localOnly: DM['localOnly'], hasIgnored: _dm.has('ignored') },
+          expected: { sent: { alpha: 0, fooBar: 0, localOnly: 9 }, alpha: 3, fooBar: 4, localOnly: 9, hasIgnored: false }
         }
       } finally { delete window.fetch }
     })

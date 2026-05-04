@@ -365,6 +365,10 @@
     const MOD_URL = 'url'
     const MOD_BODY = 'body'
     const MOD_HDR = 'header'
+    const MOD_SPREAD = 'spread'
+    const MOD_SEND_ALL_SIGNALS = 'sendAllSignals'
+    const MOD_PATCH_ALL_SIGNALS = 'patchAllSignals'
+    const MOD_SYNC_ALL_SIGNALS = 'syncAllSignals'
     function isImmediateMod(mods, defaultVal) {
       for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
@@ -469,25 +473,19 @@
       return next
     }
 
+    function patchMatchingSignals(aName, payload, resultMode) {
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
+      for (const key in payload) {
+        if (!hasOwn(payload, key)) continue
+        const root = kebabToCamel(key)
+        if (!_dm.has(root)) continue
+        const prev = _dm.get(root)
+        setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
+      }
+    }
+
     function applyActionPayload(aName, resultTar, payload, resultMode) {
       if (!resultTar) return
-      const isAllTarget = resultTar.kind === SIGNAL && resultTar.root === '_all' && !resultTar.path
-      if (isAllTarget) {
-        if (Array.isArray(payload)) {
-          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root: '_arr', path: null }, payload)
-          return
-        }
-        if (!payload || typeof payload !== 'object') return
-        for (const key in payload) {
-          if (!hasOwn(payload, key)) continue
-          // :_all target unpacks payload object fields into root signals; normalize keys to mirror attribute parser naming
-          // so kebab-case fields (e.g. foo-bar) map to the same camelCase signal names used elsewhere in dmax.
-          const root = kebabToCamel(key)
-          const prev = _dm.get(root)
-          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
-        }
-        return
-      }
       const prev = getSignalValOrIt(resultTar)
       setSignalAndNotifySubsNLevelsDeep(aName, resultTar, combineActionResult(prev, payload, resultMode))
     }
@@ -1260,6 +1258,7 @@
       let isJson = false, isText = false, isForm = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null
+      let sendAllSignals = false, patchAllSignals = false
       let resultMode = MOD_REPLACE
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
@@ -1287,6 +1286,8 @@
         else if (mr === MOD_BODY) bodyMods.push(m)
         else if (mr === MOD_HDR) hdrMods.push(m)
       }
+      sendAllSignals = globMods.some(m => m.root === MOD_SEND_ALL_SIGNALS || m.root === MOD_SYNC_ALL_SIGNALS)
+      patchAllSignals = globMods.some(m => m.root === MOD_PATCH_ALL_SIGNALS || m.root === MOD_SYNC_ALL_SIGNALS)
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
           const mr = m.root
@@ -1332,29 +1333,22 @@
 
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
+          if (sendAllSignals) {
+            for (const [sgName, sgVal] of _dm.entries()) bodyFields[sgName] = sgVal
+          }
           for (const add of adds) {
             const addKind = add.kind, addRoot = add.root, addPath = add.path
-            let val = null, key = null, spreadAll = false
+            let val = null, key = null
             if (addKind === EV_PROP) {
               const addEl = addRoot ? getElById(addRoot, aName) : el
               val = addEl ? getElPropVal(addEl, addPath) : null
               key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
             } else {
-              const pathLen = addPath ? addPath.length : 0
-              if (addRoot === '_all' && !pathLen) {
-                val = {}
-                for (const [sgName, sgVal] of _dm.entries()) val[sgName] = sgVal
-                spreadAll = true
-              } else if (pathLen && addPath[pathLen - 1] === '_all') {
-                const basePath = pathLen === 1 ? null : addPath.slice(0, pathLen - 1)
-                val = getSignalValOrIt({ kind: SIGNAL, not: add.not, root: addRoot, path: basePath })
-                spreadAll = true
-              } else {
-                val = getSignalValOrIt(add)
-                key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
-              }
+              val = getSignalValOrIt(add)
+              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
-            if (spreadAll) {
+            const spreadVal = !!(add.mods && add.mods.some(m => m.root === MOD_SPREAD))
+            if (spreadVal) {
               if (val && typeof val === 'object') {
                 for (const k in val) {
                   if (!hasOwn(val, k)) continue
@@ -1485,6 +1479,7 @@
           else payload = await res.text()
 
           applyActionPayload(aName, resultTar, payload, resultMode)
+          if (patchAllSignals) patchMatchingSignals(aName, payload, resultMode)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
           if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
