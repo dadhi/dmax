@@ -106,7 +106,7 @@ five very small libraries:
 <div data-def='{"count":0,"active":true}'></div>
 
 <button data-sub:count@.click="dm.count + 1">+1</button>
-<span data-sub:.@count="dm.count"></span>
+<span data-sync@count></span>
 
 <input data-sync:user.name>
 <div data-class+active+!inactive@active="dm.active"></div>
@@ -114,27 +114,27 @@ five very small libraries:
 <button data-get^busy.post-loading^err.post-error^code.post-code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">
   Load
 </button>
-<strong data-disp:.@post-loading="dm.postLoading">Loading…</strong>
-<span data-sub:.@post-error="dm.postError"></span>
-<span data-sub:.@post-code="dm.postCode"></span>
+<strong data-disp@post-loading>Loading…</strong>
+<span data-sync@post-error></span>
+<span data-sync@post-code></span>
 
 <!-- request spread + dynamic headers + merge result -->
 <button
-  data-post^json^merge^headers.reqHeaders:profile@.click+_all+user._all
+  data-post^json^merge^headers.req-headers:profile@.click+user^spread
   ="'/api/profile/update'">
 </button>
 
-<!-- unpack top-level object fields into root signals; arrays -> _arr -->
-<button data-get:_all@.click="'/api/bootstrap'"></button>
+<!-- patch matching existing root signals from a bootstrap payload -->
+<button data-get^patch-all@.click="'/api/bootstrap'"></button>
 
 <!-- persistent SSE with lifecycle signals and auto-reconnect -->
 <button
-  data-get^open.liveOn^close.liveDone^retry.2000^abort.liveStop@.click
+  data-get^open.live-on^close.live-done^retry.2000^abort.live-stop@.click
   ="'/api/events'">
   Subscribe
 </button>
-<span data-disp:.@liveOn="dm.liveOn">● live</span>
-<button data-sub:_@.click="dm.liveStop && dm.liveStop()">Cancel</button>
+<span data-disp@live-on>● live</span>
+<button data-sub@.click="dm.liveStop && dm.liveStop()">Cancel</button>
 ```
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals, giving each action independent loading/error/code indicators.
@@ -161,14 +161,14 @@ This is a key design difference with meaningful trade-offs:
 
 **Datastar's approach:** every signal in the store is bundled and sent to the server on each action request automatically (unless excluded). This minimises the attribute verbosity on the HTML element but sends the full client state on every call.
 
-**dmax's approach:** nothing is sent unless you explicitly list it with a `+parameter` token. This gives precise control over what leaves the browser but requires more explicit attribute syntax. The `+_all` shorthand exists for the rare case where you genuinely want to send everything.
+**dmax's approach:** nothing is sent unless you explicitly list it with a `+parameter` token or opt into a dedicated action modifier such as `^send-all`. This gives precise control over what leaves the browser while keeping the syntax systematic.
 
 | | Datastar | dmax |
 | --- | --- | --- |
 | Default payload | All signals | Nothing (empty) |
 | Send a specific signal | Always included | `+signalName` |
-| Send all signals | Always | `+_all` |
-| Spread object fields | Not applicable | `+some.path._all` |
+| Send all signals | Always | `^send-all` |
+| Spread object fields | Not applicable | `+some.path^spread` |
 | Per-call custom headers | Configured once | `^headers.<signal>` |
 
 ## Action input and modifier reference
@@ -181,9 +181,17 @@ Inputs control what data is included in the request. By default, for **GET/DELET
 | --- | --- |
 | `+signalName` | Sends the named signal's value (query string on GET/DELETE, body otherwise) |
 | `+signal.nested.path` | Sends the value at the given signal path |
+| `+signalName^spread` | Spreads the named object's own fields into the request payload/query |
+| `+signal.nested.path^spread` | Spreads the nested object's own fields into the request payload/query |
 | `+#elId.prop` | Reads the DOM property from the element with `id="elId"` |
-| `+_all` | Sends every signal in the store as a flat object |
-| `+some.path._all` | Spreads all fields of the nested object at `some.path` |
+
+### Action-wide payload/patch modifiers
+
+| Modifier | Description |
+| --- | --- |
+| `^send-all` | Spreads every current signal into the request body object |
+| `^patch-all` | Patches matching existing root signals from top-level JSON response fields |
+| `^sync-all` | Combines `^send-all` and `^patch-all` on one action |
 
 ### Explicit routing modifiers: `^url`, `^body`, `^header`
 
