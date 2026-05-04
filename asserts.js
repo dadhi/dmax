@@ -38,6 +38,7 @@
       return stableStringify(a) === stableStringify(b);
   };
   const fmt = (val) => (typeof val === 'string' ? `'${val}'` : stableStringify(val));
+  const __parseIt = (it) => Object.assign({ "^": EMPTY_ARR, ":": EMPTY_ARR, "@": EMPTY_ARR, "+": EMPTY_ARR }, it);
   const __assert = (fn, args, expected, label) => {
       const fname = fn && fn.name ? fn.name : '(anonymous)';
       const head = label ? `${fname} — ${label}` : fname;
@@ -66,6 +67,8 @@
     __assert(kebabToCamel, ['--'], '', 'multi dashes only');
     __assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
     __assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
+    __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
+    __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
     __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PROP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
     __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
     __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PROP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
@@ -79,29 +82,62 @@
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
-    __assert(parse, ['data-def'], [{}, 8], 'empty')
-    __assert(parse, ['data-sub:'], [{}, 9], 'single empty')
-    __assert(parse, ['data-sub:.'], [{ ":": [{ "kind": EV_PROP, "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
-    __assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
-    __assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
-    __assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
-    __assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": SIGNAL, "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
-    __assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
-    __assert(parse, ['data-sub::'], [{}, 10], '2 empties')
-    __assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
-    __assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
-    __assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
-    __assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
-    __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine global+local mods and keep repeats')
-    __assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
-    __assert(parse, ['data-post+profile^spread'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }, 24], 'add item local spread mod')
+    __assert(parse, ['data-def'], [__parseIt({}), 8], 'empty')
+    __assert(parse, ['data-sub:'], [__parseIt({}), 9], 'single empty')
+    __assert(parse, ['data-sub:.'], [__parseIt({ ":": [{ "kind": EV_PROP, "mods": EMPTY_ARR, "not": null, "path": null, "root": "" }] }), 10], 'default prop')
+    __assert(parse, ['data-sub^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 12], 'global mod')
+    __assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 33], '2 global mods')
+    __assert(parse, ['data-sub^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 25], '2 global mods and item with mod with item')
+    __assert(parse, ['data-sub@!xxx@!'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": true, "path": null, "root": "xxx" }] }), 15], 'not name and not empty')
+    __assert(parse, ['data-sub:xxx:'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "xxx" }] }), 13], 'single name')
+    __assert(parse, ['data-sub::'], [__parseIt({}), 10], '2 empties')
+    __assert(parse, ['data-sub:foo^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "foo" }] }), 13], 'name+empty mod')
+    __assert(parse, ['data-sub:foo^^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "foo" }] }), 14], 'name+2 empty mods')
+    __assert(parse, ['data-sub:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 22], 'item^mod')
+    __assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 38], 'item^mod@item2^mod')
+    __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 27], 'combine global+local mods and keep repeats')
+    __assert(parse, ['data-sub^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 24], 'push all global mods to items')
+    __assert(parse, ['data-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 24], 'add item local spread mod')
     __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
     __assert(__sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
     __assert(__signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
     __assert(__signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+    function __tGetSignalValOrIt() {
+      _dm.clear()
+      _dm.set('user', { name: 'Alice' })
+      _dm.set('gate', 0)
+      return {
+        root: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
+        path: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        missingPath: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
+        negated: getSignalValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
+      }
+    }
+    __assert(__tGetSignalValOrIt, [], { root: { name: 'Alice' }, path: 'Alice', missingPath: undefined, negated: true }, 'signal value helper')
+    function __tResolveModPathVal() {
+      _dm.clear()
+      _dm.set('user', { name: 'Alice' })
+      _dm.set('gate', true)
+      return {
+        signal: resolveModPathVal({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        root: resolveModPathVal('gate'),
+        path: resolveModPathVal('user.name'),
+        literal: resolveModPathVal('literal'),
+        nil: resolveModPathVal(null),
+      }
+    }
+    __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, path: 'Alice', literal: 'literal', nil: null }, 'modifier value helper')
+    __assert(resolveStatusSignal, [null, 'busy'], null, 'status signal null')
+    __assert(resolveStatusSignal, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
+    __assert(resolveStatusSignal, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
+    __assert(resolveStatusSignal, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
     __assert(__getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
+    __assert(getElPropVal, [null, null], null, 'null element prop')
+    __assert(getElPropVal, [null, ['value']], null, 'null element nested prop')
+    __assert(getElPropVal, [getElById('foo', 'xxx'), null], 'good', 'default text prop')
+    __assert(getElPropVal, [{ tagName: 'DIV', textContent: { nested: 7 } }, ['textContent', 'nested']], 7, 'nested text prop')
     __assert(getPropValAndDepth, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
     __assert(getPropValAndDepth, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
     __assert(getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
@@ -976,6 +1012,31 @@
         return {
           actual: sentHeaders?.['Accept-Encoding'],
           expected: 'br, gzip, deflate, compress'
+        }
+      } finally { delete window.fetch }
+    })
+    __asyncAssert('^sse overrides generic Accept from ^headers while ^header stays most specific', async () => {
+      __reset()
+      let capturedHeaders = null
+      window.fetch = (_url, init) => {
+        capturedHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'text/event-stream' },
+          text: async () => ''
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('reqHeaders', { Accept: 'application/json', authorization: 'Bearer old' })
+        _dm.set('authorization', 'Bearer new')
+        dAction(btn, 'data-get^sse^headers.reqHeaders^header.authorization:res@.click', '"https://api.test/sse"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { accept: capturedHeaders?.Accept, auth: capturedHeaders?.authorization },
+          expected: { accept: 'text/event-stream', auth: 'Bearer new' }
         }
       } finally { delete window.fetch }
     })
