@@ -2684,6 +2684,13 @@
       return a.tagName === b.tagName
     }
 
+    function sameSlot(a, b) {
+      if (a.nodeType !== b.nodeType) return false
+      if (a.nodeType !== 1 /*ELEMENT*/) return true
+      if (a.id || b.id) return a.id === b.id
+      return a.tagName === b.tagName
+    }
+
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const _SIMPLE_ID_SELECTOR_RE = /^#([^\s>+~:.[,]+)$/
 
@@ -2700,32 +2707,67 @@
     // Sync attributes from `to` onto `from`: remove missing, add/update present.
     function updateAttrs(from, to) {
       const toAttrs = to.attributes
-      const toAttrNames = new Set()
+      const fromAttrs = from.attributes
+      if (fromAttrs.length === toAttrs.length) {
+        let same = true
+        for (let i = 0; i < toAttrs.length; i++) {
+          const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
+          if (fromAttr.name !== toAttr.name || fromAttr.value !== toAttr.value) {
+            same = false
+            break
+          }
+        }
+        if (same) return
+      }
+      if (!toAttrs.length) {
+        for (let i = fromAttrs.length - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
+        return
+      }
       for (let i = 0; i < toAttrs.length; i++) {
         const { name, value } = toAttrs[i]
-        toAttrNames.add(name)
         if (from.getAttribute(name) !== value) from.setAttribute(name, value)
       }
+      if (!fromAttrs.length) return
       // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
       // so we iterate backwards to avoid skipping entries.
-      const fromAttrs = from.attributes
       for (let i = fromAttrs.length - 1; i >= 0; i--) {
         const name = fromAttrs[i].name
-        if (!toAttrNames.has(name)) from.removeAttribute(name)
+        if (!to.hasAttribute(name)) from.removeAttribute(name)
       }
     }
 
     // Reconcile children of `from` to match children of `to`.
     // Single forward pass; reuses a Map allocated once per call for O(1) id lookup.
     function morphChildren(from, to) {
-      // Build id→node map for all keyed existing children
+      let cur = from.firstChild
+      let toChild = to.firstChild
+
+      while (cur && toChild && sameSlot(cur, toChild)) {
+        const next = cur.nextSibling
+        morph(cur, toChild)
+        cur = next
+        toChild = toChild.nextSibling
+      }
+
+      if (!cur) {
+        for (; toChild; toChild = toChild.nextSibling) from.appendChild(toChild.cloneNode(true))
+        return
+      }
+      if (!toChild) {
+        while (cur) {
+          const next = cur.nextSibling
+          from.removeChild(cur)
+          cur = next
+        }
+        return
+      }
+
+      // Build id→node map for remaining keyed existing children only
       const idMap = new Map()
-      for (let n = from.firstChild; n; n = n.nextSibling)
+      for (let n = cur; n; n = n.nextSibling)
         if (n.nodeType === 1 && n.id) idMap.set(n.id, n)
 
-      let cur = from.firstChild
-
-      for (let toChild = to.firstChild; toChild; toChild = toChild.nextSibling) {
+      for (; toChild; toChild = toChild.nextSibling) {
         let match = null
 
         if (toChild.nodeType === 1 && toChild.id && idMap.has(toChild.id)) {
@@ -2801,7 +2843,12 @@
       // user's scroll offset (mirrors idiomorph / paxi discipline).
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
       updateAttrs(from, to)
-      morphChildren(from, to)
+      const fromFirst = from.firstChild, toFirst = to.firstChild
+      if (fromFirst && toFirst
+        && !fromFirst.nextSibling && !toFirst.nextSibling
+        && fromFirst.nodeType === 3 && toFirst.nodeType === 3) {
+        if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
+      } else if (fromFirst || toFirst) morphChildren(from, to)
       // Restore scroll position after children are reconciled
       if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
       if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
@@ -2875,6 +2922,16 @@
       else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
     }
 
+    function applyPatchPair(targetEl, srcEl, mode) {
+      if (!targetEl || !srcEl) return
+      if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
+      else if (mode === PATCH_MODE_INNER) {
+        const to = targetEl.cloneNode(false)
+        for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
+        morphChildren(targetEl, to)
+      } else morph(targetEl, srcEl)
+    }
+
     function applyDmaxPatchElements(args) {
       const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
       const selector = args.selector ? String(args.selector) : ''
@@ -2896,28 +2953,24 @@
         return
       }
 
-      const applyPair = (targetEl, srcEl) => {
-        if (!targetEl || !srcEl) return
-        if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
-        else if (mode === PATCH_MODE_INNER) {
-          const to = targetEl.cloneNode(false)
-          for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
-          morphChildren(targetEl, to)
-        } else morph(targetEl, srcEl)
-      }
-
       if (selector) {
         if (!sourceEls.length) return
         const targets = getPatchTargets(selector)
         // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
         const defaultSrc = sourceEls[0]
-        for (let i = 0; i < targets.length; i++) applyPair(targets[i], sourceEls[i] || defaultSrc)
+        for (let i = 0; i < targets.length; i++) applyPatchPair(targets[i], sourceEls[i] || defaultSrc, mode)
         return
       }
 
       if (!sourceEls.length) return
+      if (sourceEls.length === 1) {
+        const src = sourceEls[0]
+        if (src.id) applyPatchPair(document.getElementById(src.id), src, mode)
+        else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
+        return
+      }
       for (const src of sourceEls) {
-        if (src.id) applyPair(document.getElementById(src.id), src)
+        if (src.id) applyPatchPair(document.getElementById(src.id), src, mode)
         else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
       }
     }
