@@ -365,10 +365,7 @@
     const MOD_URL = 'url'
     const MOD_BODY = 'body'
     const MOD_HDR = 'header'
-    const MOD_SPREAD = 'spread'
-    const MOD_SEND_ALL_SIGNALS = 'sendAllSignals'
-    const MOD_PATCH_ALL_SIGNALS = 'patchAllSignals'
-    const MOD_SYNC_ALL_SIGNALS = 'syncAllSignals'
+    const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
     function isImmediateMod(mods, defaultVal) {
       for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
@@ -1259,7 +1256,7 @@
       let isJson = false, isText = false, isForm = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null
-      let sendAllSignals = false, patchAllSignals = false
+      let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
@@ -1287,8 +1284,8 @@
         else if (mr === MOD_BODY) bodyMods.push(m)
         else if (mr === MOD_HDR) hdrMods.push(m)
       }
-      sendAllSignals = globMods.some(m => m.root === MOD_SEND_ALL_SIGNALS || m.root === MOD_SYNC_ALL_SIGNALS)
-      patchAllSignals = globMods.some(m => m.root === MOD_PATCH_ALL_SIGNALS || m.root === MOD_SYNC_ALL_SIGNALS)
+      sendAll = globMods.some(m => m.root === MOD_SEND_ALL || m.root === MOD_SYNC_ALL)
+      patchAll = globMods.some(m => m.root === MOD_PATCH_ALL || m.root === MOD_SYNC_ALL)
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
           const mr = m.root
@@ -1334,7 +1331,7 @@
 
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
-          if (sendAllSignals) {
+          if (sendAll) {
             for (const [sgName, sgVal] of _dm.entries()) bodyFields[sgName] = sgVal
           }
           for (const add of adds) {
@@ -1480,7 +1477,7 @@
           else payload = await res.text()
 
           applyActionPayload(aName, resultTar, payload, resultMode)
-          if (patchAllSignals) patchMatchingSignals(aName, payload, resultMode)
+          if (patchAll) patchMatchingSignals(aName, payload, resultMode)
           if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
           if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)

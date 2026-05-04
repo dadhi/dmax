@@ -850,7 +850,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^send-all-signals and +path^spread spread signal object fields into request payload', async () => {
+    __asyncAssert('^send-all and +path^spread spread signal object fields into request payload', async () => {
       __reset()
       let sentBody = null
       window.fetch = (_url, init) => {
@@ -865,7 +865,7 @@
         const btn = document.createElement('button')
         _dm.set('a', 1)
         _dm.set('nested', { x: 7, y: 8 })
-        dAction(btn, 'data-post^json^send-all-signals:req@.click+nested^spread', '"https://api.test/all"')
+        dAction(btn, 'data-post^json^send-all:req@.click+nested^spread', '"https://api.test/all"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
@@ -875,7 +875,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^patch-all-signals updates matching root signals from response payload', async () => {
+    __asyncAssert('^patch-all updates matching root signals from response payload', async () => {
       __reset()
       _dm.set('alpha', 0)
       _dm.set('fooBar', 0)
@@ -886,7 +886,7 @@
       })
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get^patch-all-signals@.click', '"https://api.test/obj"')
+        dAction(btn, 'data-get^patch-all@.click', '"https://api.test/obj"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
@@ -896,7 +896,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^sync-all-signals sends all signals and patches matching response fields', async () => {
+    __asyncAssert('^sync-all sends all signals and patches matching response fields', async () => {
       __reset()
       _dm.set('alpha', 0)
       _dm.set('fooBar', 0)
@@ -912,7 +912,7 @@
             json: async () => ({ alpha: 3, 'foo-bar': 4, ignored: 5 })
           })
         }
-        dAction(btn, 'data-post^json^sync-all-signals@.click', '"https://api.test/sync"')
+        dAction(btn, 'data-post^json^sync-all@.click', '"https://api.test/sync"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))

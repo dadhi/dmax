@@ -125,7 +125,7 @@ five very small libraries:
 </button>
 
 <!-- patch matching existing root signals from a bootstrap payload -->
-<button data-get^patch-all-signals@.click="'/api/bootstrap'"></button>
+<button data-get^patch-all@.click="'/api/bootstrap'"></button>
 
 <!-- persistent SSE with lifecycle signals and auto-reconnect -->
 <button
@@ -161,13 +161,13 @@ This is a key design difference with meaningful trade-offs:
 
 **Datastar's approach:** every signal in the store is bundled and sent to the server on each action request automatically (unless excluded). This minimises the attribute verbosity on the HTML element but sends the full client state on every call.
 
-**dmax's approach:** nothing is sent unless you explicitly list it with a `+parameter` token or opt into a dedicated action modifier such as `^send-all-signals`. This gives precise control over what leaves the browser while keeping the syntax systematic.
+**dmax's approach:** nothing is sent unless you explicitly list it with a `+parameter` token or opt into a dedicated action modifier such as `^send-all`. This gives precise control over what leaves the browser while keeping the syntax systematic.
 
 | | Datastar | dmax |
 | --- | --- | --- |
 | Default payload | All signals | Nothing (empty) |
 | Send a specific signal | Always included | `+signalName` |
-| Send all signals | Always | `^send-all-signals` |
+| Send all signals | Always | `^send-all` |
 | Spread object fields | Not applicable | `+some.path^spread` |
 | Per-call custom headers | Configured once | `^headers.<signal>` |
 
@@ -189,9 +189,9 @@ Inputs control what data is included in the request. By default, for **GET/DELET
 
 | Modifier | Description |
 | --- | --- |
-| `^send-all-signals` | Spreads every current signal into the request body object |
-| `^patch-all-signals` | Patches matching existing root signals from top-level JSON response fields |
-| `^sync-all-signals` | Combines `^send-all-signals` and `^patch-all-signals` on one action |
+| `^send-all` | Spreads every current signal into the request body object |
+| `^patch-all` | Patches matching existing root signals from top-level JSON response fields |
+| `^sync-all` | Combines `^send-all` and `^patch-all` on one action |
 
 ### Explicit routing modifiers: `^url`, `^body`, `^header`
 
