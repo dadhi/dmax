@@ -2693,6 +2693,7 @@
 
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const _SIMPLE_ID_SELECTOR_RE = /^#([^\s>+~:.[,]+)$/
+    const TEXT_NODE = 3
 
     function getPatchTargets(selector) {
       if (!selector) return EMPTY_ARR
@@ -2710,23 +2711,31 @@
       const fromAttrs = from.attributes
       if (fromAttrs.length === toAttrs.length) {
         let same = true
+        let orderChanged = false
         for (let i = 0; i < toAttrs.length; i++) {
           const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
-          if (fromAttr.name !== toAttr.name || fromAttr.value !== toAttr.value) {
+          if (fromAttr.name !== toAttr.name) {
+            orderChanged = true
+            same = false
+            break
+          }
+          if (fromAttr.value !== toAttr.value) {
             same = false
             break
           }
         }
         if (same) return
-        let sameNames = true
-        for (let i = 0; i < toAttrs.length; i++) {
-          const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
-          if (!fromAttr || fromAttr.value !== toAttr.value) {
-            sameNames = false
-            break
+        if (orderChanged) {
+          let sameNames = true
+          for (let i = 0; i < toAttrs.length; i++) {
+            const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
+            if (!fromAttr || fromAttr.value !== toAttr.value) {
+              sameNames = false
+              break
+            }
           }
+          if (sameNames) return
         }
-        if (sameNames) return
       }
       if (!toAttrs.length) {
         for (let i = fromAttrs.length - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
@@ -2854,7 +2863,7 @@
       const fromFirst = from.firstChild, toFirst = to.firstChild
       if (fromFirst && toFirst
         && !fromFirst.nextSibling && !toFirst.nextSibling
-        && fromFirst.nodeType === 3 && toFirst.nodeType === 3) {
+        && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
         if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
       } else if (fromFirst || toFirst) morphChildren(from, to)
       // Restore scroll position after children are reconciled
