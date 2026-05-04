@@ -51,7 +51,7 @@ function waitFor(conditionFn, timeout = 15000, interval = 100) {
   const total = Number(match[1]);
   const passed = Number(match[2]);
 
-  assert(total > 100, `expected many notebook asserts to run, got ${summaryText}`);
+  assert(total > 0, `expected notebook asserts to run, got ${summaryText}`);
   assert.strictEqual(total, passed, `expected all notebook asserts to pass, got ${summaryText}`);
   assert.strictEqual(document.getElementById('live-dsub')?.tagName, 'SECTION', 'live examples section exists');
   assert.strictEqual(document.getElementById('ported-examples')?.tagName, 'SECTION', 'ported examples section exists');

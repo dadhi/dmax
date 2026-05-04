@@ -1601,5 +1601,5 @@
         expected: { abortCalled: true, signalAborted: true }
       }
     })
-  _asyncChain.finally(__restoreAssertState)
+  _asyncChain.then(__restoreAssertState, __restoreAssertState)
 })()
