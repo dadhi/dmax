@@ -3,6 +3,9 @@
     "jsdom": "^27.4.0"
   },
   "scripts": {
+    "bench:morph-sse": "node tools/bench-morph-sse.js",
+    "bench:morph-sse:parity": "node tools/bench-morph-sse.js",
+    "bench:morph-sse:all": "npm run bench:morph-sse:parity",
     "test:actions": "node tests/actions.e2e.js",
     "serve": "npx http-server -c-1 -p 8080"
   },

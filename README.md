@@ -7,6 +7,38 @@ A tiny declarative web runtime driven by `data-*` attributes.
 - `index.html` — current dev notebook (asserts + live examples)
 - `dmax.js` — extracted runtime script loaded by `index.html`
 - `index-wotking-slop.html` — previous `index.html` snapshot
+- `tools/bench-morph-sse.js` — semi-realistic dmax-vs-Datastar SSE/morph benchmark for pointed, OOB/single-fragment, and full-page swaps
+
+## Semi-realistic SSE / morph benchmark
+
+Run:
+
+```bash
+npm run bench:morph-sse
+# same benchmark, explicit parity alias
+npm run bench:morph-sse:parity
+# compatibility alias for the follow-up PR naming
+npm run bench:morph-sse:all
+# or for cleaner heap deltas
+node --expose-gc tools/bench-morph-sse.js
+```
+
+The benchmark mounts the same 32×32 spreadsheet-like grid in isolated jsdom windows for dmax and Datastar. It uses the vendored `tools/vendor/datastar.js` bundle and dispatches Datastar's `datastar-merge-fragments` SSE event path directly, so the parity run does **not** require adding `@starfederation/datastar` as a package dependency.
+
+`jsdom` is still required as the DOM host. Normally it is loaded from `node_modules` via `npm install`. If npm access is blocked, a complete jsdom package tree may be checked in under `tools/vendor/jsdom`; unlike Datastar, jsdom is not a single-file browser bundle and its transitive dependencies must be vendored with it.
+
+A manual GitHub Actions workflow is available at `.github/workflows/bench-morph-sse.yml` to run the parity benchmark in a clean Node 22 cloud environment.
+
+It reports timing and heap deltas for:
+
+- dmax pointed SSE patch updates vs Datastar pointed merge-fragments
+- dmax OOB morph updates vs Datastar single-fragment morph updates
+- full-page morph swaps with a small diff
+- full-page replace/outer swaps with a small diff
+- full-page morph swaps with a large diff
+- full-page replace/outer swaps with a large diff
+
+This gives a repeatable local parity baseline for the exact high-frequency update patterns discussed in the performance issue.
 
 ## Syntax used by current `index.html`
 

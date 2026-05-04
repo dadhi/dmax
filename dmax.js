@@ -398,7 +398,7 @@
     __assert(setProp, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
 
-    const EMPTY_ARR = []
+    const EMPTY_ARR = Object.freeze([])
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
 
     function diffShapeShallow(before, after) {
@@ -1114,8 +1114,8 @@
         const btn = document.createElement('button');
         dSub(btn, 'data-sub:sg@.', `'A'`);
         const hs = (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get)
-          ? (_cleanupBoundSubs.get(btn) || [])
-          : []
+          ? (_cleanupBoundSubs.get(btn) || EMPTY_ARR)
+          : EMPTY_ARR
         const h = hs.find ? hs.find(x => x && x.type === 'event' && x.handler) : null
         if (h && h.handler) h.handler({ type: 'click', detail: null, preventDefault() { } })
         else btn.dispatchEvent(mkEv('click'));
@@ -1133,8 +1133,8 @@
         inp.value = 'Zed';
         dSub(inp, 'data-sub:out@.', 'val');
         const hs = (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get)
-          ? (_cleanupBoundSubs.get(inp) || [])
-          : []
+          ? (_cleanupBoundSubs.get(inp) || EMPTY_ARR)
+          : EMPTY_ARR
         const h = hs.find ? hs.find(x => x && x.type === 'event' && x.handler) : null
         if (h && h.handler) h.handler({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -1729,7 +1729,7 @@
               // Rewrite $item/$index placeholders in all descendant attribute names and values
               const walk = [node].concat(Array.from(node.querySelectorAll('*')))
               for (const n of walk) {
-                const attrs = Array.from(n.attributes || [])
+                const attrs = Array.from(n.attributes || EMPTY_ARR)
                 for (const a of attrs) {
                   let atrName = a.name, atrVal = a.value
                   if (atrName.indexOf('$item') !== -1 || atrName.indexOf('$index') !== -1) {
@@ -1753,7 +1753,7 @@
           for (const node of el.__dump.nodes.slice(-(newLen - oldLen))) {
             const walk2 = [node].concat(Array.from(node.querySelectorAll('*')))
             for (const n of walk2)
-              for (const a of Array.from(n.attributes || [])) wireNode(n, a.name, a.value)
+              for (const a of Array.from(n.attributes || EMPTY_ARR)) wireNode(n, a.name, a.value)
           }
           el.__dump.count = newLen
         }
@@ -2257,7 +2257,7 @@
         _dm.set('items', null)
         dAction(btn, 'data-get:items@.click^immediate', '"https://api.test/items"')
         // click trigger registers the event; immediate also fires doRequest once at setup
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2284,7 +2284,7 @@
         _dm.set('postResult', null)
         _dm.set('titleVal', 'Hello World')
         dAction(btn, 'data-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2303,7 +2303,7 @@
         _dm.set('busy', false)
         _dm.set('data', null)
         dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         const busyDuring = DM['busy']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
@@ -2326,7 +2326,7 @@
         _dm.set('done', false)
         _dm.set('data2', null)
         dAction(btn, 'data-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         const completeDuring = DM['done']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
@@ -2346,7 +2346,7 @@
         const btn = document.createElement('button')
         _dm.set('done2', false)
         dAction(btn, 'data-get^complete.done2:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
@@ -2365,7 +2365,7 @@
         _dm.set('busy', false)
         _dm.set('errMsg', null)
         dAction(btn, 'data-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
@@ -2415,7 +2415,7 @@
         _dm.set('a', 1)
         _dm.set('nested', { x: 7, y: 8 })
         dAction(btn, 'data-post^json:req@.click+_all+nested._all', '"https://api.test/all"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2435,7 +2435,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get:_all@.click', '"https://api.test/obj"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2455,7 +2455,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get:_all@.click', '"https://api.test/arr"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2481,7 +2481,7 @@
         _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
         _dm.set('reqHeaders', { authorization: 'Bearer 123', 'x-trace': 'abc' })
         dAction(btn, 'data-get^merge^no-cache^headers.reqHeaders:profile@.click', '"https://api.test/profile"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2514,7 +2514,7 @@
         const btn = document.createElement('button')
         _dm.set('res', null)
         dAction(btn, 'data-get^br^gzip^deflate^compress:res@.click', '"https://api.test/enc"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2541,7 +2541,7 @@
         _dm.set('page', 2)
         _dm.set('payload', 'hello')
         dAction(btn, 'data-post^url.page:res@.click+payload', '"https://api.test/items"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2568,7 +2568,7 @@
         _dm.set('cursor', 'abc123')
         _dm.set('filter', 'active')
         dAction(btn, 'data-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         // +filter is GET-default → query string; ^body.cursor overrides → request body (single value unwrapped)
@@ -2595,7 +2595,7 @@
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
         dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2648,7 +2648,7 @@
         })
         try {
           dAction(btn, 'data-get@.click', "'/mock/sse-incr'")
-          const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+          const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
           if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
           await new Promise(r => setTimeout(r, 20))
         } finally { delete window.fetch }
@@ -2684,16 +2684,69 @@
       return a.tagName === b.tagName
     }
 
+    function sameSlot(a, b) {
+      if (a.nodeType !== b.nodeType) return false
+      if (a.nodeType !== 1 /*ELEMENT*/) return true
+      if (a.id || b.id) return a.id === b.id
+      return a.tagName === b.tagName
+    }
+
+    const _HTML_PARSE_TEMPLATE = document.createElement('template')
+    const _SIMPLE_ID_SELECTOR_RE = /^#([^\s>+~:.[,]+)$/
+    const TEXT_NODE = 3
+
+    function getPatchTargets(selector) {
+      if (!selector) return EMPTY_ARR
+      const simpleId = _SIMPLE_ID_SELECTOR_RE.exec(selector)
+      if (simpleId) {
+        const el = document.getElementById(simpleId[1])
+        return el ? [el] : EMPTY_ARR
+      }
+      return document.querySelectorAll(selector)
+    }
+
     // Sync attributes from `to` onto `from`: remove missing, add/update present.
     function updateAttrs(from, to) {
       const toAttrs = to.attributes
+      const fromAttrs = from.attributes
+      if (fromAttrs.length === toAttrs.length) {
+        let same = true
+        let orderChanged = false
+        for (let i = 0; i < toAttrs.length; i++) {
+          const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
+          if (fromAttr.name !== toAttr.name) {
+            orderChanged = true
+            same = false
+            break
+          }
+          if (fromAttr.value !== toAttr.value) {
+            same = false
+            break
+          }
+        }
+        if (same) return
+        if (orderChanged) {
+          let sameNames = true
+          for (let i = 0; i < toAttrs.length; i++) {
+            const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
+            if (!fromAttr || fromAttr.value !== toAttr.value) {
+              sameNames = false
+              break
+            }
+          }
+          if (sameNames) return
+        }
+      }
+      if (!toAttrs.length) {
+        for (let i = fromAttrs.length - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
+        return
+      }
       for (let i = 0; i < toAttrs.length; i++) {
         const { name, value } = toAttrs[i]
         if (from.getAttribute(name) !== value) from.setAttribute(name, value)
       }
       // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
       // so we iterate backwards to avoid skipping entries.
-      const fromAttrs = from.attributes
       for (let i = fromAttrs.length - 1; i >= 0; i--) {
         const name = fromAttrs[i].name
         if (!to.hasAttribute(name)) from.removeAttribute(name)
@@ -2703,14 +2756,35 @@
     // Reconcile children of `from` to match children of `to`.
     // Single forward pass; reuses a Map allocated once per call for O(1) id lookup.
     function morphChildren(from, to) {
-      // Build id→node map for all keyed existing children
+      let cur = from.firstChild
+      let toChild = to.firstChild
+
+      while (cur && toChild && sameSlot(cur, toChild)) {
+        const next = cur.nextSibling
+        morph(cur, toChild)
+        cur = next
+        toChild = toChild.nextSibling
+      }
+
+      if (!cur) {
+        for (; toChild; toChild = toChild.nextSibling) from.appendChild(toChild.cloneNode(true))
+        return
+      }
+      if (!toChild) {
+        while (cur) {
+          const next = cur.nextSibling
+          from.removeChild(cur)
+          cur = next
+        }
+        return
+      }
+
+      // Build id→node map for remaining keyed existing children only
       const idMap = new Map()
-      for (let n = from.firstChild; n; n = n.nextSibling)
+      for (let n = cur; n; n = n.nextSibling)
         if (n.nodeType === 1 && n.id) idMap.set(n.id, n)
 
-      let cur = from.firstChild
-
-      for (let toChild = to.firstChild; toChild; toChild = toChild.nextSibling) {
+      for (; toChild; toChild = toChild.nextSibling) {
         let match = null
 
         if (toChild.nodeType === 1 && toChild.id && idMap.has(toChild.id)) {
@@ -2773,16 +2847,25 @@
       const tag = from.tagName
       const isFocused = from === document.activeElement
       let selStart = -1, selEnd = -1, selDir = 'none'
+      let selectValue = null, selectIndex = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
         try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {
           // selection not supported for this input type (e.g. type=number, type=email)
         }
+      } else if (isFocused && tag === 'SELECT') {
+        selectValue = from.value
+        selectIndex = from.selectedIndex
       }
       // Save scroll position so content updates do not unexpectedly jump the
       // user's scroll offset (mirrors idiomorph / paxi discipline).
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
       updateAttrs(from, to)
-      morphChildren(from, to)
+      const fromFirst = from.firstChild, toFirst = to.firstChild
+      if (fromFirst && toFirst
+        && !fromFirst.nextSibling && !toFirst.nextSibling
+        && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
+        if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
+      } else if (fromFirst || toFirst) morphChildren(from, to)
       // Restore scroll position after children are reconciled
       if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
       if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
@@ -2791,14 +2874,20 @@
         try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {
           // setSelectionRange not supported for this input type
         }
+      } else if (isFocused && tag === 'SELECT') {
+        // Prefer restoring by value so the same logical option stays selected even
+        // if the server reorders options; fall back to the previous index only when
+        // that value no longer exists in the morphed option set.
+        from.value = selectValue
+        if (from.value !== selectValue && selectIndex >= 0 && selectIndex < from.options.length)
+          from.selectedIndex = selectIndex
       }
     }
 
     function applyOobHtml(html) {
       if (!html) return ''
-      const t = document.createElement('template')
-      t.innerHTML = html
-      const src = t.content.querySelector('[data-oob]')
+      _HTML_PARSE_TEMPLATE.innerHTML = html
+      const src = _HTML_PARSE_TEMPLATE.content.querySelector('[data-oob]')
       if (!src) return ''
       const mode = src.getAttribute('data-oob')
       const id = src.getAttribute('id')
@@ -2827,9 +2916,10 @@
       if (!html) return []
       const ns = (namespace || 'html').toLowerCase()
       if (ns === 'html') {
-        const t = document.createElement('template')
-        t.innerHTML = html
-        return Array.from(t.content.children)
+        _HTML_PARSE_TEMPLATE.innerHTML = html
+        const out = []
+        for (let el = _HTML_PARSE_TEMPLATE.content.firstElementChild; el; el = el.nextElementSibling) out.push(el)
+        return out
       }
       const wrap = ns === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
@@ -2847,6 +2937,21 @@
       else if (mode === 'prepend') target.insertBefore(frag, target.firstChild || null)
       else if (mode === 'before' && target.parentNode) target.parentNode.insertBefore(frag, target)
       else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
+    }
+
+    function applyPatchPair(targetEl, srcEl, mode) {
+      if (!targetEl || !srcEl) return
+      if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
+      else if (mode === PATCH_MODE_INNER) {
+        const to = targetEl.cloneNode(false)
+        for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
+        morphChildren(targetEl, to)
+      } else morph(targetEl, srcEl)
+    }
+
+    function applyPatchSource(srcEl, mode) {
+      if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode)
+      else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
     }
 
     function applyDmaxPatchElements(args) {
@@ -2870,32 +2975,21 @@
         return
       }
 
-      const applyPair = (targetEl, srcEl) => {
-        if (!targetEl || !srcEl) return
-        if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
-        else if (mode === PATCH_MODE_INNER) {
-          const to = targetEl.cloneNode(false)
-          for (const ch of Array.from(srcEl.childNodes)) to.appendChild(ch.cloneNode(true))
-          morphChildren(targetEl, to)
-        } else morph(targetEl, srcEl)
-      }
-
       if (selector) {
         if (!sourceEls.length) return
-        const targets = Array.from(document.querySelectorAll(selector))
+        const targets = getPatchTargets(selector)
         // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
         const defaultSrc = sourceEls[0]
-        for (let i = 0; i < targets.length; i++) {
-          applyPair(targets[i], sourceEls[i] || defaultSrc)
-        }
+        for (let i = 0; i < targets.length; i++) applyPatchPair(targets[i], sourceEls[i] || defaultSrc, mode)
         return
       }
 
       if (!sourceEls.length) return
-      for (const src of sourceEls) {
-        if (src.id) applyPair(document.getElementById(src.id), src)
-        else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
+      if (sourceEls.length === 1) {
+        applyPatchSource(sourceEls[0], mode)
+        return
       }
+      for (const src of sourceEls) applyPatchSource(src, mode)
     }
 
     function applyJsonMergePatch(prev, patch) {
@@ -2935,7 +3029,8 @@
     function applyDmaxSse(raw, aName = 'dmax-sse') {
       if (!raw) return []
       const applied = []
-      const text = String(raw).replace(/\r/g, '')
+      const text = String(raw)
+      const RE_TRAILING_CR = /\r$/
       let curEvent = 'message'
       let curArgs = null
       let hasData = false
@@ -2973,10 +3068,10 @@
       let start = 0
       for (let end = 0; end < text.length; end++) {
         if (text[end] !== '\n') continue
-        consumeLine(text.slice(start, end))
+        consumeLine(text.slice(start, end).replace(RE_TRAILING_CR, ''))
         start = end + 1
       }
-      if (start < text.length) consumeLine(text.slice(start))
+      if (start < text.length) consumeLine(text.slice(start).replace(RE_TRAILING_CR, ''))
       flush()
       return applied
     }
@@ -3238,6 +3333,24 @@
     }
     __assert(__tMorphCheckboxPreserved, [], { checked: true, hasClass: true }, 'morph: checkbox checked state preserved; class attribute updated')
 
+    function __tMorphFocusedSelectPreserved() {
+      const container = document.createElement('div')
+      const sel = document.createElement('select')
+      sel.innerHTML = '<option value="a">A</option><option value="b">B</option><option value="c">C</option>'
+      container.appendChild(sel)
+      document.body.appendChild(container)
+      try {
+        sel.value = 'b'
+        sel.focus()
+        const to = document.createElement('select')
+        to.setAttribute('class', 'updated')
+        to.innerHTML = '<option value="a">A1</option><option value="b">B1</option><option value="c">C1</option>'
+        morph(sel, to)
+        return { focused: document.activeElement === sel, value: sel.value, hasClass: sel.classList.contains('updated') }
+      } finally { container.remove() }
+    }
+    __assert(__tMorphFocusedSelectPreserved, [], { focused: true, value: 'b', hasClass: true }, 'morph: focused select preserves selection and focus')
+
     function __tDmaxPatchElementsReplaceDiscardsFormState() {
       const container = document.createElement('div')
       container.innerHTML = '<input id="fi-inp" type="text" value="default">'
@@ -3318,6 +3431,25 @@
       } finally { root.remove() }
     }
     __assert(__tDmaxSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
+
+    function __tDmaxSseMultilineCrlfElements() {
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="ds-multi">old</div>'
+      document.body.appendChild(root)
+      try {
+        const stream = [
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          // Intentional line split: verifies multi-line SSE data fields survive CRLF parsing.
+          'data: dmaxElements <div id="ds-multi"><span>line1',
+          'data: dmaxElements line2</span></div>',
+          ''
+        ].join('\r\n')
+        applyDmaxSse(stream, 't')
+        return root.querySelector('#ds-multi')?.textContent || ''
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseMultilineCrlfElements, [], 'line1\nline2', 'dmax: SSE parser preserves CRLF multi-line payloads without full-string normalization')
 
     // --- parity matrix: unusual attribute updates (style, href, data-*, aria) ---
 
@@ -3517,7 +3649,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 30))
       } finally { delete window.fetch }
@@ -3547,7 +3679,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^abort.cancelFn@.click', "'/mock/long'")
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 10))
         // Now cancel via the signal stored by ^abort
@@ -3636,7 +3768,7 @@
       const nodes = [root].concat(Array.from(root.querySelectorAll('*')))
       const deferred = []
       for (const n of nodes) {
-        for (const a of Array.from(n.attributes || [])) {
+        for (const a of Array.from(n.attributes || EMPTY_ARR)) {
           if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value)
           else deferred.push([n, a.name, a.value])
         }
