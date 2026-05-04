@@ -442,6 +442,10 @@ function stripOobAttrs(html) {
   return html.replace(/ data-oob="morph"/g, '')
 }
 
+function applyDmaxOobFragments(applyOobHtml, fragments) {
+  for (const html of fragments) applyOobHtml(html)
+}
+
 function makeValidators(host, activeElementFn, payloads, prefix) {
   const gridSnapshot = () => readGridSnapshot(host, payloads.focusRow, payloads.focusCol)
   const formSnapshot = () => readFormState(host, activeElementFn())
@@ -493,8 +497,8 @@ function runDmaxScenarios(window, payloads) {
       'oob-morph-small-diff',
       500,
       mountBase,
-      () => { for (const html of payloads.smallOobFragments) applyOobHtml(html) },
-      () => { for (const html of payloads.baseOobFragments) applyOobHtml(html) },
+      () => applyDmaxOobFragments(applyOobHtml, payloads.smallOobFragments),
+      () => applyDmaxOobFragments(applyOobHtml, payloads.baseOobFragments),
       v.cellText,
       validateSmallStaticControls,
       validateBase
@@ -567,7 +571,7 @@ function runDatastarScenarios(window, payloads) {
       validateBase
     ),
     runScenario(
-      'oob-fragments-small-diff',
+      'oob-morph-small-diff',
       500,
       mountBase,
       () => mergeFragments(stripOobAttrs(payloads.smallOob), 'morph'),
