@@ -475,7 +475,7 @@ function runDmaxScenarios(window, payloads) {
   const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
   const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
   const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
-  const validateSmallStaticControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-static-controls')
+  const validateSmallUnchangedControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-unchanged-controls')
   const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
   const validateBaseReplace = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseReplace, 'base-replace')
   const validateSmallReplace = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallReplace, 'small-replace')
@@ -490,7 +490,7 @@ function runDmaxScenarios(window, payloads) {
       () => applyDmaxSse(payloads.smallSse, 'bench'),
       () => applyDmaxSse(payloads.baseSse, 'bench'),
       v.cellText,
-      validateSmallStaticControls,
+      validateSmallUnchangedControls,
       validateBase
     ),
     runScenario(
@@ -500,7 +500,7 @@ function runDmaxScenarios(window, payloads) {
       () => applyDmaxOobFragments(applyOobHtml, payloads.smallOobFragments),
       () => applyDmaxOobFragments(applyOobHtml, payloads.baseOobFragments),
       v.cellText,
-      validateSmallStaticControls,
+      validateSmallUnchangedControls,
       validateBase
     ),
     runScenario(
