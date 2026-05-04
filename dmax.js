@@ -2718,6 +2718,15 @@
           }
         }
         if (same) return
+        same = true
+        for (let i = 0; i < toAttrs.length; i++) {
+          const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
+          if (!fromAttr || fromAttr.value !== toAttr.value) {
+            same = false
+            break
+          }
+        }
+        if (same) return
       }
       if (!toAttrs.length) {
         for (let i = fromAttrs.length - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
@@ -2727,7 +2736,6 @@
         const { name, value } = toAttrs[i]
         if (from.getAttribute(name) !== value) from.setAttribute(name, value)
       }
-      if (!fromAttrs.length) return
       // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
       // so we iterate backwards to avoid skipping entries.
       for (let i = fromAttrs.length - 1; i >= 0; i--) {
@@ -2932,6 +2940,11 @@
       } else morph(targetEl, srcEl)
     }
 
+    function applyPatchSource(srcEl, mode) {
+      if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode)
+      else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
+    }
+
     function applyDmaxPatchElements(args) {
       const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
       const selector = args.selector ? String(args.selector) : ''
@@ -2963,16 +2976,8 @@
       }
 
       if (!sourceEls.length) return
-      if (sourceEls.length === 1) {
-        const src = sourceEls[0]
-        if (src.id) applyPatchPair(document.getElementById(src.id), src, mode)
-        else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
-        return
-      }
-      for (const src of sourceEls) {
-        if (src.id) applyPatchPair(document.getElementById(src.id), src, mode)
-        else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
-      }
+      if (sourceEls.length === 1) { applyPatchSource(sourceEls[0], mode); return }
+      for (const src of sourceEls) applyPatchSource(src, mode)
     }
 
     function applyJsonMergePatch(prev, patch) {
