@@ -101,7 +101,40 @@
     __assert(__sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
     __assert(__signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
     __assert(__signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+    function __tGetSignalValOrIt() {
+      _dm.clear()
+      _dm.set('user', { name: 'Alice' })
+      _dm.set('gate', 0)
+      return {
+        root: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
+        path: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        missingPath: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
+        negated: getSignalValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
+      }
+    }
+    __assert(__tGetSignalValOrIt, [], { root: { name: 'Alice' }, path: 'Alice', missingPath: undefined, negated: true }, 'signal value helper')
+    function __tResolveModPathVal() {
+      _dm.clear()
+      _dm.set('user', { name: 'Alice' })
+      _dm.set('gate', true)
+      return {
+        signal: resolveModPathVal({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        root: resolveModPathVal('gate'),
+        path: resolveModPathVal('user.name'),
+        literal: resolveModPathVal('literal'),
+        nil: resolveModPathVal(null),
+      }
+    }
+    __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, path: 'Alice', literal: 'literal', nil: null }, 'modifier value helper')
+    __assert(resolveStatusSignal, [null, 'busy'], null, 'status signal null')
+    __assert(resolveStatusSignal, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
+    __assert(resolveStatusSignal, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
+    __assert(resolveStatusSignal, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
     __assert(__getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
+    __assert(getElPropVal, [null, null], null, 'null element prop')
+    __assert(getElPropVal, [null, ['value']], null, 'null element nested prop')
+    __assert(getElPropVal, [getElById('foo', 'xxx'), null], 'good', 'default text prop')
+    __assert(getElPropVal, [{ tagName: 'DIV', textContent: { nested: 7 } }, ['textContent', 'nested']], 7, 'nested text prop')
     __assert(getPropValAndDepth, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
     __assert(getPropValAndDepth, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
     __assert(getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')

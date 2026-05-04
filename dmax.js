@@ -40,12 +40,25 @@
     const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
     const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
 
-    // Applied only to the signals!
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
+    const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
+    const MOD_ONCE = 'once', MOD_ALWAYS = 'always', MOD_DEBOUNCE = 'debounce', MOD_THROTTLE = 'throttle', MOD_PREVENT = 'prevent'
+    const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge'
+    const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_FORM = 'form'
+    const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
+    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers'
+    const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
+    const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
+    const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
+    const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
+    const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
 
-    const SPEC_WIN = 'window'; SPEC_DOC = 'document'; SPEC_FORM = 'form'; SPEC_INTERVAL = 'interval'; SPEC_TIMEOUT = 'timeout'
+    const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout'
     const SPECIALS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
-    const SPEC_WIN_EV = 'resize', SPEC_DOC_EV = 'visibilitychange', SPEC_INTERVAL_MS = 500, SPEC_TIMEOUT_MS = 500
+    const SPEC_WIN_EV = 'resize'
+    const SPEC_DOC_EV = 'visibilitychange'
+    const SPEC_INTERVAL_MS = 500
+    const SPEC_TIMEOUT_MS = 500
 
     function isSpecial(n) {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -181,7 +194,7 @@
       if (tars) {
         for (const t of tars) {
           if (t.kind != SIGNAL) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', aName); continue }
-          if (t.mods) console.warn('[dmax] Warning: Mods are not supported:', mods, 'in', aName);
+          if (t.mods) console.warn('[dmax] Warning: Mods are not supported:', t.mods, 'in', aName)
           _dm.set(t.root, val)
         }
       } else if (val && typeof val === 'object') {
@@ -226,6 +239,7 @@
     }
 
     function getElPropVal(targetEl, propPath) {
+      if (!targetEl) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(targetEl)
       let val = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
@@ -339,33 +353,6 @@
       return SG_CHANGED_ANY
     }
 
-    const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
-    const MOD_JSON = 'json'
-    const MOD_TEXT = 'text'
-    const MOD_FORM = 'form'
-    const MOD_BUSY = 'busy'
-    const MOD_COMPLETE = 'complete'
-    const MOD_ERR = 'err'
-    const MOD_CODE = 'code'
-    const MOD_NO_CACHE = 'noCache'
-    const MOD_HEADERS = 'headers'
-    const MOD_BROTLI = 'brotli'
-    const MOD_BR = 'br'
-    const MOD_GZIP = 'gzip'
-    const MOD_DEFLATE = 'deflate'
-    const MOD_COMPRESS = 'compress'
-    const MOD_REPLACE = 'replace'
-    const MOD_MERGE = 'merge'
-    const MOD_APPEND = 'append'
-    const MOD_PREPEND = 'prepend'
-    const MOD_SSE_OPEN = 'open'
-    const MOD_SSE_CLOSE = 'close'
-    const MOD_RETRY = 'retry'
-    const MOD_ABORT = 'abort'
-    const MOD_URL = 'url'
-    const MOD_BODY = 'body'
-    const MOD_HDR = 'header'
-    const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
     function isImmediateMod(mods, defaultVal) {
       for (const m of mods || EMPTY_ARR) {
         if (m.root === MOD_IMMEDIATE) return true
@@ -374,18 +361,6 @@
       return defaultVal;
     }
 
-    const MOD_ONCE = 'once'
-    const MOD_ALWAYS = 'always'
-    const MOD_DEBOUNCE = 'debounce'
-    const MOD_THROTTLE = 'throttle'
-    const MOD_PREVENT = 'prevent'
-    const MOD_AND = 'and'
-    const MOD_EQ = 'eq'
-    const MOD_NE = 'ne'
-    const MOD_LT = 'lt'
-    const MOD_GT = 'gt'
-    const MOD_LE = 'le'
-    const MOD_GE = 'ge'
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
@@ -398,15 +373,14 @@
       return it.not ? !val : val
     }
 
-    // Resolve modifier path values: raw value, direct signal key, or parseable trigger-like signal path.
     function resolveModPathVal(v) {
       if (v && v.kind) return getSignalValOrIt(v)
       if (typeof v !== 'string') return v
       if (_dm.has(v)) return _dm.get(v)
       const parsed = parseItem('mod', TRIG, v)
-      return parsed && parsed.kind
-        ? (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root) ? v : getSignalValOrIt(parsed))
-        : v
+      if (!parsed || !parsed.kind) return v
+      if (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root)) return v
+      return getSignalValOrIt(parsed)
     }
 
     function resolveStatusSignal(mod, fallbackRoot) {
@@ -682,7 +656,7 @@
 
 
 
-    _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
+    const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     function dSub(el, aName, aVal) {
       let [it, _p] = parse(aName)
       let tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
