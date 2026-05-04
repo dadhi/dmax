@@ -474,6 +474,7 @@
     }
 
     function patchMatchingSignals(aName, payload, resultMode) {
+      // Patch-all operates on top-level object fields only; arrays have no stable field names to map onto root signals.
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
       for (const key in payload) {
         if (!hasOwn(payload, key)) continue
@@ -1347,8 +1348,8 @@
               val = getSignalValOrIt(add)
               key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
-            const spreadVal = !!(add.mods && add.mods.some(m => m.root === MOD_SPREAD))
-            if (spreadVal) {
+            const shouldSpread = !!(add.mods && add.mods.some(m => m.root === MOD_SPREAD))
+            if (shouldSpread) {
               if (val && typeof val === 'object') {
                 for (const k in val) {
                   if (!hasOwn(val, k)) continue
