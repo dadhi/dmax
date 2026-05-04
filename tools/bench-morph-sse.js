@@ -14,6 +14,47 @@ const LCG_MULTIPLIER = 1664525
 const LCG_INCREMENT = 1013904223
 const DATASTAR_SSE_EVENT = 'datastar-sse'
 const DATASTAR_MERGE_FRAGMENTS = 'datastar-merge-fragments'
+const USER_FORM_STATE = Object.freeze({
+  inputValue: 'user typed 42',
+  textareaValue: 'draft note',
+  checkboxChecked: true,
+  selectValue: 'b'
+})
+const CONTROL_VARIANTS = Object.freeze({
+  base: Object.freeze({
+    inputValueAttr: 'server base',
+    inputPlaceholder: 'base hint',
+    textareaText: 'server base note',
+    textareaRows: '2',
+    checkboxClass: 'bench-toggle base',
+    checkboxChecked: false,
+    selectClass: 'bench-select base',
+    selectSelected: 'a',
+    optionSuffix: 'base'
+  }),
+  small: Object.freeze({
+    inputValueAttr: 'server small',
+    inputPlaceholder: 'small hint',
+    textareaText: 'server small note',
+    textareaRows: '4',
+    checkboxClass: 'bench-toggle small',
+    checkboxChecked: false,
+    selectClass: 'bench-select small',
+    selectSelected: 'c',
+    optionSuffix: 'small'
+  }),
+  large: Object.freeze({
+    inputValueAttr: 'server large',
+    inputPlaceholder: 'large hint',
+    textareaText: 'server large note',
+    textareaRows: '6',
+    checkboxClass: 'bench-toggle large',
+    checkboxChecked: false,
+    selectClass: 'bench-select large',
+    selectSelected: 'a',
+    optionSuffix: 'large'
+  })
+})
 
 function loadJsdom() {
   try {
@@ -96,10 +137,25 @@ function summarizeGrid(cells) {
   return { rowSums, colSums, total }
 }
 
-function renderGridHtml(cells) {
+function renderControlsHtml(variant) {
+  return [
+    '<form id="bench-controls">',
+    `<input id="bench-input" type="text" value="${escapeHtml(variant.inputValueAttr)}" placeholder="${escapeHtml(variant.inputPlaceholder)}">`,
+    `<textarea id="bench-textarea" rows="${escapeHtml(variant.textareaRows)}">${escapeHtml(variant.textareaText)}</textarea>`,
+    `<label id="bench-check-label"><input id="bench-check" type="checkbox" class="${escapeHtml(variant.checkboxClass)}"${variant.checkboxChecked ? ' checked' : ''}>Keep live totals</label>`,
+    `<select id="bench-select" class="${escapeHtml(variant.selectClass)}">`,
+    `<option value="a"${variant.selectSelected === 'a' ? ' selected' : ''}>A ${escapeHtml(variant.optionSuffix)}</option>`,
+    `<option value="b"${variant.selectSelected === 'b' ? ' selected' : ''}>B ${escapeHtml(variant.optionSuffix)}</option>`,
+    `<option value="c"${variant.selectSelected === 'c' ? ' selected' : ''}>C ${escapeHtml(variant.optionSuffix)}</option>`,
+    '</select>',
+    '</form>'
+  ].join('')
+}
+
+function renderGridHtml(cells, variant) {
   const { rowSums, colSums, total } = summarizeGrid(cells)
   const rows = cells.length, cols = cells[0].length
-  let out = '<div id="bench-app"><table id="bench-grid"><tbody>'
+  let out = `<div id="bench-app">${renderControlsHtml(variant)}<table id="bench-grid"><tbody>`
   for (let r = 0; r < rows; r++) {
     out += `<tr id="row-${r}">`
     for (let c = 0; c < cols; c++) {
@@ -114,7 +170,7 @@ function renderGridHtml(cells) {
   return out
 }
 
-function expectedCellAndTotals(cells, row, col) {
+function expectedGridSnapshot(cells, row, col) {
   const { rowSums, colSums, total } = summarizeGrid(cells)
   return {
     cell: cells[row][col] == null ? '' : String(cells[row][col]),
@@ -124,7 +180,7 @@ function expectedCellAndTotals(cells, row, col) {
   }
 }
 
-function readCellAndTotals(host, row, col) {
+function readGridSnapshot(host, row, col) {
   return {
     cell: host.querySelector(`#cell-${row}-${col}`)?.textContent || '',
     row: host.querySelector(`#sum-row-${row}`)?.textContent || '',
@@ -133,9 +189,77 @@ function readCellAndTotals(host, row, col) {
   }
 }
 
-function assertSnapshot(actual, expected, label) {
+function expectedFormState(variant, preserveUserState) {
+  return {
+    inputValue: preserveUserState ? USER_FORM_STATE.inputValue : variant.inputValueAttr,
+    inputAttrValue: variant.inputValueAttr,
+    inputPlaceholder: variant.inputPlaceholder,
+    textareaValue: preserveUserState ? USER_FORM_STATE.textareaValue : variant.textareaText,
+    textareaRows: variant.textareaRows,
+    checkboxChecked: preserveUserState ? USER_FORM_STATE.checkboxChecked : variant.checkboxChecked,
+    checkboxClass: variant.checkboxClass,
+    selectValue: preserveUserState ? USER_FORM_STATE.selectValue : variant.selectSelected,
+    selectClass: variant.selectClass,
+    selectFocused: preserveUserState
+  }
+}
+
+function readFormState(host, activeElement) {
+  const input = host.querySelector('#bench-input')
+  const textarea = host.querySelector('#bench-textarea')
+  const checkbox = host.querySelector('#bench-check')
+  const select = host.querySelector('#bench-select')
+  return {
+    inputValue: input?.value || '',
+    inputAttrValue: input?.getAttribute('value') || '',
+    inputPlaceholder: input?.getAttribute('placeholder') || '',
+    textareaValue: textarea?.value || '',
+    textareaRows: textarea?.getAttribute('rows') || '',
+    checkboxChecked: Boolean(checkbox?.checked),
+    checkboxClass: checkbox?.getAttribute('class') || '',
+    selectValue: select?.value || '',
+    selectClass: select?.getAttribute('class') || '',
+    selectFocused: Boolean(select && activeElement === select)
+  }
+}
+
+function seedUserFormState(host) {
+  const input = host.querySelector('#bench-input')
+  const textarea = host.querySelector('#bench-textarea')
+  const checkbox = host.querySelector('#bench-check')
+  const select = host.querySelector('#bench-select')
+  if (!input || !textarea || !checkbox || !select) throw new Error('Benchmark controls not mounted')
+  input.value = USER_FORM_STATE.inputValue
+  textarea.value = USER_FORM_STATE.textareaValue
+  checkbox.checked = USER_FORM_STATE.checkboxChecked
+  select.value = USER_FORM_STATE.selectValue
+  select.focus()
+}
+
+function assertGridSnapshot(actual, expected, label) {
   if (actual.cell !== expected.cell || actual.row !== expected.row || actual.col !== expected.col || actual.total !== expected.total)
     throw new Error(`Snapshot mismatch (${label}) expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`)
+}
+
+function assertFormSnapshot(actual, expected, label) {
+  if (
+    actual.inputValue !== expected.inputValue ||
+    actual.inputAttrValue !== expected.inputAttrValue ||
+    actual.inputPlaceholder !== expected.inputPlaceholder ||
+    actual.textareaValue !== expected.textareaValue ||
+    actual.textareaRows !== expected.textareaRows ||
+    actual.checkboxChecked !== expected.checkboxChecked ||
+    actual.checkboxClass !== expected.checkboxClass ||
+    actual.selectValue !== expected.selectValue ||
+    actual.selectClass !== expected.selectClass ||
+    actual.selectFocused !== expected.selectFocused
+  ) throw new Error(`Form snapshot mismatch (${label}) expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`)
+}
+
+function diffFormSnapshot(actual, expected) {
+  const diffs = []
+  for (const key of Object.keys(expected)) if (actual[key] !== expected[key]) diffs.push(key)
+  return diffs
 }
 
 function renderPointedPatch(cells, row, col) {
@@ -149,9 +273,19 @@ function renderPointedPatch(cells, row, col) {
   ].join('')
 }
 
-function renderOobPatch(cells, row, col) {
+function renderOobFragments(cells, row, col) {
+  const { rowSums, colSums, total } = summarizeGrid(cells)
   const val = cells[row][col]
-  return `<td id="cell-${row}-${col}" data-oob="morph" data-row="${row}" data-col="${col}">${val == null ? '' : escapeHtml(val)}</td>`
+  return [
+    `<td id="cell-${row}-${col}" data-oob="morph" data-row="${row}" data-col="${col}">${val == null ? '' : escapeHtml(val)}</td>`,
+    `<th id="sum-row-${row}" data-oob="morph">${rowSums[row]}</th>`,
+    `<th id="sum-col-${col}" data-oob="morph">${colSums[col]}</th>`,
+    `<th id="sum-total" data-oob="morph">${total}</th>`
+  ]
+}
+
+function renderOobPatch(cells, row, col) {
+  return renderOobFragments(cells, row, col).join('')
 }
 
 function makeSseOuter(html, selector = '') {
@@ -268,13 +402,15 @@ function makePayloads() {
   const largeDiffCells = mutateGrid(baseCells, 29, 220)
   const focusRow = 11, focusCol = 17
 
-  const baseHtml = renderGridHtml(baseCells)
-  const smallHtml = renderGridHtml(smallDiffCells)
-  const largeHtml = renderGridHtml(largeDiffCells)
+  const baseHtml = renderGridHtml(baseCells, CONTROL_VARIANTS.base)
+  const smallHtml = renderGridHtml(smallDiffCells, CONTROL_VARIANTS.small)
+  const largeHtml = renderGridHtml(largeDiffCells, CONTROL_VARIANTS.large)
   const basePointed = renderPointedPatch(baseCells, focusRow, focusCol)
   const smallPointed = renderPointedPatch(smallDiffCells, focusRow, focusCol)
   const baseOob = renderOobPatch(baseCells, focusRow, focusCol)
   const smallOob = renderOobPatch(smallDiffCells, focusRow, focusCol)
+  const baseOobFragments = renderOobFragments(baseCells, focusRow, focusCol)
+  const smallOobFragments = renderOobFragments(smallDiffCells, focusRow, focusCol)
 
   return {
     focusRow,
@@ -286,11 +422,40 @@ function makePayloads() {
     smallPointed,
     baseOob,
     smallOob,
-    expectedBase: expectedCellAndTotals(baseCells, focusRow, focusCol),
-    expectedSmall: expectedCellAndTotals(smallDiffCells, focusRow, focusCol),
-    expectedLarge: expectedCellAndTotals(largeDiffCells, focusRow, focusCol),
+    baseOobFragments,
+    smallOobFragments,
+    expectedBase: expectedGridSnapshot(baseCells, focusRow, focusCol),
+    expectedSmall: expectedGridSnapshot(smallDiffCells, focusRow, focusCol),
+    expectedLarge: expectedGridSnapshot(largeDiffCells, focusRow, focusCol),
+    expectedFormBaseMorph: expectedFormState(CONTROL_VARIANTS.base, true),
+    expectedFormSmallMorph: expectedFormState(CONTROL_VARIANTS.small, true),
+    expectedFormLargeMorph: expectedFormState(CONTROL_VARIANTS.large, true),
+    expectedFormBaseReplace: expectedFormState(CONTROL_VARIANTS.base, false),
+    expectedFormSmallReplace: expectedFormState(CONTROL_VARIANTS.small, false),
+    expectedFormLargeReplace: expectedFormState(CONTROL_VARIANTS.large, false),
     baseSse: makeSseOuter(basePointed),
     smallSse: makeSseOuter(smallPointed)
+  }
+}
+
+function stripOobAttrs(html) {
+  return html.replace(/ data-oob="morph"/g, '')
+}
+
+function makeValidators(host, activeElementFn, payloads, prefix) {
+  const gridSnapshot = () => readGridSnapshot(host, payloads.focusRow, payloads.focusCol)
+  const formSnapshot = () => readFormState(host, activeElementFn())
+  return {
+    gridSnapshot,
+    formSnapshot,
+    cellText: () => (host.querySelector(`#cell-${payloads.focusRow}-${payloads.focusCol}`)?.textContent || ''),
+    assertState(gridExpected, formExpected, label) {
+      assertGridSnapshot(gridSnapshot(), gridExpected, `${prefix}/${label}/grid`)
+      assertFormSnapshot(formSnapshot(), formExpected, `${prefix}/${label}/form`)
+    },
+    assertGrid(gridExpected, label) {
+      assertGridSnapshot(gridSnapshot(), gridExpected, `${prefix}/${label}/grid`)
+    }
   }
 }
 
@@ -303,18 +468,15 @@ function runDmaxScenarios(window, payloads) {
   host.id = 'bench-host'
   document.body.appendChild(host)
 
-  const mountBase = () => { host.innerHTML = payloads.baseHtml }
-  const cellText = () => (host.querySelector(`#cell-${payloads.focusRow}-${payloads.focusCol}`)?.textContent || '')
-  const snapshot = () => readCellAndTotals(host, payloads.focusRow, payloads.focusCol)
-  const validateBase = () => assertSnapshot(snapshot(), payloads.expectedBase, 'dmax/base')
-  const validateSmall = () => assertSnapshot(snapshot(), payloads.expectedSmall, 'dmax/small-diff')
-  const validateLarge = () => assertSnapshot(snapshot(), payloads.expectedLarge, 'dmax/large-diff')
-  const validateBaseCell = () => {
-    if (cellText() !== payloads.expectedBase.cell) throw new Error(`Cell mismatch (dmax/base-cell) expected=${payloads.expectedBase.cell} actual=${cellText()}`)
-  }
-  const validateSmallCell = () => {
-    if (cellText() !== payloads.expectedSmall.cell) throw new Error(`Cell mismatch (dmax/small-cell) expected=${payloads.expectedSmall.cell} actual=${cellText()}`)
-  }
+  const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
+  const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
+  const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
+  const validateSmallStaticControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-static-controls')
+  const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
+  const validateBaseReplace = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseReplace, 'base-replace')
+  const validateSmallReplace = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallReplace, 'small-replace')
+  const validateLargeMorph = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeMorph, 'large-morph')
+  const validateLargeReplace = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeReplace, 'large-replace')
 
   return [
     runScenario(
@@ -323,19 +485,19 @@ function runDmaxScenarios(window, payloads) {
       mountBase,
       () => applyDmaxSse(payloads.smallSse, 'bench'),
       () => applyDmaxSse(payloads.baseSse, 'bench'),
-      cellText,
-      validateSmall,
+      v.cellText,
+      validateSmallStaticControls,
       validateBase
     ),
     runScenario(
       'oob-morph-small-diff',
       500,
       mountBase,
-      () => applyOobHtml(payloads.smallOob),
-      () => applyOobHtml(payloads.baseOob),
-      cellText,
-      validateSmallCell,
-      validateBaseCell
+      () => { for (const html of payloads.smallOobFragments) applyOobHtml(html) },
+      () => { for (const html of payloads.baseOobFragments) applyOobHtml(html) },
+      v.cellText,
+      validateSmallStaticControls,
+      validateBase
     ),
     runScenario(
       'full-page-small-diff-morph',
@@ -343,8 +505,8 @@ function runDmaxScenarios(window, payloads) {
       mountBase,
       () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }),
       () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }),
-      cellText,
-      validateSmall,
+      v.cellText,
+      validateSmallMorph,
       validateBase
     ),
     runScenario(
@@ -353,9 +515,9 @@ function runDmaxScenarios(window, payloads) {
       mountBase,
       () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }),
       () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }),
-      cellText,
-      validateSmall,
-      validateBase
+      v.cellText,
+      validateSmallReplace,
+      validateBaseReplace
     ),
     runScenario(
       'full-page-large-diff-morph',
@@ -363,8 +525,8 @@ function runDmaxScenarios(window, payloads) {
       mountBase,
       () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }),
       () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }),
-      cellText,
-      validateLarge,
+      v.cellText,
+      validateLargeMorph,
       validateBase
     ),
     runScenario(
@@ -373,9 +535,9 @@ function runDmaxScenarios(window, payloads) {
       mountBase,
       () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.largeHtml }),
       () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }),
-      cellText,
-      validateLarge,
-      validateBase
+      v.cellText,
+      validateLargeReplace,
+      validateBaseReplace
     )
   ].map(r => ({ framework: 'dmax', ...r }))
 }
@@ -386,19 +548,12 @@ function runDatastarScenarios(window, payloads) {
   host.id = 'bench-host'
   document.body.appendChild(host)
 
-  const mountBase = () => { host.innerHTML = payloads.baseHtml }
-  const cellText = () => (host.querySelector(`#cell-${payloads.focusRow}-${payloads.focusCol}`)?.textContent || '')
+  const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
   const mergeFragments = (fragments, mergeMode, selector = '') => applyDatastarFragments(window, fragments, mergeMode, selector)
-  const snapshot = () => readCellAndTotals(host, payloads.focusRow, payloads.focusCol)
-  const validateBase = () => assertSnapshot(snapshot(), payloads.expectedBase, 'datastar/base')
-  const validateSmall = () => assertSnapshot(snapshot(), payloads.expectedSmall, 'datastar/small-diff')
-  const validateLarge = () => assertSnapshot(snapshot(), payloads.expectedLarge, 'datastar/large-diff')
-  const validateBaseCell = () => {
-    if (cellText() !== payloads.expectedBase.cell) throw new Error(`Cell mismatch (datastar/base-cell) expected=${payloads.expectedBase.cell} actual=${cellText()}`)
-  }
-  const validateSmallCell = () => {
-    if (cellText() !== payloads.expectedSmall.cell) throw new Error(`Cell mismatch (datastar/small-cell) expected=${payloads.expectedSmall.cell} actual=${cellText()}`)
-  }
+  const v = makeValidators(host, () => document.activeElement, payloads, 'datastar')
+  const validateBase = () => v.assertGrid(payloads.expectedBase, 'base')
+  const validateSmall = () => v.assertGrid(payloads.expectedSmall, 'small')
+  const validateLarge = () => v.assertGrid(payloads.expectedLarge, 'large')
 
   return [
     runScenario(
@@ -407,19 +562,19 @@ function runDatastarScenarios(window, payloads) {
       mountBase,
       () => mergeFragments(payloads.smallPointed, 'morph'),
       () => mergeFragments(payloads.basePointed, 'morph'),
-      cellText,
+      v.cellText,
       validateSmall,
       validateBase
     ),
     runScenario(
-      'single-fragment-small-diff',
+      'oob-fragments-small-diff',
       500,
       mountBase,
-      () => mergeFragments(payloads.smallOob.replace(' data-oob="morph"', ''), 'morph'),
-      () => mergeFragments(payloads.baseOob.replace(' data-oob="morph"', ''), 'morph'),
-      cellText,
-      validateSmallCell,
-      validateBaseCell
+      () => mergeFragments(stripOobAttrs(payloads.smallOob), 'morph'),
+      () => mergeFragments(stripOobAttrs(payloads.baseOob), 'morph'),
+      v.cellText,
+      validateSmall,
+      validateBase
     ),
     runScenario(
       'full-page-small-diff-morph',
@@ -427,7 +582,7 @@ function runDatastarScenarios(window, payloads) {
       mountBase,
       () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'),
-      cellText,
+      v.cellText,
       validateSmall,
       validateBase
     ),
@@ -437,7 +592,7 @@ function runDatastarScenarios(window, payloads) {
       mountBase,
       () => mergeFragments(payloads.smallHtml, 'outer', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'),
-      cellText,
+      v.cellText,
       validateSmall,
       validateBase
     ),
@@ -447,7 +602,7 @@ function runDatastarScenarios(window, payloads) {
       mountBase,
       () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'),
-      cellText,
+      v.cellText,
       validateLarge,
       validateBase
     ),
@@ -457,11 +612,57 @@ function runDatastarScenarios(window, payloads) {
       mountBase,
       () => mergeFragments(payloads.largeHtml, 'outer', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'),
-      cellText,
+      v.cellText,
       validateLarge,
       validateBase
     )
   ].map(r => ({ framework: 'datastar', ...r }))
+}
+
+function probeMorphParity(window, payloads, framework, applySmallMorph, applyBaseMorph, applyLargeMorph) {
+  const { document } = window
+  const host = document.createElement('div')
+  host.id = `${framework}-parity-host`
+  document.body.appendChild(host)
+  const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
+  const readState = () => ({
+    grid: readGridSnapshot(host, payloads.focusRow, payloads.focusCol),
+    form: readFormState(host, document.activeElement)
+  })
+  const checkState = (expectedGrid, expectedForm) => {
+    const actual = readState()
+    return {
+      gridOk: actual.grid.cell === expectedGrid.cell && actual.grid.row === expectedGrid.row && actual.grid.col === expectedGrid.col && actual.grid.total === expectedGrid.total,
+      formDiffs: diffFormSnapshot(actual.form, expectedForm),
+      actualForm: actual.form
+    }
+  }
+
+  mountBase()
+  applySmallMorph()
+  const small = checkState(payloads.expectedSmall, payloads.expectedFormSmallMorph)
+  applyBaseMorph()
+  const base = checkState(payloads.expectedBase, payloads.expectedFormBaseMorph)
+
+  mountBase()
+  applyLargeMorph()
+  const large = checkState(payloads.expectedLarge, payloads.expectedFormLargeMorph)
+
+  host.remove()
+  return { framework, small, base, large }
+}
+
+function formatParityProbe(probe) {
+  const scenarios = [
+    ['small', probe.small],
+    ['base', probe.base],
+    ['large', probe.large]
+  ]
+  return scenarios.map(([name, state]) => {
+    if (!state.gridOk) return `${name}:grid-mismatch`
+    if (!state.formDiffs.length) return `${name}:form-ok`
+    return `${name}:form-reset(${state.formDiffs.join(',')})`
+  }).join(' | ')
 }
 
 ;(async () => {
@@ -472,10 +673,32 @@ function runDatastarScenarios(window, payloads) {
     ...runDmaxScenarios(dmaxWindow, payloads),
     ...runDatastarScenarios(datastarWindow, payloads)
   ]
+  const dmaxProbeWindow = await loadDmaxWindow()
+  const datastarProbeWindow = await loadDatastarWindow()
+  const parityProbes = [
+    probeMorphParity(
+      dmaxProbeWindow,
+      payloads,
+      'dmax',
+      () => dmaxProbeWindow.applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }),
+      () => dmaxProbeWindow.applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }),
+      () => dmaxProbeWindow.applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml })
+    ),
+    probeMorphParity(
+      datastarProbeWindow,
+      payloads,
+      'datastar',
+      () => applyDatastarFragments(datastarProbeWindow, payloads.smallHtml, 'morph', '#bench-app'),
+      () => applyDatastarFragments(datastarProbeWindow, payloads.baseHtml, 'morph', '#bench-app'),
+      () => applyDatastarFragments(datastarProbeWindow, payloads.largeHtml, 'morph', '#bench-app')
+    )
+  ]
 
   console.log('dmax vs Datastar semi-realistic SSE/morph benchmark')
-  console.log('grid: 32x32, ~66% populated, reactive row/column/total cells included in the HTML payload')
+  console.log('grid: 32x32, ~66% populated, reactive row/column/total cells plus input/textarea/checkbox/select controls')
   console.log('datastar: vendored tools/vendor/datastar.js, merge-fragments CustomEvent path')
+  console.log('validation: sums are asserted for pointed/OOB/full-page paths; morph form-state parity is reported separately')
+  for (const probe of parityProbes) console.log(`parity:${probe.framework.padEnd(9)} ${formatParityProbe(probe)}`)
   console.log(global.gc
     ? 'memory: heap delta measured with explicit GC before/after each scenario'
     : 'memory: heap delta measured without explicit GC (run with `node --expose-gc` for cleaner numbers)')
@@ -497,6 +720,8 @@ function runDatastarScenarios(window, payloads) {
   }
   dmaxWindow.close()
   datastarWindow.close()
+  dmaxProbeWindow.close()
+  datastarProbeWindow.close()
 })().catch(err => {
   console.error(err && err.stack ? err.stack : err)
   process.exitCode = 1
