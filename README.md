@@ -120,7 +120,7 @@ five very small libraries:
 
 <!-- request spread + dynamic headers + merge result -->
 <button
-  data-post^json^merge^headers.req-headers^send-all-signals:profile@.click+user^spread
+  data-post^json^merge^headers.req-headers:profile@.click+user^spread
   ="'/api/profile/update'">
 </button>
 
