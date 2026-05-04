@@ -2718,15 +2718,15 @@
           }
         }
         if (same) return
-        same = true
+        let sameNames = true
         for (let i = 0; i < toAttrs.length; i++) {
           const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
           if (!fromAttr || fromAttr.value !== toAttr.value) {
-            same = false
+            sameNames = false
             break
           }
         }
-        if (same) return
+        if (sameNames) return
       }
       if (!toAttrs.length) {
         for (let i = fromAttrs.length - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
@@ -2976,7 +2976,10 @@
       }
 
       if (!sourceEls.length) return
-      if (sourceEls.length === 1) { applyPatchSource(sourceEls[0], mode); return }
+      if (sourceEls.length === 1) {
+        applyPatchSource(sourceEls[0], mode)
+        return
+      }
       for (const src of sourceEls) applyPatchSource(src, mode)
     }
 
