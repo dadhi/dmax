@@ -6,6 +6,7 @@ A tiny declarative web runtime driven by `data-*` attributes.
 
 - `index.html` — current dev notebook (asserts + live examples)
 - `dmax.js` — extracted runtime script loaded by `index.html`
+- `asserts.js` — notebook assert suite loaded after `dmax.js`
 - `index-wotking-slop.html` — previous `index.html` snapshot
 - `tools/bench-morph-sse.js` — semi-realistic dmax-vs-Datastar SSE/morph benchmark for pointed, OOB/single-fragment, and full-page swaps
 
