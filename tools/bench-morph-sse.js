@@ -677,6 +677,13 @@ function formatParityProbe(probe) {
   }).join(' | ')
 }
 
+// Follow-up performance plan from the current benchmark numbers:
+// 1. Keep singleton/fallback reuse in hot and near-hot helpers to avoid tiny repeated allocations.
+// 2. Add cheap early-outs before full subtree morphs when root text/attrs/child counts already match.
+// 3. Special-case single-target patch/OOB updates so parsing and target lookup stay on the shortest path.
+// 4. Prefer native DOM collections and index loops over Array.from/filter in runtime hot paths unless profiling says otherwise.
+// 5. Only introduce heavier structures (pooled Maps/Sets, more caches) when this benchmark shows a clear win.
+
 ;(async () => {
   const payloads = makePayloads()
   const dmaxWindow = await loadDmaxWindow()

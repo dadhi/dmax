@@ -398,7 +398,7 @@
     __assert(setProp, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
 
-    const EMPTY_ARR = []
+    const EMPTY_ARR = Object.freeze([])
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
 
     function diffShapeShallow(before, after) {
@@ -1114,8 +1114,8 @@
         const btn = document.createElement('button');
         dSub(btn, 'data-sub:sg@.', `'A'`);
         const hs = (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get)
-          ? (_cleanupBoundSubs.get(btn) || [])
-          : []
+          ? (_cleanupBoundSubs.get(btn) || EMPTY_ARR)
+          : EMPTY_ARR
         const h = hs.find ? hs.find(x => x && x.type === 'event' && x.handler) : null
         if (h && h.handler) h.handler({ type: 'click', detail: null, preventDefault() { } })
         else btn.dispatchEvent(mkEv('click'));
@@ -1133,8 +1133,8 @@
         inp.value = 'Zed';
         dSub(inp, 'data-sub:out@.', 'val');
         const hs = (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get)
-          ? (_cleanupBoundSubs.get(inp) || [])
-          : []
+          ? (_cleanupBoundSubs.get(inp) || EMPTY_ARR)
+          : EMPTY_ARR
         const h = hs.find ? hs.find(x => x && x.type === 'event' && x.handler) : null
         if (h && h.handler) h.handler({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -1729,7 +1729,7 @@
               // Rewrite $item/$index placeholders in all descendant attribute names and values
               const walk = [node].concat(Array.from(node.querySelectorAll('*')))
               for (const n of walk) {
-                const attrs = Array.from(n.attributes || [])
+                const attrs = Array.from(n.attributes || EMPTY_ARR)
                 for (const a of attrs) {
                   let atrName = a.name, atrVal = a.value
                   if (atrName.indexOf('$item') !== -1 || atrName.indexOf('$index') !== -1) {
@@ -1753,7 +1753,7 @@
           for (const node of el.__dump.nodes.slice(-(newLen - oldLen))) {
             const walk2 = [node].concat(Array.from(node.querySelectorAll('*')))
             for (const n of walk2)
-              for (const a of Array.from(n.attributes || [])) wireNode(n, a.name, a.value)
+              for (const a of Array.from(n.attributes || EMPTY_ARR)) wireNode(n, a.name, a.value)
           }
           el.__dump.count = newLen
         }
@@ -2257,7 +2257,7 @@
         _dm.set('items', null)
         dAction(btn, 'data-get:items@.click^immediate', '"https://api.test/items"')
         // click trigger registers the event; immediate also fires doRequest once at setup
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2284,7 +2284,7 @@
         _dm.set('postResult', null)
         _dm.set('titleVal', 'Hello World')
         dAction(btn, 'data-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2303,7 +2303,7 @@
         _dm.set('busy', false)
         _dm.set('data', null)
         dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         const busyDuring = DM['busy']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
@@ -2326,7 +2326,7 @@
         _dm.set('done', false)
         _dm.set('data2', null)
         dAction(btn, 'data-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         const completeDuring = DM['done']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
@@ -2346,7 +2346,7 @@
         const btn = document.createElement('button')
         _dm.set('done2', false)
         dAction(btn, 'data-get^complete.done2:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
@@ -2365,7 +2365,7 @@
         _dm.set('busy', false)
         _dm.set('errMsg', null)
         dAction(btn, 'data-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
@@ -2415,7 +2415,7 @@
         _dm.set('a', 1)
         _dm.set('nested', { x: 7, y: 8 })
         dAction(btn, 'data-post^json:req@.click+_all+nested._all', '"https://api.test/all"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2435,7 +2435,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get:_all@.click', '"https://api.test/obj"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2455,7 +2455,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get:_all@.click', '"https://api.test/arr"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2481,7 +2481,7 @@
         _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
         _dm.set('reqHeaders', { authorization: 'Bearer 123', 'x-trace': 'abc' })
         dAction(btn, 'data-get^merge^no-cache^headers.reqHeaders:profile@.click', '"https://api.test/profile"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2514,7 +2514,7 @@
         const btn = document.createElement('button')
         _dm.set('res', null)
         dAction(btn, 'data-get^br^gzip^deflate^compress:res@.click', '"https://api.test/enc"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2541,7 +2541,7 @@
         _dm.set('page', 2)
         _dm.set('payload', 'hello')
         dAction(btn, 'data-post^url.page:res@.click+payload', '"https://api.test/items"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2568,7 +2568,7 @@
         _dm.set('cursor', 'abc123')
         _dm.set('filter', 'active')
         dAction(btn, 'data-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         // +filter is GET-default → query string; ^body.cursor overrides → request body (single value unwrapped)
@@ -2595,7 +2595,7 @@
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
         dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -2648,7 +2648,7 @@
         })
         try {
           dAction(btn, 'data-get@.click', "'/mock/sse-incr'")
-          const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+          const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
           if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
           await new Promise(r => setTimeout(r, 20))
         } finally { delete window.fetch }
@@ -2684,16 +2684,15 @@
       return a.tagName === b.tagName
     }
 
-    const _DUMMY_ARRAY = Object.freeze([])
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const _SIMPLE_ID_SELECTOR_RE = /^#([^\s>+~:.[,]+)$/
 
     function getPatchTargets(selector) {
-      if (!selector) return _DUMMY_ARRAY
+      if (!selector) return EMPTY_ARR
       const simpleId = _SIMPLE_ID_SELECTOR_RE.exec(selector)
       if (simpleId) {
         const el = document.getElementById(simpleId[1])
-        return el ? [el] : _DUMMY_ARRAY
+        return el ? [el] : EMPTY_ARR
       }
       return document.querySelectorAll(selector)
     }
@@ -3580,7 +3579,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 30))
       } finally { delete window.fetch }
@@ -3610,7 +3609,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^abort.cancelFn@.click', "'/mock/long'")
-        const clickSubs = (_cleanupBoundSubs.get(btn) || []).filter(x => x.type === 'event')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 10))
         // Now cancel via the signal stored by ^abort
@@ -3699,7 +3698,7 @@
       const nodes = [root].concat(Array.from(root.querySelectorAll('*')))
       const deferred = []
       for (const n of nodes) {
-        for (const a of Array.from(n.attributes || [])) {
+        for (const a of Array.from(n.attributes || EMPTY_ARR)) {
           if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value)
           else deferred.push([n, a.name, a.value])
         }
