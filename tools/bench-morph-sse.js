@@ -228,7 +228,15 @@ function seedUserFormState(host) {
   const textarea = host.querySelector('#bench-textarea')
   const checkbox = host.querySelector('#bench-check')
   const select = host.querySelector('#bench-select')
-  if (!input || !textarea || !checkbox || !select) throw new Error('Benchmark controls not mounted')
+  if (!input || !textarea || !checkbox || !select) {
+    const missing = [
+      !input && '#bench-input',
+      !textarea && '#bench-textarea',
+      !checkbox && '#bench-check',
+      !select && '#bench-select'
+    ].filter(Boolean)
+    throw new Error(`Benchmark controls not mounted: ${missing.join(', ')}`)
+  }
   input.value = USER_FORM_STATE.inputValue
   textarea.value = USER_FORM_STATE.textareaValue
   checkbox.checked = USER_FORM_STATE.checkboxChecked
@@ -257,9 +265,7 @@ function assertFormSnapshot(actual, expected, label) {
 }
 
 function diffFormSnapshot(actual, expected) {
-  const diffs = []
-  for (const key of Object.keys(expected)) if (actual[key] !== expected[key]) diffs.push(key)
-  return diffs
+  return Object.keys(expected).filter(key => actual[key] !== expected[key])
 }
 
 function renderPointedPatch(cells, row, col) {
@@ -557,9 +563,9 @@ function runDatastarScenarios(window, payloads) {
   const v = makeValidators(host, () => document.activeElement, payloads, 'datastar')
   // Datastar form-state parity is reported separately by probeMorphParity so the
   // timed benchmark can keep running and show the measured reset behavior.
-  const validateBase = () => v.assertGrid(payloads.expectedBase, 'base')
-  const validateSmall = () => v.assertGrid(payloads.expectedSmall, 'small')
-  const validateLarge = () => v.assertGrid(payloads.expectedLarge, 'large')
+  const validateBaseGrid = () => v.assertGrid(payloads.expectedBase, 'base-grid')
+  const validateSmallGrid = () => v.assertGrid(payloads.expectedSmall, 'small-grid')
+  const validateLargeGrid = () => v.assertGrid(payloads.expectedLarge, 'large-grid')
 
   return [
     runScenario(
@@ -569,8 +575,8 @@ function runDatastarScenarios(window, payloads) {
       () => mergeFragments(payloads.smallPointed, 'morph'),
       () => mergeFragments(payloads.basePointed, 'morph'),
       v.cellText,
-      validateSmall,
-      validateBase
+      validateSmallGrid,
+      validateBaseGrid
     ),
     runScenario(
       'oob-morph-small-diff',
@@ -579,8 +585,8 @@ function runDatastarScenarios(window, payloads) {
       () => mergeFragments(stripOobAttributes(payloads.smallOob), 'morph'),
       () => mergeFragments(stripOobAttributes(payloads.baseOob), 'morph'),
       v.cellText,
-      validateSmall,
-      validateBase
+      validateSmallGrid,
+      validateBaseGrid
     ),
     runScenario(
       'full-page-small-diff-morph',
@@ -589,8 +595,8 @@ function runDatastarScenarios(window, payloads) {
       () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'),
       v.cellText,
-      validateSmall,
-      validateBase
+      validateSmallGrid,
+      validateBaseGrid
     ),
     runScenario(
       'full-page-small-diff-replace',
@@ -599,8 +605,8 @@ function runDatastarScenarios(window, payloads) {
       () => mergeFragments(payloads.smallHtml, 'outer', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'),
       v.cellText,
-      validateSmall,
-      validateBase
+      validateSmallGrid,
+      validateBaseGrid
     ),
     runScenario(
       'full-page-large-diff-morph',
@@ -609,8 +615,8 @@ function runDatastarScenarios(window, payloads) {
       () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'),
       v.cellText,
-      validateLarge,
-      validateBase
+      validateLargeGrid,
+      validateBaseGrid
     ),
     runScenario(
       'full-page-large-diff-replace',
@@ -619,8 +625,8 @@ function runDatastarScenarios(window, payloads) {
       () => mergeFragments(payloads.largeHtml, 'outer', '#bench-app'),
       () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'),
       v.cellText,
-      validateLarge,
-      validateBase
+      validateLargeGrid,
+      validateBaseGrid
     )
   ].map(r => ({ framework: 'datastar', ...r }))
 }
