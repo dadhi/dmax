@@ -530,8 +530,11 @@ async function runRegressionTests(runner) {
         element.dispatchEvent(new window.Event('click', { bubbles: true }));
         await new Promise(r => setTimeout(r, 50));
         const req = requests[0];
-        if (!req || req.init.headers['x-trace-id'] !== 'trace-abc' || req.init.headers.authorization !== 'Bearer hdr-123')
-          throw new Error('default header kebab-case mapping missing');
+        if (!req) throw new Error('request missing');
+        if (req.init.headers['x-trace-id'] !== 'trace-abc')
+          throw new Error(`expected x-trace-id header trace-abc, got ${req.init.headers['x-trace-id']}`);
+        if (req.init.headers.authorization !== 'Bearer hdr-123')
+          throw new Error(`expected authorization header Bearer hdr-123, got ${req.init.headers.authorization}`);
       }
     },
     {
@@ -543,7 +546,9 @@ async function runRegressionTests(runner) {
         element.dispatchEvent(new window.Event('click', { bubbles: true }));
         await new Promise(r => setTimeout(r, 50));
         const req = requests[0];
-        if (!req || req.init.headers['X-Trace-Id'] !== 'trace-raw') throw new Error('exact header key missing');
+        if (!req) throw new Error('request missing');
+        if (req.init.headers['X-Trace-Id'] !== 'trace-raw')
+          throw new Error(`expected X-Trace-Id header trace-raw, got ${req.init.headers['X-Trace-Id']}`);
       }
     },
     {
