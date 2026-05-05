@@ -673,15 +673,11 @@
         if (!inDebounce) {
           if (prv) ev?.preventDefault?.()
           if (deb > 0) {
-            if (!onDebounce) {
-              onDebounce = function () {
-                inDebounce = true
-                try { h(debEv, debVal, debDetail) } finally { inDebounce = false }
-              }
+            onDebounce ??= function () {
+              inDebounce = true
+              try { h(debEv, debVal, debDetail) } finally { inDebounce = false }
             }
-            debEv = ev
-            debVal = val
-            debDetail = detail
+            debEv = ev, debVal = val, debDetail = detail
             clearTimeout(tm)
             tm = setTimeout(onDebounce, deb)
             return
