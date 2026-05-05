@@ -1607,17 +1607,17 @@
 
     function parseSseEls(html, ns) {
       if (!html) return []
-      ns = (ns || 'html').toLowerCase()
-      if (ns === 'html') {
+      const namespace = (ns || 'html').toLowerCase()
+      if (namespace === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
         const out = []
         for (let el = _HTML_PARSE_TEMPLATE.content.firstElementChild; el; el = el.nextElementSibling) out.push(el)
         return out
       }
-      const wrap = ns === 'svg'
+      const wrap = namespace === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
         : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
-      const doc = new DOMParser().parseFromString(wrap, ns === 'svg' ? 'image/svg+xml' : 'application/xml')
+      const doc = new DOMParser().parseFromString(wrap, namespace === 'svg' ? 'image/svg+xml' : 'application/xml')
       const root = doc.documentElement
       return root ? Array.from(root.children) : []
     }
@@ -1701,7 +1701,7 @@
       const raw = args[SSE_DATA_PATCH_SIGS]
       if (!raw) return
       let patchObj = null
-      try { patchObj = JSON.parse(raw) } catch (_) { console.error('[dmax] Error: patch sigs in', aName, 'expect JSON but found', raw); return }
+      try { patchObj = JSON.parse(raw) } catch (_) { console.error('[dmax] Error: patch sigs in', aName, 'expect JSON but found invalid format'); return }
       if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
       const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
       for (const root of Object.keys(patchObj)) {
@@ -1749,10 +1749,10 @@
         if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
         if (curEv === SSE_EV_PATCH_ELS) {
           applyPatchEls(curArgs)
-          applied.push(curEv)
+          applied.push({ event: curEv, args: curArgs })
         } else if (curEv === SSE_EV_PATCH_SIGS) {
           applyPatchSigs(aName, curArgs)
-          applied.push(curEv)
+          applied.push({ event: curEv, args: curArgs })
         }
         curEv = 'message'
         curArgs = null
@@ -1789,10 +1789,10 @@
         if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
         if (curEv === SSE_EV_PATCH_ELS) {
           applyPatchEls(curArgs)
-          applied.push(curEv)
+          applied.push({ event: curEv, args: curArgs })
         } else if (curEv === SSE_EV_PATCH_SIGS) {
           applyPatchSigs(aName, curArgs)
-          applied.push(curEv)
+          applied.push({ event: curEv, args: curArgs })
         }
         curEv = 'message'; curArgs = null; hasData = false
       }
