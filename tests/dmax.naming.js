@@ -12,10 +12,11 @@ const disallowed = [
     re: /\b(?:getSignalValOrIt|resolveStatusSignal|patchMatchingSignals|ensureSignalSubs|removeSignalSub|setSignalAndNotifySubsNLevelsDeep|applyDmaxPatchSignals|signalRead|signalWrite|shouldReadSignal|shouldWriteSignal)\b/,
     msg: 'sig-related identifiers should use the standardized sig prefix'
   },
-  {
-    re: /\b(?:let|const)\s+_(?:activeAbort|mi|mArr|dest|m|mp|k|v)\b|\(\s*_(?:ev|trigVal|detail|eventObj|e)\b|,\s*_(?:trigVal|detail)\b|catch\s*\(\s*_e\b|for\s*\(\s*(?:const|let)\s+_\b/,
-    msg: 'local identifiers should not use underscore prefixes'
-  }
+  { re: /\b(?:let|const)\s+_(?:activeAbort|mi|mArr|dest|m|mp|k|v)\b/, msg: 'local declarations should not use underscore prefixes' },
+  { re: /\(\s*_(?:ev|trigVal|detail|eventObj|e)\b/, msg: 'leading parameters should not use underscore prefixes' },
+  { re: /,\s*_(?:trigVal|detail)\b/, msg: 'later parameters should not use underscore prefixes' },
+  { re: /catch\s*\(\s*_e\b/, msg: 'catch bindings should not use underscore prefixes' },
+  { re: /for\s*\(\s*(?:const|let)\s+_\b/, msg: 'loop variables should not use underscore prefixes' }
 ];
 
 for (const { re, msg } of disallowed) {

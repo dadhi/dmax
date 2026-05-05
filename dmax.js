@@ -177,8 +177,7 @@
     }
 
     function isObjEmpty(o) {
-      for (const key in o) { void key; return false }
-      return true
+      return Object.keys(o).length === 0
     }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
@@ -1185,9 +1184,7 @@
 
           // ^url.<sigPath> forces a named sig into query params.
           // ^body.<sigPath> forces a named sig into the request body.
-          for (let modIdx = 0; modIdx < 2; ++modIdx) {
-            const modArr = modIdx === 0 ? urlMods : bodyMods
-            const modDest = modIdx === 0 ? queryParams : bodyFields
+          for (const [modArr, modDest] of [[urlMods, queryParams], [bodyMods, bodyFields]]) {
             for (const m of modArr) {
               const mPath = m.path
               if (!mPath) continue
