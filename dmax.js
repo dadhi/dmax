@@ -665,15 +665,23 @@
           permitMods.push(m)
         }
       }
-      let tm = 0, last = 0
+      let tm = 0, last = 0, inDebounce = false
+      let debEv = null, debVal = null, debDetail = null
+      let onDebounce = null
 
       const h = function (ev, val, detail) {
-        const scheduled = arguments[3]
-        if (!scheduled) {
+        if (!inDebounce) {
           if (prv) ev?.preventDefault?.()
           if (deb > 0) {
+            if (!onDebounce) {
+              onDebounce = function () {
+                inDebounce = true
+                try { h(debEv, debVal, debDetail) } finally { inDebounce = false }
+              }
+            }
+            debEv = ev, debVal = val, debDetail = detail
             clearTimeout(tm)
-            tm = setTimeout(h, deb, ev, val, detail, true)
+            tm = setTimeout(onDebounce, deb)
             return
           }
           if (thr > 0) {
