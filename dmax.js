@@ -1168,8 +1168,8 @@
           else tarEl.classList.remove(name)
         }
       }
-      if (!trigs.length) { applyClasses(fn ? fn(DM, el, null, null, null) : true); return }
       const elSubs = ensureBoundSubs(el)
+      if (!trigs.length) { applyClasses(fn ? fn(DM, el, null, null, null) : true); return }
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
         const mods = pickMods(trig.mods, globMods)
