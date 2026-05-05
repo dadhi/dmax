@@ -667,7 +667,8 @@
       }
       let tm = 0, last = 0
 
-      const h = function (ev, val, detail, scheduled) {
+      const h = function (ev, val, detail) {
+        const scheduled = arguments[3]
         if (!scheduled) {
           if (prv) ev?.preventDefault?.()
           if (deb > 0) {
