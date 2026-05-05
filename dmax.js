@@ -1169,6 +1169,7 @@
         }
       }
       const elSubs = ensureBoundSubs(el)
+      // Triggerless template classes are valid in dDump clones: evaluate once after placeholder rewriting.
       if (!trigs.length) { applyClasses(fn ? fn(DM, el, null, null, null) : true); return }
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
@@ -1369,6 +1370,7 @@
         else if (mr === MOD_URL) urlMods.push(m)
         else if (mr === MOD_BODY) bodyMods.push(m)
         else if (mr === MOD_HDR) hdrMods.push(m)
+        // ^sync-all intentionally combines both send-all and patch-all behavior.
         else if (!sendAll && (mr === MOD_SEND_ALL || mr === MOD_SYNC_ALL)) sendAll = true
         if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
       }
