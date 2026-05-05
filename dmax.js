@@ -42,14 +42,9 @@
         const c = s[p]
         res += c >= 'A' && c <= 'Z' ? '-' + c.toLowerCase() : c
       }
+      if (res[0] === '-') res = res.slice(1)
       KEBAB_NAMES.set(s, res)
       return res
-    }
-
-    function toHeaderKebab(s) {
-      if (!s) return s
-      const res = camelToKebab(s)
-      return res[0] === '-' ? res.slice(1) : res
     }
 
     // Updated attribute-token syntax reference
@@ -1333,7 +1328,7 @@
             if (hdrObj && typeof hdrObj === 'object') {
               headers = Object.create(null)
               sharedHeaders = false
-              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[headersNoKebab ? hk : toHeaderKebab(hk)] = String(hdrObj[hk])
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[headersNoKebab ? hk : camelToKebab(hk)] = String(hdrObj[hk])
             }
           }
           if (baseHeaders !== ACTION_HEADERS_EMPTY) {
@@ -1355,9 +1350,9 @@
             const mPath = m.path
             if (!mPath) continue
             let mKey, mVal
-            if (typeof mPath === 'string') { mKey = toHeaderKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
+            if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
             else if (mPath.kind === SIGNAL) {
-              mKey = toHeaderKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
+              mKey = camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
               mVal = getSigValOrIt(mPath)
             }
             else continue
