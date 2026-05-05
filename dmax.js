@@ -599,10 +599,11 @@
         for (const col of collected) // check if the same
           if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
 
-        let [pathCur, pathDepth] = getPropValAndDepth(sigVal, hp), pathVal
+        const pathCur = getPropValAndDepth(sigVal, hp)[0]
+        let pathVal
         if (hCol) pathVal = hCol[2]
         else {
-          [pathVal, pathDepth] = getPropValAndDepth(val, hp)
+          pathVal = getPropValAndDepth(val, hp)[0]
           if (!valChangedDeep(pathCur, pathVal)) continue
         }
 
