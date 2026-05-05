@@ -55,6 +55,9 @@
         console.error('✗', head, '>>> threw:', em, es, '>>> expected:', fmt(expected));
       }
   };
+    const __sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
+    const __signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
+    const __signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
     __assert(indexFirst, ['abcdefg', ['x', 'y', 'z']], -1, 'none found');
     __assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
     __assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
@@ -133,7 +136,10 @@
     __assert(resolveStatusSignal, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
     __assert(resolveStatusSignal, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
     __assert(resolveStatusSignal, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
-    __assert(__getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
+    __assert((id, aName) => {
+      const el = getElById(id, aName)
+      return el ? el.textContent : null
+    }, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
     __assert(getElPropVal, [null, null], null, 'null element prop')
     __assert(getElPropVal, [null, ['value']], null, 'null element nested prop')
     __assert(getElPropVal, [getElById('foo', 'xxx'), null], 'good', 'default text prop')
