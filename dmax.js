@@ -256,10 +256,10 @@
       return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
     }
 
-    function getElPropVal(tarEl, propPath) {
-      if (!tarEl) return null
-      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(tarEl)
-      let val = prop === 'checked' ? tarEl.checked : (prop === 'value' ? tarEl.value : tarEl.textContent)
+    function getElPropVal(el, propPath) {
+      if (!el) return null
+      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
+      let val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent)
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -754,7 +754,7 @@
             }
             if (root === SPEC_TIMEOUT) {
               const ms = parseInt(ev) || SPEC_TIMEOUT_MS
-              const onTimeout = (e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
+              const onTimeout = (_, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onTimeout, trig, mods)
               const id = setTimeout(() => {
                 try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error(`[dmax] Error: timeout handler (${ms}ms) failed:`, e?.message ?? e) }
