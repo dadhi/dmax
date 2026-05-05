@@ -191,6 +191,18 @@
         <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
         <button id="refreshThreads" data-sub:threads@.click="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
       </div>
+      <h4>9.a Indexed Signal Subscription</h4>
+      <div style="padding:8px 0;border-top:1px dashed #cbd5e1">
+        <label>Active index: <input id="demoIdx" type="number" min="0" data-sync:idx></label>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="setPost0Title" data-sub:post-objs.0.title@.click="'NewP0Title'">Set Post 0 Title</button>
+          <button id="setPost1Title" data-sub:post-objs.1.title@.click="'NewP1Title'">Set Post 1 Title</button>
+          <button id="setIdx0" data-sub:idx@.click="0">Use idx 0</button>
+          <button id="setIdx1" data-sub:idx@.click="1">Use idx 1</button>
+        </div>
+        <p>Indexed title: <strong id="demoIndexedPreview" data-sub:.@post-objs[idx]="(dm.postObjs && dm.postObjs[dm.idx]) ? dm.postObjs[dm.idx].title : ''"></strong></p>
+        <span id="indirectCount" hidden data-sub:.@post-objs[idx]="(window.__indirectCount = (window.__indirectCount || 0) + 1, window.__indirectCount)"></span>
+      </div>
       <h4>10. Modifiers demo</h4>
       <button id="onceBtn" data-sub:mod-once@.click^once="(dm.modOnce || 0) + 1">Once</button>
       <span data-sub:.@mod-once="dm.modOnce"></span>
@@ -230,6 +242,14 @@
         <div>Message: <span data-sub:.@sse-message="dm.sseMessage"></span> | Count: <span data-sub:.@sse-count="dm.sseCount"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
+      </div>
+      <div hidden>
+        <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount || 0) + 1, window.__contentCount)"></span>
+        <span id="shapeSub" data-sub:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
+        <span id="demoShape" data-sub:.@parent^shape_only="detail ? JSON.stringify(detail) : ''"></span>
+        <button id="chgChild" data-sub:parent.child@.click="(dm.parent && dm.parent.child ? dm.parent.child + 1 : 1)">Change child</button>
+        <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
+        <button id="removeKey" data-sub:parent@.click="(function(){ const next = Object.assign({}, dm.parent || {}); delete next.added; return next; })()">Remove key</button>
       </div>
     </section>
   </main>

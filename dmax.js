@@ -88,6 +88,7 @@
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
     const DUMP_STATES = new WeakMap()
+    const DUMP_REWRITES = new WeakMap()
 
     function isSpecial(n) {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -95,6 +96,10 @@
     }
 
     const _KIND = [MOD, SIGNAL, EV_PROP, SPECIAL]
+    function withSigRaw(item, raw) {
+      if (item && item.kind === SIGNAL) Object.defineProperty(item, 'raw', { value: raw, configurable: true })
+      return item
+    }
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     function parseItem(aName, type, n, pos = 0) {
       if (!n) return null
@@ -117,18 +122,20 @@
       let kind = EV_PROP
       if (root && root.length > 0) {
         const id = root[0] === ID
-        if (id || isSpecial(root)) {
-          kind = id ? EV_PROP : SPECIAL
-          root = root.slice(1)
-          if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
-        } else {
-          kind = SIGNAL
-          root = kebabToCamel(root)
+          if (id || isSpecial(root)) {
+            kind = id ? EV_PROP : SPECIAL
+            root = root.slice(1)
+            if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
+          } else {
+            kind = SIGNAL
+            const b = root.indexOf('[')
+            if (b >= 0) root = root.slice(0, b)
+            root = kebabToCamel(root)
+          }
         }
-      }
 
       if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
-      if (d < 0 || d + 1 == n.length) return { kind, not, root, path: null }
+      if (d < 0 || d + 1 == n.length) return withSigRaw({ kind, not, root, path: null }, n)
 
       p = d + 1
       let path = []
@@ -139,7 +146,7 @@
         path.push(kebabToCamel(part))
         ++p
       }
-      return { kind, not, root, path }
+      return withSigRaw({ kind, not, root, path }, n)
     }
 
     function finishParse(items, p, it, aName) {
@@ -396,6 +403,7 @@
 
     function getSigValOrIt(it) {
       if (!it.kind) return it
+      it = getSigRef(it)
       const sig = _dm.get(it.root)
       const path = it.path
       const val = path && path.length ? getPropValAndDepth(sig, path)[0] : sig
@@ -486,6 +494,134 @@
       return true
     }
 
+    function hasBracketIndex(s) {
+      return typeof s === 'string' && s.indexOf('[') >= 0
+    }
+
+    function splitSigRef(raw) {
+      const parts = []
+      if (typeof raw !== 'string' || !raw.length) return parts
+      let start = 0, depth = 0
+      for (let i = 0; i < raw.length; ++i) {
+        const ch = raw[i]
+        if (ch === '[') ++depth
+        else if (ch === ']') { if (depth > 0) --depth }
+        else if (ch === '.' && !depth) {
+          parts.push(raw.slice(start, i))
+          start = i + 1
+        }
+      }
+      if (start < raw.length) parts.push(raw.slice(start))
+      return parts
+    }
+
+    function findMatchingBracket(s, pos) {
+      let depth = 0
+      for (let i = pos; i < s.length; ++i) {
+        const ch = s[i]
+        if (ch === '[') ++depth
+        else if (ch === ']' && !--depth) return i
+      }
+      return -1
+    }
+
+    function trimSpaces(s) {
+      if (typeof s !== 'string' || !s.length) return s
+      let a = 0, b = s.length
+      while (a < b && s.charCodeAt(a) <= 32) ++a
+      while (b > a && s.charCodeAt(b - 1) <= 32) --b
+      return a || b !== s.length ? s.slice(a, b) : s
+    }
+
+    function collectBracketRoots(raw, roots = []) {
+      if (!hasBracketIndex(raw)) return roots
+      for (let i = raw.indexOf('['); i >= 0 && i < raw.length; i = raw.indexOf('[', i + 1)) {
+        const end = findMatchingBracket(raw, i)
+        if (end < 0) break
+        const inner = trimSpaces(raw.slice(i + 1, end))
+        if (inner && !isDigitsOnly(inner)) {
+          const base = splitSigRef(inner)[0] || ''
+          const stop = indexFirst(base, ['[', '.', ' '])
+          const root = kebabToCamel(stop >= 0 ? base.slice(0, stop) : base)
+          if (root && roots.indexOf(root) < 0) roots.push(root)
+          if (hasBracketIndex(inner)) collectBracketRoots(inner, roots)
+        }
+        i = end
+      }
+      return roots
+    }
+
+    function resolveSigRef(raw) {
+      const parts = splitSigRef(raw)
+      let root = null, path = null
+      for (let i = 0; i < parts.length; ++i) {
+        const part = parts[i]
+        if (!part) continue
+        let p = part.indexOf('[')
+        const base = p < 0 ? part : part.slice(0, p)
+        const key = kebabToCamel(base)
+        if (!key) continue
+        if (!root) root = key
+        else (path ??= []).push(key)
+        while (p >= 0) {
+          const end = findMatchingBracket(part, p)
+          if (end < 0) break
+          const inner = trimSpaces(part.slice(p + 1, end))
+          let val = inner
+          if (inner && !isDigitsOnly(inner)) {
+            const ref = resolveSigRef(inner)
+            if (ref && ref.root) {
+              const sig = _dm.get(ref.root)
+              val = ref.path && ref.path.length ? getPropValAndDepth(sig, ref.path)[0] : sig
+            }
+          }
+          ;(path ??= []).push(val)
+          p = part.indexOf('[', end + 1)
+        }
+      }
+      return { kind: SIGNAL, not: null, root, path }
+    }
+
+    function getSigRef(it) {
+      if (!it || !it.kind || it.kind !== SIGNAL || !it.raw || !hasBracketIndex(it.raw)) return it
+      const ref = resolveSigRef(it.raw)
+      return ref && ref.root ? { kind: SIGNAL, not: it.not, root: ref.root, path: ref.path } : it
+    }
+
+    function pathsRelated(changePath, watchPath) {
+      if (!changePath || !changePath.length || !watchPath || !watchPath.length) return true
+      const len = changePath.length < watchPath.length ? changePath.length : watchPath.length
+      for (let i = 0; i < len; ++i) if ('' + changePath[i] !== '' + watchPath[i]) return false
+      return true
+    }
+
+    function bindSigSub(elSubs, el, kind, trig, mods, wrappedSubFn) {
+      const ref = getSigRef(trig)
+      const root = ref.root, changeMod = getSigChangeShape(mods)
+      const extraRoots = trig.raw && hasBracketIndex(trig.raw) ? collectBracketRoots(trig.raw) : EMPTY_ARR
+      let sigFn = wrappedSubFn, path = ref.path
+      if (extraRoots.length) {
+        path = null
+        sigFn = (detail, changedPath, changedRoot) => {
+          if (changedRoot !== root || !changedPath || pathsRelated(changedPath, getSigRef(trig).path)) wrappedSubFn(detail)
+        }
+      }
+      sigFn.remove = () => {
+        removeSigSub(root, sigFn)
+        for (let i = 0; i < extraRoots.length; ++i) if (extraRoots[i] !== root) removeSigSub(extraRoots[i], sigFn)
+      }
+      ensureSigSubs(root).push({ fn: sigFn, changeMod, path })
+      elSubs.push({ type: 'signal', el, kind, root, path, fn: sigFn })
+      for (let i = 0; i < extraRoots.length; ++i) {
+        const extraRoot = extraRoots[i]
+        if (extraRoot === root) continue
+        ensureSigSubs(extraRoot).push({ fn: sigFn, changeMod, path: null })
+        elSubs.push({ type: 'signal', el, kind, root: extraRoot, path: null, fn: sigFn })
+      }
+      wrappedSubFn.remove = sigFn.remove
+      return ref
+    }
+
     function buildDumpItemRef(sigRoot, sigPath, idx) {
       let out = sigRoot
       if (sigPath && sigPath.length) for (const part of sigPath) out += '.' + part
@@ -520,15 +656,20 @@
       while (stack.length) {
         const node = stack.pop()
         const attrs = node.attributes || EMPTY_ARR
+        let rewrites = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
           const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
           const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
           try {
-            if (nextName !== attr.name) { node.removeAttribute(attr.name); node.setAttribute(nextName, nextVal) }
-            else if (nextVal !== attr.value) node.setAttribute(nextName, nextVal)
+            if (nextName !== attr.name || nextVal !== attr.value) {
+              if (!rewrites) rewrites = []
+              rewrites.push([attr.name, nextName, nextVal])
+              if (nextName === attr.name) attr.value = nextVal
+            }
           } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', nextName, e.message) }
         }
+        if (rewrites && rewrites.length) DUMP_REWRITES.set(node, rewrites)
         const children = node.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
@@ -539,9 +680,26 @@
       while (stack.length) {
         const el = stack.pop()
         const attrs = el.attributes || EMPTY_ARR
-        for (let i = 0; i < attrs.length; ++i) {
-          const attr = attrs[i]
-          wireNode(el, attr.name, attr.value)
+        const rewrites = DUMP_REWRITES.get(el)
+        if (rewrites && rewrites.length) {
+          for (let i = 0; i < attrs.length; ++i) {
+            const attr = attrs[i]
+            let matched = false
+            for (let j = 0; j < rewrites.length; ++j) {
+              const rw = rewrites[j]
+              if (rw[0] === attr.name) {
+                wireNode(el, rw[1], rw[2])
+                matched = true
+                break
+              }
+            }
+            if (!matched) wireNode(el, attr.name, attr.value)
+          }
+        } else {
+          for (let i = 0; i < attrs.length; ++i) {
+            const attr = attrs[i]
+            wireNode(el, attr.name, attr.value)
+          }
         }
         const children = el.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
@@ -650,6 +808,7 @@
     // If sig does not exist in _dm, then create it on demand.
     function setSigAndNotifySubs(aName, tar, val) {
       if (!expected(tar)) return null
+      tar = getSigRef(tar)
 
       const root = tar.root, path = tar.path
       if (!expected(root)) return null
@@ -677,12 +836,15 @@
       for (const h of handlers) { // h.fn, h.changeMod, h.path
         const hp = h.path, changeMod = h.changeMod
         if (!hp) {
-          if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
-            diffed = true
-            diff = diffShapeShallow(curVal, val)
+          if (!path) {
+            if (!diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
+              diffed = true
+              diff = diffShapeShallow(curVal, val)
+            }
+            if (changeMod !== SIG_CHANGED_SHAPE_ONLY || diff) collected.push([h, diff])
+          } else if (changeMod !== SIG_CHANGED_SHAPE_ONLY) {
+            collected.push([h, null]) // path-based notifications do not forward a root diff
           }
-          if (path || changeMod !== SIG_CHANGED_SHAPE_ONLY || diff)
-            collected.push([h, path ? null : diff]) // path-based notifications do not forward a root diff
           continue
         }
 
@@ -736,7 +898,7 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        h.fn(h.changeMod === SIG_CHANGED_ANY ? null : col[1])
+        h.fn(h.changeMod === SIG_CHANGED_ANY ? null : col[1], path, root)
       }
 
       updateDebug()
@@ -837,14 +999,10 @@
           const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subs = ensureSigSubs(root)
           const subFn = applyTrigMods((ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
           const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          subs.push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
+          bindSigSub(elSubs, el, kind, trig, mods, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             subFn(null, getSigValOrIt(trig), null)
@@ -962,11 +1120,8 @@
           setProp(el, aName, writePropTar, v)
         }, sigRead, readMods)
         const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(sigRead), detail)
-        const changeMod = getSigChangeShape(readMods)
-        ensureSigSubs(sigRead.root).push({ fn: wrappedSubFn, changeMod, path: sigRead.path })
-        wrappedSubFn.remove = () => removeSigSub(sigRead.root, wrappedSubFn)
+        bindSigSub(elSubs, el, sigRead.kind, sigRead, readMods, wrappedSubFn)
         subFn.remove = wrappedSubFn.remove
-        elSubs.push({ type: 'signal', el, kind: sigRead.kind, root: sigRead.root, path: sigRead.path, fn: wrappedSubFn })
         if (isImmediateMod(readMods, true)) subFn(null, getSigValOrIt(sigRead), null)
       }
 
@@ -1022,11 +1177,8 @@
           if (!expected(root)) return
           const subFn = applyTrigMods((ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
           const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
+          bindSigSub(elSubs, el, kind, trig, mods, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (isImmediateMod(mods, false)) subFn(null, getSigValOrIt(trig), null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
@@ -1075,11 +1227,8 @@
           if (!expected(root)) return
           const subFn = applyTrigMods((ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
           const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
+          bindSigSub(elSubs, el, kind, trig, mods, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (isImmediateMod(mods, false)) subFn(null, getSigValOrIt(trig), null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
@@ -1163,13 +1312,11 @@
       }
 
       const root = sigRoot, path = sigPath
-      const changeMod = getSigChangeShape(mods)
       const subFn = applyTrigMods((ev, trigVal, detail) => doRender(detail), trig, mods)
       const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-      ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-      wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
+      const elSubs = ensureBoundSubs(el)
+      bindSigSub(elSubs, el, SIGNAL, trig, mods, wrappedSubFn)
       subFn.remove = wrappedSubFn.remove
-      ensureBoundSubs(el).push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
       if (isImmediateMod(mods, false)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1223,7 +1370,7 @@
         else if (mr === MOD_BODY) bodyMods.push(m)
         else if (mr === MOD_HDR) hdrMods.push(m)
         else if (!sendAll && (mr === MOD_SEND_ALL || mr === MOD_SYNC_ALL)) sendAll = true
-        else if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
+        if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
       }
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
@@ -1466,11 +1613,8 @@
           if (!expected(root)) return
           const subFn = applyTrigMods((ev, trigVal, detail) => doRequest(), trig, mods)
           const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
+          bindSigSub(elSubs, el, kind, trig, mods, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             doRequest()

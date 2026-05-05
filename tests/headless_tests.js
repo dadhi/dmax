@@ -280,6 +280,8 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     const inlineThreadItems = Array.from(inlineThreads.children);
     if (threadItems.length === 4) pass('Section9 nested data-dump rendered 4 threads after shape change'); else fail('Section9 nested data-dump thread count wrong');
     if (inlineThreadItems.length === 4) pass('Section9 nested inline data-dump rendered 4 threads after shape change'); else fail('Section9 nested inline data-dump thread count wrong');
+    if (threadItems[0]?.querySelectorAll('.thread-replies li').length === 2) pass('Section9 nested data-dump rendered existing replies'); else fail('Section9 nested data-dump replies wrong');
+    if (inlineThreadItems[3]?.querySelectorAll('.thread-replies li').length === 1) pass('Section9 nested inline data-dump rendered appended replies'); else fail('Section9 nested inline data-dump appended replies wrong');
 
     // Section 10: modifiers
     const onceBtn = doc.getElementById('onceBtn');
@@ -322,8 +324,56 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     await sleep(120);
     if (Number(andVal.textContent.trim() || 0) === 1) pass('Modifiers ^and allows when gate true'); else fail('Modifiers ^and failed when gate true');
 
-    //todo: @feat restore fine-grained content/shape demo fixtures in index.html before re-enabling these signal-shape regression tests.
-    //todo: @feat restore bracket-index demo fixtures in index.html before re-enabling postObjs[idx] regression coverage.
+    // Fine-grained content/shape regressions
+    const contentSub = doc.getElementById('contentSub');
+    const shapeSub = doc.getElementById('shapeSub');
+    const demoShape = doc.getElementById('demoShape');
+    const chgChild = doc.getElementById('chgChild');
+    const addKey = doc.getElementById('addKey');
+    const removeKey = doc.getElementById('removeKey');
+    if (!contentSub || !shapeSub || !demoShape || !chgChild || !addKey || !removeKey) fail('Fine-grained reactivity fixtures missing');
+    fire(addKey, 'click');
+    await sleep(80);
+    window.__contentCount = 0;
+    window.__shapeCount = 0;
+    fire(chgChild, 'click');
+    await sleep(80);
+    if ((window.__contentCount || 0) === 1) pass('Fine-grained content subscriptions react to nested writes'); else fail('Fine-grained content subscriptions did not react to nested writes');
+    if ((window.__shapeCount || 0) === 0) pass('Fine-grained shape subscriptions ignore nested content writes'); else fail('Fine-grained shape subscriptions reacted to nested content writes');
+    window.__contentCount = 0;
+    window.__shapeCount = 0;
+    fire(addKey, 'click');
+    await sleep(80);
+    if ((window.__shapeCount || 0) === 0) pass('Fine-grained shape subscriptions ignore shape-neutral root rewrites'); else fail('Fine-grained shape subscriptions reacted to shape-neutral root rewrites');
+    fire(removeKey, 'click');
+    await sleep(80);
+    if ((window.__contentCount || 0) >= 1 && (window.__shapeCount || 0) === 1) pass('Fine-grained shape subscriptions react to root shape changes'); else fail('Fine-grained shape subscriptions did not react to root shape changes');
+    if ((demoShape.textContent || '').trim().length) pass('Fine-grained shape detail reaches DOM subscribers'); else fail('Fine-grained shape detail did not reach DOM subscribers');
+
+    // Bracket-index regressions
+    const indirectCount = doc.getElementById('indirectCount');
+    const setPost0 = doc.getElementById('setPost0Title');
+    const setPost1 = doc.getElementById('setPost1Title');
+    const setIdx0 = doc.getElementById('setIdx0');
+    const setIdx1 = doc.getElementById('setIdx1');
+    const indexedPreview = doc.getElementById('demoIndexedPreview');
+    if (!indirectCount || !setPost0 || !setPost1 || !setIdx0 || !setIdx1 || !indexedPreview) fail('Bracket-index fixtures missing');
+    fire(setIdx0, 'click');
+    await sleep(80);
+    window.__indirectCount = 0;
+    fire(setPost0, 'click');
+    await sleep(80);
+    if ((window.__indirectCount || 0) === 1) pass('Bracket-index subscription reacts to current index item changes'); else fail('Bracket-index subscription missed current index item changes');
+    if ((indexedPreview.textContent || '').trim() === 'NewP0Title') pass('Bracket-index preview shows the active indexed item'); else fail('Bracket-index preview did not show the active indexed item');
+    window.__indirectCount = 0;
+    fire(setPost1, 'click');
+    await sleep(80);
+    if ((window.__indirectCount || 0) === 0) pass('Bracket-index subscription ignores inactive index item changes'); else fail('Bracket-index subscription reacted to an inactive index item change');
+    window.__indirectCount = 0;
+    fire(setIdx1, 'click');
+    await sleep(80);
+    if ((window.__indirectCount || 0) >= 1) pass('Bracket-index subscription reacts to index signal changes'); else fail('Bracket-index subscription did not react to index signal changes');
+    if ((indexedPreview.textContent || '').trim() === 'NewP1Title') pass('Bracket-index preview refreshes after index signal changes'); else fail('Bracket-index preview did not refresh after index signal changes');
 
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
