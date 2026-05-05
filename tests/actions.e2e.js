@@ -133,7 +133,7 @@ function getPathname(url) {
   const last = window.__lastRequest();
   assert.strictEqual(last.init.method, 'POST', 'POST request uses POST method');
   assert.ok(last.init.body, 'POST request sent a body');
-  assert.strictEqual(last.init.headers['Content-Type'], 'application/json', 'POST request is JSON');
+  assert.strictEqual(last.init.headers['content-type'], 'application/json', 'POST request is JSON');
 
   //todo: @feat support explicit per-input body keys / nested body mapping in dAction so multi-field POST payloads can be asserted here.
   console.log('POST test passed');

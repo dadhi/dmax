@@ -46,6 +46,12 @@
       return res
     }
 
+    function toHeaderKebab(s) {
+      if (!s) return s
+      const res = camelToKebab(s)
+      return res[0] === '-' ? res.slice(1) : res
+    }
+
     // Updated attribute-token syntax reference
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
     // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
@@ -64,15 +70,15 @@
     const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge'
     const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
-    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_AUTH = 'auth'
+    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
     const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
     const MOD_DEBOUNCE_MS = 500, MOD_THROTTLE_MS = 500, MOD_RETRY_MS = 1000
-    const HEADER_ACCEPT = 'Accept', HEADER_ACCEPT_ENCODING = 'Accept-Encoding', HEADER_AUTHORIZATION = 'authorization'
-    const HEADER_CACHE_CONTROL = 'Cache-Control', HEADER_CONTENT_TYPE = 'Content-Type', HEADER_PRAGMA = 'Pragma'
+    const HEADER_ACCEPT = 'accept', HEADER_ACCEPT_ENCODING = 'accept-encoding', HEADER_AUTHORIZATION = 'authorization'
+    const HEADER_CACHE_CONTROL = 'cache-control', HEADER_CONTENT_TYPE = 'content-type', HEADER_PRAGMA = 'pragma'
     const ACTION_HEADERS_EMPTY = Object.freeze(Object.create(null))
     const ACTION_HEADERS_JSON = Object.freeze({ [HEADER_CONTENT_TYPE]: 'application/json', [HEADER_ACCEPT]: 'application/json' })
     const ACTION_HEADERS_FORM = Object.freeze({ [HEADER_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
@@ -1191,6 +1197,7 @@
       let isJson = false, isText = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null, authMod = null
+      let headersNoKebab = false
       let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
@@ -1207,6 +1214,7 @@
         else if (mr === MOD_DEFLATE) encDeflate = true
         else if (mr === MOD_COMPRESS) encCompress = true
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
+        else if (mr === MOD_HEADERS_NO_KEBAB) headersNoKebab = true
         else if (mr === MOD_AUTH && !authMod) authMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
@@ -1325,7 +1333,7 @@
             if (hdrObj && typeof hdrObj === 'object') {
               headers = Object.create(null)
               sharedHeaders = false
-              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[headersNoKebab ? hk : toHeaderKebab(hk)] = String(hdrObj[hk])
             }
           }
           if (baseHeaders !== ACTION_HEADERS_EMPTY) {
@@ -1347,8 +1355,11 @@
             const mPath = m.path
             if (!mPath) continue
             let mKey, mVal
-            if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
+            if (typeof mPath === 'string') { mKey = toHeaderKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
+            else if (mPath.kind === SIGNAL) {
+              mKey = toHeaderKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
+              mVal = getSigValOrIt(mPath)
+            }
             else continue
             if (sharedHeaders) {
               headers = cloneOwnProps(headers)

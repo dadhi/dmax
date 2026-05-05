@@ -56,7 +56,8 @@ const BASE_STATE = JSON.stringify({
   page: 3,
   targetId: 42,
   authorization: 'Bearer tok-xyz',
-  reqHeaders: { authorization: 'Bearer hdr-123', 'x-trace': 'trace-abc' },
+  reqHeaders: { authorization: 'Bearer hdr-123', xTraceId: 'trace-abc' },
+  rawHeaders: { 'X-Trace-Id': 'trace-raw' },
   user: { name: 'Alice', posts: [], themeColor: '', fontSize: '', isActive: false },
   ui: { themeColor: '', fontSize: '', isActive: false },
   posts: ['First', 'Second', 'Third'],
@@ -232,6 +233,7 @@ function* generateDataActionCombinations() {
     yield { attr: `data-${method}^busy.req-busy^err.req-err^code.req-code:result@.click`, valid: true, category: `${method}-state-modes` };
     yield { attr: `data-${method}^busy.status:result@.click`, valid: true, category: `${method}-state-all` };
     yield { attr: `data-${method}^headers.req-headers:result@.click`, valid: true, category: `${method}-headers-modifier` };
+    yield { attr: `data-${method}^headers.raw-headers^headers-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
     yield { attr: `data-${method}^header.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
     yield { attr: `data-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
     if (method !== 'get') yield { attr: `data-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
@@ -517,6 +519,31 @@ async function runRegressionTests(runner) {
         if (!req) throw new Error('request missing');
         const body = JSON.parse(req.init.body);
         if (body.title !== 'Hello title' || body.targetId !== 42) throw new Error('expected title and targetId body fields');
+      }
+    },
+    {
+      attr: 'data-get^headers.req-headers:result@.click',
+      expr: '"https://api.test/headers"',
+      valid: true,
+      desc: '^headers kebab-cases copied object fields by default',
+      exercise: async ({ element, window, requests }) => {
+        element.dispatchEvent(new window.Event('click', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 50));
+        const req = requests[0];
+        if (!req || req.init.headers['x-trace-id'] !== 'trace-abc' || req.init.headers.authorization !== 'Bearer hdr-123')
+          throw new Error('default header kebab-case mapping missing');
+      }
+    },
+    {
+      attr: 'data-get^headers.raw-headers^headers-no-kebab:result@.click',
+      expr: '"https://api.test/headers-raw"',
+      valid: true,
+      desc: '^headers-no-kebab preserves exact copied header keys',
+      exercise: async ({ element, window, requests }) => {
+        element.dispatchEvent(new window.Event('click', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 50));
+        const req = requests[0];
+        if (!req || req.init.headers['X-Trace-Id'] !== 'trace-raw') throw new Error('exact header key missing');
       }
     },
     {

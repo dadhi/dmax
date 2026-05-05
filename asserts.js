@@ -146,10 +146,10 @@
     __assert(buildDumpItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dDump item expr helper')
     __assert(replaceDumpTokens, ['data-dump@$item.replies+$index', 'threads.0', '0'], 'data-dump@threads.0.replies+0', 'dDump token rewrite helper')
     __assert(() => ({ ...buildActionBaseHeaders(false, false, false, true, false, 'gzip') }), [], {
-      Accept: 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-      'Accept-Encoding': 'gzip'
+      accept: 'text/event-stream',
+      'cache-control': 'no-cache',
+      pragma: 'no-cache',
+      'accept-encoding': 'gzip'
     }, 'SSE base headers imply no-cache and accept-encoding')
     __assert((id, aName) => {
       const el = getElById(id, aName)
@@ -789,7 +789,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('POST ^json sends Content-Type and JSON body', async () => {
+    __asyncAssert('POST ^json sends content-type and JSON body', async () => {
       __reset()
       let sentBody = null, sentHeaders = null
       window.fetch = (_url, init) => {
@@ -810,7 +810,7 @@
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: { contentType: sentHeaders?.['Content-Type'], body: JSON.parse(sentBody), result: DM['postResult'] },
+          actual: { contentType: sentHeaders?.['content-type'], body: JSON.parse(sentBody), result: DM['postResult'] },
           expected: { contentType: 'application/json', body: 'Hello World', result: { id: 1 } }
         }
       } finally { delete window.fetch }
@@ -1002,14 +1002,14 @@
         const btn = document.createElement('button')
         _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
         _dm.set('reqHeaders', { authorization: 'Bearer 123', 'x-trace': 'abc' })
-        dAction(btn, 'data-get^merge^no-cache^headers.reqHeaders:profile@.click', '"https://api.test/profile"')
+        dAction(btn, 'data-get^merge^no-cache^headers.req-headers:profile@.click', '"https://api.test/profile"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: {
             profile: DM['profile'],
-            cacheControl: sentHeaders?.['Cache-Control'],
+            cacheControl: sentHeaders?.['cache-control'],
             auth: sentHeaders?.authorization
           },
           expected: {
@@ -1020,7 +1020,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('compression mods set Accept-Encoding header consistently', async () => {
+    __asyncAssert('compression mods set accept-encoding header consistently', async () => {
       __reset()
       let sentHeaders = null
       window.fetch = (_url, init) => {
@@ -1039,12 +1039,12 @@
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: sentHeaders?.['Accept-Encoding'],
+          actual: sentHeaders?.['accept-encoding'],
           expected: 'br, gzip, deflate, compress'
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^sse overrides generic Accept from ^headers while ^header stays most specific', async () => {
+    __asyncAssert('^sse overrides generic accept from ^headers while ^header stays most specific', async () => {
       __reset()
       let capturedHeaders = null
       window.fetch = (_url, init) => {
@@ -1057,15 +1057,50 @@
       }
       try {
         const btn = document.createElement('button')
-        _dm.set('reqHeaders', { Accept: 'application/json', authorization: 'Bearer old' })
+        _dm.set('reqHeaders', { accept: 'application/json', authorization: 'Bearer old' })
         _dm.set('authorization', 'Bearer new')
-        dAction(btn, 'data-get^sse^headers.reqHeaders^header.authorization:res@.click', '"https://api.test/sse"')
+        dAction(btn, 'data-get^sse^headers.req-headers^header.authorization:res@.click', '"https://api.test/sse"')
         const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
         if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: { accept: capturedHeaders?.Accept, auth: capturedHeaders?.authorization },
+          actual: { accept: capturedHeaders?.accept, auth: capturedHeaders?.authorization },
           expected: { accept: 'text/event-stream', auth: 'Bearer new' }
+        }
+      } finally { delete window.fetch }
+    })
+    __asyncAssert('^headers kebab-cases object fields by default while ^headers-no-kebab preserves exact keys', async () => {
+      __reset()
+      let firstHeaders = null, secondHeaders = null
+      window.fetch = (_url, init) => {
+        if (!firstHeaders) firstHeaders = init.headers
+        else secondHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn1 = document.createElement('button')
+        _dm.set('reqHeaders', { xTraceId: 'req-001', authorization: 'Bearer hdr' })
+        dAction(btn1, 'data-get^headers.req-headers:res@.click', '"https://api.test/headers"')
+        let clickSubs = (_cleanupBoundSubs.get(btn1) || EMPTY_ARR).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        const btn2 = document.createElement('button')
+        _dm.set('rawHeaders', { 'X-Trace-Id': 'req-raw' })
+        dAction(btn2, 'data-get^headers.raw-headers^headers-no-kebab:res@.click', '"https://api.test/headers-raw"')
+        clickSubs = (_cleanupBoundSubs.get(btn2) || EMPTY_ARR).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: {
+            trace: firstHeaders?.['x-trace-id'],
+            auth: firstHeaders?.authorization,
+            raw: secondHeaders?.['X-Trace-Id']
+          },
+          expected: { trace: 'req-001', auth: 'Bearer hdr', raw: 'req-raw' }
         }
       } finally { delete window.fetch }
     })
@@ -1122,7 +1157,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^header.X sets individual request header from named signal (camelCase conversion)', async () => {
+    __asyncAssert('^header.X keeps kebab-case header names while reading camelCase signals', async () => {
       __reset()
       let capturedHeaders = null
       window.fetch = (_url, init) => {
@@ -1144,8 +1179,8 @@
         return {
           actual: {
             auth: capturedHeaders?.authorization,
-            traceKey: Object.prototype.hasOwnProperty.call(capturedHeaders, 'xTraceId'),
-            traceVal: capturedHeaders?.xTraceId
+            traceKey: Object.prototype.hasOwnProperty.call(capturedHeaders, 'x-trace-id'),
+            traceVal: capturedHeaders?.['x-trace-id']
           },
           expected: { auth: 'Bearer tok-xyz', traceKey: true, traceVal: 'req-001' }
         }
@@ -1170,9 +1205,9 @@
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: {
-            accept: capturedHeaders?.Accept,
-            cache: capturedHeaders?.['Cache-Control'],
-            pragma: capturedHeaders?.Pragma
+            accept: capturedHeaders?.accept,
+            cache: capturedHeaders?.['cache-control'],
+            pragma: capturedHeaders?.pragma
           },
           expected: { accept: 'text/event-stream', cache: 'no-cache', pragma: 'no-cache' }
         }
