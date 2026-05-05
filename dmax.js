@@ -515,18 +515,10 @@
       return out ? out + s.slice(p) : s
     }
 
-    function forEachSubtreeEl(rootNode, fn) {
+    function rewriteDumpBindings(rootNode, itemRef, itemExpr, indexText) {
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
-        fn(node)
-        const children = node.children
-        for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
-      }
-    }
-
-    function rewriteDumpBindings(rootNode, itemRef, itemExpr, indexText) {
-      forEachSubtreeEl(rootNode, (node) => {
         const attrs = node.attributes || EMPTY_ARR
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
@@ -537,17 +529,23 @@
             else if (nextVal !== attr.value) node.setAttribute(nextName, nextVal)
           } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', nextName, e.message) }
         }
-      })
+        const children = node.children
+        for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
+      }
     }
 
     function wireDumpClone(node) {
-      forEachSubtreeEl(node, (el) => {
+      const stack = [node]
+      while (stack.length) {
+        const el = stack.pop()
         const attrs = el.attributes || EMPTY_ARR
         for (let i = 0; i < attrs.length; ++i) {
           const attr = attrs[i]
           wireNode(el, attr.name, attr.value)
         }
-      })
+        const children = el.children
+        for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
+      }
     }
 
     function mergeActionVals(prev, next) {
@@ -1202,10 +1200,7 @@
         if (mr === MOD_JSON) isJson = true
         else if (mr === MOD_TEXT) isText = true
         else if (mr === MOD_FORM) isForm = true
-        else if (mr === MOD_SSE) {
-          isSse = true
-          noCache = true
-        }
+        else if (mr === MOD_SSE) noCache = isSse = true
         else if (mr === MOD_NO_CACHE) noCache = true
         else if (mr === MOD_BROTLI || mr === MOD_BR) encBr = true
         else if (mr === MOD_GZIP) encGzip = true
@@ -1247,13 +1242,7 @@
       const abortStat = resolveStatusSig(abortMod, MOD_ABORT)
       // ^retry.N sets the reconnect delay in ms after an unexpected SSE close.
       const retryDelay = retryMod ? (+(resolveModPathVal(retryMod.path) ?? MOD_RETRY_MS) || MOD_RETRY_MS) : 0
-      defSig(busyStat, false)
-      defSig(completeStat, false)
-      defSig(errStat, null)
-      defSig(codeStat, null)
-      defSig(openStat, false)
-      defSig(closeStat, false)
-      defSig(abortStat, null)
+      defSig(busyStat, false), defSig(completeStat, false), defSig(errStat, null), defSig(codeStat, null), defSig(openStat, false), defSig(closeStat, false), defSig(abortStat, null)
       let enc = ''
       if (encBr) enc = 'br'
       if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
