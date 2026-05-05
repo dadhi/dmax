@@ -71,7 +71,7 @@
     __assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
     __assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
     __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
-    __assert(camelToKebab, ['HTTPRequest'], 'h-t-t-p-request', 'camel to kebab capitals');
+    __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
     __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PROP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
     __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
     __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PROP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');

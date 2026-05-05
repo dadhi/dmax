@@ -42,7 +42,6 @@
         const c = s[p]
         res += c >= 'A' && c <= 'Z' ? '-' + c.toLowerCase() : c
       }
-      if (res[0] === '-') res = res.slice(1)
       KEBAB_NAMES.set(s, res)
       return res
     }
