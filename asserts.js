@@ -1366,7 +1366,7 @@
         const input = container.querySelector('#fi-inp')
         input.value = 'user typed'  // dirty the field
         // mode:replace replaces the node entirely — opt-out of form state preservation
-        applyDmaxPatchElements({ mode: 'replace', dmaxElements: '<input id="fi-inp" type="text" value="reset">' })
+        applyPatchEls({ mode: 'replace', dmaxElements: '<input id="fi-inp" type="text" value="reset">' })
         const fresh = container.querySelector('#fi-inp')
         return {
           isNewNode: fresh !== input,
@@ -1378,7 +1378,7 @@
     function __tDmaxPatchSignalsMergeAndRemove() {
       __reset()
       _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
-      applyDmaxPatchSigs('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
+      applyPatchSigs('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
       const user = _dm.get('user') || {}
       return { name: user.name, keep: user.keep, hasRemove: Object.prototype.hasOwnProperty.call(user, 'removeMe'), newSg: _dm.get('newSg') }
     }
@@ -1386,7 +1386,7 @@
     function __tDmaxPatchSignalsOnlyIfMissing() {
       __reset()
       _dm.set('existing', 1)
-      applyDmaxPatchSigs('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
+      applyPatchSigs('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
       return { existing: _dm.get('existing'), added: _dm.get('added') }
     }
     __assert(__tDmaxPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'dmax: patch-signals onlyIfMissing skips existing roots')
@@ -1398,7 +1398,7 @@
         const btn = root.querySelector('#ds-btn')
         let clicks = 0
         btn.addEventListener('click', () => clicks++)
-        applyDmaxPatchElements({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
+        applyPatchEls({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
         const after = root.querySelector('#ds-btn')
         after.click()
         return { sameNode: after === btn, clicks, className: after.className, text: after.textContent }
@@ -1424,7 +1424,7 @@
           'data: selector .rm',
           ''
         ].join('\n')
-        const applied = applyDmaxSse(stream, 't')
+        const applied = applySse(stream, 't')
         return {
           events: applied.length,
           sseVal: _dm.get('sseVal'),
@@ -1447,7 +1447,7 @@
           'data: dmaxElements line2</span></div>',
           ''
         ].join('\r\n')
-        applyDmaxSse(stream, 't')
+        applySse(stream, 't')
         return root.querySelector('#ds-multi')?.textContent || ''
       } finally { root.remove() }
     }
@@ -1594,7 +1594,7 @@
       }
       _dm.set('sseOpen', false)
       _dm.set('sseClose', false)
-      await consumeDmaxSseStream(
+      await consumeSseStream(
         fakeBody,
         'test-lc',
         () => setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, true),

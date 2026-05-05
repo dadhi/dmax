@@ -199,11 +199,11 @@
 
     const _dm = new Map()
     const DM = new Proxy({}, {
-      get: (obj, key) => _dm.get(key),
-      set: (obj, key, val) => { _dm.set(key, val); return true; },
-      has: (obj, key) => _dm.has(key),
+      get: (_, key) => _dm.get(key),
+      set: (_, key, val) => { _dm.set(key, val); return true; },
+      has: (_, key) => _dm.has(key),
       ownKeys: () => Array.from(_dm.keys()),
-      getOwnPropertyDescriptor: (obj, key) =>
+      getOwnPropertyDescriptor: (_, key) =>
         _dm.has(key) ? { value: _dm.get(key), enumerable: true, configurable: true } : undefined
     });
 
@@ -725,16 +725,16 @@
           if (kind === SPECIAL) {
             if (root === SPEC_WIN) {
               const onWin = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-              const modded = applyTrigMods(onWin, trig, mods), eventName = ev || SPEC_WIN_EV
-              window.addEventListener(eventName, modded)
-              elSubs.push({ type: 'event', tarEl: window, eventName, handler: modded })
+              const modded = applyTrigMods(onWin, trig, mods), evName = ev || SPEC_WIN_EV
+              window.addEventListener(evName, modded)
+              elSubs.push({ type: 'event', tarEl: window, evName, handler: modded })
               continue
             }
             if (root === SPEC_DOC) {
               const onDoc = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-              const modded = applyTrigMods(onDoc, trig, mods), eventName = ev || SPEC_DOC_EV
-              document.addEventListener(eventName, modded)
-              elSubs.push({ type: 'event', tarEl: document, eventName, handler: modded })
+              const modded = applyTrigMods(onDoc, trig, mods), evName = ev || SPEC_DOC_EV
+              document.addEventListener(evName, modded)
+              elSubs.push({ type: 'event', tarEl: document, evName, handler: modded })
               continue
             }
             if (root === SPEC_INTERVAL) {
@@ -769,7 +769,7 @@
                 const onForm = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
                 const modded = applyTrigMods(onForm, trig, mods)
                 formEl.addEventListener(formEv, modded)
-                elSubs.push({ type: 'event', tarEl: formEl, eventName: formEv, handler: modded })
+                elSubs.push({ type: 'event', tarEl: formEl, evName: formEv, handler: modded })
                 if (isImmediateMod(mods, false)) modded()
               }
               continue
@@ -782,11 +782,11 @@
           ev = ev ?? getDefaultEvent(tarEl)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
           const finalEvent = ev
-          const baseHandler = (eventObj) => fn(DM, el, trig, getElPropVal(tarEl, propPath), eventObj)
+          const baseHandler = (evObj) => fn(DM, el, trig, getElPropVal(tarEl, propPath), evObj)
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { tarEl.removeEventListener(finalEvent, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { tarEl.removeEventListener(finalEvent, moddedHandler) } catch (_) { } }
           tarEl.addEventListener(finalEvent, moddedHandler)
-          elSubs.push({ type: 'event', tarEl, eventName: finalEvent, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl, evName: finalEvent, handler: moddedHandler })
           if (isImmediateMod(mods, false)) {
             ranImmediate = true
             moddedHandler()
@@ -856,11 +856,11 @@
         ev = ev ?? getDefaultEvent(tarEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
-        const baseHandler = (eventObj) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath))
+        const baseHandler = (_) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath))
         const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TAR, writeMods)
-        moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, moddedHandler); } catch (e) { } };
+        moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, moddedHandler); } catch (_) { } };
         tarEl.addEventListener(ev, moddedHandler)
-        elSubs.push({ type: 'event', tarEl, eventName: ev, handler: moddedHandler })
+        elSubs.push({ type: 'event', tarEl, evName: ev, handler: moddedHandler })
         if (isImmediateMod(writeMods, false)) moddedHandler()
       }
     }
@@ -904,11 +904,11 @@
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
+          const baseHandler = (evObj) => applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), evObj) : true)
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
           evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', tarEl: evTarEl, eventName: ev, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
           if (isImmediateMod(mods, false)) moddedHandler()
         }
       }
@@ -957,11 +957,11 @@
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
+          const baseHandler = (evObj) => applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), evObj) : true)
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
           evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', tarEl: evTarEl, eventName: ev, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
           if (isImmediateMod(mods, false)) moddedHandler()
         }
       }
@@ -1275,7 +1275,7 @@
             // Use incremental streaming when the browser exposes a ReadableStream body;
             // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
             if (res.body && typeof res.body.getReader === 'function') {
-              payload = await consumeDmaxSseStream(
+              payload = await consumeSseStream(
                 res.body, aName,
                 openStat ? () => {
                   setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
@@ -1293,7 +1293,7 @@
             } else {
               if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
               const sseRaw = await res.text()
-              payload = applyDmaxSse(sseRaw, aName)
+              payload = applySse(sseRaw, aName)
               if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
               if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
             }
@@ -1355,11 +1355,11 @@
           if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => doRequest()
+          const baseHandler = (_) => doRequest()
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
           evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', tarEl: evTarEl, eventName: ev, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             moddedHandler()
@@ -1543,14 +1543,14 @@
       const tag = from.tagName
       const isFocused = from === document.activeElement
       let selStart = -1, selEnd = -1, selDir = 'none'
-      let selectValue = null, selectIndex = -1
+      let selVal = null, selIdx = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
-        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (e) {
+        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {
           // selection is not supported for some input types
         }
       } else if (isFocused && tag === 'SELECT') {
-        selectValue = from.value
-        selectIndex = from.selectedIndex
+        selVal = from.value
+        selIdx = from.selectedIndex
       }
       // Save scroll position so updates do not jump the viewport.
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
@@ -1566,14 +1566,14 @@
       if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
       // Restore caret and selection for focused text controls.
       if (isFocused && selStart >= 0) {
-        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (e) {
+        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_) {
           // setSelectionRange is not supported for some input types
         }
       } else if (isFocused && tag === 'SELECT') {
         // Restore by value first so reordered options keep the same logical selection.
-        from.value = selectValue
-        if (from.value !== selectValue && selectIndex >= 0 && selectIndex < from.options.length)
-          from.selectedIndex = selectIndex
+        from.value = selVal
+        if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length)
+          from.selectedIndex = selIdx
       }
     }
 
@@ -1592,10 +1592,10 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
-    const SSE_EVENT_DMAX_PATCH_ELEMENTS = 'dmax-patch-elements'
-    const SSE_EVENT_DMAX_PATCH_SIGS = 'dmax-patch-signals'
-    const SSE_DATA_DMAX_ELEMENTS = 'dmaxElements'
-    const SSE_DATA_DMAX_SIGS = 'dmaxSignals'
+    const SSE_EV_PATCH_ELS = 'dmax-patch-elements'
+    const SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
+    const SSE_DATA_PATCH_ELS = 'dmaxElements'
+    const SSE_DATA_PATCH_SIGS = 'dmaxSignals'
     const PATCH_MODE_OUTER = 'outer'
     const PATCH_MODE_INNER = 'inner'
     const PATCH_MODE_REPLACE = 'replace'
@@ -1605,9 +1605,9 @@
     const PATCH_MODE_AFTER = 'after'
     const PATCH_MODE_REMOVE = 'remove'
 
-    function parseSseElements(html, namespace) {
+    function parseSseEls(html, ns) {
       if (!html) return []
-      const ns = (namespace || 'html').toLowerCase()
+      ns = (ns || 'html').toLowerCase()
       if (ns === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
         const out = []
@@ -1622,14 +1622,14 @@
       return root ? Array.from(root.children) : []
     }
 
-    function insertFragmentRelative(target, sourceEls, mode) {
-      if (!target || !sourceEls || !sourceEls.length) return
+    function insertFragRelative(tarEl, srcEls, mode) {
+      if (!tarEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
-      for (const src of sourceEls) frag.appendChild(src.cloneNode(true))
-      if (mode === 'append') target.appendChild(frag)
-      else if (mode === 'prepend') target.insertBefore(frag, target.firstChild || null)
-      else if (mode === 'before' && target.parentNode) target.parentNode.insertBefore(frag, target)
-      else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
+      for (const src of srcEls) frag.appendChild(src.cloneNode(true))
+      if (mode === 'append') tarEl.appendChild(frag)
+      else if (mode === 'prepend') tarEl.insertBefore(frag, tarEl.firstChild || null)
+      else if (mode === 'before' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl)
+      else if (mode === 'after' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
     }
 
     function applyPatchPair(tarEl, srcEl, mode) {
@@ -1647,42 +1647,42 @@
       else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
     }
 
-    function applyDmaxPatchElements(args) {
+    function applyPatchEls(args) {
       const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
-      const selector = args.selector ? String(args.selector) : ''
-      const namespace = args.namespace ? String(args.namespace) : 'html'
-      const sourceEls = parseSseElements(args[SSE_DATA_DMAX_ELEMENTS] || '', namespace)
+      const sel = args.selector ? String(args.selector) : ''
+      const ns = args.namespace ? String(args.namespace) : 'html'
+      const srcEls = parseSseEls(args[SSE_DATA_PATCH_ELS] || '', ns)
 
       if (mode === PATCH_MODE_REMOVE) {
-        if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
-        else for (const src of sourceEls) {
+        if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
+        else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
-          else console.warn('[dmax] dmax-patch-elements remove without selector requires element ids')
+          else console.warn('[dmax] patch-elements remove without selector requires element ids')
         }
         return
       }
 
       if (mode === PATCH_MODE_APPEND || mode === PATCH_MODE_PREPEND || mode === PATCH_MODE_BEFORE || mode === PATCH_MODE_AFTER) {
-        if (!selector || !sourceEls.length) return
-        for (const t of document.querySelectorAll(selector)) insertFragmentRelative(t, sourceEls, mode)
+        if (!sel || !srcEls.length) return
+        for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
         return
       }
 
-      if (selector) {
-        if (!sourceEls.length) return
-        const targets = getPatchTars(selector)
-        // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
-        const defaultSrc = sourceEls[0]
-        for (let i = 0; i < targets.length; i++) applyPatchPair(targets[i], sourceEls[i] || defaultSrc, mode)
+      if (sel) {
+        if (!srcEls.length) return
+        const tars = getPatchTars(sel)
+        // srcEls is non-empty here; fallback to first source when targets outnumber sources.
+        const defaultSrc = srcEls[0]
+        for (let i = 0; i < tars.length; i++) applyPatchPair(tars[i], srcEls[i] || defaultSrc, mode)
         return
       }
 
-      if (!sourceEls.length) return
-      if (sourceEls.length === 1) {
-        applyPatchSource(sourceEls[0], mode)
+      if (!srcEls.length) return
+      if (srcEls.length === 1) {
+        applyPatchSource(srcEls[0], mode)
         return
       }
-      for (const src of sourceEls) applyPatchSource(src, mode)
+      for (const src of srcEls) applyPatchSource(src, mode)
     }
 
     function applyJsonMergePatch(prev, patch) {
@@ -1697,11 +1697,11 @@
       return out
     }
 
-    function applyDmaxPatchSigs(aName, args) {
-      const raw = args[SSE_DATA_DMAX_SIGS]
+    function applyPatchSigs(aName, args) {
+      const raw = args[SSE_DATA_PATCH_SIGS]
       if (!raw) return
       let patchObj = null
-      try { patchObj = JSON.parse(raw) } catch (e) { return }
+      try { patchObj = JSON.parse(raw) } catch (_) { console.error('[dmax] Error: patch sigs in', aName, 'expect JSON but found', raw); return }
       if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
       const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
       for (const root of Object.keys(patchObj)) {
@@ -1719,12 +1719,12 @@
       }
     }
 
-    function applyDmaxSse(raw, aName = 'dmax-sse') {
+    function applySse(raw, aName = 'dmax-sse') {
       if (!raw) return []
       const applied = []
       const text = String(raw)
       const RE_TRAILING_CR = /\r$/
-      let curEvent = 'message'
+      let curEv = 'message'
       let curArgs = null
       let hasData = false
       const consumeLine = (line) => {
@@ -1734,7 +1734,7 @@
         const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
         let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
         if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEvent = val || 'message'
+        if (field === 'event') curEv = val || 'message'
         else if (field === 'data') {
           const spaceIndex = val.indexOf(' ')
           if (spaceIndex < 0) return
@@ -1746,15 +1746,15 @@
         }
       }
       const flush = () => {
-        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
-        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
-          applyDmaxPatchElements(curArgs)
-          applied.push({ event: curEvent, args: curArgs })
-        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGS) {
-          applyDmaxPatchSigs(aName, curArgs)
-          applied.push({ event: curEvent, args: curArgs })
+        if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
+        if (curEv === SSE_EV_PATCH_ELS) {
+          applyPatchEls(curArgs)
+          applied.push(curEv)
+        } else if (curEv === SSE_EV_PATCH_SIGS) {
+          applyPatchSigs(aName, curArgs)
+          applied.push(curEv)
         }
-        curEvent = 'message'
+        curEv = 'message'
         curArgs = null
         hasData = false
       }
@@ -1770,31 +1770,31 @@
     }
 
     // Consume a text/event-stream response body incrementally using the Streams API.
-    // Applies dmax-patch-elements and dmax-patch-signals events as each SSE event
+    // Applies dmax-patch-elements and dmax-patch-signals events as each SSE ev
     // arrives rather than after the full response is buffered, lowering first-update
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    async function consumeDmaxSseStream(body, aName, onOpen, onClose) {
+    async function consumeSseStream(body, aName, onOpen, onClose) {
       if (!body || typeof body.getReader !== 'function') return []
       const applied = []
       const reader = body.getReader()
       const decoder = new TextDecoder()
       const RE_TRAILING_CR = /\r$/
       let buf = ''
-      let curEvent = 'message', curArgs = null, hasData = false
+      let curEv = 'message', curArgs = null, hasData = false
       let opened = false
 
       const flush = () => {
-        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
-        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
-          applyDmaxPatchElements(curArgs)
-          applied.push({ event: curEvent, args: curArgs })
-        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGS) {
-          applyDmaxPatchSigs(aName, curArgs)
-          applied.push({ event: curEvent, args: curArgs })
+        if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
+        if (curEv === SSE_EV_PATCH_ELS) {
+          applyPatchEls(curArgs)
+          applied.push(curEv)
+        } else if (curEv === SSE_EV_PATCH_SIGS) {
+          applyPatchSigs(aName, curArgs)
+          applied.push(curEv)
         }
-        curEvent = 'message'; curArgs = null; hasData = false
+        curEv = 'message'; curArgs = null; hasData = false
       }
 
       const consumeLine = (line) => {
@@ -1804,7 +1804,7 @@
         const field = ci >= 0 ? line.slice(0, ci) : line
         let val = ci >= 0 ? line.slice(ci + 1) : ''
         if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEvent = val || 'message'
+        if (field === 'event') curEv = val || 'message'
         else if (field === 'data') {
           const si = val.indexOf(' ')
           if (si < 0) return
@@ -1842,6 +1842,11 @@
       return applied
     }
 
+    function applyDmaxPatchElements(args) { return applyPatchEls(args) }
+    function applyDmaxPatchSigs(aName, args) { return applyPatchSigs(aName, args) }
+    function applyDmaxSse(raw, aName) { return applySse(raw, aName) }
+    async function consumeDmaxSseStream(body, aName, onOpen, onClose) { return consumeSseStream(body, aName, onOpen, onClose) }
+
     // Detach listeners and signal subscriptions for a removed subtree.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
@@ -1852,7 +1857,7 @@
         const boundSubs = _cleanupBoundSubs.get(node)
         if (boundSubs) {
           for (const l of boundSubs) {
-            if (l.type === 'event') l.tarEl.removeEventListener(l.eventName, l.handler)
+            if (l.type === 'event') l.tarEl.removeEventListener(l.evName, l.handler)
             else if (l.type === 'signal') {
               const arr = _subs.get(l.root)
               if (arr && arr.length) {
