@@ -1202,7 +1202,10 @@
         if (mr === MOD_JSON) isJson = true
         else if (mr === MOD_TEXT) isText = true
         else if (mr === MOD_FORM) isForm = true
-        else if (mr === MOD_SSE) isSse = true, noCache = true
+        else if (mr === MOD_SSE) {
+          isSse = true
+          noCache = true
+        }
         else if (mr === MOD_NO_CACHE) noCache = true
         else if (mr === MOD_BROTLI || mr === MOD_BR) encBr = true
         else if (mr === MOD_GZIP) encGzip = true
@@ -1225,7 +1228,7 @@
         else if (!sendAll && (mr === MOD_SEND_ALL || mr === MOD_SYNC_ALL)) sendAll = true
         else if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
       }
-      if (resultTar) {
+      if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
           const mr = m.root
           if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) {
