@@ -177,7 +177,8 @@
     }
 
     function isObjEmpty(o) {
-      return Object.keys(o).length === 0
+      for (const key in o) if (key != null) return false
+      return true
     }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
@@ -1184,15 +1185,16 @@
 
           // ^url.<sigPath> forces a named sig into query params.
           // ^body.<sigPath> forces a named sig into the request body.
-          for (const [modArr, modDest] of [[urlMods, queryParams], [bodyMods, bodyFields]]) {
-            for (const m of modArr) {
+          const modPairs = [{ mods: urlMods, dest: queryParams }, { mods: bodyMods, dest: bodyFields }]
+          for (const modPair of modPairs) {
+            for (const m of modPair.mods) {
               const mPath = m.path
               if (!mPath) continue
               let mKey, mVal
               if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
               else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
               else continue
-              modDest[mKey] = mVal
+              modPair.dest[mKey] = mVal
             }
           }
 
