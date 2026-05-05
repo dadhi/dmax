@@ -176,7 +176,7 @@
         } else {
           [modItems, p] = parse(aName, p, MODS)
           let mods = modItems[MOD]
-          if (items[MOD]) mods = mods.length ? mods.concat(items[MOD]) : items[MOD]
+          if (items[MOD]) mods = mods.length ? mods.concat(items[MOD]) : items[MOD].slice()
           item.mods = mods
           ts.push(item)
         }
@@ -1343,7 +1343,10 @@
           if (authMod) {
             const authVal = resolveModPathVal(authMod.path)
             if (authVal != null) {
-              if (sharedHeaders) headers = cloneOwnProps(headers), sharedHeaders = false
+              if (sharedHeaders) {
+                headers = cloneOwnProps(headers)
+                sharedHeaders = false
+              }
               headers[HEADER_AUTHORIZATION] = String(authVal)
             }
           }
@@ -1355,7 +1358,10 @@
             if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
             else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
             else continue
-            if (sharedHeaders) headers = cloneOwnProps(headers), sharedHeaders = false
+            if (sharedHeaders) {
+              headers = cloneOwnProps(headers)
+              sharedHeaders = false
+            }
             headers[mKey] = String(mVal ?? '')
           }
 
