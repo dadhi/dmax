@@ -64,13 +64,21 @@
     const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge'
     const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
-    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers'
+    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
     const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
     const MOD_DEBOUNCE_MS = 500, MOD_THROTTLE_MS = 500, MOD_RETRY_MS = 1000
+    const HEADER_ACCEPT = 'accept', HEADER_ACCEPT_ENCODING = 'accept-encoding', HEADER_AUTHORIZATION = 'authorization'
+    const HEADER_CACHE_CONTROL = 'cache-control', HEADER_CONTENT_TYPE = 'content-type', HEADER_PRAGMA = 'pragma'
+    const ACTION_HEADERS_EMPTY = Object.freeze(Object.create(null))
+    const ACTION_HEADERS_JSON = Object.freeze({ [HEADER_CONTENT_TYPE]: 'application/json', [HEADER_ACCEPT]: 'application/json' })
+    const ACTION_HEADERS_FORM = Object.freeze({ [HEADER_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
+    const ACTION_HEADERS_TEXT = Object.freeze({ [HEADER_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
+    const ACTION_HEADERS_NO_CACHE = Object.freeze({ [HEADER_CACHE_CONTROL]: 'no-cache', [HEADER_PRAGMA]: 'no-cache' })
+    const ACTION_HEADERS_SSE = Object.freeze({ [HEADER_ACCEPT]: 'text/event-stream', [HEADER_CACHE_CONTROL]: 'no-cache', [HEADER_PRAGMA]: 'no-cache' })
     const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout'
     const SPECIALS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
     const SPEC_WIN_EV = 'resize'
@@ -378,6 +386,10 @@
       return defaultVal;
     }
 
+    function pickMods(localMods, fallbackMods) {
+      return localMods && localMods.length ? localMods : fallbackMods
+    }
+
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
@@ -408,6 +420,11 @@
       return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
     }
 
+    function defSig(sig, val) {
+      if (sig && !_dm.has(sig.root)) _dm.set(sig.root, val)
+      return sig
+    }
+
     function isJsonContentType(ct) {
       const low = String(ct || '').toLowerCase()
       if (low.indexOf('application/json') !== -1) return true
@@ -435,6 +452,100 @@
 
     function hasOwn(obj, key) {
       return Object.prototype.hasOwnProperty.call(obj, key)
+    }
+
+    function cloneOwnProps(obj) {
+      const out = Object.create(null)
+      for (const key in obj) if (hasOwn(obj, key)) out[key] = obj[key]
+      return out
+    }
+
+    function mergeActionHeaders(base, extra) {
+      if (!base || base === ACTION_HEADERS_EMPTY) return extra || ACTION_HEADERS_EMPTY
+      if (!extra || extra === ACTION_HEADERS_EMPTY) return base
+      const out = cloneOwnProps(base)
+      for (const key in extra) if (hasOwn(extra, key)) out[key] = extra[key]
+      return Object.freeze(out)
+    }
+
+    function buildActionBaseHeaders(isJson, isText, isForm, isSse, noCache, enc) {
+      let headers = isJson ? ACTION_HEADERS_JSON : isForm ? ACTION_HEADERS_FORM : isText ? ACTION_HEADERS_TEXT : ACTION_HEADERS_EMPTY
+      headers = isSse ? mergeActionHeaders(headers, ACTION_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACTION_HEADERS_NO_CACHE) : headers
+      if (!enc) return headers
+      const out = headers === ACTION_HEADERS_EMPTY ? Object.create(null) : cloneOwnProps(headers)
+      out[HEADER_ACCEPT_ENCODING] = enc
+      return Object.freeze(out)
+    }
+
+    function isDigitsOnly(s) {
+      if (typeof s !== 'string' || !s.length) return false
+      for (let i = 0; i < s.length; ++i) {
+        const c = s.charCodeAt(i)
+        if (c < 48 || c > 57) return false
+      }
+      return true
+    }
+
+    function buildDumpItemRef(sigRoot, sigPath, idx) {
+      let out = sigRoot
+      if (sigPath && sigPath.length) for (const part of sigPath) out += '.' + part
+      return out + '.' + idx
+    }
+
+    function buildDumpItemExpr(sigRoot, sigPath, idx) {
+      let out = 'dm.' + sigRoot
+      if (sigPath && sigPath.length) for (const part of sigPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
+      return out + '[' + idx + ']'
+    }
+
+    function replaceDumpTokens(s, itemToken, indexToken) {
+      if (typeof s !== 'string') return s
+      let i = s.indexOf('$')
+      if (i < 0) return s
+      let out = '', p = 0
+      while (i >= 0) {
+        let next = null, step = 0
+        if (s.startsWith('$item', i)) next = itemToken, step = 5
+        else if (s.startsWith('$index', i)) next = indexToken, step = 6
+        if (!step) { i = s.indexOf('$', i + 1); continue }
+        out += s.slice(p, i) + next
+        p = i + step
+        i = s.indexOf('$', p)
+      }
+      return out ? out + s.slice(p) : s
+    }
+
+    function rewriteDumpBindings(rootNode, itemRef, itemExpr, indexText) {
+      const stack = [rootNode]
+      while (stack.length) {
+        const node = stack.pop()
+        const attrs = node.attributes || EMPTY_ARR
+        for (let i = attrs.length - 1; i >= 0; --i) {
+          const attr = attrs[i]
+          const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
+          const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
+          try {
+            if (nextName !== attr.name) { node.removeAttribute(attr.name); node.setAttribute(nextName, nextVal) }
+            else if (nextVal !== attr.value) node.setAttribute(nextName, nextVal)
+          } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', nextName, e.message) }
+        }
+        const children = node.children
+        for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
+      }
+    }
+
+    function wireDumpClone(node) {
+      const stack = [node]
+      while (stack.length) {
+        const el = stack.pop()
+        const attrs = el.attributes || EMPTY_ARR
+        for (let i = 0; i < attrs.length; ++i) {
+          const attr = attrs[i]
+          wireNode(el, attr.name, attr.value)
+        }
+        const children = el.children
+        for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
+      }
     }
 
     function mergeActionVals(prev, next) {
@@ -723,7 +834,7 @@
       let ranImmediate = false
       for (let trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods.length ? trig.mods : globMods
+          const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
           const subs = ensureSigSubs(root)
@@ -866,7 +977,7 @@
         let tarEl = trigRoot ? getElById(trigRoot, aName) : el
         if (!tarEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
-        const writeMods = trig ? (trig.mods.length ? trig.mods : globMods) : globMods
+        const writeMods = trig ? pickMods(trig.mods, globMods) : globMods
         let ev = trigPath && trigPath.length ? trigPath[0] : null
         let propPath = null
         if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEvent(tarEl)
@@ -906,7 +1017,7 @@
       const elSubs = ensureBoundSubs(el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods.length ? trig.mods : globMods
+        const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
           const subFn = applyTrigMods((ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
@@ -959,7 +1070,7 @@
       const elSubs = ensureBoundSubs(el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods.length ? trig.mods : globMods
+        const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
           const subFn = applyTrigMods((ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
@@ -1004,7 +1115,7 @@
       if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
       const trig = trigs[0]
       if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', aName); return }
-      const mods = trig.mods.length ? trig.mods : globMods
+      const mods = pickMods(trig.mods, globMods)
       let tpl = null
       if (adds.length && adds[0].kind === EV_PROP && adds[0].root) tpl = getElById(adds[0].root, aName)
       if (!tpl) tpl = el.querySelector('template')
@@ -1038,35 +1149,15 @@
             try {
               if (!tpl.content || !tpl.content.firstElementChild) break
               const node = tpl.content.firstElementChild.cloneNode(true)
-              // Rewrite $item/$index placeholders in all descendant attribute names and values
-              const walk = [node].concat(Array.from(node.querySelectorAll('*')))
-              for (const n of walk) {
-                const attrs = Array.from(n.attributes || EMPTY_ARR)
-                for (const a of attrs) {
-                  let atrName = a.name, atrVal = a.value
-                  if (atrName.indexOf('$item') !== -1 || atrName.indexOf('$index') !== -1) {
-                    atrName = atrName.replace(/\$item/g, sigRoot + '.' + idx).replace(/\$index/g, String(idx))
-                  }
-                  if (typeof atrVal === 'string' && (atrVal.indexOf('$item') !== -1 || atrVal.indexOf('$index') !== -1)) {
-                    atrVal = atrVal.replace(/\$index/g, String(idx)).replace(/\$item/g, 'dm.' + sigRoot + '[' + idx + ']')
-                  }
-                  try {
-                    if (atrName !== a.name) { n.removeAttribute(a.name); n.setAttribute(atrName, atrVal) }
-                    else if (atrVal !== a.value) n.setAttribute(atrName, atrVal)
-                  } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', atrName, e.message) }
-                }
-              }
+              const idxText = String(idx)
+              rewriteDumpBindings(node, buildDumpItemRef(sigRoot, sigPath, idx), buildDumpItemExpr(sigRoot, sigPath, idx), idxText)
               frag.appendChild(node)
               dumpState.nodes.push(node)
             } catch (e) {}
           }
           el.appendChild(frag)
           // Wire up data-* attributes on newly inserted nodes
-          for (const node of dumpState.nodes.slice(-(newLen - oldLen))) {
-            const walk2 = [node].concat(Array.from(node.querySelectorAll('*')))
-            for (const n of walk2)
-              for (const a of Array.from(n.attributes || EMPTY_ARR)) wireNode(n, a.name, a.value)
-          }
+          for (let i = dumpState.nodes.length - (newLen - oldLen); i < dumpState.nodes.length; ++i) wireDumpClone(dumpState.nodes[i])
           dumpState.count = newLen
         }
       }
@@ -1099,7 +1190,8 @@
       let busyMod = null, completeMod = null, errMod = null, codeMod = null
       let isJson = false, isText = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
-      let hdrsMod = null
+      let hdrsMod = null, authMod = null
+      let headersNoKebab = false
       let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
@@ -1109,13 +1201,15 @@
         if (mr === MOD_JSON) isJson = true
         else if (mr === MOD_TEXT) isText = true
         else if (mr === MOD_FORM) isForm = true
-        else if (mr === MOD_SSE) isSse = true
+        else if (mr === MOD_SSE) noCache = isSse = true
         else if (mr === MOD_NO_CACHE) noCache = true
         else if (mr === MOD_BROTLI || mr === MOD_BR) encBr = true
         else if (mr === MOD_GZIP) encGzip = true
         else if (mr === MOD_DEFLATE) encDeflate = true
         else if (mr === MOD_COMPRESS) encCompress = true
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
+        else if (mr === MOD_HEADERS_NO_KEBAB) headersNoKebab = true
+        else if (mr === MOD_AUTH && !authMod) authMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
         else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
@@ -1131,7 +1225,7 @@
         else if (!sendAll && (mr === MOD_SEND_ALL || mr === MOD_SYNC_ALL)) sendAll = true
         else if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
       }
-      if (resultTar && resultTar.mods.length) {
+      if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
           const mr = m.root
           if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) {
@@ -1150,13 +1244,13 @@
       const abortStat = resolveStatusSig(abortMod, MOD_ABORT)
       // ^retry.N sets the reconnect delay in ms after an unexpected SSE close.
       const retryDelay = retryMod ? (+(resolveModPathVal(retryMod.path) ?? MOD_RETRY_MS) || MOD_RETRY_MS) : 0
-      if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
-      if (completeStat && !_dm.has(completeStat.root)) _dm.set(completeStat.root, false)
-      if (errStat && !_dm.has(errStat.root)) _dm.set(errStat.root, null)
-      if (codeStat && !_dm.has(codeStat.root)) _dm.set(codeStat.root, null)
-      if (openStat && !_dm.has(openStat.root)) _dm.set(openStat.root, false)
-      if (closeStat && !_dm.has(closeStat.root)) _dm.set(closeStat.root, false)
-      if (abortStat && !_dm.has(abortStat.root)) _dm.set(abortStat.root, null)
+      defSig(busyStat, false), defSig(completeStat, false), defSig(errStat, null), defSig(codeStat, null), defSig(openStat, false), defSig(closeStat, false), defSig(abortStat, null)
+      let enc = ''
+      if (encBr) enc = 'br'
+      if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
+      if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
+      if (encCompress) enc += (enc ? ', ' : '') + 'compress'
+      const baseHeaders = buildActionBaseHeaders(isJson, isText, isForm, isSse, noCache, enc)
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
@@ -1227,33 +1321,46 @@
             finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
           }
 
-           const headers = Object.create(null)
-           if (hdrsMod) {
-             const hdrObj = resolveModPathVal(hdrsMod.path)
-             if (hdrObj && typeof hdrObj === 'object')
-               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
-           }
-           if (isJson) headers['Content-Type'] = 'application/json', headers['Accept'] = 'application/json'
-           else if (isForm) headers['Content-Type'] = 'application/x-www-form-urlencoded'
-           else if (isText) headers['Content-Type'] = 'text/plain;charset=UTF-8'
-           if (isSse) headers['Accept'] = 'text/event-stream'
-           if (noCache) headers['Cache-Control'] = 'no-cache', headers['Pragma'] = 'no-cache'
-           let enc = ''
-           if (encBr) enc = 'br'
-           if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
-           if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
-           if (encCompress) enc += (enc ? ', ' : '') + 'compress'
-           if (enc) headers['Accept-Encoding'] = enc
-            // ^header.<name> sets one request header from a named sig.
-            for (const m of hdrMods) {
-             const mPath = m.path
-             if (!mPath) continue
-             let mKey, mVal
-             if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-             else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
-             else continue
-             headers[mKey] = String(mVal ?? '')
-           }
+          let headers = ACTION_HEADERS_EMPTY, sharedHeaders = true
+          if (hdrsMod) {
+            const hdrObj = resolveModPathVal(hdrsMod.path)
+            if (hdrObj && typeof hdrObj === 'object') {
+              headers = Object.create(null)
+              sharedHeaders = false
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[headersNoKebab ? hk : camelToKebab(hk)] = String(hdrObj[hk])
+            }
+          }
+          if (baseHeaders !== ACTION_HEADERS_EMPTY) {
+            if (headers === ACTION_HEADERS_EMPTY) headers = baseHeaders
+            else for (const hk in baseHeaders) if (hasOwn(baseHeaders, hk)) headers[hk] = baseHeaders[hk]
+          }
+          if (authMod) {
+            const authVal = resolveModPathVal(authMod.path)
+            if (authVal != null) {
+              if (sharedHeaders) {
+                headers = cloneOwnProps(headers)
+                sharedHeaders = false
+              }
+              headers[HEADER_AUTHORIZATION] = String(authVal)
+            }
+          }
+          // ^header.<name> sets one request header from a named sig.
+          for (const m of hdrMods) {
+            const mPath = m.path
+            if (!mPath) continue
+            let mKey, mVal
+            if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
+            else if (mPath.kind === SIGNAL) {
+              mKey = camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
+              mVal = getSigValOrIt(mPath)
+            }
+            else continue
+            if (sharedHeaders) {
+              headers = cloneOwnProps(headers)
+              sharedHeaders = false
+            }
+            headers[mKey] = String(mVal ?? '')
+          }
 
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
@@ -1354,7 +1461,7 @@
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = trig.mods.length ? trig.mods : globMods
+        const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
           const subFn = applyTrigMods((ev, trigVal, detail) => doRequest(), trig, mods)

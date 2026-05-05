@@ -166,10 +166,30 @@
       </template>
       <ul data-dump+#tpl-post@posts></ul>
       <ul id="inline-posts" data-dump@posts><template><li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0"><span data-sub:.@posts="$index + 1"></span> <span data-sub:.@posts="dm.posts[$index]"></span></li></template></ul>
+      <template id="tpl-thread">
+        <li class="thread">
+          <strong data-sub:.@threads="$item.title"></strong>
+          <ul class="thread-replies" data-dump^immediate@$item.replies>
+            <template><li data-sub:.="$item"></li></template>
+          </ul>
+        </li>
+      </template>
+      <ul id="thread-posts" data-dump+#tpl-thread@threads></ul>
+      <ul id="inline-threads" data-dump@threads>
+        <template>
+          <li class="thread">
+            <strong data-sub:.@threads="$item.title"></strong>
+            <ul class="thread-replies" data-dump^immediate@$item.replies>
+              <template><li data-sub:.="$item"></li></template>
+            </ul>
+          </li>
+        </template>
+      </ul>
       <div>
         <button id="addPost" data-sub:posts@.click="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
         <button id="removeFirst" data-sub:posts@.click="(dm.posts || []).slice(1)">Remove First</button>
         <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
+        <button id="refreshThreads" data-sub:threads@.click="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
       </div>
       <h4>10. Modifiers demo</h4>
       <button id="onceBtn" data-sub:mod-once@.click^once="(dm.modOnce || 0) + 1">Once</button>

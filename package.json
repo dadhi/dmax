@@ -7,6 +7,10 @@
     "bench:morph-sse:parity": "node tools/bench-morph-sse.js",
     "bench:morph-sse:all": "npm run bench:morph-sse:parity",
     "test:actions": "node tests/actions.e2e.js",
+    "test:fuzz": "node tests/fuzz.deterministic.js",
+    "test:headless": "node tests/headless_tests.js",
+    "test:notebook": "node tests/notebook.asserts.e2e.js",
+    "test": "npm run test:actions && npm run test:fuzz && npm run test:headless && npm run test:notebook",
     "serve": "npx http-server -c-1 -p 8080"
   },
   "name": "dmax",

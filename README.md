@@ -64,6 +64,8 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
 
+Signal names are not reserved or validated against runtime helper identifiers. If you choose names that overlap with your own expression conventions, that is the template author's responsibility.
+
 ## Fixi feature matrix (aligned to dmax)
 
 This extends the earlier Datastar-gap research with the [Fixi Project](https://fixiproject.org/), which is split into
@@ -200,10 +202,11 @@ These modifiers let you override the default routing for individual signals, ind
 | Modifier | Description | Example |
 | --- | --- | --- |
 | `^url.<signalPath>` | Force `dm.<signalPath>` into the URL query string (even on POST/PUT). Key = last path segment. | `^url.page` appends `?page=<dm.page>` to the URL |
-| `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (useful on DELETE; avoid on GET — bodies are non-standard there). Key = last path segment. | `^body.targetId` sends `dm.targetId` as a body field on DELETE |
-| `^header.<name>` | Set a single request header from `dm.<camelCase(name)>`. | `^header.authorization` sets header `authorization` from `dm.authorization` |
+| `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (useful on DELETE; avoid on GET — bodies are non-standard there). Key = last path segment. | `^body.target-id` sends `dm.targetId` as a body field on DELETE |
+| `^header.<name>` | Set a single request header from the matching signal while preserving the header name in kebab-case. | `^header.authorization` sets header `authorization` from `dm.authorization` |
+| `^auth.<signalPath>` | Shorthand for the `authorization` header using the named signal's value. | `^auth.authorization` sets header `authorization` from `dm.authorization` |
 
-Note: all modifier names are converted from kebab-case to camelCase by the parser, so the resulting signal key and header key are always camelCase. For example, `^header.x-trace-id` reads `dm.xTraceId` and sets header `xTraceId` (HTTP headers are case-insensitive so `xTraceId` is valid). If you need exact header name control (e.g. `X-Trace-Id`), use `^headers.<signal>` with a plain object whose keys are your exact header names instead.
+Note: keep every signal path in the **data attribute name** kebab-case because HTML attribute names are case-insensitive. dmax still resolves those paths to camelCase signals internally, so `^header.x-trace-id` reads `dm.xTraceId` and sets header `x-trace-id`. Likewise `^headers.req-headers` copies `dm.reqHeaders` object fields into headers after camelCase→kebab-case normalization by default; add `^headers-no-kebab` alongside `^headers.<signal>` if you need to preserve exact object key casing.
 
 Examples:
 
@@ -212,7 +215,7 @@ Examples:
 <button data-post^url.page^url.sort:res@.click+payload="'/api/items'">Create</button>
 
 <!-- DELETE — force the ID into the request body instead of URL query string -->
-<button data-delete^body.targetId:res@.click="'/api/items'">Delete</button>
+<button data-delete^body.target-id:res@.click="'/api/items'">Delete</button>
 
 <!-- GET with individual auth header from a signal -->
 <button data-get^header.authorization:res@.click="'/api/secure'">Fetch</button>
@@ -222,15 +225,17 @@ Examples:
 
 ### Request modifiers (`^modifier`)
 
-- **`^json`** — `Content-Type: application/json` + `Accept: application/json`; body serialised as JSON
-- **`^text`** — `Content-Type: text/plain`
-- **`^form`** — `Content-Type: application/x-www-form-urlencoded`
-- **`^no-cache`** — adds `Cache-Control: no-cache` / `Pragma: no-cache`
-- **`^brotli`/`^br`, `^gzip`, `^deflate`, `^compress`** — set `Accept-Encoding`
-- **`^headers.<signal>`** — copies all key-value pairs from the named signal object into request headers (e.g. `^headers.reqHeaders` where `dm.reqHeaders = { Authorization: 'Bearer …' }`)
+- **`^json`** — `content-type: application/json` + `accept: application/json`; body serialised as JSON
+- **`^text`** — `content-type: text/plain`
+- **`^form`** — `content-type: application/x-www-form-urlencoded`
+- **`^no-cache`** — adds `cache-control: no-cache` / `pragma: no-cache`
+- **`^brotli`/`^br`, `^gzip`, `^deflate`, `^compress`** — set `accept-encoding`
+- **`^headers.<signal>`** — copies all key-value pairs from the named signal object into request headers after camelCase→kebab-case normalization (e.g. `^headers.req-headers` where `dm.reqHeaders = { xTraceId: 'req-1' }` sends `x-trace-id: req-1`)
+- **`^headers-no-kebab`** — use alongside `^headers.<signal>` to preserve the source object keys exactly as written
 - **`^url.<signalPath>`** — force specific signal to URL query string (see above)
 - **`^body.<signalPath>`** — force specific signal to request body (see above)
 - **`^header.<name>`** — set a single header from a named signal (see above)
+- **`^auth.<signalPath>`** — set the `authorization` header from a named signal (see above)
 - **`^replace`** (default), **`^merge`**, **`^append`**, **`^prepend`** — response result mode
 
 ### Response status signals
