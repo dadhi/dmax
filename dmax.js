@@ -177,7 +177,7 @@
     }
 
     function isObjEmpty(o) {
-      for (const k in o) return false
+      for (const key in o) { void key; return false }
       return true
     }
 
@@ -536,7 +536,7 @@
       })
     }
 
-    // If sig does not exist in _dm, then create it -> creating a missing target on demand.
+    // If sig does not exist in _dm, then create it on demand.
     function setSigAndNotifySubs(aName, tar, val) {
       if (!expected(tar)) return null
 
@@ -571,7 +571,7 @@
             diff = diffShapeShallow(curVal, val)
           }
           if (path || changeMod !== SIG_CHANGED_SHAPE_ONLY || diff)
-            collected.push([h, path ? null : diff]) // ignore diff later for generic sig-change notification
+            collected.push([h, path ? null : diff]) // path-based notifications do not forward a root diff
           continue
         }
 
