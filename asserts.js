@@ -13,7 +13,7 @@
     _subs.clear()
     for (const [root, handlers] of __savedSubs) _subs.set(root, handlers.slice())
 
-    _cleanupBoundSubs.clear()
+    if (typeof _cleanupBoundSubs.clear === 'function') _cleanupBoundSubs.clear()
     for (const [node, handlers] of __savedCleanupBoundSubs) _cleanupBoundSubs.set(node, handlers.slice())
 
     _debugEls.clear()
@@ -112,10 +112,10 @@
       _dm.set('user', { name: 'Alice' })
       _dm.set('gate', 0)
       return {
-        root: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
-        path: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
-        missingPath: getSignalValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
-        negated: getSignalValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
+        root: getSigValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
+        path: getSigValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        missingPath: getSigValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
+        negated: getSigValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
       }
     }
     __assert(__tGetSignalValOrIt, [], { root: { name: 'Alice' }, path: 'Alice', missingPath: undefined, negated: true }, 'signal value helper')
@@ -132,10 +132,10 @@
       }
     }
     __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, path: 'Alice', literal: 'literal', nil: null }, 'modifier value helper')
-    __assert(resolveStatusSignal, [null, 'busy'], null, 'status signal null')
-    __assert(resolveStatusSignal, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
-    __assert(resolveStatusSignal, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
-    __assert(resolveStatusSignal, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
+    __assert(resolveStatusSig, [null, 'busy'], null, 'status signal null')
+    __assert(resolveStatusSig, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
+    __assert(resolveStatusSig, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
+    __assert(resolveStatusSig, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
     __assert((id, aName) => {
       const el = getElById(id, aName)
       return el ? el.textContent : null
@@ -190,11 +190,11 @@
       __reset();
       _dm.set('user', { name: 'Alice', age: 30 });
       const sh = [], nm = [], age = [], deep = [];
-      __reg('user', null, SG_CHANGED_WITH_SHAPE, sh);
-      __reg('user', ['name'], SG_CHANGED_WITH_SHAPE, nm);
-      __reg('user', ['age'], SG_CHANGED_WITH_SHAPE, age);
-      __reg('user', ['name', 'first'], SG_CHANGED_WITH_SHAPE, deep);
-      _setSignalAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
+      __reg('user', null, SIG_CHANGED_WITH_SHAPE, sh);
+      __reg('user', ['name'], SIG_CHANGED_WITH_SHAPE, nm);
+      __reg('user', ['age'], SIG_CHANGED_WITH_SHAPE, age);
+      __reg('user', ['name', 'first'], SIG_CHANGED_WITH_SHAPE, deep);
+      setSigAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
       return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
     }
     __assert(__tSetD, [], { r: 1, nm: 1, age: 0, deep: 0, val: 'Bob' }, 'path update, exact match');
@@ -202,10 +202,10 @@
       __reset();
       _dm.set('user', { children: [1, 2] });
       const c0 = [], c1 = [], c2 = [];
-      __reg('user', ['children'], SG_CHANGED_ANY, c0);
-      __reg('user', ['children'], SG_CHANGED_WITH_SHAPE, c1);
-      __reg('user', ['children'], SG_CHANGED_SHAPE_ONLY, c2);
-      _setSignalAndNotifySubs('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
+      __reg('user', ['children'], SIG_CHANGED_ANY, c0);
+      __reg('user', ['children'], SIG_CHANGED_WITH_SHAPE, c1);
+      __reg('user', ['children'], SIG_CHANGED_SHAPE_ONLY, c2);
+      setSigAndNotifySubs('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('user')?.children };
@@ -214,7 +214,7 @@
     function __tSetA() {
       __reset()
       _dm.set('sg', 1);
-      _setSignalAndNotifySubs('t', { root: 'sg', path: null }, 2);
+      setSigAndNotifySubs('t', { root: 'sg', path: null }, 2);
       return _dm.get('sg');
     }
     __assert(__tSetA, [], 2, 'root update no subs');
@@ -222,10 +222,10 @@
       __reset();
       _dm.set('sg', 'a');
       const c0 = [], c1 = [], c2 = [];
-      __reg('sg', null, SG_CHANGED_ANY, c0);
-      __reg('sg', null, SG_CHANGED_WITH_SHAPE, c1);
-      __reg('sg', null, SG_CHANGED_SHAPE_ONLY, c2);
-      _setSignalAndNotifySubs('t', { root: 'sg', path: null }, 'b');
+      __reg('sg', null, SIG_CHANGED_ANY, c0);
+      __reg('sg', null, SIG_CHANGED_WITH_SHAPE, c1);
+      __reg('sg', null, SIG_CHANGED_SHAPE_ONLY, c2);
+      setSigAndNotifySubs('t', { root: 'sg', path: null }, 'b');
       return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
     }
     __assert(__tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
@@ -233,10 +233,10 @@
       __reset();
       _dm.set('sg', [1, 2]);
       const c0 = [], c1 = [], c2 = [];
-      __reg('sg', null, SG_CHANGED_ANY, c0);
-      __reg('sg', null, SG_CHANGED_WITH_SHAPE, c1);
-      __reg('sg', null, SG_CHANGED_SHAPE_ONLY, c2);
-      _setSignalAndNotifySubs('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
+      __reg('sg', null, SIG_CHANGED_ANY, c0);
+      __reg('sg', null, SIG_CHANGED_WITH_SHAPE, c1);
+      __reg('sg', null, SIG_CHANGED_SHAPE_ONLY, c2);
+      setSigAndNotifySubs('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
@@ -378,7 +378,7 @@
       const el = document.createElement('div');
       dSub(el, 'data-sub:bar@foo^immediate', 'dm.foo');
       const im = DM['bar'];
-      _setSignalAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
@@ -467,11 +467,11 @@
       _dm.set('src', 1)
       const host = document.createElement('div');
       dSub(host, 'data-sub:dst@src^and.gateA^and.gateB^ge.5^lt.9^ne.7', 'val')
-      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 8)
+      setSigAndNotifySubs('t', { root: 'src', path: null }, 8)
       _dm.set('gateB', true)
-      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 4)
-      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 7)
-      _setSignalAndNotifySubs('t', { root: 'src', path: null }, 8)
+      setSigAndNotifySubs('t', { root: 'src', path: null }, 4)
+      setSigAndNotifySubs('t', { root: 'src', path: null }, 7)
+      setSigAndNotifySubs('t', { root: 'src', path: null }, 8)
       return DM['dst'] ?? null
     }
     __assert(__tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
@@ -484,7 +484,7 @@
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       const sigAfterWrite = DM['name']
-      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, elAfterSignal: inp.value }
     }
     __assert(__tSyncTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSync two-way default');
@@ -497,7 +497,7 @@
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       const sigAfterLocalEvent = DM['name']
-      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterLocalEvent, elAfterSignal: inp.value }
     }
     __assert(__tSyncSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSync signal->prop one-way');
@@ -508,7 +508,7 @@
       inp.value = 'Initial'
       dSync(inp, 'data-sync:name@.')
       const before = inp.value
-      _setSignalAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       const elAfterSignal = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -525,7 +525,7 @@
       cb.checked = false
       cb.dispatchEvent(mkEv('change'))
       const sigAfterWrite = DM['isOn']
-      _setSignalAndNotifySubs('t', { root: 'isOn', path: null }, true)
+      setSigAndNotifySubs('t', { root: 'isOn', path: null }, true)
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
     __assert(__tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
@@ -535,9 +535,9 @@
       _dm.set('active', false)
       dClass(div, 'data-class+active@active^immediate')
       const hadBefore = div.classList.contains('active')
-      _setSignalAndNotifySubs('t', { root: 'active', path: null }, true)
+      setSigAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('active')
-      _setSignalAndNotifySubs('t', { root: 'active', path: null }, false)
+      setSigAndNotifySubs('t', { root: 'active', path: null }, false)
       const hadFinal = div.classList.contains('active')
       return { hadBefore, hadAfter, hadFinal }
     }
@@ -548,7 +548,7 @@
       _dm.set('active', false)
       dClass(div, 'data-class+!inactive@active^immediate')
       const hadBefore = div.classList.contains('inactive')
-      _setSignalAndNotifySubs('t', { root: 'active', path: null }, true)
+      setSigAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('inactive')
       return { hadBefore, hadAfter }
     }
@@ -560,7 +560,7 @@
       dClass(div, 'data-class+is-active+!is-inactive@active^immediate')
       const activeBefore = div.classList.contains('is-active')
       const inactiveBefore = div.classList.contains('is-inactive')
-      _setSignalAndNotifySubs('t', { root: 'active', path: null }, false)
+      setSigAndNotifySubs('t', { root: 'active', path: null }, false)
       const activeAfter = div.classList.contains('is-active')
       const inactiveAfter = div.classList.contains('is-inactive')
       return { activeBefore, inactiveBefore, activeAfter, inactiveAfter }
@@ -572,7 +572,7 @@
       _dm.set('count', 2)
       dClass(div, 'data-class+even@count^immediate', 'dm.count % 2 === 0')
       const hadBefore = div.classList.contains('even')
-      _setSignalAndNotifySubs('t', { root: 'count', path: null }, 3)
+      setSigAndNotifySubs('t', { root: 'count', path: null }, 3)
       const hadAfter = div.classList.contains('even')
       return { hadBefore, hadAfter }
     }
@@ -584,9 +584,9 @@
       _dm.set('visible', true)
       dDisp(div, 'data-disp:.@visible^immediate')
       const displayBefore = div.style.display
-      _setSignalAndNotifySubs('t', { root: 'visible', path: null }, false)
+      setSigAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfterHide = div.style.display
-      _setSignalAndNotifySubs('t', { root: 'visible', path: null }, true)
+      setSigAndNotifySubs('t', { root: 'visible', path: null }, true)
       const displayAfterShow = div.style.display
       return { displayBefore, displayAfterHide, displayAfterShow }
     }
@@ -598,7 +598,7 @@
       _dm.set('count', 0)
       dDisp(div, 'data-disp:.@count^immediate', 'dm.count > 0')
       const displayBefore = div.style.display
-      _setSignalAndNotifySubs('t', { root: 'count', path: null }, 5)
+      setSigAndNotifySubs('t', { root: 'count', path: null }, 5)
       const displayAfter = div.style.display
       return { displayBefore, displayAfter }
     }
@@ -613,7 +613,7 @@
         _dm.set('show', true)
         dDisp(box, 'data-disp:.@show^immediate')
         const displayBefore = box.style.display
-        _setSignalAndNotifySubs('t', { root: 'show', path: null }, false)
+        setSigAndNotifySubs('t', { root: 'show', path: null }, false)
         const displayAfter = box.style.display
         return { displayBefore, displayAfter }
       } finally { box.remove() }
@@ -630,7 +630,7 @@
         _dm.set('items', [])
         dDump(el, 'data-dump@items')
         const before = el.children.length
-        _setSignalAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
+        setSigAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
         const after = el.children.length
         return { before, after }
       } finally { el.remove() }
@@ -647,7 +647,7 @@
         _dm.set('items', ['a', 'b', 'c'])
         dDump(el, 'data-dump@items^immediate')
         const before = el.children.length
-        _setSignalAndNotifySubs('t', { root: 'items', path: null }, ['a'])
+        setSigAndNotifySubs('t', { root: 'items', path: null }, ['a'])
         const after = el.children.length
         return { before, after }
       } finally { el.remove() }
@@ -884,7 +884,7 @@
         dAction(div, 'data-get:content@reload^immediate', '"https://api.test/content"')
         await new Promise(r => setTimeout(r, 0))
         const afterImmediate = fetchUrls.length
-        _setSignalAndNotifySubs('t', { root: 'reload', path: null }, 1)
+        setSigAndNotifySubs('t', { root: 'reload', path: null }, 1)
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { afterImmediate, total: fetchUrls.length, content: DM['content'] },
@@ -1366,7 +1366,7 @@
         const input = container.querySelector('#fi-inp')
         input.value = 'user typed'  // dirty the field
         // mode:replace replaces the node entirely — opt-out of form state preservation
-        applyDmaxPatchElements({ mode: 'replace', dmaxElements: '<input id="fi-inp" type="text" value="reset">' })
+        applyPatchEls({ mode: 'replace', dmaxElements: '<input id="fi-inp" type="text" value="reset">' })
         const fresh = container.querySelector('#fi-inp')
         return {
           isNewNode: fresh !== input,
@@ -1378,7 +1378,7 @@
     function __tDmaxPatchSignalsMergeAndRemove() {
       __reset()
       _dm.set('user', { name: 'Ada', keep: 1, removeMe: true })
-      applyDmaxPatchSignals('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
+      applyPatchSigs('t', { dmaxSignals: '{"user":{"name":"Bob","removeMe":null},"newSg":7}' })
       const user = _dm.get('user') || {}
       return { name: user.name, keep: user.keep, hasRemove: Object.prototype.hasOwnProperty.call(user, 'removeMe'), newSg: _dm.get('newSg') }
     }
@@ -1386,7 +1386,7 @@
     function __tDmaxPatchSignalsOnlyIfMissing() {
       __reset()
       _dm.set('existing', 1)
-      applyDmaxPatchSignals('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
+      applyPatchSigs('t', { onlyIfMissing: 'true', dmaxSignals: '{"existing":2,"added":3}' })
       return { existing: _dm.get('existing'), added: _dm.get('added') }
     }
     __assert(__tDmaxPatchSignalsOnlyIfMissing, [], { existing: 1, added: 3 }, 'dmax: patch-signals onlyIfMissing skips existing roots')
@@ -1398,7 +1398,7 @@
         const btn = root.querySelector('#ds-btn')
         let clicks = 0
         btn.addEventListener('click', () => clicks++)
-        applyDmaxPatchElements({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
+        applyPatchEls({ mode: 'outer', dmaxElements: '<button id="ds-btn" class="new">new</button>' })
         const after = root.querySelector('#ds-btn')
         after.click()
         return { sameNode: after === btn, clicks, className: after.className, text: after.textContent }
@@ -1424,7 +1424,7 @@
           'data: selector .rm',
           ''
         ].join('\n')
-        const applied = applyDmaxSse(stream, 't')
+        const applied = applySse(stream, 't')
         return {
           events: applied.length,
           sseVal: _dm.get('sseVal'),
@@ -1447,7 +1447,7 @@
           'data: dmaxElements line2</span></div>',
           ''
         ].join('\r\n')
-        applyDmaxSse(stream, 't')
+        applySse(stream, 't')
         return root.querySelector('#ds-multi')?.textContent || ''
       } finally { root.remove() }
     }
@@ -1594,13 +1594,13 @@
       }
       _dm.set('sseOpen', false)
       _dm.set('sseClose', false)
-      await consumeDmaxSseStream(
+      await consumeSseStream(
         fakeBody,
         'test-lc',
-        () => setSignalAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, true),
+        () => setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, true),
         (err) => {
-          setSignalAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, false)
-          if (!err) setSignalAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseClose', path: null }, true)
+          setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, false)
+          if (!err) setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseClose', path: null }, true)
         }
       )
       return {

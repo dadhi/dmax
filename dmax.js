@@ -78,7 +78,8 @@
     const SPEC_INTERVAL_MS = 500
     const SPEC_TIMEOUT_MS = 500
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const DEFAULT_PROP_TARGET = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
+    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
+    const DUMP_STATES = new WeakMap()
 
     function isSpecial(n) {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -176,7 +177,7 @@
     }
 
     function isObjEmpty(o) {
-      for (const _ in o) return false
+      for (const key in o) if (key != null) return false
       return true
     }
 
@@ -255,10 +256,10 @@
       return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
     }
 
-    function getElPropVal(targetEl, propPath) {
-      if (!targetEl) return null
-      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(targetEl)
-      let val = prop === 'checked' ? targetEl.checked : (prop === 'value' ? targetEl.value : targetEl.textContent)
+    function getElPropVal(el, propPath) {
+      if (!el) return null
+      const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
+      let val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent)
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -360,13 +361,13 @@
       return true
     }
 
-    const SG_CHANGED_ANY = 0, SG_CHANGED_WITH_SHAPE = 1, SG_CHANGED_SHAPE_ONLY = 2
-    function getSgChangeShape(mods) {
+    const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
+    function getSigChangeShape(mods) {
       for (const m of mods) {
-        if (m.root === MOD_WITH_SHAPE) return SG_CHANGED_WITH_SHAPE
-        if (m.root === MOD_SHAPE_ONLY) return SG_CHANGED_SHAPE_ONLY
+        if (m.root === MOD_WITH_SHAPE) return SIG_CHANGED_WITH_SHAPE
+        if (m.root === MOD_SHAPE_ONLY) return SIG_CHANGED_SHAPE_ONLY
       }
-      return SG_CHANGED_ANY
+      return SIG_CHANGED_ANY
     }
 
     function isImmediateMod(mods, defaultVal) {
@@ -381,25 +382,25 @@
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
 
-    function getSignalValOrIt(it) {
+    function getSigValOrIt(it) {
       if (!it.kind) return it
-      const sg = _dm.get(it.root)
+      const sig = _dm.get(it.root)
       const path = it.path
-      const val = path && path.length ? getPropValAndDepth(sg, path)[0] : sg
+      const val = path && path.length ? getPropValAndDepth(sig, path)[0] : sig
       return it.not ? !val : val
     }
 
     function resolveModPathVal(v) {
-      if (v && v.kind) return getSignalValOrIt(v)
+      if (v && v.kind) return getSigValOrIt(v)
       if (typeof v !== 'string') return v
       if (_dm.has(v)) return _dm.get(v)
       const parsed = parseItem('mod', TRIG, v)
       if (!parsed || !parsed.kind) return v
       if (parsed.kind === SIGNAL && !parsed.path && !_dm.has(parsed.root)) return v
-      return getSignalValOrIt(parsed)
+      return getSigValOrIt(parsed)
     }
 
-    function resolveStatusSignal(mod, fallbackRoot) {
+    function resolveStatusSig(mod, fallbackRoot) {
       if (!mod) return null
       const p = mod.path
       if (typeof p === 'string') return { kind: SIGNAL, not: null, root: p || fallbackRoot, path: null }
@@ -460,7 +461,7 @@
       return next
     }
 
-    function patchMatchingSignals(aName, payload, resultMode) {
+    function patchMatchingSigs(aName, payload, resultMode) {
       // Patch-all operates on top-level object fields only; arrays have no stable field names to map onto root signals.
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
       for (const key in payload) {
@@ -468,14 +469,14 @@
         const root = kebabToCamel(key)
         if (!_dm.has(root)) continue
         const prev = _dm.get(root)
-        setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
+        setSigAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
       }
     }
 
     function applyActionPayload(aName, resultTar, payload, resultMode) {
       if (!resultTar) return
-      const prev = getSignalValOrIt(resultTar)
-      setSignalAndNotifySubsNLevelsDeep(aName, resultTar, combineActionResult(prev, payload, resultMode))
+      const prev = getSigValOrIt(resultTar)
+      setSigAndNotifySubsNLevelsDeep(aName, resultTar, combineActionResult(prev, payload, resultMode))
     }
 
     function modsPermitVal(mods, val) {
@@ -504,12 +505,12 @@
     const _subs = new Map()
     const _debugEls = new Set()
     let _debugQueued = false
-    function ensureSignalSubs(root) {
+    function ensureSigSubs(root) {
       let subs = _subs.get(root)
       if (!subs) _subs.set(root, subs = [])
       return subs
     }
-    function removeSignalSub(root, fn) {
+    function removeSigSub(root, fn) {
       const subs = _subs.get(root)
       if (!subs || !subs.length) return
       for (let i = 0; i < subs.length; ++i) if (subs[i].fn === fn) { subs.splice(i, 1); return }
@@ -535,14 +536,14 @@
       })
     }
 
-    // If sg not exist in the _dm, then we will create it -> creating missing target on demand
-    function _setSignalAndNotifySubs(aName, tar, val) {
+    // If sig does not exist in _dm, then create it on demand.
+    function setSigAndNotifySubs(aName, tar, val) {
       if (!expected(tar)) return null
 
       const root = tar.root, path = tar.path
       if (!expected(root)) return null
 
-      let sgVal = _dm.get(root), curVal = sgVal, parent = sgVal, d = 0, last = null
+      let sigVal = _dm.get(root), curVal = sigVal, parent = sigVal, d = 0, last = null
       if (path) {
         if (!expected(path.length)) return null;
         [parent, d] = getPropValAndDepth(parent, path, path.length - 1)
@@ -565,12 +566,12 @@
       for (const h of handlers) { // h.fn, h.changeMod, h.path
         const hp = h.path, changeMod = h.changeMod
         if (!hp) {
-          if (!path && !diffed && changeMod !== SG_CHANGED_ANY) {// compare roots if it is the first time
+          if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
             diffed = true
             diff = diffShapeShallow(curVal, val)
           }
-          if (path || changeMod !== SG_CHANGED_SHAPE_ONLY || diff)
-            collected.push([h, path ? null : diff]) // ignore diff later for NOTIFY_SG_CHANGE
+          if (path || changeMod !== SIG_CHANGED_SHAPE_ONLY || diff)
+            collected.push([h, path ? null : diff]) // path-based notifications do not forward a root diff
           continue
         }
 
@@ -582,11 +583,11 @@
           if (skip) continue
           if (notifyParent) { collected.push([h, null]); continue }
           if (path.length == hp.length) {
-            if (!diffed && changeMod !== SG_CHANGED_ANY) {
+            if (!diffed && changeMod !== SIG_CHANGED_ANY) {
               diffed = true
               diff = diffShapeShallow(curVal, val)
             }
-            if (changeMod !== SG_CHANGED_SHAPE_ONLY || diff)
+            if (changeMod !== SIG_CHANGED_SHAPE_ONLY || diff)
               collected.push([h, diff])
             continue
           }
@@ -598,15 +599,16 @@
         for (const col of collected) // check if the same
           if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
 
-        let [pathCur, _] = getPropValAndDepth(sgVal, hp), pathVal
+        const pathCur = getPropValAndDepth(sigVal, hp)[0]
+        let pathVal
         if (hCol) pathVal = hCol[2]
         else {
-          [pathVal, _] = getPropValAndDepth(val, hp)
+          pathVal = getPropValAndDepth(val, hp)[0]
           if (!valChangedDeep(pathCur, pathVal)) continue
         }
 
         let pathDiffed = false, pathDiff = null
-        if (changeMod != SG_CHANGED_ANY) {
+        if (changeMod != SIG_CHANGED_ANY) {
           for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
           if (!pathDiffed) {
             pathDiff = diffShapeShallow(pathCur, pathVal)
@@ -614,7 +616,7 @@
           }
         }
 
-        if (changeMod !== SG_CHANGED_SHAPE_ONLY || pathDiff)
+        if (changeMod !== SIG_CHANGED_SHAPE_ONLY || pathDiff)
           collected.push([h, pathDiff, pathVal])
       }
 
@@ -623,23 +625,23 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        h.fn(h.changeMod === SG_CHANGED_ANY ? null : col[1])
+        h.fn(h.changeMod === SIG_CHANGED_ANY ? null : col[1])
       }
 
       updateDebug()
     }
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
-    function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
+    function setSigAndNotifySubsNLevelsDeep(aName, tar, val) {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
         return
       }
-      try { return _setSignalAndNotifySubs(aName, tar, val) } finally { syncDepth-- }
+      try { return setSigAndNotifySubs(aName, tar, val) } finally { syncDepth-- }
     }
 
     function applyTrigMods(fn, trig, mods) {
-      const isSg = trig.kind === SIGNAL
+      const isSig = trig.kind === SIGNAL
       let one = false, always = false, prv = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
@@ -656,8 +658,8 @@
       let tm = 0, last = 0
 
       const run = (ev, val, detail) => {
-        let trigVal = (isSg ? getSignalValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
-        if (isSg && trig.not) trigVal = !trigVal
+        let trigVal = (isSig ? getSigValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
+        if (isSig && trig.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
@@ -692,7 +694,7 @@
             for (const tar of tars) {
               failedTar = tar
               console.assert(tar.kind)
-              if (tar.kind == SIGNAL) setSignalAndNotifySubsNLevelsDeep(aName, tar, exprVal)
+              if (tar.kind == SIGNAL) setSigAndNotifySubsNLevelsDeep(aName, tar, exprVal)
               else setProp(el, aName, tar, exprVal)
             }
           } catch (e) { console.error('[dmax] Error: setting target', failedTar, 'in', aName, 'ended with ex:', e) }
@@ -706,39 +708,39 @@
         const mods = trig.mods.length ? trig.mods : globMods
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subs = ensureSignalSubs(root)
-          const subFn = applyTrigMods((_ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
-          const changeMod = getSgChangeShape(mods)
+          const subs = ensureSigSubs(root)
+          const subFn = applyTrigMods((ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
+          const changeMod = getSigChangeShape(mods)
           subs.push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSignalSub(root, wrappedSubFn)
+          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
-            subFn(null, getSignalValOrIt(trig), null)
+            subFn(null, getSigValOrIt(trig), null)
           }
         } else if (kind === EV_PROP || kind === SPECIAL) {
           let ev = path && path.length ? path[0] : null
           if (kind === SPECIAL) {
             if (root === SPEC_WIN) {
               const onWin = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-              const modded = applyTrigMods(onWin, trig, mods), eventName = ev || SPEC_WIN_EV
-              window.addEventListener(eventName, modded)
-              elSubs.push({ type: 'event', targetEl: window, eventName, handler: modded })
+              const modded = applyTrigMods(onWin, trig, mods), evName = ev || SPEC_WIN_EV
+              window.addEventListener(evName, modded)
+              elSubs.push({ type: 'event', tarEl: window, evName, handler: modded })
               continue
             }
             if (root === SPEC_DOC) {
               const onDoc = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-              const modded = applyTrigMods(onDoc, trig, mods), eventName = ev || SPEC_DOC_EV
-              document.addEventListener(eventName, modded)
-              elSubs.push({ type: 'event', targetEl: document, eventName, handler: modded })
+              const modded = applyTrigMods(onDoc, trig, mods), evName = ev || SPEC_DOC_EV
+              document.addEventListener(evName, modded)
+              elSubs.push({ type: 'event', tarEl: document, evName, handler: modded })
               continue
             }
             if (root === SPEC_INTERVAL) {
               const ms = parseInt(ev) || SPEC_INTERVAL_MS
               let count = 0
-              const onInt = (_e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
+              const onInt = (e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onInt, trig, mods)
               const id = setInterval(() => {
                 try {
@@ -752,7 +754,7 @@
             }
             if (root === SPEC_TIMEOUT) {
               const ms = parseInt(ev) || SPEC_TIMEOUT_MS
-              const onTimeout = (_e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
+              const onTimeout = (_, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
               const modded = applyTrigMods(onTimeout, trig, mods)
               const id = setTimeout(() => {
                 try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error(`[dmax] Error: timeout handler (${ms}ms) failed:`, e?.message ?? e) }
@@ -767,24 +769,24 @@
                 const onForm = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
                 const modded = applyTrigMods(onForm, trig, mods)
                 formEl.addEventListener(formEv, modded)
-                elSubs.push({ type: 'event', targetEl: formEl, eventName: formEv, handler: modded })
+                elSubs.push({ type: 'event', tarEl: formEl, evName: formEv, handler: modded })
                 if (isImmediateMod(mods, false)) modded()
               }
               continue
             }
           }
-          let targetEl = root ? getElById(root, aName) : el
-          if (!targetEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
+          let tarEl = root ? getElById(root, aName) : el
+          if (!tarEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
           let propPath = null
-          if (path && path.length && isDefaultPropName(targetEl, path[0])) propPath = path, ev = getDefaultEvent(targetEl)
-          ev = ev ?? getDefaultEvent(targetEl)
+          if (path && path.length && isDefaultPropName(tarEl, path[0])) propPath = path, ev = getDefaultEvent(tarEl)
+          ev = ev ?? getDefaultEvent(tarEl)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
           const finalEvent = ev
-          const baseHandler = (eventObj) => fn(DM, el, trig, getElPropVal(targetEl, propPath), eventObj)
+          const baseHandler = (evObj) => fn(DM, el, trig, getElPropVal(tarEl, propPath), evObj)
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { targetEl.removeEventListener(finalEvent, moddedHandler) } catch (e) { } }
-          targetEl.addEventListener(finalEvent, moddedHandler)
-          elSubs.push({ type: 'event', targetEl, eventName: finalEvent, handler: moddedHandler })
+          moddedHandler.remove = () => { try { tarEl.removeEventListener(finalEvent, moddedHandler) } catch (_) { } }
+          tarEl.addEventListener(finalEvent, moddedHandler)
+          elSubs.push({ type: 'event', tarEl, evName: finalEvent, handler: moddedHandler })
           if (isImmediateMod(mods, false)) {
             ranImmediate = true
             moddedHandler()
@@ -815,50 +817,50 @@
         return
       }
 
-      const signalRead = sigTrig ?? sigTar
-      const signalWrite = sigTar
-      const writePropTar = propTar ?? DEFAULT_PROP_TARGET
-      const shouldReadSignal = !!signalRead && (sigTrig || !propTrig)
-      const shouldWriteSignal = !!signalWrite && (propTrig || !sigTrig)
+      const sigRead = sigTrig ?? sigTar
+      const sigWrite = sigTar
+      const writePropTar = propTar ?? DEFAULT_PROP_TAR
+      const shouldReadSig = !!sigRead && (sigTrig || !propTrig)
+      const shouldWriteSig = !!sigWrite && (propTrig || !sigTrig)
 
       const elSubs = ensureBoundSubs(el)
 
-      if (shouldReadSignal) {
-        if (!expected(signalRead.root)) return
+      if (shouldReadSig) {
+        if (!expected(sigRead.root)) return
         const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
-        const subFn = applyTrigMods((_ev, _trigVal, detail) => {
-          const v = getSignalValOrIt(signalRead)
+        const subFn = applyTrigMods((ev, trigVal, detail) => {
+          const v = getSigValOrIt(sigRead)
           setProp(el, aName, writePropTar, v)
-        }, signalRead, readMods)
-        const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(signalRead), detail)
-        const changeMod = getSgChangeShape(readMods)
-        ensureSignalSubs(signalRead.root).push({ fn: wrappedSubFn, changeMod, path: signalRead.path })
-        wrappedSubFn.remove = () => removeSignalSub(signalRead.root, wrappedSubFn)
+        }, sigRead, readMods)
+        const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(sigRead), detail)
+        const changeMod = getSigChangeShape(readMods)
+        ensureSigSubs(sigRead.root).push({ fn: wrappedSubFn, changeMod, path: sigRead.path })
+        wrappedSubFn.remove = () => removeSigSub(sigRead.root, wrappedSubFn)
         subFn.remove = wrappedSubFn.remove
-        elSubs.push({ type: 'signal', el, kind: signalRead.kind, root: signalRead.root, path: signalRead.path, fn: wrappedSubFn })
-        if (isImmediateMod(readMods, true)) subFn(null, getSignalValOrIt(signalRead), null)
+        elSubs.push({ type: 'signal', el, kind: sigRead.kind, root: sigRead.root, path: sigRead.path, fn: wrappedSubFn })
+        if (isImmediateMod(readMods, true)) subFn(null, getSigValOrIt(sigRead), null)
       }
 
-      if (shouldWriteSignal) {
+      if (shouldWriteSig) {
         const trig = propTrig
         const trigRoot = trig ? trig.root : ''
         const trigPath = trig ? trig.path : null
-        let targetEl = trigRoot ? getElById(trigRoot, aName) : el
-        if (!targetEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
+        let tarEl = trigRoot ? getElById(trigRoot, aName) : el
+        if (!tarEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
         const writeMods = trig ? (trig.mods.length ? trig.mods : globMods) : globMods
         let ev = trigPath && trigPath.length ? trigPath[0] : null
         let propPath = null
-        if (trigPath && trigPath.length && isDefaultPropName(targetEl, trigPath[0])) propPath = trigPath, ev = getDefaultEvent(targetEl)
+        if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEvent(tarEl)
         if (!propPath && propTar && propTar.path) propPath = propTar.path
-        ev = ev ?? getDefaultEvent(targetEl)
-        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TARGET, 'in:', aName); return }
+        ev = ev ?? getDefaultEvent(tarEl)
+        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
-        const baseHandler = (_eventObj) => setSignalAndNotifySubsNLevelsDeep(aName, signalWrite, getElPropVal(targetEl, propPath))
-        const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TARGET, writeMods)
-        moddedHandler.remove = () => { try { targetEl.removeEventListener(ev, moddedHandler); } catch (e) { } };
-        targetEl.addEventListener(ev, moddedHandler)
-        elSubs.push({ type: 'event', targetEl, eventName: ev, handler: moddedHandler })
+        const baseHandler = (_) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath))
+        const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TAR, writeMods)
+        moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, moddedHandler); } catch (_) { } };
+        tarEl.addEventListener(ev, moddedHandler)
+        elSubs.push({ type: 'event', tarEl, evName: ev, handler: moddedHandler })
         if (isImmediateMod(writeMods, false)) moddedHandler()
       }
     }
@@ -872,15 +874,15 @@
       if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
       if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
-      const targetEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
-      if (!targetEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
+      const tarEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
+      if (!tarEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
       const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
       function applyClasses(val) {
         for (let i = 0; i < adds.length; ++i) {
           const add = adds[i], name = camelToKebab(add.root)
-          if (add.not ? !val : !!val) targetEl.classList.add(name)
-          else targetEl.classList.remove(name)
+          if (add.not ? !val : !!val) tarEl.classList.add(name)
+          else tarEl.classList.remove(name)
         }
       }
       const elSubs = ensureBoundSubs(el)
@@ -889,24 +891,24 @@
         const mods = trig.mods.length ? trig.mods : globMods
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subFn = applyTrigMods((_ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
-          const changeMod = getSgChangeShape(mods)
-          ensureSignalSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSignalSub(root, wrappedSubFn)
+          const subFn = applyTrigMods((ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
+          const changeMod = getSigChangeShape(mods)
+          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
-          if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
+          if (isImmediateMod(mods, false)) subFn(null, getSigValOrIt(trig), null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
+          const baseHandler = (evObj) => applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), evObj) : true)
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
           evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
           if (isImmediateMod(mods, false)) moddedHandler()
         }
       }
@@ -917,23 +919,23 @@
       const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
-      const targetEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
-      if (!targetEl) { console.error('[dmax] Error: dDisp target element not found in:', aName); return }
-      const inline = (targetEl.style && targetEl.style.display) || ''
+      const tarEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
+      if (!tarEl) { console.error('[dmax] Error: dDisp target element not found in:', aName); return }
+      const inline = (tarEl.style && tarEl.style.display) || ''
       const hadInline = inline !== ''
-      const computed = getComputedDisplay(targetEl)
+      const computed = getComputedDisplay(tarEl)
       const origDisplay = hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
       const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
       function applyDisp(val) {
         if (val) {
-          if (hadInline) targetEl.style.display = origDisplay
+          if (hadInline) tarEl.style.display = origDisplay
           else {
-            if (getComputedDisplay(targetEl) === 'none') targetEl.style.display = origDisplay
-            else targetEl.style.removeProperty('display')
+            if (getComputedDisplay(tarEl) === 'none') tarEl.style.display = origDisplay
+            else tarEl.style.removeProperty('display')
           }
         } else {
-          targetEl.style.display = 'none'
+          tarEl.style.display = 'none'
         }
       }
       const elSubs = ensureBoundSubs(el)
@@ -942,24 +944,24 @@
         const mods = trig.mods.length ? trig.mods : globMods
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subFn = applyTrigMods((_ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
-          const changeMod = getSgChangeShape(mods)
-          ensureSignalSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSignalSub(root, wrappedSubFn)
+          const subFn = applyTrigMods((ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
+          const changeMod = getSigChangeShape(mods)
+          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
-          if (isImmediateMod(mods, false)) subFn(null, getSignalValOrIt(trig), null)
+          if (isImmediateMod(mods, false)) subFn(null, getSigValOrIt(trig), null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (eventObj) => applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), eventObj) : true)
+          const baseHandler = (evObj) => applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), evObj) : true)
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
           evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
           if (isImmediateMod(mods, false)) moddedHandler()
         }
       }
@@ -990,24 +992,25 @@
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
       if (!tpl) { console.error('[dmax] Error: dDump template not found for:', aName); return }
-      if (!el.__dump) el.__dump = { nodes: [], count: 0 }
+      let dumpState = DUMP_STATES.get(el)
+      if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
       const sigRoot = trig.root
       const sigPath = trig.path
 
       function doRender(detail) {
-        const val = getSignalValOrIt(trig)
+        const val = getSigValOrIt(trig)
         if (!Array.isArray(val)) return
         const newLen = val.length
-        const oldLen = el.__dump.count || 0
+        const oldLen = dumpState.count || 0
 
         // Remove clones from the end when array shrank
         if (newLen < oldLen) {
           const removeCount = oldLen - newLen
           for (let i = 0; i < removeCount; i++) {
-            const node = el.__dump.nodes.pop()
+            const node = dumpState.nodes.pop()
             if (node && node.parentNode) node.parentNode.removeChild(node)
           }
-          el.__dump.count = newLen
+          dumpState.count = newLen
         }
 
         // Append new clones when array grew
@@ -1036,26 +1039,26 @@
                 }
               }
               frag.appendChild(node)
-              el.__dump.nodes.push(node)
+              dumpState.nodes.push(node)
             } catch (e) {}
           }
           el.appendChild(frag)
           // Wire up data-* attributes on newly inserted nodes
-          for (const node of el.__dump.nodes.slice(-(newLen - oldLen))) {
+          for (const node of dumpState.nodes.slice(-(newLen - oldLen))) {
             const walk2 = [node].concat(Array.from(node.querySelectorAll('*')))
             for (const n of walk2)
               for (const a of Array.from(n.attributes || EMPTY_ARR)) wireNode(n, a.name, a.value)
           }
-          el.__dump.count = newLen
+          dumpState.count = newLen
         }
       }
 
       const root = sigRoot, path = sigPath
-      const changeMod = getSgChangeShape(mods)
-      const subFn = applyTrigMods((_ev, _trigVal, detail) => doRender(detail), trig, mods)
-      const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
-      ensureSignalSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-      wrappedSubFn.remove = () => removeSignalSub(root, wrappedSubFn)
+      const changeMod = getSigChangeShape(mods)
+      const subFn = applyTrigMods((ev, trigVal, detail) => doRender(detail), trig, mods)
+      const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
+      ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
+      wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
       subFn.remove = wrappedSubFn.remove
       ensureBoundSubs(el).push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
       if (isImmediateMod(mods, false)) doRender(null)
@@ -1120,13 +1123,13 @@
         }
       }
 
-      const busyStat = resolveStatusSignal(busyMod, MOD_BUSY)
-      const completeStat = resolveStatusSignal(completeMod, MOD_COMPLETE)
-      const errStat = resolveStatusSignal(errMod, MOD_ERR)
-      const codeStat = resolveStatusSignal(codeMod, MOD_CODE)
-      const openStat = resolveStatusSignal(openMod, MOD_SSE_OPEN)
-      const closeStat = resolveStatusSignal(closeMod, MOD_SSE_CLOSE)
-      const abortStat = resolveStatusSignal(abortMod, MOD_ABORT)
+      const busyStat = resolveStatusSig(busyMod, MOD_BUSY)
+      const completeStat = resolveStatusSig(completeMod, MOD_COMPLETE)
+      const errStat = resolveStatusSig(errMod, MOD_ERR)
+      const codeStat = resolveStatusSig(codeMod, MOD_CODE)
+      const openStat = resolveStatusSig(openMod, MOD_SSE_OPEN)
+      const closeStat = resolveStatusSig(closeMod, MOD_SSE_CLOSE)
+      const abortStat = resolveStatusSig(abortMod, MOD_ABORT)
       // ^retry.N sets the reconnect delay in ms after an unexpected SSE close.
       const retryDelay = retryMod ? (+(resolveModPathVal(retryMod.path) ?? MOD_RETRY_MS) || MOD_RETRY_MS) : 0
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
@@ -1138,21 +1141,21 @@
       if (abortStat && !_dm.has(abortStat.root)) _dm.set(abortStat.root, null)
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
-      let _activeAbort = null
+      let activeAbort = null
 
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
 
-        if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, true)
-        if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, false)
-        if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
-        if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, null)
+        if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, true)
+        if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, false)
+        if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
+        if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, null)
 
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
           if (sendAll) {
-            for (const [sgName, sgVal] of _dm.entries()) bodyFields[sgName] = sgVal
+            for (const [sigName, sigVal] of _dm.entries()) bodyFields[sigName] = sigVal
           }
           for (const add of adds) {
             const addKind = add.kind, addRoot = add.root, addPath = add.path
@@ -1162,7 +1165,7 @@
               val = addEl ? getElPropVal(addEl, addPath) : null
               key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
             } else {
-              val = getSignalValOrIt(add)
+              val = getSigValOrIt(add)
               key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
             let shouldSpread = false
@@ -1180,19 +1183,18 @@
             else bodyFields[key] = val
           }
 
-          // ^url.<signalPath> forces a named signal into query params.
-          // ^body.<signalPath> forces a named signal into the request body.
-          for (let _mi = 0; _mi < 2; _mi++) {
-            const _mArr = _mi === 0 ? urlMods : bodyMods
-            const _dest = _mi === 0 ? queryParams : bodyFields
-            for (const _m of _mArr) {
-              const _mp = _m.path
-              if (!_mp) continue
-              let _k, _v
-              if (typeof _mp === 'string') { _k = _mp; _v = _dm.has(_mp) ? _dm.get(_mp) : undefined }
-              else if (_mp.kind === SIGNAL) { _k = _mp.path && _mp.path.length ? _mp.path[_mp.path.length - 1] : _mp.root; _v = getSignalValOrIt(_mp) }
+          // ^url.<sigPath> forces a named sig into query params.
+          // ^body.<sigPath> forces a named sig into the request body.
+          const modPairs = [{ mods: urlMods, dest: queryParams }, { mods: bodyMods, dest: bodyFields }]
+          for (const modPair of modPairs) {
+            for (const m of modPair.mods) {
+              const mPath = m.path
+              if (!mPath) continue
+              let mKey, mVal
+              if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
+              else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
               else continue
-              _dest[_k] = _v
+              modPair.dest[mKey] = mVal
             }
           }
 
@@ -1224,16 +1226,16 @@
            if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
            if (encCompress) enc += (enc ? ', ' : '') + 'compress'
            if (enc) headers['Accept-Encoding'] = enc
-            // ^header.<name> sets one request header from a named signal.
-           for (const _m of hdrMods) {
-            const _mp = _m.path
-            if (!_mp) continue
-            let _k, _v
-            if (typeof _mp === 'string') { _k = _mp; _v = _dm.has(_mp) ? _dm.get(_mp) : undefined }
-            else if (_mp.kind === SIGNAL) { _k = _mp.path && _mp.path.length ? _mp.path[_mp.path.length - 1] : _mp.root; _v = getSignalValOrIt(_mp) }
-            else continue
-            headers[_k] = String(_v ?? '')
-          }
+            // ^header.<name> sets one request header from a named sig.
+            for (const m of hdrMods) {
+             const mPath = m.path
+             if (!mPath) continue
+             let mKey, mVal
+             if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
+             else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
+             else continue
+             headers[mKey] = String(mVal ?? '')
+           }
 
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
@@ -1260,8 +1262,8 @@
 
           // Wire up AbortController so ^abort.<signal> lets callers cancel the request.
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
-          _activeAbort = ac ? () => ac.abort() : null
-          if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, _activeAbort)
+          activeAbort = ac ? () => ac.abort() : null
+          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, activeAbort)
           const init = { method, headers }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
@@ -1273,55 +1275,55 @@
             // Use incremental streaming when the browser exposes a ReadableStream body;
             // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
             if (res.body && typeof res.body.getReader === 'function') {
-              payload = await consumeDmaxSseStream(
+              payload = await consumeSseStream(
                 res.body, aName,
                 openStat ? () => {
-                  setSignalAndNotifySubsNLevelsDeep(aName, openStat, true)
-                  if (closeStat) setSignalAndNotifySubsNLevelsDeep(aName, closeStat, false)
+                  setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
+                  if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, false)
                 } : null,
                 closeStat || errStat ? (streamErr) => {
-                  if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, false)
+                  if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
                   if (streamErr) {
-                    if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
+                    if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
                   } else {
-                    if (closeStat) setSignalAndNotifySubsNLevelsDeep(aName, closeStat, true)
+                    if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
                   }
                 } : null
               )
             } else {
-              if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, true)
+              if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
               const sseRaw = await res.text()
-              payload = applyDmaxSse(sseRaw, aName)
-              if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, false)
-              if (closeStat) setSignalAndNotifySubsNLevelsDeep(aName, closeStat, true)
+              payload = applySse(sseRaw, aName)
+              if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
+              if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
             }
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
 
           applyActionPayload(aName, resultTar, payload, resultMode)
-          if (patchAll) patchMatchingSignals(aName, payload, resultMode)
-          if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
-          if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, null)
-          if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
-          if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, null)
-          _activeAbort = null
+          if (patchAll) patchMatchingSigs(aName, payload, resultMode)
+          if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
+          if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
+          if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
+          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, null)
+          activeAbort = null
 
           // ^retry: auto-reconnect after clean close (stream ended without error and retry is requested)
           if (retryDelay > 0 && ct.includes('text/event-stream') && !(ac && ac.signal.aborted)) {
             setTimeout(doRequest, retryDelay)
           }
         } catch (err) {
-          _activeAbort = null
-          if (abortStat) setSignalAndNotifySubsNLevelsDeep(aName, abortStat, null)
-          if (openStat) setSignalAndNotifySubsNLevelsDeep(aName, openStat, false)
+          activeAbort = null
+          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, null)
+          if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
           // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
           const isAbort = err && err.name === 'AbortError'
-          if (busyStat) setSignalAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (completeStat) setSignalAndNotifySubsNLevelsDeep(aName, completeStat, true)
+          if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
+          if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (!isAbort) {
-            if (errStat) setSignalAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
-            if (codeStat) setSignalAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
+            if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
+            if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
             console.error('[dmax] Error: dAction fetch failed:', err)
             // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
@@ -1337,11 +1339,11 @@
         const mods = trig.mods.length ? trig.mods : globMods
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subFn = applyTrigMods((_ev, _trigVal, _detail) => doRequest(), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSignalValOrIt(trig), detail)
-          const changeMod = getSgChangeShape(mods)
-          ensureSignalSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSignalSub(root, wrappedSubFn)
+          const subFn = applyTrigMods((ev, trigVal, detail) => doRequest(), trig, mods)
+          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
+          const changeMod = getSigChangeShape(mods)
+          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
+          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
           if (!ranImmediate && isImmediateMod(mods, false)) {
@@ -1353,11 +1355,11 @@
           if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (_eventObj) => doRequest()
+          const baseHandler = (_) => doRequest()
           const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (e) { } }
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
           evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', targetEl: evTarEl, eventName: ev, handler: moddedHandler })
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             moddedHandler()
@@ -1396,7 +1398,7 @@
       return selector.length > 1 ? selector.slice(1) : null
     }
 
-    function getPatchTargets(selector) {
+    function getPatchTars(selector) {
       if (!selector) return EMPTY_ARR
       const simpleId = getSimpleIdSelector(selector)
       if (simpleId) {
@@ -1541,14 +1543,14 @@
       const tag = from.tagName
       const isFocused = from === document.activeElement
       let selStart = -1, selEnd = -1, selDir = 'none'
-      let selectValue = null, selectIndex = -1
+      let selVal = null, selIdx = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
-        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {
+        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {
           // selection is not supported for some input types
         }
       } else if (isFocused && tag === 'SELECT') {
-        selectValue = from.value
-        selectIndex = from.selectedIndex
+        selVal = from.value
+        selIdx = from.selectedIndex
       }
       // Save scroll position so updates do not jump the viewport.
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
@@ -1564,14 +1566,14 @@
       if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
       // Restore caret and selection for focused text controls.
       if (isFocused && selStart >= 0) {
-        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {
+        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_) {
           // setSelectionRange is not supported for some input types
         }
       } else if (isFocused && tag === 'SELECT') {
         // Restore by value first so reordered options keep the same logical selection.
-        from.value = selectValue
-        if (from.value !== selectValue && selectIndex >= 0 && selectIndex < from.options.length)
-          from.selectedIndex = selectIndex
+        from.value = selVal
+        if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length)
+          from.selectedIndex = selIdx
       }
     }
 
@@ -1590,10 +1592,10 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
-    const SSE_EVENT_DMAX_PATCH_ELEMENTS = 'dmax-patch-elements'
-    const SSE_EVENT_DMAX_PATCH_SIGNALS = 'dmax-patch-signals'
-    const SSE_DATA_DMAX_ELEMENTS = 'dmaxElements'
-    const SSE_DATA_DMAX_SIGNALS = 'dmaxSignals'
+    const SSE_EV_PATCH_ELS = 'dmax-patch-elements'
+    const SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
+    const SSE_DATA_PATCH_ELS = 'dmaxElements'
+    const SSE_DATA_PATCH_SIGS = 'dmaxSignals'
     const PATCH_MODE_OUTER = 'outer'
     const PATCH_MODE_INNER = 'inner'
     const PATCH_MODE_REPLACE = 'replace'
@@ -1603,41 +1605,41 @@
     const PATCH_MODE_AFTER = 'after'
     const PATCH_MODE_REMOVE = 'remove'
 
-    function parseSseElements(html, namespace) {
+    function parseSseEls(html, ns) {
       if (!html) return []
-      const ns = (namespace || 'html').toLowerCase()
-      if (ns === 'html') {
+      const namespace = (ns || 'html').toLowerCase()
+      if (namespace === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
         const out = []
         for (let el = _HTML_PARSE_TEMPLATE.content.firstElementChild; el; el = el.nextElementSibling) out.push(el)
         return out
       }
-      const wrap = ns === 'svg'
+      const wrap = namespace === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
         : `<math xmlns="http://www.w3.org/1998/Math/MathML">${html}</math>`
-      const doc = new DOMParser().parseFromString(wrap, ns === 'svg' ? 'image/svg+xml' : 'application/xml')
+      const doc = new DOMParser().parseFromString(wrap, namespace === 'svg' ? 'image/svg+xml' : 'application/xml')
       const root = doc.documentElement
       return root ? Array.from(root.children) : []
     }
 
-    function insertFragmentRelative(target, sourceEls, mode) {
-      if (!target || !sourceEls || !sourceEls.length) return
+    function insertFragRelative(tarEl, srcEls, mode) {
+      if (!tarEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
-      for (const src of sourceEls) frag.appendChild(src.cloneNode(true))
-      if (mode === 'append') target.appendChild(frag)
-      else if (mode === 'prepend') target.insertBefore(frag, target.firstChild || null)
-      else if (mode === 'before' && target.parentNode) target.parentNode.insertBefore(frag, target)
-      else if (mode === 'after' && target.parentNode) target.parentNode.insertBefore(frag, target.nextSibling)
+      for (const src of srcEls) frag.appendChild(src.cloneNode(true))
+      if (mode === 'append') tarEl.appendChild(frag)
+      else if (mode === 'prepend') tarEl.insertBefore(frag, tarEl.firstChild || null)
+      else if (mode === 'before' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl)
+      else if (mode === 'after' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
     }
 
-    function applyPatchPair(targetEl, srcEl, mode) {
-      if (!targetEl || !srcEl) return
-      if (mode === PATCH_MODE_REPLACE) targetEl.replaceWith(srcEl.cloneNode(true))
+    function applyPatchPair(tarEl, srcEl, mode) {
+      if (!tarEl || !srcEl) return
+      if (mode === PATCH_MODE_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
       else if (mode === PATCH_MODE_INNER) {
-        const to = targetEl.cloneNode(false)
+        const to = tarEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
-        morphChildren(targetEl, to)
-      } else morph(targetEl, srcEl)
+        morphChildren(tarEl, to)
+      } else morph(tarEl, srcEl)
     }
 
     function applyPatchSource(srcEl, mode) {
@@ -1645,42 +1647,42 @@
       else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
     }
 
-    function applyDmaxPatchElements(args) {
+    function applyPatchEls(args) {
       const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
-      const selector = args.selector ? String(args.selector) : ''
-      const namespace = args.namespace ? String(args.namespace) : 'html'
-      const sourceEls = parseSseElements(args[SSE_DATA_DMAX_ELEMENTS] || '', namespace)
+      const sel = args.selector ? String(args.selector) : ''
+      const ns = args.namespace ? String(args.namespace) : 'html'
+      const srcEls = parseSseEls(args[SSE_DATA_PATCH_ELS] || '', ns)
 
       if (mode === PATCH_MODE_REMOVE) {
-        if (selector) for (const t of document.querySelectorAll(selector)) t.remove()
-        else for (const src of sourceEls) {
+        if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
+        else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
-          else console.warn('[dmax] dmax-patch-elements remove without selector requires element ids')
+          else console.warn('[dmax] patch-elements remove without selector requires element ids')
         }
         return
       }
 
       if (mode === PATCH_MODE_APPEND || mode === PATCH_MODE_PREPEND || mode === PATCH_MODE_BEFORE || mode === PATCH_MODE_AFTER) {
-        if (!selector || !sourceEls.length) return
-        for (const t of document.querySelectorAll(selector)) insertFragmentRelative(t, sourceEls, mode)
+        if (!sel || !srcEls.length) return
+        for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
         return
       }
 
-      if (selector) {
-        if (!sourceEls.length) return
-        const targets = getPatchTargets(selector)
-        // sourceEls is non-empty here; fallback to first source when targets outnumber sources.
-        const defaultSrc = sourceEls[0]
-        for (let i = 0; i < targets.length; i++) applyPatchPair(targets[i], sourceEls[i] || defaultSrc, mode)
+      if (sel) {
+        if (!srcEls.length) return
+        const tars = getPatchTars(sel)
+        // srcEls is non-empty here; fallback to first source when targets outnumber sources.
+        const defaultSrc = srcEls[0]
+        for (let i = 0; i < tars.length; i++) applyPatchPair(tars[i], srcEls[i] || defaultSrc, mode)
         return
       }
 
-      if (!sourceEls.length) return
-      if (sourceEls.length === 1) {
-        applyPatchSource(sourceEls[0], mode)
+      if (!srcEls.length) return
+      if (srcEls.length === 1) {
+        applyPatchSource(srcEls[0], mode)
         return
       }
-      for (const src of sourceEls) applyPatchSource(src, mode)
+      for (const src of srcEls) applyPatchSource(src, mode)
     }
 
     function applyJsonMergePatch(prev, patch) {
@@ -1695,11 +1697,11 @@
       return out
     }
 
-    function applyDmaxPatchSignals(aName, args) {
-      const raw = args[SSE_DATA_DMAX_SIGNALS]
+    function applyPatchSigs(aName, args) {
+      const raw = args[SSE_DATA_PATCH_SIGS]
       if (!raw) return
       let patchObj = null
-      try { patchObj = JSON.parse(raw) } catch (_e) { return }
+      try { patchObj = JSON.parse(raw) } catch (_) { console.error('[dmax] Error: patch sigs in', aName, 'expect JSON but found invalid format'); return }
       if (!patchObj || typeof patchObj !== 'object' || Array.isArray(patchObj)) return
       const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
       for (const root of Object.keys(patchObj)) {
@@ -1707,22 +1709,22 @@
         const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
         if (next === JSON_MERGE_DELETE) {
           if (_dm.has(root)) {
-            setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, undefined)
+            setSigAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, undefined)
             _dm.delete(root)
             updateDebug()
           }
         } else {
-          setSignalAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, next)
+          setSigAndNotifySubsNLevelsDeep(aName, { kind: SIGNAL, not: null, root, path: null }, next)
         }
       }
     }
 
-    function applyDmaxSse(raw, aName = 'dmax-sse') {
+    function applySse(raw, aName = 'dmax-sse') {
       if (!raw) return []
       const applied = []
       const text = String(raw)
       const RE_TRAILING_CR = /\r$/
-      let curEvent = 'message'
+      let curEv = 'message'
       let curArgs = null
       let hasData = false
       const consumeLine = (line) => {
@@ -1732,7 +1734,7 @@
         const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
         let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
         if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEvent = val || 'message'
+        if (field === 'event') curEv = val || 'message'
         else if (field === 'data') {
           const spaceIndex = val.indexOf(' ')
           if (spaceIndex < 0) return
@@ -1744,15 +1746,15 @@
         }
       }
       const flush = () => {
-        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
-        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
-          applyDmaxPatchElements(curArgs)
-          applied.push({ event: curEvent, args: curArgs })
-        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS) {
-          applyDmaxPatchSignals(aName, curArgs)
-          applied.push({ event: curEvent, args: curArgs })
+        if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
+        if (curEv === SSE_EV_PATCH_ELS) {
+          applyPatchEls(curArgs)
+          applied.push({ event: curEv, args: curArgs })
+        } else if (curEv === SSE_EV_PATCH_SIGS) {
+          applyPatchSigs(aName, curArgs)
+          applied.push({ event: curEv, args: curArgs })
         }
-        curEvent = 'message'
+        curEv = 'message'
         curArgs = null
         hasData = false
       }
@@ -1768,31 +1770,31 @@
     }
 
     // Consume a text/event-stream response body incrementally using the Streams API.
-    // Applies dmax-patch-elements and dmax-patch-signals events as each SSE event
+    // Applies dmax-patch-elements and dmax-patch-signals events as each SSE ev
     // arrives rather than after the full response is buffered, lowering first-update
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    async function consumeDmaxSseStream(body, aName, onOpen, onClose) {
+    async function consumeSseStream(body, aName, onOpen, onClose) {
       if (!body || typeof body.getReader !== 'function') return []
       const applied = []
       const reader = body.getReader()
       const decoder = new TextDecoder()
       const RE_TRAILING_CR = /\r$/
       let buf = ''
-      let curEvent = 'message', curArgs = null, hasData = false
+      let curEv = 'message', curArgs = null, hasData = false
       let opened = false
 
       const flush = () => {
-        if (!hasData || !curArgs) { curEvent = 'message'; curArgs = null; hasData = false; return }
-        if (curEvent === SSE_EVENT_DMAX_PATCH_ELEMENTS) {
-          applyDmaxPatchElements(curArgs)
-          applied.push({ event: curEvent, args: curArgs })
-        } else if (curEvent === SSE_EVENT_DMAX_PATCH_SIGNALS) {
-          applyDmaxPatchSignals(aName, curArgs)
-          applied.push({ event: curEvent, args: curArgs })
+        if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
+        if (curEv === SSE_EV_PATCH_ELS) {
+          applyPatchEls(curArgs)
+          applied.push({ event: curEv, args: curArgs })
+        } else if (curEv === SSE_EV_PATCH_SIGS) {
+          applyPatchSigs(aName, curArgs)
+          applied.push({ event: curEv, args: curArgs })
         }
-        curEvent = 'message'; curArgs = null; hasData = false
+        curEv = 'message'; curArgs = null; hasData = false
       }
 
       const consumeLine = (line) => {
@@ -1802,7 +1804,7 @@
         const field = ci >= 0 ? line.slice(0, ci) : line
         let val = ci >= 0 ? line.slice(ci + 1) : ''
         if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEvent = val || 'message'
+        if (field === 'event') curEv = val || 'message'
         else if (field === 'data') {
           const si = val.indexOf(' ')
           if (si < 0) return
@@ -1840,6 +1842,11 @@
       return applied
     }
 
+    function applyDmaxPatchElements(args) { return applyPatchEls(args) }
+    function applyDmaxPatchSigs(aName, args) { return applyPatchSigs(aName, args) }
+    function applyDmaxSse(raw, aName) { return applySse(raw, aName) }
+    async function consumeDmaxSseStream(body, aName, onOpen, onClose) { return consumeSseStream(body, aName, onOpen, onClose) }
+
     // Detach listeners and signal subscriptions for a removed subtree.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
@@ -1850,7 +1857,7 @@
         const boundSubs = _cleanupBoundSubs.get(node)
         if (boundSubs) {
           for (const l of boundSubs) {
-            if (l.type === 'event') l.targetEl.removeEventListener(l.eventName, l.handler)
+            if (l.type === 'event') l.tarEl.removeEventListener(l.evName, l.handler)
             else if (l.type === 'signal') {
               const arr = _subs.get(l.root)
               if (arr && arr.length) {
