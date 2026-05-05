@@ -640,6 +640,16 @@
       try { return setSigAndNotifySubs(aName, tar, val) } finally { syncDepth-- }
     }
 
+    /**
+     * @typedef {((ev?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} TriggerHandler
+     */
+
+    /**
+     * @param {TriggerHandler} fn
+     * @param {{ kind: string, not?: any }} trig
+     * @param {Array<{ root: string, path?: any }>} mods
+     * @returns {TriggerHandler}
+     */
     function applyTrigMods(fn, trig, mods) {
       const isSig = trig.kind === SIGNAL
       let one = false, always = false, prv = false
@@ -657,24 +667,25 @@
       }
       let tm = 0, last = 0
 
-      const run = (ev, val, detail) => {
+      const h = function (ev, val, detail, scheduled) {
+        if (!scheduled) {
+          if (prv) ev?.preventDefault?.()
+          if (deb > 0) {
+            clearTimeout(tm)
+            tm = setTimeout(h, deb, ev, val, detail, true)
+            return
+          }
+          if (thr > 0) {
+            const now = Date.now()
+            if (now - last < thr) return
+            last = now
+          }
+        }
         let trigVal = (isSig ? getSigValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (isSig && trig.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
-      }
-
-      const h = function (ev, val, detail) {
-        if (prv) ev?.preventDefault?.()
-        if (deb > 0) clearTimeout(tm), tm = setTimeout(run, deb, ev, val, detail)
-        else {
-          const now = thr > 0 ? Date.now() : 0
-          if (thr <= 0 || now - last >= thr) {
-            if (thr > 0) last = now
-            run(ev, val, detail)
-          }
-        }
       }
       return h
     }
