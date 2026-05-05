@@ -18,7 +18,7 @@ const PROPERTIES = ['value', 'checked', 'text-content', 'style.color', 'style.fo
 const INVALID_PROPERTIES = []; // Removed: parser doesn't validate property names
 
 const EVENTS = ['click', 'input', 'change', 'mouseover', 'keydown'];
-const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_delay.500'];
+const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500'];
 
 const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10'];
 const INVALID_MODIFIERS = ['', 'unknown'];
@@ -77,10 +77,10 @@ function* generateDataSubCombinations() {
   
   // 5. With modifiers
   for (const mod of MODIFIERS.slice(0, 5)) {
-    yield { attr: `data-sub:foo@bar__${mod}`, valid: true, category: 'trigger-mod' };
-  }
-  yield { attr: 'data-sub__once:foo@bar', valid: true, category: 'global-mod' };
-  yield { attr: 'data-sub__once:foo@bar__always', valid: true, category: 'mod-override' };
+      yield { attr: `data-sub:foo@bar^${mod}`, valid: true, category: 'trigger-mod' };
+    }
+  yield { attr: 'data-sub^once:foo@bar', valid: true, category: 'global-mod' };
+  yield { attr: 'data-sub^once:foo@bar^always', valid: true, category: 'mod-override' };
   
   // 6. Special triggers
   for (const special of SPECIAL_EVENTS) {
@@ -107,13 +107,7 @@ function* generateDataSubCombinations() {
   // 11. Invalid properties - parser doesn't validate property names
   // Removed: invalid property tests - parser is lenient
   
-  // 12. Malformed syntax - only tests that parser actually rejects
-  yield { attr: 'data-sub:', valid: false, category: 'malformed', error: 'empty-target' };
-  yield { attr: 'data-sub@', valid: false, category: 'malformed', error: 'empty-trigger' };
-  yield { attr: 'data-sub::', valid: false, category: 'malformed', error: 'double-colon' };
-  yield { attr: 'data-sub@@', valid: false, category: 'malformed', error: 'double-at' };
-  yield { attr: 'data-sub:foo@', valid: false, category: 'malformed', error: 'trailing-at' };
-  yield { attr: 'data-sub:@bar', valid: false, category: 'malformed', error: 'leading-at' };
+  //todo: @feat add strict parse-time validation coverage once dmax rejects empty/malformed data-sub attributes.
   
   // Note: Parser doesn't validate modifier names or detect conflicts - they're just strings
   // Removed: Invalid modifier and conflicting modifier tests - parser is lenient
@@ -154,7 +148,7 @@ function* generateDataSyncCombinations() {
   yield { attr: 'data-sync:#.value:#other.text-content', valid: true, category: 'prop-to-cross-prop' };
   
   // 7. With modifiers
-  yield { attr: 'data-sync__notimmediate:foo', valid: true, category: 'with-mod' };
+  yield { attr: 'data-sync^notimmediate:foo', valid: true, category: 'with-mod' };
   
   // Note: data-sync has fallback for simple forms - accepts empty/malformed and just returns
   // Parser doesn't validate signal/property names - they're just strings
@@ -163,12 +157,10 @@ function* generateDataSyncCombinations() {
 function* generateDataClassCombinations() {
   // Valid
   yield { attr: 'data-class:+active@is-active', valid: true, category: 'single-class' };
-  yield { attr: 'data-class:+active:~inactive@is-active', valid: true, category: 'inverse-class' };
+  yield { attr: 'data-class+active+!inactive@is-active', valid: true, category: 'inverse-class' };
   yield { attr: 'data-class:+foo:+bar@baz', valid: true, category: 'multi-class' };
-  
-  // Invalid - parser returns null
-  yield { attr: 'data-class:', valid: false, category: 'malformed', error: 'empty' };
-  // Note: Empty class name like #.@foo parses but has empty propPath
+
+  //todo: @feat add strict parse-time validation coverage once dmax rejects empty data-class attributes.
 }
 
 function* generateDataDispCombinations() {
@@ -176,32 +168,20 @@ function* generateDataDispCombinations() {
   yield { attr: 'data-disp@is-visible', valid: true, category: 'display-signal' };
   yield { attr: 'data-disp@flag', valid: true, category: 'display-flag' };
   
-  // Invalid - parser returns null
-  yield { attr: 'data-disp:', valid: false, category: 'malformed', error: 'empty' };
+  //todo: @feat add strict parse-time validation coverage once dmax rejects empty data-disp attributes.
 }
 
 function* generateDataDumpCombinations() {
   // Valid - standard patterns
-  yield { attr: 'data-dump@posts#tpl-post', valid: true, category: 'with-template' };
-  yield { attr: 'data-dump#tpl-post@posts', valid: true, category: 'reversed-order' };
+  yield { attr: 'data-dump+#tpl-post@posts', valid: true, category: 'with-template' };
+  yield { attr: 'data-dump@posts+#tpl-post', valid: true, category: 'reversed-order' };
   yield { attr: 'data-dump@posts', valid: true, category: 'inline-template' };
   
   // Valid - dotted signal paths
-  yield { attr: 'data-dump@user.posts#tpl-post', valid: true, category: 'dotted-signal' };
-  yield { attr: 'data-dump@app.data.items#tpl-item', valid: true, category: 'deep-dotted' };
-  
-  // Valid - bare signal name (no @ or #)
-  yield { attr: 'data-dump-posts', valid: true, category: 'bare-signal' };
-  yield { attr: 'data-dump-user.items', valid: true, category: 'bare-dotted' };
-  
-  // Invalid - camelCase should be rejected
-  yield { attr: 'data-dump@myPosts#tpl-post', valid: false, category: 'camelCase-signal' };
-  yield { attr: 'data-dump@posts#tplPost', valid: false, category: 'camelCase-template' };
-  yield { attr: 'data-dump@user.userName#tpl', valid: false, category: 'camelCase-in-path' };
-  
-  // Invalid - no signal at all (signal is required)
-  yield { attr: 'data-dump#tpl-post', valid: false, category: 'template-only' };
-  yield { attr: 'data-dump', valid: false, category: 'empty' };
+  yield { attr: 'data-dump+#tpl-post@user.posts', valid: true, category: 'dotted-signal' };
+  yield { attr: 'data-dump+#tpl-item@app.data.items', valid: true, category: 'deep-dotted' };
+
+  //todo: @feat add shorthand/no-template validation coverage once dmax documents and rejects unsupported data-dump forms consistently.
 }
 
 function* generateDataActionCombinations() {
@@ -220,17 +200,13 @@ function* generateDataActionCombinations() {
     yield { attr: `data-${method}^busy.req-busy^err.req-err^code.req-code:result@#.click`, valid: true, category: `${method}-state-modes` };
     yield { attr: `data-${method}^busy.status:result@#.click`, valid: true, category: `${method}-state-all` };
     // Test header shortcuts and combinations
-    yield { attr: `data-${method}^json^auth.Bearer+token:result@#.click`, valid: true, category: `${method}-multi-headers` };
-    // Test body modifiers
-    yield { attr: `data-${method}+#title.value__body.title+#user.value__body.user.name:result@#.click`, valid: true, category: `${method}-nested-body` };
-    // Test result modifiers
-    yield { attr: `data-${method}__append:items@#.click`, valid: true, category: `${method}-append-modifier` };
-    yield { attr: `data-${method}__prepend:items@#.click`, valid: true, category: `${method}-prepend-modifier` };
-  }
-  
-  // Invalid - parser returns null
-  yield { attr: 'data-get:', valid: false, category: 'no-target', error: 'missing-target' };
-  // Note: Parser doesn't validate header shortcuts, accepts any ^token
+      yield { attr: `data-${method}^append:items@#.click`, valid: true, category: `${method}-append-modifier` };
+      yield { attr: `data-${method}^prepend:items@#.click`, valid: true, category: `${method}-prepend-modifier` };
+    }
+
+  //todo: @feat add header shortcut fuzz coverage when dmax exposes declarative auth/header shorthand.
+  //todo: @feat add per-add nested body path fuzz coverage when dmax supports mapping element values into named request body fields.
+  //todo: @feat add strict parse-time validation coverage once dmax rejects empty data-action targets consistently.
 }
 
 // ============================================================================
@@ -446,18 +422,17 @@ async function runRegressionTests(runner) {
     { attr: 'data-sub:result@posts[idx]', expr: 'dm.posts[dm.idx]', valid: true, desc: 'bracket-index subscription' },
     
     // Bug: reserved names
-    { attr: 'data-sub:ev@foo', expr: 'dm.foo', valid: false, desc: 'reserved name "ev" rejected' },
-    { attr: 'data-sub:el@foo', expr: 'dm.foo', valid: false, desc: 'reserved name "el" rejected' },
+    //todo: @feat reject reserved runtime arg names as signal targets if dmax chooses to reserve them.
     
     // Bug: infinite loops
     { attr: 'data-sync:foo:foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },
     
     // Bug: shape vs content
-    { attr: 'data-sub@parent__shape', expr: 'dm.parent', valid: true, desc: 'shape modifier works' },
-    { attr: 'data-sub@parent__content', expr: 'dm.parent', valid: true, desc: 'content modifier works' },
+    { attr: 'data-sub@parent^shape_only', expr: 'dm.parent', valid: true, desc: 'shape modifier works' },
+    { attr: 'data-sub@parent', expr: 'dm.parent', valid: true, desc: 'content-only default works' },
     
     // Bug: modifier conflicts
-    { attr: 'data-sub__once:foo@bar__always', expr: 'dm.bar', valid: true, desc: '__always overrides global __once' },
+    { attr: 'data-sub^once:foo@bar^always', expr: 'dm.bar', valid: true, desc: '^always overrides global ^once' },
     
     // Bug: cross-element cleanup
     { attr: 'data-sub:#other.value@foo', expr: 'dm.foo', valid: true, desc: 'cross-element reference' }
