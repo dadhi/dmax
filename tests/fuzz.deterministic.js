@@ -46,8 +46,8 @@ const INVALID_EXPRESSIONS = [
   'window.location = "evil"'
 ];
 
-const DMAX_URL = pathToFileURL(path.join(process.cwd(), 'dmax.js')).href;
-const INDEX_URL = pathToFileURL(path.join(process.cwd(), 'index.html')).href;
+const dmaxUrl = pathToFileURL(path.join(process.cwd(), 'dmax.js')).href;
+const indexUrl = pathToFileURL(path.join(process.cwd(), 'index.html')).href;
 const BASE_STATE = JSON.stringify({
   foo: 0,
   bar: 1,
@@ -80,7 +80,7 @@ function buildTestHtml(insertEl) {
 <template id="tpl-item"><div class="item"></div></template>
 <template id="tpl"><div class="generic"></div></template>
 ${insertEl}
-<script src="${DMAX_URL}"></script>
+<script src="${dmaxUrl}"></script>
 </body></html>`;
 }
 
@@ -308,7 +308,7 @@ class FuzzTestRunner {
       const dom = new JSDOM(buildTestHtml(insertEl), {
         runScripts: 'dangerously',
         resources: 'usable',
-        url: INDEX_URL,
+        url: indexUrl,
         pretendToBeVisual: true,
         virtualConsole: vconsole
       });
@@ -341,9 +341,9 @@ class FuzzTestRunner {
         setTimeout(resolve, 1000);
       });
       const allNodes = Array.from(dom.window.document.querySelectorAll('*'));
-      for (const n of allNodes)
-        for (const a of Array.from(n.attributes || []))
-          if (a.name.indexOf('data-') === 0 && typeof dom.window.wireNode === 'function') dom.window.wireNode(n, a.name, a.value)
+      for (const node of allNodes)
+        for (const attribute of Array.from(node.attributes || []))
+          if (attribute.name.indexOf('data-') === 0 && typeof dom.window.wireNode === 'function') dom.window.wireNode(node, attribute.name, attribute.value)
       await new Promise(r => setTimeout(r, 100));
 
       if (exercise) {
@@ -502,7 +502,7 @@ async function runRegressionTests(runner) {
         const req = requests[0];
         if (!req) throw new Error('request missing');
         const body = JSON.parse(req.init.body);
-        if (body !== 'Hello title' && body.title !== 'Hello title') throw new Error('title signal not sent in body');
+        if (body !== 'Hello title') throw new Error('expected single title signal to serialize as a raw JSON string');
       }
     },
     {
