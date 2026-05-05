@@ -273,6 +273,14 @@
       return { p, r, c }
     }
     __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrigMods: prevent + once');
+    function __tTrigModsValueFallback() {
+      const out = []
+      const handler = applyTrigMods((_ev, trigVal, detail) => out.push({ trigVal, detail }), { kind: EV_PROP, root: '', path: null, not: null }, [])
+      handler({ detail: { value: 9 } }, null, null)
+      handler({ detail: { ms: 12 } }, null, null)
+      return out
+    }
+    __assert(__tTrigModsValueFallback, [], [{ trigVal: 9, detail: null }, { trigVal: 12, detail: null }], 'applyTrigMods: event detail fallback');
     function __tTrigModsDebounce() {
       const st = setTimeout, ct = clearTimeout
       let id = 0
