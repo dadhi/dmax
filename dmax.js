@@ -8,7 +8,6 @@
       return first === s.length ? -1 : first
     }
 
-
     const EMPTY_ARR = Object.freeze([])
     const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
     function kebabToCamel(s) {
@@ -46,7 +45,6 @@
       KEBAB_NAMES.set(s, res)
       return res
     }
-
 
     // Updated attribute-token syntax reference
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
@@ -135,7 +133,6 @@
       return { kind, not, root, path }
     }
 
-
     function finishParse(items, p, it, aName) {
       items[MOD] ??= EMPTY_ARR
       if (it === ALL) {
@@ -177,7 +174,6 @@
       }
       return finishParse(items, p, it, aName)
     }
-
 
     function isObjEmpty(o) {
       for (const _ in o) return false
@@ -238,7 +234,6 @@
     const __signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
     const __signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
 
-
     function dDebug(el) {
       if (!el) return
       _debugEls.add(el)
@@ -253,7 +248,6 @@
     };
 
     const __getElById = (id, aName) => getElById(id, aName)?.textContent ?? null;
-
 
     function getDefaultProp(el) {
       if (!el) return 'textContent'
@@ -297,7 +291,6 @@
       return [v, n]
     }
 
-
     const VAL_CHANGE_DEPTH_MAX = 32
     function valChangedDeep(before, after, depth = 0) {
       if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] Warning: too deep to compare for signal value change, consider it changed, stopped at:', VAL_CHANGE_DEPTH_MAX); return true }
@@ -315,7 +308,6 @@
       } else if (a !== b) return true
       return false
     }
-
 
     function expected(cond, ctx = 'expect') {
       if (cond) return true
@@ -366,7 +358,6 @@
       for (const k in b) if (!(k in a)) removed.push(k)
       return added.length ? (removed.length ? { added, removed } : { added }) : (removed.length ? { removed } : null)
     }
-
 
     function samePath(a, b) {
       if (a.length !== b.length) return false
@@ -643,13 +634,6 @@
 
       updateDebug()
     }
-
-
-
-
-
-
-
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
     function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
@@ -1883,53 +1867,6 @@
       if (onClose) onClose(streamErr)
       return applied
     }
-
-    // morph tests -------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-    // Form/input state preservation tests
-    // WHY: morph updates HTML *attributes* via setAttribute, never DOM *properties* like
-    // input.value, textarea.value or input.checked. Once the user modifies a field (marking
-    // it "dirty"), the browser decouples the property from the attribute, so setAttribute
-    // can change the default value without clobbering what the user typed. This is the same
-    // pattern used by idiomorph (Datastar) and paxi (Fixi).
-    // To opt out of preservation (i.e. reset a field to the server value), use
-    // mode:replace in dmax-patch-elements, which replaces the element entirely.
-
-
-
-
-
-
-
-
-
-
-
-    // --- parity matrix: unusual attribute updates (style, href, data-*, aria) ---
-
-
-
-
-
-
-    // --- parity matrix: keyed list reconciliation and stable DOM during collection updates ---
-
-
-
-
-
-
-
-
 
     function initLiveDSubExamples() {
       const liveForm = document.getElementById('live-form')
