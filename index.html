@@ -252,8 +252,90 @@
       console.warn = (...args) => { try { append(args); } finally { orig.warn.apply(console, args); } };
     })();
   </script>
-    <script src="dmax.js"></script>
-    <script src="asserts.js"></script>
+  <script src="dmax.js"></script>
+  <script>
+    (function () {
+      function initLiveDSubExamples() {
+        const liveForm = document.getElementById('live-form');
+        const liveBtn = document.getElementById('live-btn');
+        const liveName = document.getElementById('live-name');
+        if (!liveForm || !liveBtn || !liveName) return;
+        const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500';
+        dSub(liveBtn, `data-sub:#live-raw${liveTrigList}`,
+          `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`);
+        dSub(liveBtn, `data-sub:#live-branch${liveTrigList}`,
+          `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`);
+        liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')));
+      }
+
+      function installDemoFetchMock() {
+        if (window.__dmaxDemoFetchInstalled) return;
+        const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+        window.fetch = function (url, init) {
+          const u = String(url || '');
+          if (u === '/mock/oob') {
+            const html = `<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`;
+            return Promise.resolve({
+              ok: true,
+              headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
+              text: async () => html
+            });
+          }
+          if (u === '/mock/dmax-sse') {
+            const bodyText = [
+              'event: dmax-patch-signals',
+              'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
+              '',
+              'event: dmax-patch-elements',
+              'data: mode outer',
+              'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+              ''
+            ].join('\n');
+            let streamBody = null;
+            if (typeof ReadableStream !== 'undefined' && typeof TextEncoder !== 'undefined') {
+              const encoded = new TextEncoder().encode(bodyText);
+              const half = Math.floor(encoded.length / 2);
+              streamBody = new ReadableStream({
+                start(ctrl) {
+                  ctrl.enqueue(encoded.slice(0, half));
+                  ctrl.enqueue(encoded.slice(half));
+                  ctrl.close();
+                }
+              });
+            }
+            return Promise.resolve({
+              ok: true,
+              headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+              body: streamBody,
+              text: async () => bodyText
+            });
+          }
+          if (baseFetch) return baseFetch(url, init);
+          return Promise.reject(new Error('fetch not available'));
+        };
+        window.__dmaxDemoFetchInstalled = true;
+      }
+
+      function initPortedExamples() {
+        const root = document.getElementById('ported-examples');
+        if (!root) return;
+        const nodes = [root].concat(Array.from(root.querySelectorAll('*')));
+        const deferred = [];
+        for (const n of nodes) {
+          for (const a of Array.from(n.attributes || EMPTY_ARR)) {
+            if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value);
+            else deferred.push([n, a.name, a.value]);
+          }
+        }
+        for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal);
+        installDemoFetchMock();
+      }
+
+      initLiveDSubExamples();
+      initPortedExamples();
+    })();
+  </script>
+  <script src="asserts.js"></script>
 
 </body>
 

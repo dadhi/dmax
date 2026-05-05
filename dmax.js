@@ -8,7 +8,6 @@
       return first === s.length ? -1 : first
     }
 
-
     const EMPTY_ARR = Object.freeze([])
     const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
     function kebabToCamel(s) {
@@ -46,7 +45,6 @@
       KEBAB_NAMES.set(s, res)
       return res
     }
-
 
     // Updated attribute-token syntax reference
     // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
@@ -135,7 +133,6 @@
       return { kind, not, root, path }
     }
 
-
     function finishParse(items, p, it, aName) {
       items[MOD] ??= EMPTY_ARR
       if (it === ALL) {
@@ -177,7 +174,6 @@
       }
       return finishParse(items, p, it, aName)
     }
-
 
     function isObjEmpty(o) {
       for (const _ in o) return false
@@ -234,11 +230,6 @@
       }
     }
 
-    const __sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
-    const __signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
-    const __signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
-
-
     function dDebug(el) {
       if (!el) return
       _debugEls.add(el)
@@ -251,9 +242,6 @@
       if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`)
       return el;
     };
-
-    const __getElById = (id, aName) => getElById(id, aName)?.textContent ?? null;
-
 
     function getDefaultProp(el) {
       if (!el) return 'textContent'
@@ -297,7 +285,6 @@
       return [v, n]
     }
 
-
     const VAL_CHANGE_DEPTH_MAX = 32
     function valChangedDeep(before, after, depth = 0) {
       if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] Warning: too deep to compare for signal value change, consider it changed, stopped at:', VAL_CHANGE_DEPTH_MAX); return true }
@@ -315,7 +302,6 @@
       } else if (a !== b) return true
       return false
     }
-
 
     function expected(cond, ctx = 'expect') {
       if (cond) return true
@@ -366,7 +352,6 @@
       for (const k in b) if (!(k in a)) removed.push(k)
       return added.length ? (removed.length ? { added, removed } : { added }) : (removed.length ? { removed } : null)
     }
-
 
     function samePath(a, b) {
       if (a.length !== b.length) return false
@@ -644,13 +629,6 @@
       updateDebug()
     }
 
-
-
-
-
-
-
-
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
     function setSignalAndNotifySubsNLevelsDeep(aName, tar, val) {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
@@ -886,9 +864,9 @@
     }
 
     // data-class+my-class+!my-other@signal="expr"
-    //   +className  → add class when expr truthy, remove when falsy
-    //   +!className → add class when expr falsy (inverted), remove when truthy
-    // aVal is optional; without it the raw signal/trigger value is used as the boolean
+    // +className adds when expr is truthy and removes when falsy.
+    // +!className inverts that rule.
+    // Without aVal, the raw signal or trigger value is used.
     function dClass(el, aName, aVal) {
       const it = parse(aName)[0], adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
@@ -986,7 +964,7 @@
         }
       }
     }
-    // Dispatch table used by dDump (and future clone-wiring contexts) to call the right setup fn per data-* attr
+    // Dispatch data-* attributes to their setup functions.
     function wireNode(n, an, v) {
       if (an.indexOf('data-def') === 0) dDef(n, an, v)
       else if (an === 'data-debug') dDebug(n)
@@ -998,10 +976,9 @@
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
 
-    // data-dump@items^immediate          (inline <template> child, array signal, immediate render)
-    // data-dump+#tplId@items^shape_only  (explicit template ref, shape-only subscription)
-    // Inside templates: $item → dm.signal[idx], $index → String(idx) in attr values;
-    //                   $item → signal.idx, $index → String(idx) in attr names
+    // data-dump@items^immediate uses an inline template child and renders immediately.
+    // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
+    // In templates, $item and $index expand in both attribute values and names.
     function dDump(el, aName) {
       const it = parse(aName)[0], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
@@ -1150,7 +1127,7 @@
       const openStat = resolveStatusSignal(openMod, MOD_SSE_OPEN)
       const closeStat = resolveStatusSignal(closeMod, MOD_SSE_CLOSE)
       const abortStat = resolveStatusSignal(abortMod, MOD_ABORT)
-      // ^retry.N — auto-reconnect delay in ms (default 1000) when SSE stream drops unexpectedly
+      // ^retry.N sets the reconnect delay in ms after an unexpected SSE close.
       const retryDelay = retryMod ? (+(resolveModPathVal(retryMod.path) ?? MOD_RETRY_MS) || MOD_RETRY_MS) : 0
       if (busyStat && !_dm.has(busyStat.root)) _dm.set(busyStat.root, false)
       if (completeStat && !_dm.has(completeStat.root)) _dm.set(completeStat.root, false)
@@ -1203,8 +1180,8 @@
             else bodyFields[key] = val
           }
 
-          // ^url.<signalPath> — force named signal to URL query params (any HTTP method)
-          // ^body.<signalPath> — force named signal to request body (any HTTP method)
+          // ^url.<signalPath> forces a named signal into query params.
+          // ^body.<signalPath> forces a named signal into the request body.
           for (let _mi = 0; _mi < 2; _mi++) {
             const _mArr = _mi === 0 ? urlMods : bodyMods
             const _dest = _mi === 0 ? queryParams : bodyFields
@@ -1247,7 +1224,7 @@
            if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
            if (encCompress) enc += (enc ? ', ' : '') + 'compress'
            if (enc) headers['Accept-Encoding'] = enc
-           // ^header.<name> — set a single request header from a named signal value
+            // ^header.<name> sets one request header from a named signal.
            for (const _m of hdrMods) {
             const _mp = _m.path
             if (!_mp) continue
@@ -1266,7 +1243,7 @@
           }
           let body = null
           if (bodyCount) {
-            // Single input → unwrap the value (matches reference behaviour); multiple → send as object
+            // Send one input as a bare value and multiple inputs as an object.
             const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
             if (isForm && raw && typeof raw === 'object') {
               const params = new URLSearchParams()
@@ -1390,21 +1367,10 @@
         }
       }
     }
-    // --- morph: fast in-place DOM reconciliation ---
-    //
-    // WHY morph beats innerHTML replacement:
-    //   • innerHTML destroys and recreates all event listeners (requires re-wiring)
-    //   • innerHTML triggers forced layout/style recalculation for all descendants
-    //   • innerHTML loses form state (input values, focus, scroll position)
-    //   • morph reuses matched DOM nodes, only patching what changed
-    //
-    // Algorithm (inspired by Idiomorph / keyed reconciliation):
-    //   1. Match by `id` first  → stable identity across reorders
-    //   2. Fallback to same tagName → morph in place
-    //   3. No match → replace/clone
-    //   Build a single Map<id, node> per morphChildren call (O(1) lookup, no double scan).
+    // Morph updates DOM in place so matched nodes keep listeners, state, focus, and scroll.
+    // Match by id first, then by tag name, and clone only when no reusable node fits.
 
-    // Returns true if two nodes can be morphed in place (same type, same tag or same id).
+    // Return true when two nodes can be morphed in place.
     function sameKind(a, b) {
       if (a.nodeType !== b.nodeType) return false
       if (a.nodeType !== 1 /*ELEMENT*/) return true
@@ -1440,7 +1406,7 @@
       return document.querySelectorAll(selector)
     }
 
-    // Sync attributes from `to` onto `from`: remove missing, add/update present.
+    // Sync attributes from to onto from.
     function updateAttrs(from, to) {
       const toAttrs = to.attributes
       const fromAttrs = from.attributes
@@ -1480,16 +1446,14 @@
         const { name, value } = toAttrs[i]
         if (from.getAttribute(name) !== value) from.setAttribute(name, value)
       }
-      // Reverse iteration: attributes is a live NamedNodeMap — removing shifts indices,
-      // so we iterate backwards to avoid skipping entries.
+      // Iterate backwards because removing from a live NamedNodeMap shifts indices.
       for (let i = fromAttrs.length - 1; i >= 0; i--) {
         const name = fromAttrs[i].name
         if (!to.hasAttribute(name)) from.removeAttribute(name)
       }
     }
 
-    // Reconcile children of `from` to match children of `to`.
-    // Single forward pass; reuses a Map allocated once per call for O(1) id lookup.
+    // Reconcile from children to match to children with one forward pass.
     function morphChildren(from, to) {
       let cur = from.firstChild
       let toChild = to.firstChild
@@ -1514,7 +1478,7 @@
         return
       }
 
-      // Build id→node map for remaining keyed existing children only
+      // Map remaining keyed children by id.
       const idMap = new Map()
       for (let n = cur; n; n = n.nextSibling)
         if (n.nodeType === 1 && n.id) idMap.set(n.id, n)
@@ -1523,13 +1487,11 @@
         let match = null
 
         if (toChild.nodeType === 1 && toChild.id && idMap.has(toChild.id)) {
-          // Keyed match: pull by id regardless of position
+          // Reuse keyed nodes by id even if they moved.
           match = idMap.get(toChild.id)
           idMap.delete(toChild.id)
         } else {
-          // Skip over keyed (id'd) nodes that are still awaiting their own keyed toChild match.
-          // Moving `cur` past them prevents an unkeyed child from "stealing" a node that belongs
-          // to a later id-matched slot, which would require an extra insertBefore to fix.
+          // Skip keyed nodes still waiting for their own id match.
           while (cur && cur.nodeType === 1 && cur.id && idMap.has(cur.id))
             cur = cur.nextSibling
           if (cur && sameKind(cur, toChild)) {
@@ -1545,27 +1507,25 @@
           }
           morph(match, toChild)
         } else {
-          // No reusable node found — clone and insert
+          // No reusable node found, so clone and insert.
           from.insertBefore(toChild.cloneNode(true), cur || null)
         }
       }
 
-      // Remove any remaining unprocessed old nodes
+      // Remove any old nodes left over.
       while (cur) {
         const next = cur.nextSibling
         from.removeChild(cur)
         cur = next
       }
-      // Remove keyed nodes that were in the original children but not matched by any toChild
+      // Remove keyed nodes that were never matched.
       for (const n of idMap.values()) {
         if (n.parentNode === from) from.removeChild(n)
       }
     }
 
-    // Update `from` DOM node in place to match `to`. Does not disturb event
-    // listeners, __dump state, or _cleanupBoundSubs on matched nodes.
-    // Preserves caret/selection for focused text inputs and textareas, and
-    // restores scroll position so large streamed updates do not jump the viewport.
+    // Update from in place without disturbing matched-node listeners or cleanup state.
+    // Preserve caret, selection, and scroll across streamed updates.
     function morph(from, to) {
       if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
@@ -1573,26 +1533,24 @@
       }
       if (from.nodeType !== 1 || to.nodeType !== 1) return
       if (from.tagName !== to.tagName) {
-        // Different element type — replace entirely (cannot morph safely)
+        // Different element type, so replace it.
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
         return
       }
-      // Preserve caret/selection for focused text inputs and textareas so that
-      // an in-flight SSE patch does not reset the user's cursor position.
+      // Preserve caret and selection on focused text controls.
       const tag = from.tagName
       const isFocused = from === document.activeElement
       let selStart = -1, selEnd = -1, selDir = 'none'
       let selectValue = null, selectIndex = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
         try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_e) {
-          // selection not supported for this input type (e.g. type=number, type=email)
+          // selection is not supported for some input types
         }
       } else if (isFocused && tag === 'SELECT') {
         selectValue = from.value
         selectIndex = from.selectedIndex
       }
-      // Save scroll position so content updates do not unexpectedly jump the
-      // user's scroll offset (mirrors idiomorph / paxi discipline).
+      // Save scroll position so updates do not jump the viewport.
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
       updateAttrs(from, to)
       const fromFirst = from.firstChild, toFirst = to.firstChild
@@ -1601,18 +1559,16 @@
         && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
         if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
       } else if (fromFirst || toFirst) morphChildren(from, to)
-      // Restore scroll position after children are reconciled
+      // Restore scroll position after child reconciliation.
       if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
       if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
-      // Restore caret/selection for focused inputs/textareas
+      // Restore caret and selection for focused text controls.
       if (isFocused && selStart >= 0) {
         try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_e) {
-          // setSelectionRange not supported for this input type
+          // setSelectionRange is not supported for some input types
         }
       } else if (isFocused && tag === 'SELECT') {
-        // Prefer restoring by value so the same logical option stays selected even
-        // if the server reorders options; fall back to the previous index only when
-        // that value no longer exists in the morphed option set.
+        // Restore by value first so reordered options keep the same logical selection.
         from.value = selectValue
         if (from.value !== selectValue && selectIndex >= 0 && selectIndex < from.options.length)
           from.selectedIndex = selectIndex
@@ -1884,134 +1840,7 @@
       return applied
     }
 
-    // morph tests -------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-    // Form/input state preservation tests
-    // WHY: morph updates HTML *attributes* via setAttribute, never DOM *properties* like
-    // input.value, textarea.value or input.checked. Once the user modifies a field (marking
-    // it "dirty"), the browser decouples the property from the attribute, so setAttribute
-    // can change the default value without clobbering what the user typed. This is the same
-    // pattern used by idiomorph (Datastar) and paxi (Fixi).
-    // To opt out of preservation (i.e. reset a field to the server value), use
-    // mode:replace in dmax-patch-elements, which replaces the element entirely.
-
-
-
-
-
-
-
-
-
-
-
-    // --- parity matrix: unusual attribute updates (style, href, data-*, aria) ---
-
-
-
-
-
-
-    // --- parity matrix: keyed list reconciliation and stable DOM during collection updates ---
-
-
-
-
-
-
-
-
-
-    function initLiveDSubExamples() {
-      const liveForm = document.getElementById('live-form')
-      const liveBtn = document.getElementById('live-btn')
-      const liveName = document.getElementById('live-name')
-      if (!liveForm || !liveBtn || !liveName) return
-      const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500'
-      dSub(liveBtn, `data-sub:#live-raw${liveTrigList}`,
-        `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`)
-      dSub(liveBtn, `data-sub:#live-branch${liveTrigList}`,
-        `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`)
-      liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')))
-    }
-    function installDemoFetchMock() {
-      if (window.__dmaxDemoFetchInstalled) return
-      const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null
-      window.fetch = function (url, init) {
-        const u = String(url || '')
-        if (u === '/mock/oob') {
-          const html = `<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`
-          return Promise.resolve({
-            ok: true,
-            headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
-            text: async () => html
-          })
-        }
-        if (u === '/mock/dmax-sse') {
-          const bodyText = [
-            'event: dmax-patch-signals',
-            'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
-            '',
-            'event: dmax-patch-elements',
-            'data: mode outer',
-            'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
-            ''
-          ].join('\n')
-          // Provide a streaming body when the Streams API is available so the demo exercises
-          // the incremental consumeDmaxSseStream path; fall back to text() otherwise.
-          let streamBody = null
-          if (typeof ReadableStream !== 'undefined' && typeof TextEncoder !== 'undefined') {
-            const encoded = new TextEncoder().encode(bodyText)
-            // Split into two chunks to exercise the incremental streaming path
-            const half = Math.floor(encoded.length / 2)
-            streamBody = new ReadableStream({
-              start(ctrl) {
-                ctrl.enqueue(encoded.slice(0, half))
-                ctrl.enqueue(encoded.slice(half))
-                ctrl.close()
-              }
-            })
-          }
-          return Promise.resolve({
-            ok: true,
-            headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
-            body: streamBody,
-            text: async () => bodyText
-          })
-        }
-        if (baseFetch) return baseFetch(url, init)
-        return Promise.reject(new Error('fetch not available'))
-      }
-      window.__dmaxDemoFetchInstalled = true
-    }
-    function initPortedExamples() {
-      const root = document.getElementById('ported-examples')
-      if (!root) return
-      const nodes = [root].concat(Array.from(root.querySelectorAll('*')))
-      const deferred = []
-      for (const n of nodes) {
-        for (const a of Array.from(n.attributes || EMPTY_ARR)) {
-          if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value)
-          else deferred.push([n, a.name, a.value])
-        }
-      }
-      for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal)
-      installDemoFetchMock()
-    }
-    initLiveDSubExamples()
-    initPortedExamples()
-
-    // Production cleanup path: when DOM nodes are removed, detach all their bound listeners/subscribers.
-    // This prevents stale signal subscriptions and detached-node event handlers from accumulating over time.
+    // Detach listeners and signal subscriptions for a removed subtree.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
       const matchesSubscriberFn = (entry, fn) => !!entry && !Array.isArray(entry) && typeof entry === 'object' && entry.fn === fn
@@ -2025,12 +1854,10 @@
             else if (l.type === 'signal') {
               const arr = _subs.get(l.root)
               if (arr && arr.length) {
-                // Allocate only when we actually find a match to remove.
+                // Allocate only after the first match.
                 let filtered = null
                 for (let i = 0; i < arr.length; ++i) {
-                  // Before first match: keep `filtered` null (no allocation).
-                  // At match: allocate with prefix (matched entry is skipped).
-                  // After match: append only non-matching entries.
+                  // Keep filtered null until a match is found, then copy the prefix.
                   if (matchesSubscriberFn(arr[i], l.fn)) {
                     if (!filtered) filtered = arr.slice(0, i)
                   } else if (filtered) filtered.push(arr[i]) // only append after lazy allocation starts
