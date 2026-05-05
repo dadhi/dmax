@@ -136,6 +136,21 @@
     __assert(resolveStatusSig, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
     __assert(resolveStatusSig, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
     __assert(resolveStatusSig, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
+    __assert((sig, val, nextVal) => {
+      _dm.clear()
+      defSig(sig, val)
+      defSig(sig, nextVal)
+      return _dm.get(sig.root)
+    }, [{ root: 'busy' }, false, true], false, 'defSig keeps existing signal value')
+    __assert(buildDumpItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dDump item ref helper')
+    __assert(buildDumpItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dDump item expr helper')
+    __assert(replaceDumpTokens, ['data-dump@$item.replies+$index', 'threads.0', '0'], 'data-dump@threads.0.replies+0', 'dDump token rewrite helper')
+    __assert(() => ({ ...buildActionBaseHeaders(false, false, false, true, false, 'gzip') }), [], {
+      Accept: 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      'Accept-Encoding': 'gzip'
+    }, 'SSE base headers imply no-cache and accept-encoding')
     __assert((id, aName) => {
       const el = getElById(id, aName)
       return el ? el.textContent : null
@@ -1133,6 +1148,33 @@
             traceVal: capturedHeaders?.xTraceId
           },
           expected: { auth: 'Bearer tok-xyz', traceKey: true, traceVal: 'req-001' }
+        }
+      } finally { delete window.fetch }
+    })
+    __asyncAssert('^sse implies no-cache headers automatically', async () => {
+      __reset()
+      let capturedHeaders = null
+      window.fetch = (_url, init) => {
+        capturedHeaders = init.headers
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'text/event-stream' },
+          text: async () => ''
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        dAction(btn, 'data-get^sse:res@.click', '"https://api.test/sse"')
+        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
+        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: {
+            accept: capturedHeaders?.Accept,
+            cache: capturedHeaders?.['Cache-Control'],
+            pragma: capturedHeaders?.Pragma
+          },
+          expected: { accept: 'text/event-stream', cache: 'no-cache', pragma: 'no-cache' }
         }
       } finally { delete window.fetch }
     })
