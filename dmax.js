@@ -1156,7 +1156,6 @@
     function dClass(el, aName, aVal) {
       const it = parse(aName)[0], adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
-      if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
       const tarEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
       if (!tarEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
@@ -1169,6 +1168,7 @@
           else tarEl.classList.remove(name)
         }
       }
+      if (!trigs.length) { applyClasses(fn ? fn(DM, el, null, null, null) : true); return }
       const elSubs = ensureBoundSubs(el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
