@@ -50,6 +50,10 @@ function makeJsonResponse(payload, status = 200) {
   };
 }
 
+function getPathname(url) {
+  return new URL(String(url), 'http://localhost').pathname;
+}
+
 (async () => {
   const indexPath = path.join(process.cwd(), 'index.html');
   const html = fs.readFileSync(indexPath, 'utf8');
@@ -79,10 +83,11 @@ function makeJsonResponse(payload, status = 200) {
   window.__lastRequest = () => lastRequest;
   window.fetch = async function (url, init = {}) {
     lastRequest = { url: String(url), init };
-    if (String(url).endsWith('/posts/1')) {
+    const pathname = getPathname(url);
+    if (pathname === '/posts/1') {
       return makeJsonResponse({ id: 1, title: 'Mocked post', body: 'hello', userId: 7 }, 200);
     }
-    if (String(url).endsWith('/posts')) {
+    if (pathname === '/posts') {
       let submitted = null;
       try { submitted = init.body ? JSON.parse(init.body) : null; } catch (_) {}
       return makeJsonResponse({ id: 101, submitted }, 201);
