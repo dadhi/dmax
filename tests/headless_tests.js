@@ -270,8 +270,16 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     fire(doc.getElementById('addPost'), 'click');
     await sleep(80);
     if (Array.from(iterUl.children).length > initialDumpCount && Array.from(inlineUl.children).length > initialInlineCount) pass('Section9 data-dump updates on append'); else fail('Section9 data-dump did not update on append');
-
-    //todo: @feat add nested data-dump demo fixtures for threaded replies before re-enabling nested list rendering coverage.
+    const threadUl = doc.getElementById('thread-posts');
+    const inlineThreads = doc.getElementById('inline-threads');
+    const refreshThreads = doc.getElementById('refreshThreads');
+    if (!threadUl || !inlineThreads || !refreshThreads) fail('Section9 nested data-dump elements missing');
+    fire(refreshThreads, 'click');
+    await sleep(80);
+    const threadItems = Array.from(threadUl.children);
+    const inlineThreadItems = Array.from(inlineThreads.children);
+    if (threadItems.length === 4) pass('Section9 nested data-dump rendered 4 threads after shape change'); else fail('Section9 nested data-dump thread count wrong');
+    if (inlineThreadItems.length === 4) pass('Section9 nested inline data-dump rendered 4 threads after shape change'); else fail('Section9 nested inline data-dump thread count wrong');
 
     // Section 10: modifiers
     const onceBtn = doc.getElementById('onceBtn');

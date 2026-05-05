@@ -64,6 +64,8 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
 
+Signal names are not reserved or validated against runtime helper identifiers. If you choose names that overlap with your own expression conventions, that is the template author's responsibility.
+
 ## Fixi feature matrix (aligned to dmax)
 
 This extends the earlier Datastar-gap research with the [Fixi Project](https://fixiproject.org/), which is split into
@@ -202,6 +204,7 @@ These modifiers let you override the default routing for individual signals, ind
 | `^url.<signalPath>` | Force `dm.<signalPath>` into the URL query string (even on POST/PUT). Key = last path segment. | `^url.page` appends `?page=<dm.page>` to the URL |
 | `^body.<signalPath>` | Force `dm.<signalPath>` into the request body (useful on DELETE; avoid on GET — bodies are non-standard there). Key = last path segment. | `^body.targetId` sends `dm.targetId` as a body field on DELETE |
 | `^header.<name>` | Set a single request header from `dm.<camelCase(name)>`. | `^header.authorization` sets header `authorization` from `dm.authorization` |
+| `^auth.<signalPath>` | Shorthand for the `authorization` header using the named signal's value. | `^auth.authorization` sets header `authorization` from `dm.authorization` |
 
 Note: all modifier names are converted from kebab-case to camelCase by the parser, so the resulting signal key and header key are always camelCase. For example, `^header.x-trace-id` reads `dm.xTraceId` and sets header `xTraceId` (HTTP headers are case-insensitive so `xTraceId` is valid). If you need exact header name control (e.g. `X-Trace-Id`), use `^headers.<signal>` with a plain object whose keys are your exact header names instead.
 
@@ -231,6 +234,7 @@ Examples:
 - **`^url.<signalPath>`** — force specific signal to URL query string (see above)
 - **`^body.<signalPath>`** — force specific signal to request body (see above)
 - **`^header.<name>`** — set a single header from a named signal (see above)
+- **`^auth.<signalPath>`** — set the `authorization` header from a named signal (see above)
 - **`^replace`** (default), **`^merge`**, **`^append`**, **`^prepend`** — response result mode
 
 ### Response status signals

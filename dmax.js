@@ -64,7 +64,7 @@
     const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge'
     const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
-    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers'
+    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
     const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
@@ -1014,6 +1014,14 @@
       if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
       const sigRoot = trig.root
       const sigPath = trig.path
+      const itemRef = sigPath && sigPath.length ? sigRoot + '.' + sigPath.join('.') : sigRoot
+      function itemExprAt(idx) {
+        let expr = 'dm.' + sigRoot
+        if (sigPath && sigPath.length) {
+          for (const part of sigPath) expr += /^\d+$/.test(part) ? `[${part}]` : '.' + part
+        }
+        return expr + '[' + idx + ']'
+      }
 
       function doRender(detail) {
         const val = getSigValOrIt(trig)
@@ -1045,10 +1053,10 @@
                 for (const a of attrs) {
                   let atrName = a.name, atrVal = a.value
                   if (atrName.indexOf('$item') !== -1 || atrName.indexOf('$index') !== -1) {
-                    atrName = atrName.replace(/\$item/g, sigRoot + '.' + idx).replace(/\$index/g, String(idx))
+                    atrName = atrName.replace(/\$item/g, itemRef + '.' + idx).replace(/\$index/g, String(idx))
                   }
                   if (typeof atrVal === 'string' && (atrVal.indexOf('$item') !== -1 || atrVal.indexOf('$index') !== -1)) {
-                    atrVal = atrVal.replace(/\$index/g, String(idx)).replace(/\$item/g, 'dm.' + sigRoot + '[' + idx + ']')
+                    atrVal = atrVal.replace(/\$index/g, String(idx)).replace(/\$item/g, itemExprAt(idx))
                   }
                   try {
                     if (atrName !== a.name) { n.removeAttribute(a.name); n.setAttribute(atrName, atrVal) }
@@ -1099,7 +1107,7 @@
       let busyMod = null, completeMod = null, errMod = null, codeMod = null
       let isJson = false, isText = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
-      let hdrsMod = null
+      let hdrsMod = null, authMod = null
       let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
@@ -1116,6 +1124,7 @@
         else if (mr === MOD_DEFLATE) encDeflate = true
         else if (mr === MOD_COMPRESS) encCompress = true
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
+        else if (mr === MOD_AUTH && !authMod) authMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
         else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
@@ -1228,12 +1237,16 @@
           }
 
            const headers = Object.create(null)
-           if (hdrsMod) {
-             const hdrObj = resolveModPathVal(hdrsMod.path)
-             if (hdrObj && typeof hdrObj === 'object')
-               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
-           }
-           if (isJson) headers['Content-Type'] = 'application/json', headers['Accept'] = 'application/json'
+            if (hdrsMod) {
+              const hdrObj = resolveModPathVal(hdrsMod.path)
+              if (hdrObj && typeof hdrObj === 'object')
+                for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[hk] = String(hdrObj[hk])
+            }
+            if (authMod) {
+              const authVal = resolveModPathVal(authMod.path)
+              if (authVal != null) headers.authorization = String(authVal)
+            }
+            if (isJson) headers['Content-Type'] = 'application/json', headers['Accept'] = 'application/json'
            else if (isForm) headers['Content-Type'] = 'application/x-www-form-urlencoded'
            else if (isText) headers['Content-Type'] = 'text/plain;charset=UTF-8'
            if (isSse) headers['Accept'] = 'text/event-stream'

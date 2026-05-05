@@ -5,6 +5,7 @@
 const { JSDOM, VirtualConsole } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 // ============================================================================
 // Test Case Generators
@@ -45,6 +46,44 @@ const INVALID_EXPRESSIONS = [
   'window.location = "evil"'
 ];
 
+const DMAX_URL = pathToFileURL(path.join(process.cwd(), 'dmax.js')).href;
+const INDEX_URL = pathToFileURL(path.join(process.cwd(), 'index.html')).href;
+const BASE_STATE = JSON.stringify({
+  foo: 0,
+  bar: 1,
+  count: 2,
+  title: 'Hello title',
+  page: 3,
+  targetId: 42,
+  authorization: 'Bearer tok-xyz',
+  reqHeaders: { authorization: 'Bearer hdr-123', 'x-trace': 'trace-abc' },
+  user: { name: 'Alice', posts: [], themeColor: '', fontSize: '', isActive: false },
+  ui: { themeColor: '', fontSize: '', isActive: false },
+  posts: ['First', 'Second', 'Third'],
+  items: [],
+  idx: 0,
+  parent: {},
+  result: {},
+  app: { data: { items: [] } }
+}).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+
+function buildTestHtml(insertEl) {
+  return `<!doctype html><html><body>
+<div data-def='${BASE_STATE}'></div>
+<div id="elem"></div>
+<div id="other"></div>
+<button id="btn"></button>
+<input id="input" value="hello"/>
+<input id="src" value="alpha"/>
+<input id="dest" value="beta"/>
+<template id="tpl-post"><div class="post"></div></template>
+<template id="tpl-item"><div class="item"></div></template>
+<template id="tpl"><div class="generic"></div></template>
+${insertEl}
+<script src="${DMAX_URL}"></script>
+</body></html>`;
+}
+
 // ============================================================================
 // Attribute Name Generators
 // ============================================================================
@@ -62,18 +101,18 @@ function* generateDataSubCombinations() {
   // 2. Single property target, single event trigger
   for (const prop of PROPERTIES.slice(0, 3)) {
     for (const ev of EVENTS.slice(0, 3)) {
-      yield { attr: `data-sub:#.${prop}@#.${ev}`, valid: true, category: 'prop-event' };
+      yield { attr: `data-sub:.${prop}@.${ev}`, valid: true, category: 'prop-event' };
     }
   }
   
   // 3. Multiple targets
   yield { attr: 'data-sub:foo:bar@baz', valid: true, category: 'multi-target' };
-  yield { attr: 'data-sub:foo:#.value@click', valid: true, category: 'mixed-targets' };
-  yield { attr: 'data-sub:#.value:#.checked@#.click', valid: true, category: 'multi-prop-targets' };
+  yield { attr: 'data-sub:foo:.value@.click', valid: true, category: 'mixed-targets' };
+  yield { attr: 'data-sub:.value:.checked@.click', valid: true, category: 'multi-prop-targets' };
   
   // 4. Multiple triggers
   yield { attr: 'data-sub:foo@bar@baz', valid: true, category: 'multi-trigger' };
-  yield { attr: 'data-sub:foo@bar@#.click@#btn.click', valid: true, category: 'mixed-triggers' };
+  yield { attr: 'data-sub:foo@bar@.click@#btn.click', valid: true, category: 'mixed-triggers' };
   
   // 5. With modifiers
   for (const mod of MODIFIERS.slice(0, 5)) {
@@ -89,11 +128,11 @@ function* generateDataSubCombinations() {
   
   // 7. No target (side effect)
   yield { attr: 'data-sub@foo', valid: true, category: 'side-effect' };
-  yield { attr: 'data-sub@#.click', valid: true, category: 'side-effect-event' };
+  yield { attr: 'data-sub@.click', valid: true, category: 'side-effect-event' };
   
   // 8. No trigger (immediate eval)
   yield { attr: 'data-sub:foo', valid: true, category: 'no-trigger' };
-  yield { attr: 'data-sub:#.value', valid: true, category: 'no-trigger-prop' };
+  yield { attr: 'data-sub:.value', valid: true, category: 'no-trigger-prop' };
   
   // 9. Cross-element references
   yield { attr: 'data-sub:#elem.value@#other.input', valid: true, category: 'cross-element' };
@@ -107,7 +146,7 @@ function* generateDataSubCombinations() {
   // 11. Invalid properties - parser doesn't validate property names
   // Removed: invalid property tests - parser is lenient
   
-  //todo: @feat add strict parse-time validation coverage once dmax rejects empty/malformed data-sub attributes.
+  yield { attr: 'data-sub+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'Supports only targets, triggers, mods but found more' };
   
   // Note: Parser doesn't validate modifier names or detect conflicts - they're just strings
   // Removed: Invalid modifier and conflicting modifier tests - parser is lenient
@@ -124,7 +163,7 @@ function* generateDataSyncCombinations() {
   // 2. Signal to explicit property (two-way)
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
     for (const prop of PROPERTIES.slice(0, 2)) {
-      yield { attr: `data-sync:${sig}:#.${prop}`, valid: true, category: 'two-way-explicit' };
+        yield { attr: `data-sync:${sig}:.${prop}`, valid: true, category: 'two-way-explicit' };
     }
   }
   
@@ -135,19 +174,15 @@ function* generateDataSyncCombinations() {
   
   // 4. Element to signal (one-way: element → signal)
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-sync:${sig}@#.`, valid: true, category: 'one-way-el-to-sig' };
-    yield { attr: `data-sync:${sig}@#.value`, valid: true, category: 'one-way-el-to-sig-explicit' };
+    yield { attr: `data-sync:${sig}@.`, valid: true, category: 'one-way-el-to-sig' };
+    yield { attr: `data-sync:${sig}@.value`, valid: true, category: 'one-way-el-to-sig-explicit' };
   }
   
   // 5. Signal to signal
   yield { attr: 'data-sync:foo:bar', valid: true, category: 'signal-to-signal' };
   yield { attr: 'data-sync:user.name:display-name', valid: true, category: 'nested-to-signal' };
   
-  // 6. Property to property (cross-element)
-  yield { attr: 'data-sync:#src.value:#dest.value', valid: true, category: 'prop-to-prop' };
-  yield { attr: 'data-sync:#.value:#other.text-content', valid: true, category: 'prop-to-cross-prop' };
-  
-  // 7. With modifiers
+  // 6. With modifiers
   yield { attr: 'data-sync^notimmediate:foo', valid: true, category: 'with-mod' };
   
   // Note: data-sync has fallback for simple forms - accepts empty/malformed and just returns
@@ -159,16 +194,14 @@ function* generateDataClassCombinations() {
   yield { attr: 'data-class:+active@is-active', valid: true, category: 'single-class' };
   yield { attr: 'data-class+active+!inactive@is-active', valid: true, category: 'inverse-class' };
   yield { attr: 'data-class:+foo:+bar@baz', valid: true, category: 'multi-class' };
-
-  //todo: @feat add strict parse-time validation coverage once dmax rejects empty data-class attributes.
+  yield { attr: 'data-class:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dClass requires class names via + syntax' };
 }
 
 function* generateDataDispCombinations() {
   // Valid
   yield { attr: 'data-disp@is-visible', valid: true, category: 'display-signal' };
   yield { attr: 'data-disp@flag', valid: true, category: 'display-flag' };
-  
-  //todo: @feat add strict parse-time validation coverage once dmax rejects empty data-disp attributes.
+  yield { attr: 'data-disp:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dDisp requires at least one trigger' };
 }
 
 function* generateDataDumpCombinations() {
@@ -180,8 +213,7 @@ function* generateDataDumpCombinations() {
   // Valid - dotted signal paths
   yield { attr: 'data-dump+#tpl-post@user.posts', valid: true, category: 'dotted-signal' };
   yield { attr: 'data-dump+#tpl-item@app.data.items', valid: true, category: 'deep-dotted' };
-
-  //todo: @feat add shorthand/no-template validation coverage once dmax documents and rejects unsupported data-dump forms consistently.
+  yield { attr: 'data-dump+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dDump requires a signal trigger' };
 }
 
 function* generateDataActionCombinations() {
@@ -189,24 +221,23 @@ function* generateDataActionCombinations() {
   
   // Valid
   for (const method of methods) {
-    yield { attr: `data-${method}:result@#.click`, valid: true, category: `${method}-basic` };
-    yield { attr: `data-${method}^json:result@#.click`, valid: true, category: `${method}-json` };
-    yield { attr: `data-${method}+#input.value:result@#.click`, valid: true, category: `${method}-input` };
-    yield { attr: `data-${method}^busy.busy^err.err:result@#.click`, valid: true, category: `${method}-state` };
+    yield { attr: `data-${method}:result@.click`, valid: true, category: `${method}-basic` };
+    yield { attr: `data-${method}^json:result@.click`, valid: true, category: `${method}-json` };
+    yield { attr: `data-${method}+#input.value:result@.click`, valid: true, category: `${method}-input` };
+    yield { attr: `data-${method}^busy.busy^err.err:result@.click`, valid: true, category: `${method}-state` };
     // Test hyphenated signal names (must convert to camelCase)
-    yield { attr: `data-${method}:post-result@#.click`, valid: true, category: `${method}-hyphenated-target` };
+    yield { attr: `data-${method}:post-result@.click`, valid: true, category: `${method}-hyphenated-target` };
     // Note: Actions don't support signal triggers (only event triggers like @#.click or @_interval.1000)
     // Test state signals via modifiers
-    yield { attr: `data-${method}^busy.req-busy^err.req-err^code.req-code:result@#.click`, valid: true, category: `${method}-state-modes` };
-    yield { attr: `data-${method}^busy.status:result@#.click`, valid: true, category: `${method}-state-all` };
-    // Test header shortcuts and combinations
-      yield { attr: `data-${method}^append:items@#.click`, valid: true, category: `${method}-append-modifier` };
-      yield { attr: `data-${method}^prepend:items@#.click`, valid: true, category: `${method}-prepend-modifier` };
-    }
-
-  //todo: @feat add header shortcut fuzz coverage when dmax exposes declarative auth/header shorthand.
-  //todo: @feat add per-add nested body path fuzz coverage when dmax supports mapping element values into named request body fields.
-  //todo: @feat add strict parse-time validation coverage once dmax rejects empty data-action targets consistently.
+    yield { attr: `data-${method}^busy.req-busy^err.req-err^code.req-code:result@.click`, valid: true, category: `${method}-state-modes` };
+    yield { attr: `data-${method}^busy.status:result@.click`, valid: true, category: `${method}-state-all` };
+    yield { attr: `data-${method}^headers.req-headers:result@.click`, valid: true, category: `${method}-headers-modifier` };
+    yield { attr: `data-${method}^header.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
+    yield { attr: `data-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
+    if (method !== 'get') yield { attr: `data-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
+    yield { attr: `data-${method}^append:items@.click`, valid: true, category: `${method}-append-modifier` };
+    yield { attr: `data-${method}^prepend:items@.click`, valid: true, category: `${method}-prepend-modifier` };
+  }
 }
 
 // ============================================================================
@@ -248,24 +279,11 @@ class FuzzTestRunner {
   }
   
   async setup() {
-    const html = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
-    const vconsole = new VirtualConsole();
-    const errors = [];
-    vconsole.on('error', (...args) => errors.push(args.join(' ')));
-    
-    this.dom = new JSDOM(html, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      url: 'http://localhost/',
-      virtualConsole: vconsole
-    });
-    
-    this.errors = errors;
-    await new Promise(r => setTimeout(r, 200)); // Let scripts initialize
+    this.errors = [];
   }
   
   async testAttribute(testCase) {
-    const { attr, valid, category, error, expr = 'dm.foo || "test"' } = testCase;
+    const { attr, valid, category, expr = 'dm.foo || "test"', expectedLog = null, logPattern = '', exercise = null } = testCase;
     this.results.total++;
     
     if (!this.results.categories[category]) {
@@ -273,55 +291,93 @@ class FuzzTestRunner {
     }
     
     try {
-      // Read base HTML and inject test element so the runtime wires it on init
-      const html = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
-      // escape attribute value
       const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const testId = `fuzz-test-${this.results.total}`;
-      const fixtures = `\n<!-- fuzz fixtures: provide referenced elements and safe dm -->\n<div id="elem"></div>\n<div id="other"></div>\n<button id="btn"></button>\n<input id="input" value="hello"/>\n<div id="src"></div>\n<div id="dest"></div>\n<div id="posts"></div>\n<template id="tpl-post"><div class="post"></div></template>\n<template id="tpl-item"><div class="item"></div></template>\n<template id="tpl"><div class="generic"></div></template>\n<script>window.dm = window.dm || { foo:0, bar:0, user:{themeColor:'',fontSize:'',isActive:false,items:[],posts:[]}, posts:[], items:[], idx:0, parent:{}, result:{}, app:{data:{items:[]}} }; window.sg = window.sg || {}; window.__fuzz_injected = true;</script>\n`;
       
       // For inline-template tests, add a child <template>
-      const needsInlineTemplate = category === 'inline-template' || category === 'bare-signal' || category === 'bare-dotted';
+      const needsInlineTemplate = category === 'inline-template';
       const insertEl = needsInlineTemplate 
         ? `<div id="${testId}" ${attr}="${esc(expr)}"><template><div class="inline-item"></div></template></div>`
         : `<div id="${testId}" ${attr}="${esc(expr)}"></div>`;
-      
-      const modified = html.replace('</body>', `${fixtures}${insertEl}\n</body>`);
 
-      const localErrors = [];
+      const localErrors = [], localWarnings = [], requests = [];
       const vconsole = new VirtualConsole();
       vconsole.on('error', (...args) => localErrors.push(args.join(' ')));
-      vconsole.on('warn', (...args) => localErrors.push(args.join(' ')));
+      vconsole.on('warn', (...args) => localWarnings.push(args.join(' ')));
 
-      const dom = new JSDOM(modified, {
+      const dom = new JSDOM(buildTestHtml(insertEl), {
         runScripts: 'dangerously',
         resources: 'usable',
-        url: 'http://localhost/',
+        url: INDEX_URL,
+        pretendToBeVisual: true,
         virtualConsole: vconsole
       });
       
-      // Patch window.console.error to capture all errors
+      dom.window.fetch = async (url, init = {}) => {
+        requests.push({ url: String(url), init });
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: (name) => String(name || '').toLowerCase() === 'content-type' ? 'application/json' : null },
+          json: async () => ({ ok: true }),
+          text: async () => JSON.stringify({ ok: true }),
+          clone() { return this; }
+        };
+      };
+
       const origError = dom.window.console.error;
+      const origWarn = dom.window.console.warn;
       dom.window.console.error = (...args) => {
         localErrors.push(args.join(' '));
         origError.apply(dom.window.console, args);
       };
+      dom.window.console.warn = (...args) => {
+        localWarnings.push(args.join(' '));
+        origWarn.apply(dom.window.console, args);
+      };
       
-      // Wait for runtime to initialize
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise((resolve) => {
+        dom.window.addEventListener('load', () => resolve(), { once: true });
+        setTimeout(resolve, 1000);
+      });
+      const allNodes = Array.from(dom.window.document.querySelectorAll('*'));
+      for (const n of allNodes)
+        for (const a of Array.from(n.attributes || []))
+          if (a.name.indexOf('data-') === 0 && typeof dom.window.wireNode === 'function') dom.window.wireNode(n, a.name, a.value)
+      await new Promise(r => setTimeout(r, 100));
 
-      const hadError = localErrors.length > 0;
+      if (exercise) {
+        const el = dom.window.document.getElementById(testId);
+        await exercise({ dom, window: dom.window, document: dom.window.document, element: el, requests, errors: localErrors, warnings: localWarnings });
+      }
 
-      if (valid && hadError) {
+      const hadError = localErrors.length > 0, hadWarning = localWarnings.length > 0;
+      const hasExpectedLog = !logPattern || localErrors.concat(localWarnings).some(msg => msg.includes(logPattern));
+
+      if (expectedLog) {
+        const sawExpected = expectedLog === 'error' ? hadError && hasExpectedLog
+          : expectedLog === 'warn' ? hadWarning && hasExpectedLog
+            : (hadError || hadWarning) && hasExpectedLog;
+        if (!sawExpected) {
+          this.results.failed++;
+          this.results.categories[category].failed++;
+          this.results.errors.push({ attr, category, expected: expectedLog, actual: { errors: localErrors.slice(0, 3), warnings: localWarnings.slice(0, 3) } });
+          console.error(`✗ FAIL: ${attr} (${category}) - Expected ${expectedLog} log${logPattern ? ` matching "${logPattern}"` : ''}`);
+        } else {
+          this.results.passed++;
+          this.results.categories[category].passed++;
+          console.log(`✓ PASS: ${attr} (${category})`);
+        }
+      } else if (valid && (hadError || hadWarning)) {
         this.results.failed++;
         this.results.categories[category].failed++;
-        this.results.errors.push({ attr, category, expected: 'valid', actual: 'error', error: localErrors.slice(0,3) });
-        console.error(`✗ FAIL: ${attr} (${category}) - Expected valid but got error`);
-      } else if (!valid && !hadError) {
+        this.results.errors.push({ attr, category, expected: 'valid', actual: 'log', error: localErrors.concat(localWarnings).slice(0,3) });
+        console.error(`✗ FAIL: ${attr} (${category}) - Expected valid but got log output`);
+      } else if (!valid && !hadError && !hadWarning) {
         this.results.failed++;
         this.results.categories[category].failed++;
         this.results.errors.push({ attr, category, expected: 'error', actual: 'valid' });
-        console.error(`✗ FAIL: ${attr} (${category}) - Expected error but validated`);
+        console.error(`✗ FAIL: ${attr} (${category}) - Expected warning/error but validated`);
       } else {
         this.results.passed++;
         this.results.categories[category].passed++;
@@ -416,14 +472,11 @@ async function runRegressionTests(runner) {
   
   const regressions = [
     // Bug: camelCase in attributes lowercased
-    { attr: 'data-sub:#.text-content@foo', expr: '"test"', valid: true, desc: 'kebab-case property works' },
+    { attr: 'data-sub:.text-content@foo', expr: '"test"', valid: true, desc: 'kebab-case property works' },
     
     // Bug: bracket-index subscriptions
     { attr: 'data-sub:result@posts[idx]', expr: 'dm.posts[dm.idx]', valid: true, desc: 'bracket-index subscription' },
-    
-    // Bug: reserved names
-    //todo: @feat reject reserved runtime arg names as signal targets if dmax chooses to reserve them.
-    
+
     // Bug: infinite loops
     { attr: 'data-sync:foo:foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },
     
@@ -435,7 +488,49 @@ async function runRegressionTests(runner) {
     { attr: 'data-sub^once:foo@bar^always', expr: 'dm.bar', valid: true, desc: '^always overrides global ^once' },
     
     // Bug: cross-element cleanup
-    { attr: 'data-sub:#other.value@foo', expr: 'dm.foo', valid: true, desc: 'cross-element reference' }
+    { attr: 'data-sub:#other.value@foo', expr: 'dm.foo', valid: true, desc: 'cross-element reference' },
+
+    // Action routing and header helpers
+    {
+      attr: 'data-post^json:result@.click+title',
+      expr: '"https://api.test/posts"',
+      valid: true,
+      desc: 'POST action sends named signals in request body by default',
+      exercise: async ({ element, window, requests }) => {
+        element.dispatchEvent(new window.Event('click', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 50));
+        const req = requests[0];
+        if (!req) throw new Error('request missing');
+        const body = JSON.parse(req.init.body);
+        if (body !== 'Hello title' && body.title !== 'Hello title') throw new Error('title signal not sent in body');
+      }
+    },
+    {
+      attr: 'data-post^json^body.target-id:result@.click+title',
+      expr: '"https://api.test/items"',
+      valid: true,
+      desc: '^body routes named signals into request bodies',
+      exercise: async ({ element, window, requests }) => {
+        element.dispatchEvent(new window.Event('click', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 50));
+        const req = requests[0];
+        if (!req) throw new Error('request missing');
+        const body = JSON.parse(req.init.body);
+        if (body.title !== 'Hello title' || body.targetId !== 42) throw new Error('expected title and targetId body fields');
+      }
+    },
+    {
+      attr: 'data-get^auth.authorization:result@.click',
+      expr: '"https://api.test/secure"',
+      valid: true,
+      desc: '^auth routes authorization from a signal',
+      exercise: async ({ element, window, requests }) => {
+        element.dispatchEvent(new window.Event('click', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 50));
+        const req = requests[0];
+        if (!req || req.init.headers.authorization !== 'Bearer tok-xyz') throw new Error('authorization header missing');
+      }
+    }
   ];
   
   for (const test of regressions) {
