@@ -679,7 +679,9 @@
                 try { h(debEv, debVal, debDetail) } finally { inDebounce = false }
               }
             }
-            debEv = ev, debVal = val, debDetail = detail
+            debEv = ev
+            debVal = val
+            debDetail = detail
             clearTimeout(tm)
             tm = setTimeout(onDebounce, deb)
             return
