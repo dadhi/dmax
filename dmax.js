@@ -996,9 +996,9 @@
       if (shouldReadSig) {
         if (!expected(sigRead.root)) return
         const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
-        const sub = addSignalSub(el, sigRead, readMods, (dm, _el, _trig, trigVal, detail) => {
+        const sub = addSignalSub(el, sigRead, readMods, (dm, sigEl, sigTrig, trigVal, detail) => {
           const v = getSigValOrIt(sigRead)
-          setProp(_el, aName, writePropTar, v)
+          setProp(sigEl, aName, writePropTar, v)
         })
         if (isImmediateMod(readMods, true)) invokeSignalSub(sub, null)
       }
@@ -1053,7 +1053,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const sub = addSignalSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClasses(fn ? fn(dm, _el, _trig, trigVal, detail) : trigVal))
+          const sub = addSignalSub(el, trig, mods, (dm, sigEl, sigTrig, trigVal, detail) => applyClasses(fn ? fn(dm, sigEl, sigTrig, trigVal, detail) : trigVal))
           if (isImmediateMod(mods, false)) invokeSignalSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
@@ -1100,7 +1100,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const sub = addSignalSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisp(fn ? fn(dm, _el, _trig, trigVal, detail) : trigVal))
+          const sub = addSignalSub(el, trig, mods, (dm, sigEl, sigTrig, trigVal, detail) => applyDisp(fn ? fn(dm, sigEl, sigTrig, trigVal, detail) : trigVal))
           if (isImmediateMod(mods, false)) invokeSignalSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
