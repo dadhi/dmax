@@ -30,6 +30,8 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
   });
 }
 
+const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
+
 (async () => {
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
@@ -278,8 +280,10 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     await sleep(80);
     const dumpNodesAfterUpdate = Array.from(iterUl.children);
     const inlineNodesAfterUpdate = Array.from(inlineUl.children);
-    const dumpItemTexts = dumpNodesAfterUpdate.map((node) => (node.querySelector('.item')?.textContent || '').trim());
-    const inlineItemTexts = inlineNodesAfterUpdate.map((node) => (node.textContent || '').trim().replace(/^\d+\s+/, ''));
+    const extractDumpItemText = (node) => (node.querySelector('.item')?.textContent || '').trim();
+    const extractInlineItemText = (node) => (node.textContent || '').trim().replace(INLINE_LIST_PREFIX_RE, '');
+    const dumpItemTexts = dumpNodesAfterUpdate.map(extractDumpItemText);
+    const inlineItemTexts = inlineNodesAfterUpdate.map(extractInlineItemText);
     if (dumpNodesAfterUpdate.length === dumpNodesBeforeUpdate.length && dumpNodesAfterUpdate.every((node, idx) => node === dumpNodesBeforeUpdate[idx])) pass('Section9 data-dump updates item content in place'); else fail('Section9 data-dump recreated rows for content update');
     if (inlineNodesAfterUpdate.length === inlineNodesBeforeUpdate.length && inlineNodesAfterUpdate.every((node, idx) => node === inlineNodesBeforeUpdate[idx])) pass('Section9 inline data-dump updates item content in place'); else fail('Section9 inline data-dump recreated rows for content update');
     if (dumpItemTexts[0] === 'First post' && dumpItemTexts[1] === 'Updated second post' && dumpItemTexts[2] === 'Third post') pass('Section9 data-dump updates only the changed item content'); else fail('Section9 data-dump item content update wrong');
