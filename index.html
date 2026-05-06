@@ -101,7 +101,7 @@
       <p>Age: <span data-sync:user.age></span> years old</p>
       <h4>1.a data-sync Direction Examples</h4>
       <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
-      <label>Element -> Signal (seed initial value): <input id="elToSig" value="Alice" data-sync:user.name@.></label>
+      <label>Element -> Signal (writes on setup): <input id="elToSig" value="Alice" data-sync:user.name@.></label>
       <label>Two-way: <input id="twoWay" data-sync:user.name></label>
       <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
