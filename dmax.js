@@ -661,17 +661,14 @@
       return elSubs
     }
     function addSignalSub(el, trig, mods, fn) {
-      const root = trig.root, path = trig.path
-      const subFn = applyTrigMods(fn, trig, mods, el)
-      const sub = { type: 'signal', kind: trig.kind, el, trig, root, path, fn: subFn, changeMod: getSigChangeShape(mods) }
-      ensureSigSubs(root).push(sub)
+      const subFn = applyTrigMods(fn, trig, mods)
+      if (subFn !== fn && trig.root) subFn.remove = () => removeSigSub(trig.root, subFn)
+      const sub = { el, trig, fn: subFn, changeMod: getSigChangeShape(mods) }
+      ensureSigSubs(trig.root).push(sub)
       ensureBoundSubs(el).push(sub)
       return sub
     }
-    function invokeSignalSub(sub, detail) {
-      const trigVal = getSigValOrIt(sub.trig)
-      sub.fn(DM, sub.el, sub.trig, trigVal, detail)
-    }
+    function invokeSignalSub(sub, detail) { sub.fn(DM, sub.el, sub.trig, getSigValOrIt(sub.trig), detail) }
     function findFirstKind(items, kind) {
       for (let i = 0; i < items.length; ++i) if (items[i].kind === kind) return items[i]
       return null
@@ -715,8 +712,8 @@
 
       // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
       let collected = [], diffed = false, diff = null, pathDiffs = []
-      for (const h of handlers) { // h.fn, h.changeMod, h.path
-        const hp = h.path, changeMod = h.changeMod
+      for (const h of handlers) { // h.fn, h.changeMod, h.trig.path
+        const hp = h.trig.path, changeMod = h.changeMod
         if (!hp) {
           if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
             diffed = true
@@ -749,7 +746,7 @@
         // first, check if we did this comparison before
         let hCol = null, p = null
         for (const col of collected) // check if the same
-          if ((p = col[0].path) && samePath(p, hp)) { hCol = col; break }
+          if ((p = col[0].trig.path) && samePath(p, hp)) { hCol = col; break }
 
         const pathCur = getPropValAndDepth(sigVal, hp)[0]
         let pathVal
@@ -793,16 +790,18 @@
     }
 
     /**
-     * @typedef {((ev?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} TriggerHandler
+     * @typedef {((ev?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} EventTriggerHandler
+     * @typedef {((dm?: any, el?: any, trig?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} SignalTriggerHandler
+     * @typedef {EventTriggerHandler | SignalTriggerHandler} TriggerHandler
      */
 
     /**
      * @param {TriggerHandler} fn
-     * @param {{ kind: string, not?: any }} trig
+     * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
      * @param {Array<{ root: string, path?: any }>} mods
      * @returns {TriggerHandler}
      */
-    function applyTrigMods(fn, trig, mods, el = null) {
+    function applyTrigMods(fn, trig, mods) {
       const isSig = trig.kind === SIGNAL
       let one = false, always = false, prv = false
       let deb = 0, thr = 0, permitMods = null
@@ -817,20 +816,48 @@
           permitMods.push(m)
         }
       }
-      if (isSig && !one && !prv && deb <= 0 && thr <= 0 && !permitMods && !trig.not) return fn
+      if (isSig && !one && deb <= 0 && thr <= 0 && !permitMods && !trig.not) return fn
       let tm = 0, last = 0, inDebounce = false
-      let debEv = null, debVal = null, debDetail = null
+      let debArgs = null
       let onDebounce = null
 
+      if (isSig) {
+        const h = function (dm, el, sig, val, detail) {
+          const sigIt = sig || trig
+          if (!inDebounce) {
+            if (deb > 0) {
+              onDebounce ??= function () {
+                inDebounce = true
+                try { h(...debArgs) } finally { inDebounce = false }
+              }
+              debArgs = [dm, el, sigIt, val, detail]
+              clearTimeout(tm)
+              tm = setTimeout(onDebounce, deb)
+              return
+            }
+            if (thr > 0) {
+              const now = Date.now()
+              if (now - last < thr) return
+              last = now
+            }
+          }
+          let trigVal = val ?? getSigValOrIt(sigIt)
+          if (sigIt.not) trigVal = !trigVal
+          if (permitMods && !modsPermitVal(permitMods, trigVal)) return
+          try { fn(dm, el, sigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+          if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
+        }
+        return h
+      }
       const h = function (ev, val, detail) {
         if (!inDebounce) {
           if (prv) ev?.preventDefault?.()
           if (deb > 0) {
             onDebounce ??= function () {
               inDebounce = true
-              try { h(debEv, debVal, debDetail) } finally { inDebounce = false }
+              try { h(...debArgs) } finally { inDebounce = false }
             }
-            debEv = ev, debVal = val, debDetail = detail
+            debArgs = [ev, val, detail]
             clearTimeout(tm)
             tm = setTimeout(onDebounce, deb)
             return
@@ -841,16 +868,11 @@
             last = now
           }
         }
-        let trigVal = (isSig ? getSigValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
-        if (isSig && trig.not) trigVal = !trigVal
+        const trigVal = val ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
-        try {
-          if (el) fn(DM, el, trig, trigVal, detail)
-          else fn(ev, trigVal, detail)
-        } catch (e) { console.error('[dmax] Error: Handler error', e) }
+        try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
       }
-      if (isSig && trig.root) h.remove = () => removeSigSub(trig.root, h)
       return h
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
@@ -1995,7 +2017,7 @@
         if (boundSubs) {
           for (const l of boundSubs) {
             if (l.type === 'event') l.tarEl.removeEventListener(l.evName, l.handler)
-            else if (l.kind === SIGNAL) removeSigSub(l.root, l.fn)
+            else if (l.trig && l.trig.kind === SIGNAL) removeSigSub(l.trig.root, l.fn)
             else if (l.type === 'interval') clearInterval(l.id)
             else if (l.type === 'timeout') clearTimeout(l.id)
           }

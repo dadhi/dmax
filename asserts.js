@@ -270,7 +270,6 @@
       arr.push({
         fn: (_, __, ___, ____, detail) => sink.push(detail),
         changeMod,
-        path,
         trig: __sigTrig(root, path)
       });
     }
