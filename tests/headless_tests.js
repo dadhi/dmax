@@ -280,10 +280,10 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     const inlineThreadItems = Array.from(inlineThreads.children);
     if (threadItems.length === 4) pass('Section9 nested data-dump rendered 4 threads after shape change'); else fail('Section9 nested data-dump thread count wrong');
     if (inlineThreadItems.length === 4) pass('Section9 nested inline data-dump rendered 4 threads after shape change'); else fail('Section9 nested inline data-dump thread count wrong');
-    const replyCount = threadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
-    const inlineReplyCount = inlineThreadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
-    if (replyCount === 2) pass('Section9 nested data-dump rendered nested replies'); else fail('Section9 nested data-dump replies wrong');
-    if (inlineReplyCount === 2) pass('Section9 nested inline data-dump rendered nested replies'); else fail('Section9 nested inline data-dump replies wrong');
+    const firstThreadReplyCount = threadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
+    const firstInlineThreadReplyCount = inlineThreadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
+    if (firstThreadReplyCount === 2) pass('Section9 nested data-dump rendered nested replies'); else fail('Section9 nested data-dump replies wrong');
+    if (firstInlineThreadReplyCount === 2) pass('Section9 nested inline data-dump rendered nested replies'); else fail('Section9 nested inline data-dump replies wrong');
 
     // Section 10: modifiers
     const onceBtn = doc.getElementById('onceBtn');

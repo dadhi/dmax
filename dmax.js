@@ -87,7 +87,8 @@
     const SPEC_TIMEOUT_MS = 500
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
-    const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
+    const DUMP_STATES = new WeakMap()
+    const DUMP_ATTRS = new WeakMap()
 
     function isSpecial(n) {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -146,7 +147,7 @@
           d = n.indexOf(BRACKET_CLOSE, p + 1)
           if (d < 0) { console.error('[dmax] Error: Missing closing bracket in path:', n, 'in:', aName); return null }
           const part = n.slice(p + 1, d)
-          if (!isDigitsOnly(part)) { console.error('[dmax] Error: Only constant numeric bracket indices are supported:', n, 'in:', aName); return null }
+          if (!isDigitsOnly(part)) { console.error('[dmax] Error: Only constant numeric bracket indices are supported, found:', part, 'in:', n, 'at:', aName); return null }
           path.push(part)
           p = d + 1
           continue
@@ -542,6 +543,8 @@
           const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
           if (nextName !== attr.name || nextVal !== attr.value) {
             if (!nextAttrs) {
+              // Keep a parallel attribute list for later wiring because HTML accepts
+              // some static directive names that DOM setAttribute rejects when recreated.
               nextAttrs = []
               for (let j = attrs.length - 1; j > i; --j) nextAttrs.push([attrs[j].name, attrs[j].value])
             }
