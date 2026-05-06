@@ -86,7 +86,7 @@
         "user":{"name":"Alice","age":25,"ui":{"themeColor":"#007bff","isActive":true,"fontSize":16}},
         "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
         "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
-        "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
+        "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
         "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,"oobHtml":"",
@@ -193,15 +193,8 @@
       </div>
       <h4>9.a Indexed Signal Subscription</h4>
       <div style="padding:8px 0;border-top:1px dashed #cbd5e1">
-        <label>Active index: <input id="demoIdx" type="number" min="0" data-sync:idx></label>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-          <button id="setPost0Title" data-sub:post-objs.0.title@.click="'NewP0Title'">Set Post 0 Title</button>
-          <button id="setPost1Title" data-sub:post-objs.1.title@.click="'NewP1Title'">Set Post 1 Title</button>
-          <button id="setIdx0" data-sub:idx@.click="0">Use idx 0</button>
-          <button id="setIdx1" data-sub:idx@.click="1">Use idx 1</button>
-        </div>
-        <p>Indexed title: <strong id="demoIndexedPreview" data-sub:.@post-objs[idx]="(dm.postObjs && dm.postObjs[dm.idx]) ? dm.postObjs[dm.idx].title : ''"></strong></p>
-        <span id="indirectCount" hidden data-sub:.@post-objs[idx]="(window.__indirectCount = (window.__indirectCount || 0) + 1, window.__indirectCount)"></span>
+        <button id="setPost1Title" data-sub:post-objs.1.title@.click="'NewP1Title'">Set Post 1 Title</button>
+        <p>Indexed title: <strong id="demoIndexedPreview" data-sub:.@post-objs[1].title="(dm.postObjs && dm.postObjs[1]) ? dm.postObjs[1].title : ''"></strong></p>
       </div>
       <h4>10. Modifiers demo</h4>
       <button id="onceBtn" data-sub:mod-once@.click^once="(dm.modOnce || 0) + 1">Once</button>

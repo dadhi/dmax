@@ -11,7 +11,7 @@ const { pathToFileURL } = require('url');
 // Test Case Generators
 // ============================================================================
 
-const SIGNAL_NAMES = ['foo', 'bar', 'count', 'user.name', 'ui.theme-color', 'posts[idx]', 'items[0].title'];
+const SIGNAL_NAMES = ['foo', 'bar', 'count', 'user.name', 'ui.theme-color', 'posts[1]', 'items[0].title'];
 // Note: Parser doesn't validate signal/property names - they're just strings that may fail at runtime
 const INVALID_SIGNAL_NAMES = []; // Removed: parser accepts all non-empty strings, validation is runtime
 
@@ -62,7 +62,6 @@ const BASE_STATE = JSON.stringify({
   ui: { themeColor: '', fontSize: '', isActive: false },
   posts: ['First', 'Second', 'Third'],
   items: [],
-  idx: 0,
   parent: {},
   result: {},
   app: { data: { items: [] } }
@@ -259,7 +258,7 @@ function* generateExpressionCombinations() {
   
   // Edge cases
   yield { expr: 'dm.foo.bar.baz.qux.deep', valid: true, category: 'deep-access' };
-  yield { expr: 'dm.posts[dm.idx]', valid: true, category: 'bracket-access' };
+  yield { expr: 'dm.posts[1]', valid: true, category: 'bracket-access' };
   yield { expr: 'dm.foo && dm.bar || dm.baz', valid: true, category: 'boolean-logic' };
   yield { expr: '`template ${dm.foo}`', valid: true, category: 'template-string' };
 }
@@ -477,7 +476,7 @@ async function runRegressionTests(runner) {
     { attr: 'data-sub:.text-content@foo', expr: '"test"', valid: true, desc: 'kebab-case property works' },
     
     // Bug: bracket-index subscriptions
-    { attr: 'data-sub:result@posts[idx]', expr: 'dm.posts[dm.idx]', valid: true, desc: 'bracket-index subscription' },
+    { attr: 'data-sub:result@posts[1]', expr: 'dm.posts[1]', valid: true, desc: 'bracket-index subscription' },
 
     // Bug: infinite loops
     { attr: 'data-sync:foo:foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },

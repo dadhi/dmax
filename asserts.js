@@ -79,6 +79,8 @@
     __assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SIGNAL, "not": false, "path": null, "root": "foo" }, 'double negation even');
     __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
     __assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
+    __assert(parseItem, ['XXX', TRIG, 'post-objs[1].title'], { "kind": SIGNAL, "not": null, "path": ["1", "title"], "root": "postObjs" }, 'signal constant bracket index');
+    __assert(parseItem, ['XXX', TRIG, 'post-objs[idx].title'], null, 'signal dynamic bracket index unsupported');
     __assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
     __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
     __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
@@ -406,6 +408,17 @@
       return { im, after };
     }
     __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+    function __tSubSignalConstBracketIndex() {
+      __reset();
+      _dm.set('posts', [{ title: 'A' }, { title: 'B' }]);
+      const el = document.createElement('div');
+      dSub(el, 'data-sub:result@posts[1].title^immediate', 'val');
+      const im = DM['result'];
+      setSigAndNotifySubs('test', { root: 'posts', path: ['1', 'title'] }, 'B2');
+      const after = DM['result'];
+      return { im, after };
+    }
+    __assert(__tSubSignalConstBracketIndex, [], { im: 'B', after: 'B2' }, 'dSub constant bracket index subscribes to the indexed path');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'

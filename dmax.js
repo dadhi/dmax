@@ -96,10 +96,6 @@
     }
 
     const _KIND = [MOD, SIGNAL, EV_PROP, SPECIAL]
-    function withSigRaw(item, raw) {
-      if (item && item.kind === SIGNAL) Object.defineProperty(item, 'raw', { value: raw, configurable: true })
-      return item
-    }
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     function parseItem(aName, type, n, pos = 0) {
       if (!n) return null
@@ -122,20 +118,19 @@
       let kind = EV_PROP
       if (root && root.length > 0) {
         const id = root[0] === ID
-          if (id || isSpecial(root)) {
-            kind = id ? EV_PROP : SPECIAL
-            root = root.slice(1)
-            if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
-          } else {
-            kind = SIGNAL
-            const b = root.indexOf('[')
-            if (b >= 0) root = root.slice(0, b)
-            root = kebabToCamel(root)
-          }
-        }
+        if (id || isSpecial(root)) {
+          kind = id ? EV_PROP : SPECIAL
+          root = root.slice(1)
+          if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
+        } else kind = SIGNAL
+      }
 
       if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
-      if (d < 0 || d + 1 == n.length) return withSigRaw({ kind, not, root, path: null }, n)
+      if (kind === SIGNAL) {
+        const ref = parseConstSigRef(aName, n.slice(p))
+        return ref ? { kind, not, root: ref.root, path: ref.path } : null
+      }
+      if (d < 0 || d + 1 == n.length) return { kind, not, root, path: null }
 
       p = d + 1
       let path = []
@@ -146,7 +141,7 @@
         path.push(kebabToCamel(part))
         ++p
       }
-      return withSigRaw({ kind, not, root, path }, n)
+      return { kind, not, root, path }
     }
 
     function finishParse(items, p, it, aName) {
@@ -403,7 +398,6 @@
 
     function getSigValOrIt(it) {
       if (!it.kind) return it
-      it = getSigRef(it)
       const sig = _dm.get(it.root)
       const path = it.path
       const val = path && path.length ? getPropValAndDepth(sig, path)[0] : sig
@@ -494,10 +488,6 @@
       return true
     }
 
-    function hasBracketIndex(s) {
-      return typeof s === 'string' && s.indexOf('[') >= 0
-    }
-
     function splitSigRef(raw) {
       const parts = []
       if (typeof raw !== 'string' || !raw.length) return parts
@@ -533,93 +523,37 @@
       return a || b !== s.length ? s.slice(a, b) : s
     }
 
-    function collectBracketRoots(raw, roots = []) {
-      if (!hasBracketIndex(raw)) return roots
-      for (let i = raw.indexOf('['); i >= 0 && i < raw.length; i = raw.indexOf('[', i + 1)) {
-        const end = findMatchingBracket(raw, i)
-        if (end < 0) break
-        const inner = trimSpaces(raw.slice(i + 1, end))
-        if (inner && !isDigitsOnly(inner)) {
-          const base = splitSigRef(inner)[0] || ''
-          const stop = indexFirst(base, ['[', '.', ' '])
-          const root = kebabToCamel(stop >= 0 ? base.slice(0, stop) : base)
-          if (root && roots.indexOf(root) < 0) roots.push(root)
-          if (hasBracketIndex(inner)) collectBracketRoots(inner, roots)
-        }
-        i = end
-      }
-      return roots
-    }
-
-    function resolveSigRef(raw) {
+    function parseConstSigRef(aName, raw) {
       const parts = splitSigRef(raw)
       let root = null, path = null
       for (let i = 0; i < parts.length; ++i) {
         const part = parts[i]
-        if (!part) continue
+        if (!part) { console.error('[dmax] Error: Path should not have an empty part:', raw, 'in:', aName); return null }
         let p = part.indexOf('[')
         const base = p < 0 ? part : part.slice(0, p)
         const key = kebabToCamel(base)
-        if (!key) continue
+        if (!key) { console.error('[dmax] Error: Signal path should not have an empty part:', raw, 'in:', aName); return null }
         if (!root) root = key
         else (path ??= []).push(key)
         while (p >= 0) {
           const end = findMatchingBracket(part, p)
-          if (end < 0) break
+          if (end < 0) { console.error('[dmax] Error: Signal bracket index should be closed:', raw, 'in:', aName); return null }
           const inner = trimSpaces(part.slice(p + 1, end))
-          let val = inner
-          if (inner && !isDigitsOnly(inner)) {
-            const ref = resolveSigRef(inner)
-            if (ref && ref.root) {
-              const sig = _dm.get(ref.root)
-              val = ref.path && ref.path.length ? getPropValAndDepth(sig, ref.path)[0] : sig
-            }
-          }
-          ;(path ??= []).push(val)
+          if (!inner || !isDigitsOnly(inner)) { console.error('[dmax] Error: Signal bracket index should be a constant integer:', raw, 'in:', aName); return null }
+          ;(path ??= []).push(inner)
+          if (end + 1 < part.length && part[end + 1] !== '[') { console.error('[dmax] Error: Signal bracket index should be followed by "." or another bracket:', raw, 'in:', aName); return null }
           p = part.indexOf('[', end + 1)
         }
       }
       return { kind: SIGNAL, not: null, root, path }
     }
 
-    function getSigRef(it) {
-      if (!it || !it.kind || it.kind !== SIGNAL || !it.raw || !hasBracketIndex(it.raw)) return it
-      const ref = resolveSigRef(it.raw)
-      return ref && ref.root ? { kind: SIGNAL, not: it.not, root: ref.root, path: ref.path } : it
-    }
-
-    function pathsRelated(changePath, watchPath) {
-      if (!changePath || !changePath.length || !watchPath || !watchPath.length) return true
-      const len = changePath.length < watchPath.length ? changePath.length : watchPath.length
-      for (let i = 0; i < len; ++i) if ('' + changePath[i] !== '' + watchPath[i]) return false
-      return true
-    }
-
     function bindSigSub(elSubs, el, kind, trig, mods, wrappedSubFn) {
-      const ref = getSigRef(trig)
-      const root = ref.root, changeMod = getSigChangeShape(mods)
-      const extraRoots = trig.raw && hasBracketIndex(trig.raw) ? collectBracketRoots(trig.raw) : EMPTY_ARR
-      let sigFn = wrappedSubFn, path = ref.path
-      if (extraRoots.length) {
-        path = null
-        sigFn = (detail, changedPath, changedRoot) => {
-          if (changedRoot !== root || !changedPath || pathsRelated(changedPath, getSigRef(trig).path)) wrappedSubFn(detail)
-        }
-      }
-      sigFn.remove = () => {
-        removeSigSub(root, sigFn)
-        for (let i = 0; i < extraRoots.length; ++i) if (extraRoots[i] !== root) removeSigSub(extraRoots[i], sigFn)
-      }
-      ensureSigSubs(root).push({ fn: sigFn, changeMod, path })
-      elSubs.push({ type: 'signal', el, kind, root, path, fn: sigFn })
-      for (let i = 0; i < extraRoots.length; ++i) {
-        const extraRoot = extraRoots[i]
-        if (extraRoot === root) continue
-        ensureSigSubs(extraRoot).push({ fn: sigFn, changeMod, path: null })
-        elSubs.push({ type: 'signal', el, kind, root: extraRoot, path: null, fn: sigFn })
-      }
-      wrappedSubFn.remove = sigFn.remove
-      return ref
+      const root = trig.root, path = trig.path, changeMod = getSigChangeShape(mods)
+      ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
+      wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
+      elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+      return trig
     }
 
     function buildDumpItemRef(sigRoot, sigPath, idx) {
@@ -808,8 +742,6 @@
     // If sig does not exist in _dm, then create it on demand.
     function setSigAndNotifySubs(aName, tar, val) {
       if (!expected(tar)) return null
-      tar = getSigRef(tar)
-
       const root = tar.root, path = tar.path
       if (!expected(root)) return null
 
@@ -898,7 +830,7 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        h.fn(h.changeMod === SIG_CHANGED_ANY ? null : col[1], path, root)
+        h.fn(h.changeMod === SIG_CHANGED_ANY ? null : col[1])
       }
 
       updateDebug()

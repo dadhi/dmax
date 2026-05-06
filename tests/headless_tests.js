@@ -350,31 +350,6 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     if ((window.__contentCount || 0) >= 1 && (window.__shapeCount || 0) === 1) pass('Fine-grained shape subscriptions react to root shape changes'); else fail('Fine-grained shape subscriptions did not react to root shape changes');
     if ((demoShape.textContent || '').trim().length) pass('Fine-grained shape detail reaches DOM subscribers'); else fail('Fine-grained shape detail did not reach DOM subscribers');
 
-    // Bracket-index regressions
-    const indirectCount = doc.getElementById('indirectCount');
-    const setPost0 = doc.getElementById('setPost0Title');
-    const setPost1 = doc.getElementById('setPost1Title');
-    const setIdx0 = doc.getElementById('setIdx0');
-    const setIdx1 = doc.getElementById('setIdx1');
-    const indexedPreview = doc.getElementById('demoIndexedPreview');
-    if (!indirectCount || !setPost0 || !setPost1 || !setIdx0 || !setIdx1 || !indexedPreview) fail('Bracket-index fixtures missing');
-    fire(setIdx0, 'click');
-    await sleep(80);
-    window.__indirectCount = 0;
-    fire(setPost0, 'click');
-    await sleep(80);
-    if ((window.__indirectCount || 0) === 1) pass('Bracket-index subscription reacts to current index item changes'); else fail('Bracket-index subscription missed current index item changes');
-    if ((indexedPreview.textContent || '').trim() === 'NewP0Title') pass('Bracket-index preview shows the active indexed item'); else fail('Bracket-index preview did not show the active indexed item');
-    window.__indirectCount = 0;
-    fire(setPost1, 'click');
-    await sleep(80);
-    if ((window.__indirectCount || 0) === 0) pass('Bracket-index subscription ignores inactive index item changes'); else fail('Bracket-index subscription reacted to an inactive index item change');
-    window.__indirectCount = 0;
-    fire(setIdx1, 'click');
-    await sleep(80);
-    if ((window.__indirectCount || 0) >= 1) pass('Bracket-index subscription reacts to index signal changes'); else fail('Bracket-index subscription did not react to index signal changes');
-    if ((indexedPreview.textContent || '').trim() === 'NewP1Title') pass('Bracket-index preview refreshes after index signal changes'); else fail('Bracket-index preview did not refresh after index signal changes');
-
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
   } catch (e) {
