@@ -717,7 +717,10 @@
         return modded
       }
       const modded = applyTrigMods(fn, trig, mods)
-      const listener = (detail) => invokeSub(modded, detail, trig.kind === SPECIAL ? detail?.type ?? null : getElPropVal(tarEl, propPath), el, trig)
+      const listener = (detail) => {
+        const trigVal = trig.kind === SPECIAL ? detail?.type ?? null : getElPropVal(tarEl, propPath)
+        invokeSub(modded, detail, trigVal, el, trig)
+      }
       const opts = getListenerOpts(mods)
       const remove = () => tarEl.removeEventListener(evName, listener, opts)
       modded.remove = listener.remove = remove
@@ -1042,7 +1045,8 @@
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
         const evTrig = trig ?? DEFAULT_PROP_TAR
-        const moddedHandler = addTrigSub(el, evTrig, writeMods, (_dm, _el, _trig, _trigVal, _detail) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath)), elSubs, tarEl, ev, propPath)
+        const writeSig = (_dm, _el, _trig, _trigVal, _detail) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath))
+        const moddedHandler = addTrigSub(el, evTrig, writeMods, writeSig, elSubs, tarEl, ev, propPath)
         if (isImmediateMod(writeMods, true)) invokeSub(moddedHandler, null, getElPropVal(tarEl, propPath), el, evTrig)
       }
     }
