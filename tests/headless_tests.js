@@ -280,12 +280,16 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(80);
     const dumpNodesAfterUpdate = Array.from(iterUl.children);
     const inlineNodesAfterUpdate = Array.from(inlineUl.children);
-    const extractDumpItemText = (node) => (node.querySelector('.item')?.textContent || '').trim();
+    const extractDataDumpItemText = (node) => (node.querySelector('.item')?.textContent || '').trim();
     const extractInlineItemText = (node) => (node.textContent || '').trim().replace(INLINE_LIST_PREFIX_RE, '');
-    const dumpItemTexts = dumpNodesAfterUpdate.map(extractDumpItemText);
+    const dumpItemTexts = dumpNodesAfterUpdate.map(extractDataDumpItemText);
     const inlineItemTexts = inlineNodesAfterUpdate.map(extractInlineItemText);
-    if (dumpNodesAfterUpdate.length === dumpNodesBeforeUpdate.length && dumpNodesAfterUpdate.every((node, idx) => node === dumpNodesBeforeUpdate[idx])) pass('Section9 data-dump updates item content in place'); else fail('Section9 data-dump recreated rows for content update');
-    if (inlineNodesAfterUpdate.length === inlineNodesBeforeUpdate.length && inlineNodesAfterUpdate.every((node, idx) => node === inlineNodesBeforeUpdate[idx])) pass('Section9 inline data-dump updates item content in place'); else fail('Section9 inline data-dump recreated rows for content update');
+    if (dumpNodesAfterUpdate.length === dumpNodesBeforeUpdate.length
+      && dumpNodesAfterUpdate.every((node, idx) => node === dumpNodesBeforeUpdate[idx])) pass('Section9 data-dump updates item content in place');
+    else fail('Section9 data-dump recreated rows for content update');
+    if (inlineNodesAfterUpdate.length === inlineNodesBeforeUpdate.length
+      && inlineNodesAfterUpdate.every((node, idx) => node === inlineNodesBeforeUpdate[idx])) pass('Section9 inline data-dump updates item content in place');
+    else fail('Section9 inline data-dump recreated rows for content update');
     if (dumpItemTexts[0] === 'First post' && dumpItemTexts[1] === 'Updated second post' && dumpItemTexts[2] === 'Third post') pass('Section9 data-dump updates only the changed item content'); else fail('Section9 data-dump item content update wrong');
     if (inlineItemTexts[0] === 'First post' && inlineItemTexts[1] === 'Updated second post' && inlineItemTexts[2] === 'Third post') pass('Section9 inline data-dump updates only the changed item content'); else fail('Section9 inline data-dump item content update wrong');
     const threadUl = doc.getElementById('thread-posts');
