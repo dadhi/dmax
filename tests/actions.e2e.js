@@ -33,7 +33,10 @@ function readDebugState(document) {
 const DUMMYJSON_POST = Object.freeze({
   id: 1,
   title: 'His mother had always taught him',
-  body: "His mother had always taught him not to ever think of himself as better than others. He'd tried to live by this motto. He never looked down on those who were less fortunate or who had less money than him. But the stupidity of the group of people he was talking to made him change his mind.",
+  body: "His mother had always taught him not to ever think of himself as better than others. " +
+    "He'd tried to live by this motto. He never looked down on those who were less fortunate " +
+    'or who had less money than him. But the stupidity of the group of people he was talking ' +
+    'to made him change his mind.',
   tags: ['history', 'american', 'crime'],
   reactions: { likes: 192, dislikes: 25 },
   views: 305,
@@ -197,10 +200,11 @@ function getPathname(url) {
   const userIdInput = document.getElementById('new-user-id');
   const createBtn = document.getElementById('create-post');
   assert(titleInput && bodyInput && userIdInput && createBtn, 'createPost elements exist');
+  const updatedUserId = '9';
 
   titleInput.value = 'Notebook post from test';
   bodyInput.value = 'Updated from the actions.e2e harness.';
-  userIdInput.value = '9';
+  userIdInput.value = updatedUserId;
 
   createBtn.click();
 
@@ -211,7 +215,7 @@ function getPathname(url) {
   assert(state2.createdPost, 'createdPost present');
   assert.strictEqual(state2.createdPost.title, 'Notebook post from test', 'createdPost reflects updated title');
   assert.strictEqual(state2.createdPost.body, 'Updated from the actions.e2e harness.', 'createdPost reflects updated body');
-  assert.strictEqual(state2.createdPost.userId, 9, 'createdPost normalizes userId to a number');
+  assert.strictEqual(state2.createdPost.userId, Number(updatedUserId), 'createdPost normalizes userId to a number');
   assert.strictEqual(state2.busy, false, 'POST busy false after completion');
   assert.strictEqual(state2.err, null, 'POST err null on success');
   assert.strictEqual(state2.code, 201, 'POST code is recorded');
@@ -223,7 +227,7 @@ function getPathname(url) {
   assert.deepStrictEqual(JSON.parse(last.init.body), {
     title: 'Notebook post from test',
     body: 'Updated from the actions.e2e harness.',
-    userId: 9
+    userId: Number(updatedUserId)
   }, 'POST request body spreads the draft post signal');
   assert.strictEqual(last.init.headers['content-type'], 'application/json', 'POST request is JSON');
 
