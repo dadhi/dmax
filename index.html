@@ -329,7 +329,7 @@
       });
 
       function makeJsonResponse(payload, status) {
-        const code = status == null ? 200 : status;
+        const code = status === null || status === undefined ? 200 : status;
         const body = JSON.stringify(payload);
         return {
           ok: code >= 200 && code < 300,
@@ -344,6 +344,15 @@
       function getFetchPath(url) {
         try { return new URL(String(url || ''), 'https://dummyjson.com').pathname; }
         catch (_) { return String(url || ''); }
+      }
+
+      function isDummyJsonUrl(url) {
+        try {
+          const parsed = new URL(String(url || ''));
+          return parsed.hostname === 'dummyjson.com' && (parsed.protocol === 'https:' || parsed.protocol === 'http:');
+        } catch (_) {
+          return false;
+        }
       }
 
       function initLiveDSubExamples() {
@@ -365,10 +374,10 @@
         window.fetch = function (url, init) {
           const u = String(url || '');
           const path = getFetchPath(url);
-          if (path === '/posts/1' && u.indexOf('dummyjson.com') !== -1) {
+          if (path === '/posts/1' && isDummyJsonUrl(url)) {
             return Promise.resolve(makeJsonResponse(DUMMYJSON_POST, 200));
           }
-          if (path === '/posts/add' && u.indexOf('dummyjson.com') !== -1) {
+          if (path === '/posts/add' && isDummyJsonUrl(url)) {
             let submitted = null;
             try { submitted = init && init.body ? JSON.parse(init.body) : null; } catch (_) { }
             const payload = Object.assign({}, DUMMYJSON_CREATED_POST, submitted && typeof submitted === 'object' ? submitted : null);

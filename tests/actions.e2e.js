@@ -1,11 +1,13 @@
 // tests/actions.e2e.js
 // JSDOM-based e2e tests for declarative actions using deterministic fetch mocks.
 
+const path = require('path');
+const { pathToFileURL } = require('url');
 const assert = require('assert');
 const fs = require('fs');
 const { JSDOM, VirtualConsole } = require('jsdom');
-const path = require('path');
-const { pathToFileURL } = require('url');
+
+const NOTEBOOK_TIMEOUT_MS = 20000;
 
 function waitFor(conditionFn, timeout = 5000, interval = 25) {
   const start = Date.now();
@@ -116,7 +118,7 @@ function getPathname(url) {
     setTimeout(res, 1000);
   });
   await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Timed out waiting for notebook asserts to finish')), 20000);
+    const timer = setTimeout(() => reject(new Error('Timed out waiting for notebook asserts to finish')), NOTEBOOK_TIMEOUT_MS);
     function onDone() {
       clearTimeout(timer);
       resolve();
