@@ -663,7 +663,7 @@
     function addSignalSub(el, trig, mods, fn, rawFn = false) {
       const root = trig.root, path = trig.path
       const subFn = rawFn ? applyTrigMods(fn, trig, mods, el) : applyTrigMods(fn, trig, mods)
-      const sub = { kind: trig.kind, el, trig, root, path, fn: subFn, changeMod: getSigChangeShape(mods), rawFn: rawFn && subFn === fn }
+      const sub = { type: 'signal', kind: trig.kind, el, trig, root, path, fn: subFn, changeMod: getSigChangeShape(mods), rawFn: rawFn && subFn === fn }
       ensureSigSubs(root).push(sub)
       ensureBoundSubs(el).push(sub)
       return sub

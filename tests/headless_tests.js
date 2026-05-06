@@ -418,7 +418,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const dynamicSub = doc.body.lastElementChild;
     if (typeof window.wireNode !== 'function') fail('Section10.c wireNode unavailable');
     else {
-      const attrName = dynamicSub.getAttributeNames().find((name) => name.indexOf('data-sub') === 0);
+      const attrName = dynamicSub.getAttributeNames().find((name) => name.startsWith('data-sub'));
       const beforeSubs = window.eval('(_subs.get("count") || []).length');
       window.wireNode(dynamicSub, attrName, dynamicSub.getAttribute(attrName));
       const afterWireSubs = window.eval('(_subs.get("count") || []).length');
