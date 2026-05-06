@@ -660,6 +660,20 @@
       if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
       return elSubs
     }
+    function addSignalSub(el, trig, mods, fn, rawFn = false) {
+      const root = trig.root, path = trig.path
+      const subFn = rawFn ? applyTrigMods(fn, trig, mods, el) : applyTrigMods(fn, trig, mods)
+      const sub = { kind: trig.kind, el, trig, root, path, fn: subFn, changeMod: getSigChangeShape(mods), rawFn: rawFn && subFn === fn }
+      ensureSigSubs(root).push(sub)
+      ensureBoundSubs(el).push(sub)
+      return sub
+    }
+    function invokeSignalSub(sub, detail) {
+      if (!sub.trig) { sub.fn(detail); return }
+      const trigVal = getSigValOrIt(sub.trig)
+      if (sub.rawFn) sub.fn(DM, sub.el, sub.trig, trigVal, detail)
+      else sub.fn(null, trigVal, detail)
+    }
     function findFirstKind(items, kind) {
       for (let i = 0; i < items.length; ++i) if (items[i].kind === kind) return items[i]
       return null
@@ -765,7 +779,7 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        h.fn(h.changeMod === SIG_CHANGED_ANY ? null : col[1])
+        invokeSignalSub(h, h.changeMod === SIG_CHANGED_ANY ? null : col[1])
       }
 
       updateDebug()
@@ -790,7 +804,7 @@
      * @param {Array<{ root: string, path?: any }>} mods
      * @returns {TriggerHandler}
      */
-    function applyTrigMods(fn, trig, mods) {
+    function applyTrigMods(fn, trig, mods, el = null) {
       const isSig = trig.kind === SIGNAL
       let one = false, always = false, prv = false
       let deb = 0, thr = 0, permitMods = null
@@ -805,6 +819,7 @@
           permitMods.push(m)
         }
       }
+      if (isSig && !one && !prv && deb <= 0 && thr <= 0 && !permitMods && !trig.not) return fn
       let tm = 0, last = 0, inDebounce = false
       let debEv = null, debVal = null, debDetail = null
       let onDebounce = null
@@ -831,9 +846,13 @@
         let trigVal = (isSig ? getSigValOrIt(trig) : val) ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (isSig && trig.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
-        try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+        try {
+          if (el) fn(DM, el, trig, trigVal, detail)
+          else fn(ev, trigVal, detail)
+        } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
       }
+      if (isSig && trig.root) h.remove = () => removeSigSub(trig.root, h)
       return h
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
@@ -866,17 +885,10 @@
           const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subs = ensureSigSubs(root)
-          const subFn = applyTrigMods((ev, trigVal, detail) => fn(DM, el, trig, trigVal, detail), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          subs.push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
-          subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          const sub = addSignalSub(el, trig, mods, fn, true)
           if (!ranImmediate && isImmediateMod(mods, true)) {
             ranImmediate = true
-            subFn(null, getSigValOrIt(trig), null)
+            invokeSignalSub(sub, null)
           }
         } else if (kind === EV_PROP || kind === SPECIAL) {
           let ev = path && path.length ? path[0] : null
@@ -986,17 +998,11 @@
       if (shouldReadSig) {
         if (!expected(sigRead.root)) return
         const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
-        const subFn = applyTrigMods((ev, trigVal, detail) => {
+        const sub = addSignalSub(el, sigRead, readMods, (ev, trigVal, detail) => {
           const v = getSigValOrIt(sigRead)
           setProp(el, aName, writePropTar, v)
-        }, sigRead, readMods)
-        const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(sigRead), detail)
-        const changeMod = getSigChangeShape(readMods)
-        ensureSigSubs(sigRead.root).push({ fn: wrappedSubFn, changeMod, path: sigRead.path })
-        wrappedSubFn.remove = () => removeSigSub(sigRead.root, wrappedSubFn)
-        subFn.remove = wrappedSubFn.remove
-        elSubs.push({ type: 'signal', el, kind: sigRead.kind, root: sigRead.root, path: sigRead.path, fn: wrappedSubFn })
-        if (isImmediateMod(readMods, true)) subFn(null, getSigValOrIt(sigRead), null)
+        })
+        if (isImmediateMod(readMods, true)) invokeSignalSub(sub, null)
       }
 
       if (shouldWriteSig) {
@@ -1049,14 +1055,8 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subFn = applyTrigMods((ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
-          subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
-          if (isImmediateMod(mods, false)) subFn(null, getSigValOrIt(trig), null)
+          const sub = addSignalSub(el, trig, mods, (ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal))
+          if (isImmediateMod(mods, false)) invokeSignalSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
@@ -1102,14 +1102,8 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subFn = applyTrigMods((ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
-          subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
-          if (isImmediateMod(mods, false)) subFn(null, getSigValOrIt(trig), null)
+          const sub = addSignalSub(el, trig, mods, (ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal))
+          if (isImmediateMod(mods, false)) invokeSignalSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
@@ -1192,14 +1186,7 @@
         }
       }
 
-      const root = sigRoot, path = sigPath
-      const changeMod = getSigChangeShape(mods)
-      const subFn = applyTrigMods((ev, trigVal, detail) => doRender(detail), trig, mods)
-      const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-      ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-      wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
-      subFn.remove = wrappedSubFn.remove
-      ensureBoundSubs(el).push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
+      addSignalSub(el, trig, mods, (ev, trigVal, detail) => doRender(detail))
       if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1498,13 +1485,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const subFn = applyTrigMods((ev, trigVal, detail) => doRequest(), trig, mods)
-          const wrappedSubFn = (detail) => subFn(null, getSigValOrIt(trig), detail)
-          const changeMod = getSigChangeShape(mods)
-          ensureSigSubs(root).push({ fn: wrappedSubFn, changeMod, path })
-          wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
-          subFn.remove = wrappedSubFn.remove
-          elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
+          addSignalSub(el, trig, mods, () => doRequest())
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             doRequest()
@@ -2009,7 +1990,6 @@
     // Detach listeners and signal subscriptions for a removed subtree.
     function cleanupBoundSubsDeep(rootNode) {
       if (!rootNode || rootNode.nodeType !== 1) { return }
-      const matchesSubscriberFn = (entry, fn) => !!entry && !Array.isArray(entry) && typeof entry === 'object' && entry.fn === fn
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -2017,20 +1997,7 @@
         if (boundSubs) {
           for (const l of boundSubs) {
             if (l.type === 'event') l.tarEl.removeEventListener(l.evName, l.handler)
-            else if (l.type === 'signal') {
-              const arr = _subs.get(l.root)
-              if (arr && arr.length) {
-                // Allocate only after the first match.
-                let filtered = null
-                for (let i = 0; i < arr.length; ++i) {
-                  // Keep filtered null until a match is found, then copy the prefix.
-                  if (matchesSubscriberFn(arr[i], l.fn)) {
-                    if (!filtered) filtered = arr.slice(0, i)
-                  } else if (filtered) filtered.push(arr[i]) // only append after lazy allocation starts
-                }
-                if (filtered) _subs.set(l.root, filtered)
-              }
-            }
+            else if (l.kind === SIGNAL) removeSigSub(l.root, l.fn)
             else if (l.type === 'interval') clearInterval(l.id)
             else if (l.type === 'timeout') clearTimeout(l.id)
           }

@@ -413,6 +413,22 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(80);
     if (post1Title.textContent.trim() === 'NewP1Title') pass('Section10.b constant-index update works for second item'); else fail('Section10.b second constant-index update failed');
 
+    // Section 10.c: removed nodes clean up signal subscriptions
+    doc.body.insertAdjacentHTML('beforeend', '<span data-sub:.@count="dm.count"></span>');
+    const dynamicSub = doc.body.lastElementChild;
+    if (typeof window.wireNode !== 'function') fail('Section10.c wireNode unavailable');
+    else {
+      const attrName = dynamicSub.getAttributeNames().find((name) => name.indexOf('data-sub') === 0);
+      const beforeSubs = window.eval('(_subs.get("count") || []).length');
+      window.wireNode(dynamicSub, attrName, dynamicSub.getAttribute(attrName));
+      const afterWireSubs = window.eval('(_subs.get("count") || []).length');
+      if (afterWireSubs === beforeSubs + 1) pass('Section10.c dynamic signal subscription registers once'); else fail('Section10.c dynamic signal subscription did not register');
+      dynamicSub.remove();
+      await sleep(80);
+      const afterRemoveSubs = window.eval('(_subs.get("count") || []).length');
+      if (afterRemoveSubs === beforeSubs) pass('Section10.c removed signal subscription is cleaned up'); else fail('Section10.c removed signal subscription still registered after removal');
+    }
+
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
   } catch (e) {
