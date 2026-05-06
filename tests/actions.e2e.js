@@ -1,9 +1,9 @@
 // tests/actions.e2e.js
 // JSDOM-based e2e tests for declarative actions using deterministic fetch mocks.
 
-const { JSDOM, VirtualConsole } = require('jsdom');
 const assert = require('assert');
 const fs = require('fs');
+const { JSDOM, VirtualConsole } = require('jsdom');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -28,6 +28,16 @@ function readDebugState(document) {
   return JSON.parse(debug.textContent);
 }
 
+const DUMMYJSON_POST = Object.freeze({
+  id: 1,
+  title: 'His mother had always taught him',
+  body: "His mother had always taught him not to ever think of himself as better than others. He'd tried to live by this motto. He never looked down on those who were less fortunate or who had less money than him. But the stupidity of the group of people he was talking to made him change his mind.",
+  tags: ['history', 'american', 'crime'],
+  reactions: { likes: 192, dislikes: 25 },
+  views: 305,
+  userId: 121
+});
+
 function makeJsonResponse(payload, status = 200) {
   const body = JSON.stringify(payload);
   return {
@@ -46,6 +56,34 @@ function makeJsonResponse(payload, status = 200) {
     },
     clone() {
       return makeJsonResponse(payload, status);
+    }
+  };
+}
+
+function makeSseResponse(bodyText) {
+  let streamBody = null;
+  if (typeof ReadableStream !== 'undefined' && typeof TextEncoder !== 'undefined') {
+    const encoded = new TextEncoder().encode(bodyText);
+    const half = Math.floor(encoded.length / 2);
+    streamBody = new ReadableStream({
+      start(ctrl) {
+        ctrl.enqueue(encoded.slice(0, half));
+        ctrl.enqueue(encoded.slice(half));
+        ctrl.close();
+      }
+    });
+  }
+  return {
+    ok: true,
+    status: 200,
+    headers: {
+      get(name) {
+        return String(name || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null;
+      }
+    },
+    body: streamBody,
+    async text() {
+      return bodyText;
     }
   };
 }
@@ -77,23 +115,59 @@ function getPathname(url) {
     window.addEventListener('load', () => res(), { once: true });
     setTimeout(res, 1000);
   });
-  await new Promise(r => setTimeout(r, 200));
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Timed out waiting for notebook asserts to finish')), 20000);
+    function onDone() {
+      clearTimeout(timer);
+      resolve();
+    }
+    window.addEventListener('dmax:tests:done', onDone, { once: true });
+  });
+  await new Promise(r => setTimeout(r, 100));
 
   let lastRequest = null;
-  window.__lastRequest = () => lastRequest;
-  window.fetch = async function (url, init = {}) {
+  const fire = (el, type) => el.dispatchEvent(new window.Event(type, { bubbles: true }));
+  window.fetch = function (url, init = {}) {
     lastRequest = { url: String(url), init };
     const pathname = getPathname(url);
     if (pathname === '/posts/1') {
-      return makeJsonResponse({ id: 1, title: 'Mocked post', body: 'hello', userId: 7 }, 200);
+      return Promise.resolve(makeJsonResponse(DUMMYJSON_POST, 200));
     }
-    if (pathname === '/posts') {
+    if (pathname === '/posts/add') {
       let submitted = null;
       try { submitted = init.body ? JSON.parse(init.body) : null; } catch (_) {}
-      return makeJsonResponse({ id: 101, submitted }, 201);
+      const payload = Object.assign({ id: 252 }, submitted && typeof submitted === 'object' ? submitted : null);
+      if (payload.userId != null && payload.userId !== '') payload.userId = Number(payload.userId);
+      return Promise.resolve(makeJsonResponse(payload, 201));
+    }
+    if (pathname === '/mock/oob') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: {
+          get(name) {
+            return String(name || '').toLowerCase() === 'content-type' ? 'text/html' : null;
+          }
+        },
+        async text() {
+          return '<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>';
+        }
+      });
+    }
+    if (pathname === '/mock/dmax-sse') {
+      return Promise.resolve(makeSseResponse([
+        'event: dmax-patch-signals',
+        'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
+        '',
+        'event: dmax-patch-elements',
+        'data: mode outer',
+        'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+        ''
+      ].join('\n')));
     }
     throw new Error(`Unexpected fetch URL in test: ${url}`);
   };
+  window.__lastRequest = () => lastRequest;
 
   const loadBtn = document.getElementById('loadPost');
   assert(loadBtn, 'loadPost button exists');
@@ -104,28 +178,38 @@ function getPathname(url) {
 
   const state1 = readDebugState(document);
   assert.strictEqual(state1.postResult.id, 1, 'postResult populated with id 1');
+  assert.strictEqual(state1.postResult.title, 'His mother had always taught him', 'postResult uses DummyJSON title');
+  assert.deepStrictEqual(state1.postResult.tags, ['history', 'american', 'crime'], 'postResult uses DummyJSON tags');
+  assert.deepStrictEqual(state1.postResult.reactions, { likes: 192, dislikes: 25 }, 'postResult uses DummyJSON reactions');
+  assert.strictEqual(state1.postResult.views, 305, 'postResult uses DummyJSON views');
+  assert.strictEqual(state1.postResult.userId, 121, 'postResult uses DummyJSON userId');
   assert.strictEqual(state1.busy, false, 'busy is false after GET completion');
   assert.strictEqual(state1.err, null, 'err is null on GET success');
   assert.strictEqual(state1.code, 200, 'GET code is recorded');
   assert.strictEqual(window.__lastRequest().init.method, 'GET', 'GET request uses GET method');
+  assert.strictEqual(window.__lastRequest().url, 'https://dummyjson.com/posts/1', 'GET request uses DummyJSON endpoint');
   console.log('GET test passed');
 
   const titleInput = document.getElementById('new-title');
-  const nameInput = document.getElementById('new-user-name');
-  const emailInput = document.getElementById('new-user-email');
+  const bodyInput = document.getElementById('new-body');
+  const userIdInput = document.getElementById('new-user-id');
   const createBtn = document.getElementById('create-post');
-  assert(titleInput && nameInput && emailInput && createBtn, 'createPost elements exist');
+  assert(titleInput && bodyInput && userIdInput && createBtn, 'createPost elements exist');
 
-  titleInput.value = 'Hello from test';
-  nameInput.value = 'Test User';
-  emailInput.value = 'test@example.com';
+  titleInput.value = 'Notebook post from test';
+  bodyInput.value = 'Updated from the actions.e2e harness.';
+  userIdInput.value = '9';
+
   createBtn.click();
 
-  await waitFor(() => readDebugState(document).createdPost?.id === 101)
+  await waitFor(() => readDebugState(document).createdPost?.id === 252)
     .catch(e => { throw new Error('POST did not populate createdPost: ' + e.message); });
 
   const state2 = readDebugState(document);
   assert(state2.createdPost, 'createdPost present');
+  assert.strictEqual(state2.createdPost.title, 'Notebook post from test', 'createdPost reflects updated title');
+  assert.strictEqual(state2.createdPost.body, 'Updated from the actions.e2e harness.', 'createdPost reflects updated body');
+  assert.strictEqual(state2.createdPost.userId, 9, 'createdPost normalizes userId to a number');
   assert.strictEqual(state2.busy, false, 'POST busy false after completion');
   assert.strictEqual(state2.err, null, 'POST err null on success');
   assert.strictEqual(state2.code, 201, 'POST code is recorded');
@@ -133,10 +217,43 @@ function getPathname(url) {
   const last = window.__lastRequest();
   assert.strictEqual(last.init.method, 'POST', 'POST request uses POST method');
   assert.ok(last.init.body, 'POST request sent a body');
+  assert.strictEqual(last.url, 'https://dummyjson.com/posts/add', 'POST request uses DummyJSON add endpoint');
+  assert.deepStrictEqual(JSON.parse(last.init.body), {
+    title: 'Notebook post from test',
+    body: 'Updated from the actions.e2e harness.',
+    userId: 9
+  }, 'POST request body spreads the draft post signal');
   assert.strictEqual(last.init.headers['content-type'], 'application/json', 'POST request is JSON');
 
-  //todo: @feat support explicit per-input body keys / nested body mapping in dAction so multi-field POST payloads can be asserted here.
   console.log('POST test passed');
+
+  const oobBtn = document.getElementById('oobLoad');
+  const oobTarget = document.getElementById('oobTarget');
+  assert(oobBtn && oobTarget, 'oob elements exist');
+  oobBtn.click();
+
+  await waitFor(() => /OOB morphed content/.test(oobTarget.textContent || ''))
+    .catch(e => { throw new Error('OOB morph did not update target: ' + e.message); });
+
+  assert(/via dAction \+ morph/.test(oobTarget.textContent || ''), 'OOB target shows morphed content');
+  console.log('OOB test passed');
+
+  const sseBtn = document.getElementById('sseLoad');
+  const sseTarget = document.getElementById('sseTarget');
+  assert(sseBtn && sseTarget, 'sse elements exist');
+  sseBtn.click();
+
+  await waitFor(() => {
+    const state = readDebugState(document);
+    return state.sseMessage === 'hello from dmax' && state.sseCount === 1 && /SSE morphed target/.test(sseTarget.textContent || '');
+  }).catch(e => { throw new Error('SSE mock did not update signals and target: ' + e.message); });
+
+  const state3 = readDebugState(document);
+  assert.strictEqual(state3.sseMessage, 'hello from dmax', 'SSE signal patch updates message');
+  assert.strictEqual(state3.sseCount, 1, 'SSE signal patch updates count');
+  assert.strictEqual(state3.err, null, 'SSE leaves err null on success');
+  assert.strictEqual(window.__lastRequest().url, '/mock/dmax-sse', 'SSE action uses the local deterministic mock route');
+  console.log('SSE test passed');
 
   console.log('All action tests passed');
   process.exit(0);

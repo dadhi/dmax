@@ -87,6 +87,7 @@
         "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
         "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
         "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
+        "draftPost":{"title":"I am in love with someone.","body":"This notebook now mirrors DummyJSON post payloads for deterministic action examples.","userId":5},
         "parent":{"child":1},"demo-parent":{"child":1},
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
@@ -95,14 +96,14 @@
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <label>User Name: <input type="text" data-sync:user.name></label>
+      <label>User Name: <input type="text" data-sync@user.name data-sub:user.name@.input="val"></label>
       <p>Hello, <strong data-sync:user.name></strong>!</p>
-      <label>Age: <input type="number" data-sync:user.age></label>
+      <label>Age: <input type="number" data-sync@user.age data-sub:user.age@.input="Number(val || 0)"></label>
       <p>Age: <span data-sync:user.age></span> years old</p>
       <h4>1.a data-sync Direction Examples</h4>
       <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
-      <label>Element -> Signal (writes on setup): <input id="elToSig" value="Alice" data-sync:user.name@.></label>
-      <label>Two-way: <input id="twoWay" data-sync:user.name></label>
+      <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-sub:user.name@.input="val"></label>
+      <label>Two-way: <input id="twoWay" data-sync@user.name data-sub:user.name@.input="val"></label>
       <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
       <label>Theme Color: <input type="color" data-sync:user.ui.theme-color></label>
@@ -142,15 +143,15 @@
       <p><span data-sub:.@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
       <p><strong data-sub:.@count@#btn1.click@#btn2.click="dm.count + ' (updated)'"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <input id="src" placeholder="Type here..." data-sync:message>
+      <input id="src" placeholder="Type here..." data-sync@message data-sub:message@.input="val">
       <p data-sub:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
       <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
       <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
       <h4>7. Default Props &amp; Events</h4>
-      <input id="inp1" placeholder="Default event (change)">
-      <p><span data-sub:.@#inp1="document.getElementById('inp1').value"></span></p>
+      <input id="inp1" placeholder="Mirrors on input">
+      <p><span data-sub:.@#inp1.input="document.getElementById('inp1').value"></span></p>
       <button id="btn3">Click me</button>
       <p><span data-sub:.@#btn3="'Clicked!'"></span></p>
       <h4>8. Classes &amp; Display</h4>
@@ -229,20 +230,20 @@
       <h4>State Tree (Live Debug)</h4>
       <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <button id="loadPost" data-get^busy.busy^err.err^code.code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (GET)</button>
+      <button id="loadPost" data-get^busy.busy^err.err^code.code:post-result@.click="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
       <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span> | Code: <span data-sub:.@code="dm.code"></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <button id="loadPostCustomBusy" data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.click="'https://jsonplaceholder.typicode.com/posts/1'">Load post #1 (custom busy/error/code signals)</button>
+        <button id="loadPostCustomBusy" data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.click="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
         <strong style="margin-left:8px" data-disp:.@post-loading="dm.postLoading">Loading…</strong>
         <div>Error: <span data-sub:.@post-error="dm.postError"></span> | Code: <span data-sub:.@post-code="dm.postCode"></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>
       <div>
-        <input id="new-title" placeholder="Title" />
-        <input id="new-user-name" placeholder="Name" />
-        <input id="new-user-email" placeholder="Email" />
-        <button id="create-post" data-post^json^busy.busy^err.err^code.code:created-post@.click+#new-title.value+#new-user-name.value+#new-user-email.value="'https://jsonplaceholder.typicode.com/posts'">Create post (POST ^json)</button>
+        <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
+        <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
+        <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
+        <button id="create-post" data-sub:draftPost@.click="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-post^json^busy.busy^err.err^code.code:created-post@.click+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
       <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
@@ -311,6 +312,40 @@
   <script src="dmax.js"></script>
   <script>
     (function () {
+      const DUMMYJSON_POST = Object.freeze({
+        id: 1,
+        title: 'His mother had always taught him',
+        body: "His mother had always taught him not to ever think of himself as better than others. He'd tried to live by this motto. He never looked down on those who were less fortunate or who had less money than him. But the stupidity of the group of people he was talking to made him change his mind.",
+        tags: Object.freeze(['history', 'american', 'crime']),
+        reactions: Object.freeze({ likes: 192, dislikes: 25 }),
+        views: 305,
+        userId: 121
+      });
+      const DUMMYJSON_CREATED_POST = Object.freeze({
+        id: 252,
+        title: 'I am in love with someone.',
+        body: 'This notebook now mirrors DummyJSON post payloads for deterministic action examples.',
+        userId: 5
+      });
+
+      function makeJsonResponse(payload, status) {
+        const code = status == null ? 200 : status;
+        const body = JSON.stringify(payload);
+        return {
+          ok: code >= 200 && code < 300,
+          status: code,
+          headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'application/json' : null },
+          json: async () => payload,
+          text: async () => body,
+          clone() { return makeJsonResponse(payload, code); }
+        };
+      }
+
+      function getFetchPath(url) {
+        try { return new URL(String(url || ''), 'https://dummyjson.com').pathname; }
+        catch (_) { return String(url || ''); }
+      }
+
       function initLiveDSubExamples() {
         const liveForm = document.getElementById('live-form');
         const liveBtn = document.getElementById('live-btn');
@@ -329,6 +364,17 @@
         const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
         window.fetch = function (url, init) {
           const u = String(url || '');
+          const path = getFetchPath(url);
+          if (path === '/posts/1' && u.indexOf('dummyjson.com') !== -1) {
+            return Promise.resolve(makeJsonResponse(DUMMYJSON_POST, 200));
+          }
+          if (path === '/posts/add' && u.indexOf('dummyjson.com') !== -1) {
+            let submitted = null;
+            try { submitted = init && init.body ? JSON.parse(init.body) : null; } catch (_) { }
+            const payload = Object.assign({}, DUMMYJSON_CREATED_POST, submitted && typeof submitted === 'object' ? submitted : null);
+            if (payload.userId != null && payload.userId !== '') payload.userId = Number(payload.userId);
+            return Promise.resolve(makeJsonResponse(payload, 201));
+          }
           if (u === '/mock/oob') {
             const html = `<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`;
             return Promise.resolve({
