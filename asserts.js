@@ -554,15 +554,15 @@
     function __tSubSpecialIntervalAndTimeout() {
       __reset();
       const st = setTimeout, si = setInterval
-      const qTo = [], qInt = []
-      setTimeout = (cb, _ms, ...args) => (qTo.push([cb, args]), qTo.length)
-      setInterval = (cb, _ms, ...args) => (qInt.push([cb, args]), qInt.length)
+      const timeoutQueue = [], intervalQueue = []
+      setTimeout = (cb, _ms, ...args) => (timeoutQueue.push([cb, args]), timeoutQueue.length)
+      setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, args]), intervalQueue.length)
       try {
         const host = document.createElement('div')
         dSub(host, 'data-sub:intMeta@_interval.25', `({root: trig.root, path: trig.path, val, detail})`)
         dSub(host, 'data-sub:timeoutMeta@_timeout.50', `({root: trig.root, path: trig.path, val, detail})`)
-        if (qInt[0]) qInt[0][0](...qInt[0][1])
-        if (qTo[0]) qTo[0][0](...qTo[0][1])
+        if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
+        if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
         return { i: DM['intMeta'], t: DM['timeoutMeta'] }
       } finally {
         setTimeout = st
@@ -576,17 +576,17 @@
     function __tSubSpecialTimerOnceCleanup() {
       __reset();
       const st = setTimeout, si = setInterval, ct = clearTimeout, ci = clearInterval
-      const qTo = [], qInt = [], cleared = []
-      setTimeout = (cb, _ms, ...args) => (qTo.push([cb, args]), qTo.length)
-      setInterval = (cb, _ms, ...args) => (qInt.push([cb, args]), qInt.length)
+      const timeoutQueue = [], intervalQueue = [], cleared = []
+      setTimeout = (cb, _ms, ...args) => (timeoutQueue.push([cb, args]), timeoutQueue.length)
+      setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, args]), intervalQueue.length)
       clearTimeout = (id) => cleared.push(['timeout', id])
       clearInterval = (id) => cleared.push(['interval', id])
       try {
         const host = document.createElement('div')
         dSub(host, 'data-sub:intOnce@_interval.25^once', 'val')
         dSub(host, 'data-sub:timeoutOnce@_timeout.50^once', 'val')
-        if (qInt[0]) qInt[0][0](...qInt[0][1])
-        if (qTo[0]) qTo[0][0](...qTo[0][1])
+        if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
+        if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
         return cleared
       } finally {
         setTimeout = st

@@ -694,7 +694,7 @@
       const modded = applyTrigMods(fn, trig, getTrigMods(trig, mods))
       const listener = (detail) => invokeSub(modded, detail, getTrigVal(detail), el, trig)
       const opts = getListenerOpts(mods)
-      const remove = () => { try { tarEl.removeEventListener(evName, listener, opts) } catch (_) { } }
+      const remove = () => { try { tarEl.removeEventListener(evName, listener, opts) } catch (_) { /* removal best-effort during cleanup / ^once */ } }
       modded.remove = listener.remove = remove
       tarEl.addEventListener(evName, listener, opts)
       elSubs.push({ type: 'event', tarEl, evName, handler: listener, remove })
@@ -887,7 +887,11 @@
               inDebounce = true
               try { h(debDm, debEl, debTrig, debVal, debDetail) } finally { inDebounce = false }
             }
-            debDm = dm, debEl = el, debTrig = trigIt, debVal = providedVal, debDetail = detail
+            debDm = dm
+            debEl = el
+            debTrig = trigIt
+            debVal = providedVal
+            debDetail = detail
             clearTimeout(tm)
             tm = setTimeout(onDebounce, deb)
             return
