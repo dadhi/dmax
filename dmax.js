@@ -675,26 +675,23 @@
       for (let i = 0; i < mods.length; ++i) if (mods[i].root === MOD_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
     }
-    function getTrigMods(trig, mods) {
-      if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
-        let filtered = null
-        for (let i = 0; i < mods.length; ++i) {
-          const m = mods[i]
-          if (m.root === MOD_DEBOUNCE || m.root === MOD_THROTTLE) {
-            if (!filtered) filtered = mods.slice(0, i)
-            continue
-          }
-          if (filtered) filtered.push(m)
+    function getTimerTrigMods(mods) {
+      let filtered = null
+      for (let i = 0; i < mods.length; ++i) {
+        const m = mods[i]
+        if (m.root === MOD_DEBOUNCE || m.root === MOD_THROTTLE) {
+          if (!filtered) filtered = mods.slice(0, i)
+          continue
         }
-        return filtered || mods
+        if (filtered) filtered.push(m)
       }
-      return mods
+      return filtered || mods
     }
     function bindEventSub(elSubs, tarEl, evName, fn, el, trig, mods, getTrigVal) {
-      const modded = applyTrigMods(fn, trig, getTrigMods(trig, mods))
+      const modded = applyTrigMods(fn, trig, mods)
       const listener = (detail) => invokeSub(modded, detail, getTrigVal(detail), el, trig)
       const opts = getListenerOpts(mods)
-      const remove = () => { try { tarEl.removeEventListener(evName, listener, opts) } catch (_) { /* best-effort: listener may already be detached / removed */ } }
+      const remove = () => tarEl.removeEventListener(evName, listener, opts)
       modded.remove = listener.remove = remove
       tarEl.addEventListener(evName, listener, opts)
       elSubs.push({ type: 'event', tarEl, evName, handler: listener, remove })
@@ -711,7 +708,7 @@
       catch (e) { console.error(`[dmax] Error: timeout handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
     function bindTimerSub(elSubs, type, ms, fn, el, trig, mods) {
-      const modded = applyTrigMods(fn, trig, getTrigMods(trig, mods))
+      const modded = applyTrigMods(fn, trig, getTimerTrigMods(mods))
       if (type === SPEC_INTERVAL) {
         const state = { fn: modded, el, trig, ms, tick: 0 }
         const id = setInterval(onIntervalSub, ms, state)
@@ -2013,8 +2010,6 @@
         if (boundSubs) {
           for (const l of boundSubs) {
             if (l.remove) l.remove()
-            else if (l.type === 'interval') clearInterval(l.id)
-            else if (l.type === 'timeout') clearTimeout(l.id)
           }
           _cleanupBoundSubs.delete(node)
         }
