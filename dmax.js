@@ -840,12 +840,12 @@
             last = now
           }
         }
-        const forwardedDetail = providedVal == null && detail && detail.detail && ('value' in detail.detail || 'ms' in detail.detail) ? null : detail
-        let trigVal = providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail
-        if (isSig) trigVal = providedVal ?? getSigValOrIt(trigIt)
+        const detailForCallback = providedVal == null && detail && detail.detail && ('value' in detail.detail || 'ms' in detail.detail) ? null : detail
+        let trigVal = providedVal ?? getSigValOrIt(trigIt)
+        if (!isSig) trigVal = providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
-        try { fn(dm, el, trigIt, trigVal, forwardedDetail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+        try { fn(dm, el, trigIt, trigVal, detailForCallback) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is set
       }
       return h
