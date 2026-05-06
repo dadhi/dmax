@@ -268,7 +268,7 @@
       let arr = _subs.get(root)
       if (!arr) _subs.set(root, arr = []);
       arr.push({
-        fn: (_dm, _el, _trig, _trigVal, detail) => sink.push(detail),
+        fn: (_, __, ___, ____, detail) => sink.push(detail),
         changeMod,
         path,
         trig: __sigTrig(root, path)

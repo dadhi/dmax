@@ -1184,7 +1184,7 @@
         }
       }
 
-      addSignalSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => doRender(detail))
+      addSignalSub(el, trig, mods, (dm, _, __, trigVal, detail) => doRender(detail))
       if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1483,7 +1483,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          addSignalSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => doRequest())
+          addSignalSub(el, trig, mods, (dm, _, __, trigVal, detail) => doRequest())
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             doRequest()
