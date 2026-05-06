@@ -266,7 +266,12 @@
     function __reg(root, path, changeMod, sink) {
       let arr = _subs.get(root)
       if (!arr) _subs.set(root, arr = []);
-      arr.push({ fn: (d) => sink.push(d), changeMod, path });
+      arr.push({
+        fn: (_dm, _el, _trig, _trigVal, detail) => sink.push(detail),
+        changeMod,
+        path,
+        trig: { kind: SIGNAL, root, path, not: null }
+      });
     }
     function __reset() { _subs.clear(); _dm.clear() }
     function __tSetD() {

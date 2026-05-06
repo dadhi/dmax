@@ -660,19 +660,17 @@
       if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
       return elSubs
     }
-    function addSignalSub(el, trig, mods, fn, rawFn = false) {
+    function addSignalSub(el, trig, mods, fn) {
       const root = trig.root, path = trig.path
-      const subFn = rawFn ? applyTrigMods(fn, trig, mods, el) : applyTrigMods(fn, trig, mods)
-      const sub = { type: 'signal', kind: trig.kind, el, trig, root, path, fn: subFn, changeMod: getSigChangeShape(mods), rawFn: rawFn && subFn === fn }
+      const subFn = applyTrigMods(fn, trig, mods, el)
+      const sub = { type: 'signal', kind: trig.kind, el, trig, root, path, fn: subFn, changeMod: getSigChangeShape(mods) }
       ensureSigSubs(root).push(sub)
       ensureBoundSubs(el).push(sub)
       return sub
     }
     function invokeSignalSub(sub, detail) {
-      if (!sub.trig) { sub.fn(detail); return }
       const trigVal = getSigValOrIt(sub.trig)
-      if (sub.rawFn) sub.fn(DM, sub.el, sub.trig, trigVal, detail)
-      else sub.fn(null, trigVal, detail)
+      sub.fn(DM, sub.el, sub.trig, trigVal, detail)
     }
     function findFirstKind(items, kind) {
       for (let i = 0; i < items.length; ++i) if (items[i].kind === kind) return items[i]
@@ -885,7 +883,7 @@
           const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const sub = addSignalSub(el, trig, mods, fn, true)
+          const sub = addSignalSub(el, trig, mods, fn)
           if (!ranImmediate && isImmediateMod(mods, true)) {
             ranImmediate = true
             invokeSignalSub(sub, null)
@@ -998,7 +996,7 @@
       if (shouldReadSig) {
         if (!expected(sigRead.root)) return
         const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
-        const sub = addSignalSub(el, sigRead, readMods, (ev, trigVal, detail) => {
+        const sub = addSignalSub(el, sigRead, readMods, (dm, el, trig, trigVal, detail) => {
           const v = getSigValOrIt(sigRead)
           setProp(el, aName, writePropTar, v)
         })
@@ -1055,7 +1053,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const sub = addSignalSub(el, trig, mods, (ev, trigVal, detail) => applyClasses(fn ? fn(DM, el, trig, trigVal, detail) : trigVal))
+          const sub = addSignalSub(el, trig, mods, (dm, el, trig, trigVal, detail) => applyClasses(fn ? fn(dm, el, trig, trigVal, detail) : trigVal))
           if (isImmediateMod(mods, false)) invokeSignalSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
@@ -1102,7 +1100,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const sub = addSignalSub(el, trig, mods, (ev, trigVal, detail) => applyDisp(fn ? fn(DM, el, trig, trigVal, detail) : trigVal))
+          const sub = addSignalSub(el, trig, mods, (dm, el, trig, trigVal, detail) => applyDisp(fn ? fn(dm, el, trig, trigVal, detail) : trigVal))
           if (isImmediateMod(mods, false)) invokeSignalSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
@@ -1186,7 +1184,7 @@
         }
       }
 
-      addSignalSub(el, trig, mods, (ev, trigVal, detail) => doRender(detail))
+      addSignalSub(el, trig, mods, (dm, el, trig, trigVal, detail) => doRender(detail))
       if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1485,7 +1483,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          addSignalSub(el, trig, mods, () => doRequest())
+          addSignalSub(el, trig, mods, (dm, el, trig, trigVal, detail) => doRequest())
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             doRequest()
