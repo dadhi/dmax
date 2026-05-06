@@ -609,26 +609,26 @@
       inp.value = 'Initial'
       dSync(inp, 'data-sync:name@.')
       const before = inp.value
-      const sigAfterSetup = DM['name']
+      const sigAfterElementWrite = DM['name']
       setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       const elAfterSignal = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
-      return { before, sigAfterSetup, elAfterSignal, sigAfterEvent: DM['name'] }
+      return { before, sigAfterElementWrite, elAfterSignal, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', sigAfterSetup: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way immediate by default');
+    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', sigAfterElementWrite: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way immediate by default');
     function __tSyncPropToSignalNotImmediate() {
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
       dSync(inp, 'data-sync^notimmediate:name@.')
-      const sigAfterSetup = DM['name']
+      const sigBeforeChange = DM['name']
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
-      return { sigAfterSetup, sigAfterEvent: DM['name'] }
+      return { sigBeforeChange, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSyncPropToSignalNotImmediate, [], { sigAfterSetup: 'Ada', sigAfterEvent: 'Bob' }, 'dSync ^notimmediate keeps prop->signal opt-out');
+    __assert(__tSyncPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dSync ^notimmediate keeps prop->signal opt-out');
     function __tSyncCheckboxDefaultProp() {
       __reset();
       const cb = document.createElement('input')
