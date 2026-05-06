@@ -540,9 +540,14 @@
           const attr = attrs[i]
           const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
           const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
-          if (!nextAttrs) nextAttrs = []
-          nextAttrs.push([nextName, nextVal])
-          if (nextName === attr.name && nextVal !== attr.value) attr.value = nextVal
+          if (nextName !== attr.name || nextVal !== attr.value) {
+            if (!nextAttrs) {
+              nextAttrs = []
+              for (let j = attrs.length - 1; j > i; --j) nextAttrs.push([attrs[j].name, attrs[j].value])
+            }
+            if (nextName === attr.name) attr.value = nextVal
+          }
+          if (nextAttrs) nextAttrs.push([nextName, nextVal])
         }
         if (nextAttrs) DUMP_ATTRS.set(node, nextAttrs)
         const children = node.children

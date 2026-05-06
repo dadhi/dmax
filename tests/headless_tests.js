@@ -337,7 +337,11 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     const demoChangeChild = doc.getElementById('demoChangeChild');
     const demoAddKey = doc.getElementById('demoAddKey');
     const demoRemoveKey = doc.getElementById('demoRemoveKey');
-    if (!contentSub || !shapeSub || !chgChild || !addKey || !removeKey || !demoContent || !demoShape || !demoChangeChild || !demoAddKey || !demoRemoveKey) fail('Section10.a content/shape elements missing');
+    const missingShapeEls = [
+      ['contentSub', contentSub], ['shapeSub', shapeSub], ['chgChild', chgChild], ['addKey', addKey], ['removeKey', removeKey],
+      ['demoContent', demoContent], ['demoShape', demoShape], ['demoChangeChild', demoChangeChild], ['demoAddKey', demoAddKey], ['demoRemoveKey', demoRemoveKey]
+    ].filter(([, el]) => !el).map(([name]) => name);
+    if (missingShapeEls.length) fail('Section10.a content/shape elements missing: ' + missingShapeEls.join(', '));
 
     window.__contentCount = 0;
     window.__shapeCount = 0;
