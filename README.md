@@ -68,6 +68,8 @@ Signal names are not reserved or validated against runtime helper identifiers. I
 
 Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Variable bracket indices such as `@posts[idx]` are intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need runtime lookup logic.
 
+Reactive setup is immediate by default for `data-def`, signal-backed `data-sub`, `data-sync`, `data-dump`, and `data-debug`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate`.
+
 ## Fixi feature matrix (aligned to dmax)
 
 This extends the earlier Datastar-gap research with the [Fixi Project](https://fixiproject.org/), which is split into

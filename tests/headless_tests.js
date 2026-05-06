@@ -267,7 +267,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(80);
     const initialDumpCount = Array.from(iterUl.children).length;
     const initialInlineCount = Array.from(inlineUl.children).length;
-    if (initialDumpCount === 0) pass('Section9 data-dump waits for first shape change'); else fail('Section9 data-dump rendered wrong number');
+    if (initialDumpCount === 3) pass('Section9 data-dump renders existing items immediately by default'); else fail('Section9 data-dump rendered wrong number');
     if (initialInlineCount === initialDumpCount) pass('Section9 inline data-dump matches primary list'); else fail('Section9 inline data-dump wrong');
     fire(doc.getElementById('addPost'), 'click');
     await sleep(80);

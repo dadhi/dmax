@@ -44,7 +44,8 @@ function waitFor(conditionFn, timeout = 15000, interval = 100) {
   const { document } = dom.window;
   const summaryText = await waitFor(() => {
     const summary = document.getElementById('summary')?.textContent || '';
-    return /Tests (\d+): Passed (\d+), Failed 0/.test(summary) ? summary : '';
+    const match = summary.match(/Tests (\d+): Passed (\d+), Failed 0/);
+    return match && Number(match[1]) > 0 ? summary : '';
   });
 
   const match = summaryText.match(/Tests (\d+): Passed (\d+), Failed 0/);

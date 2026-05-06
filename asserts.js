@@ -467,13 +467,23 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo^immediate', 'dm.foo');
+      dSub(el, 'data-sub:bar@foo', 'dm.foo');
       const im = DM['bar'];
       setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
-    __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+    __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo immediate-by-default and change propagation');
+    function __tSubSignalNotImmediate() {
+      __reset();
+      _dm.set('foo', 7);
+      const el = document.createElement('div');
+      dSub(el, 'data-sub:bar@foo^notimmediate', 'dm.foo');
+      const before = DM['bar'];
+      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      return { before, after: DM['bar'] };
+    }
+    __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dSub @foo^notimmediate skips setup run but handles later changes');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
@@ -599,13 +609,26 @@
       inp.value = 'Initial'
       dSync(inp, 'data-sync:name@.')
       const before = inp.value
+      const sigAfterSetup = DM['name']
       setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       const elAfterSignal = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
-      return { before, elAfterSignal, sigAfterEvent: DM['name'] }
+      return { before, sigAfterSetup, elAfterSignal, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way');
+    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', sigAfterSetup: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way immediate by default');
+    function __tSyncPropToSignalNotImmediate() {
+      __reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      inp.value = 'Initial'
+      dSync(inp, 'data-sync^notimmediate:name@.')
+      const sigAfterSetup = DM['name']
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      return { sigAfterSetup, sigAfterEvent: DM['name'] }
+    }
+    __assert(__tSyncPropToSignalNotImmediate, [], { sigAfterSetup: 'Ada', sigAfterEvent: 'Bob' }, 'dSync ^notimmediate keeps prop->signal opt-out');
     function __tSyncCheckboxDefaultProp() {
       __reset();
       const cb = document.createElement('input')
@@ -736,14 +759,14 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['a', 'b', 'c'])
-        dDump(el, 'data-dump@items^immediate')
+        dDump(el, 'data-dump@items')
         const before = el.children.length
         setSigAndNotifySubs('t', { root: 'items', path: null }, ['a'])
         const after = el.children.length
         return { before, after }
       } finally { el.remove() }
     }
-    __assert(__tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump remove from end: 3 items shrinks to 1')
+    __assert(__tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump immediate-by-default remove from end: 3 items shrinks to 1')
     function __tDumpIndexPlaceholder() {
       __reset()
       const el = document.createElement('ul')
@@ -753,7 +776,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('rows', ['x', 'y'])
-        dDump(el, 'data-dump@rows^immediate')
+        dDump(el, 'data-dump@rows')
         return Array.from(el.children).map(n => n.getAttribute('data-idx'))
       } finally { el.remove() }
     }
@@ -767,7 +790,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('rows', ['x', 'y'])
-        dDump(el, 'data-dump@rows^immediate')
+        dDump(el, 'data-dump@rows')
         return Array.from(el.children).map(n => n.getAttribute('data-val'))
       } finally { el.remove() }
     }
@@ -781,7 +804,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('list', ['a', 'b', 'c'])
-        dDump(el, 'data-dump@list^immediate')
+        dDump(el, 'data-dump@list')
         const count = el.children.length
         const tplStillChild = !!el.querySelector('template')
         return { count, tplStillChild }
@@ -797,11 +820,27 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['x', 'y', 'z'])
-        dDump(el, 'data-dump@items^immediate')
+        dDump(el, 'data-dump@items')
         return el.children.length
       } finally { el.remove() }
     }
-    __assert(__tDumpImmediate, [], 3, 'dDump ^immediate renders existing signal array on setup')
+    __assert(__tDumpImmediate, [], 3, 'dDump renders existing signal array on setup by default')
+    function __tDumpNotImmediate() {
+      __reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['x', 'y'])
+        dDump(el, 'data-dump@items^notimmediate')
+        const before = el.children.length
+        setSigAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
+        return { before, after: el.children.length }
+      } finally { el.remove() }
+    }
+    __assert(__tDumpNotImmediate, [], { before: 0, after: 3 }, 'dDump ^notimmediate skips initial render and still responds to later changes')
     function __tDumpExplicitTemplate() {
       __reset()
       const tplEl = document.createElement('template')
@@ -812,7 +851,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['a', 'b'])
-        dDump(el, 'data-dump+#myTpl@items^immediate')
+        dDump(el, 'data-dump+#myTpl@items')
         return el.children.length
       } finally { tplEl.remove(); el.remove() }
     }

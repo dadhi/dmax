@@ -874,7 +874,7 @@
           wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
-          if (!ranImmediate && isImmediateMod(mods, false)) {
+          if (!ranImmediate && isImmediateMod(mods, true)) {
             ranImmediate = true
             subFn(null, getSigValOrIt(trig), null)
           }
@@ -1019,7 +1019,7 @@
         moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, moddedHandler); } catch (_) { } };
         tarEl.addEventListener(ev, moddedHandler)
         elSubs.push({ type: 'event', tarEl, evName: ev, handler: moddedHandler })
-        if (isImmediateMod(writeMods, false)) moddedHandler()
+        if (isImmediateMod(writeMods, true)) moddedHandler()
       }
     }
 
@@ -1136,7 +1136,7 @@
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
 
-    // data-dump@items^immediate uses an inline template child and renders immediately.
+    // data-dump@items uses an inline template child and renders immediately by default.
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
     function dDump(el, aName) {
@@ -1200,7 +1200,7 @@
       wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
       subFn.remove = wrappedSubFn.remove
       ensureBoundSubs(el).push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
-      if (isImmediateMod(mods, false)) doRender(null)
+      if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
     // data-post^json^busy.busy:result@.click+#id.prop+signal="url"

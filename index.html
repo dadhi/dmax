@@ -101,7 +101,7 @@
       <p>Age: <span data-sync:user.age></span> years old</p>
       <h4>1.a data-sync Direction Examples</h4>
       <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
-      <label>Element -> Signal: <input id="elToSig" data-sync:user.name@.></label>
+      <label>Element -> Signal: <input id="elToSig" value="Alice" data-sync:user.name@.></label>
       <label>Two-way: <input id="twoWay" data-sync:user.name></label>
       <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
@@ -170,7 +170,7 @@
       <template id="tpl-thread">
         <li class="thread">
           <strong data-sub:.@threads="$item.title"></strong>
-          <ul class="thread-replies" data-dump^immediate@$item.replies>
+          <ul class="thread-replies" data-dump@$item.replies>
             <template><li data-sub:.="$item"></li></template>
           </ul>
         </li>
@@ -180,7 +180,7 @@
         <template>
           <li class="thread">
             <strong data-sub:.@threads="$item.title"></strong>
-            <ul class="thread-replies" data-dump^immediate@$item.replies>
+            <ul class="thread-replies" data-dump@$item.replies>
               <template><li data-sub:.="$item"></li></template>
             </ul>
           </li>
@@ -206,21 +206,21 @@
       <h4>10.a Content vs Shape</h4>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Parent signal preview:</div>
-        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-sub:.@demo-parent^immediate="JSON.stringify(dm.demoParent, null, 2)"></pre>
+        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-sub:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
         <div style="margin-top:6px">
           <button id="demoChangeChild" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
           <button id="demoAddKey" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
           <button id="demoRemoveKey" data-sub:demo-parent@.click="(function(){ const o = Object.assign({}, dm.demoParent || {}); delete o.addedAt; return o; })()">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
-          <div>Content subscriber: <span id="demoContent" data-sub:.@demo-parent^immediate="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
+          <div>Content subscriber: <span id="demoContent" data-sub:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
           <div>Shape subscriber: <span id="demoShape" data-sub:.@demo-parent^shape_only="detail ? window.formatShapeChange(detail) : ''"></span></div>
         </div>
       </div>
       <h4>10.b Constant Index Signals</h4>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
-        <div>Post 0: <strong id="post0Title" data-sub:.@post-objs[0].title^immediate="dm.postObjs[0].title"></strong></div>
-        <div>Post 1: <strong id="post1Title" data-sub:.@post-objs[1].title^immediate="dm.postObjs[1].title"></strong></div>
+        <div>Post 0: <strong id="post0Title" data-sub:.@post-objs[0].title="dm.postObjs[0].title"></strong></div>
+        <div>Post 1: <strong id="post1Title" data-sub:.@post-objs[1].title="dm.postObjs[1].title"></strong></div>
         <div style="margin-top:6px">
           <button id="setPost0Title" data-sub:post-objs[0].title@.click="'NewP0Title'">Set post 0 title</button>
           <button id="setPost1Title" data-sub:post-objs[1].title@.click="'NewP1Title'">Set post 1 title</button>
