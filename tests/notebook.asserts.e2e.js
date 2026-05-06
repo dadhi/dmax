@@ -46,7 +46,7 @@ function waitFor(conditionFn, timeout = 15000, interval = 100) {
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       try { window.removeEventListener('dmax:tests:done', onDone); } catch (_) { }
-      reject(new Error('timeout'));
+      reject(new Error('Timed out after 20000ms waiting for dmax:tests:done event'));
     }, 20000);
     function onDone() {
       clearTimeout(timer);
