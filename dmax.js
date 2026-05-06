@@ -796,6 +796,20 @@
      */
 
     /**
+     * @overload
+     * @param {SignalTriggerHandler} fn
+     * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
+     * @param {Array<{ root: string, path?: any }>} mods
+     * @returns {SignalTriggerHandler}
+     */
+    /**
+     * @overload
+     * @param {EventTriggerHandler} fn
+     * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
+     * @param {Array<{ root: string, path?: any }>} mods
+     * @returns {EventTriggerHandler}
+     */
+    /**
      * @param {TriggerHandler} fn
      * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
      * @param {Array<{ root: string, path?: any }>} mods
@@ -845,7 +859,7 @@
           if (sigIt.not) trigVal = !trigVal
           if (permitMods && !modsPermitVal(permitMods, trigVal)) return
           try { fn(dm, el, sigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-          if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
+          if (one && !always && h.remove) h.remove()
         }
         return h
       }
@@ -871,7 +885,7 @@
         const trigVal = val ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is also set
+        if (one && !always && h.remove) h.remove()
       }
       return h
     }
