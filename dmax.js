@@ -837,7 +837,7 @@
       let onDebounce = null
 
       if (isSig) {
-        const h = function (dm, el, sig, val, detail) {
+        const h = function (dm, el, sig, providedVal, detail) {
           const sigIt = sig || trig
           if (!inDebounce) {
             if (deb > 0) {
@@ -845,7 +845,7 @@
                 inDebounce = true
                 try { h(...debArgs) } finally { inDebounce = false }
               }
-              debArgs = [dm, el, sigIt, val, detail]
+              debArgs = [dm, el, sigIt, providedVal, detail]
               clearTimeout(tm)
               tm = setTimeout(onDebounce, deb)
               return
@@ -856,7 +856,7 @@
               last = now
             }
           }
-          let trigVal = val ?? getSigValOrIt(sigIt)
+          let trigVal = providedVal ?? getSigValOrIt(sigIt)
           if (sigIt.not) trigVal = !trigVal
           if (permitMods && !modsPermitVal(permitMods, trigVal)) return
           try { fn(dm, el, sigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
