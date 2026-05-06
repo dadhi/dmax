@@ -54,8 +54,8 @@
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
 
-    const DOT = '.', ID = '#', NOT = '!'
-    const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
+    const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
+    const NAME_DELIMS = [DOT, BRACKET_OPEN]
     const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
 
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
@@ -87,7 +87,7 @@
     const SPEC_TIMEOUT_MS = 500
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
-    const DUMP_STATES = new WeakMap()
+    const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
 
     function isSpecial(n) {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -103,7 +103,7 @@
       while (n.startsWith(NOT, p)) ++p
       let not = p == 0 ? null : p % 2 != 0
 
-      let d = n.indexOf(DOT, p)
+      let d = indexFirst(n, NAME_DELIMS, p)
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
 
       if (type === MOD) {
@@ -128,16 +128,31 @@
       }
 
       if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
-      if (d < 0 || d + 1 == n.length) return { kind, not, root, path: null }
+      if (d < 0 || (n[d] === DOT && d + 1 == n.length)) return { kind, not, root, path: null }
 
-      p = d + 1
+      p = d
       let path = []
       while (p >= 0 && p < n.length) {
-        d = n.indexOf(DOT, p)
-        const part = n.slice(p, p = d < 0 ? n.length : d)
-        if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', aName); return null }
-        path.push(kebabToCamel(part))
-        ++p
+        const c = n[p]
+        if (c === DOT) {
+          const partStart = ++p
+          d = indexFirst(n, NAME_DELIMS, p)
+          const part = n.slice(partStart, p = d < 0 ? n.length : d)
+          if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', aName); return null }
+          path.push(kebabToCamel(part))
+          continue
+        }
+        if (c === BRACKET_OPEN) {
+          d = n.indexOf(BRACKET_CLOSE, p + 1)
+          if (d < 0) { console.error('[dmax] Error: Missing closing bracket in path:', n, 'in:', aName); return null }
+          const part = n.slice(p + 1, d)
+          if (!isDigitsOnly(part)) { console.error('[dmax] Error: Only constant numeric bracket indices are supported:', n, 'in:', aName); return null }
+          path.push(part)
+          p = d + 1
+          continue
+        }
+        console.error('[dmax] Error: Unexpected path token in:', n, 'in:', aName)
+        return null
       }
       return { kind, not, root, path }
     }
@@ -520,15 +535,16 @@
       while (stack.length) {
         const node = stack.pop()
         const attrs = node.attributes || EMPTY_ARR
+        let nextAttrs = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
           const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
           const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
-          try {
-            if (nextName !== attr.name) { node.removeAttribute(attr.name); node.setAttribute(nextName, nextVal) }
-            else if (nextVal !== attr.value) node.setAttribute(nextName, nextVal)
-          } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', nextName, e.message) }
+          if (!nextAttrs) nextAttrs = []
+          nextAttrs.push([nextName, nextVal])
+          if (nextName === attr.name && nextVal !== attr.value) attr.value = nextVal
         }
+        if (nextAttrs) DUMP_ATTRS.set(node, nextAttrs)
         const children = node.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
@@ -538,10 +554,15 @@
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
-        const attrs = el.attributes || EMPTY_ARR
-        for (let i = 0; i < attrs.length; ++i) {
-          const attr = attrs[i]
-          wireNode(el, attr.name, attr.value)
+        const dumpAttrs = DUMP_ATTRS.get(el)
+        if (dumpAttrs && dumpAttrs.length) {
+          for (let i = 0; i < dumpAttrs.length; ++i) wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+        } else {
+          const attrs = el.attributes || EMPTY_ARR
+          for (let i = 0; i < attrs.length; ++i) {
+            const attr = attrs[i]
+            wireNode(el, attr.name, attr.value)
+          }
         }
         const children = el.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
@@ -1121,6 +1142,8 @@
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
       if (!tpl) { console.error('[dmax] Error: dDump template not found for:', aName); return }
+      const tplFirst = tpl.content && tpl.content.firstElementChild
+      if (!tplFirst) { console.error('[dmax] Error: dDump template root not found for:', aName); return }
       let dumpState = DUMP_STATES.get(el)
       if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
       const sigRoot = trig.root
@@ -1147,8 +1170,7 @@
           const frag = document.createDocumentFragment()
           for (let idx = oldLen; idx < newLen; idx++) {
             try {
-              if (!tpl.content || !tpl.content.firstElementChild) break
-              const node = tpl.content.firstElementChild.cloneNode(true)
+              const node = tplFirst.cloneNode(true)
               const idxText = String(idx)
               rewriteDumpBindings(node, buildDumpItemRef(sigRoot, sigPath, idx), buildDumpItemExpr(sigRoot, sigPath, idx), idxText)
               frag.appendChild(node)

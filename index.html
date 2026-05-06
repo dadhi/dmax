@@ -87,6 +87,7 @@
         "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
         "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
         "message":"Hello World","postObjs":[{"title":"Post A"},{"title":"Post B"}],"idx":0,
+        "parent":{"child":1},"demo-parent":{"child":1},
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
         "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,"oobHtml":"",
@@ -201,6 +202,29 @@
       <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
       <button id="andBtn" data-sub:mod-and@.click^and.gate="(dm.modAnd || 0) + 1">AND</button>
       <span data-sub:.@mod-and="dm.modAnd"></span>
+      <h4>10.a Content vs Shape</h4>
+      <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
+        <div>Parent signal preview:</div>
+        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-sub:.@demo-parent^immediate="JSON.stringify(dm.demoParent, null, 2)"></pre>
+        <div style="margin-top:6px">
+          <button id="demoChangeChild" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
+          <button id="demoAddKey" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
+          <button id="demoRemoveKey" data-sub:demo-parent@.click="(function(){ const o = Object.assign({}, dm.demoParent || {}); delete o.addedAt; return o; })()">Remove key (shape)</button>
+        </div>
+        <div style="margin-top:8px">
+          <div>Content subscriber: <span id="demoContent" data-sub:.@demo-parent^immediate="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
+          <div>Shape subscriber: <span id="demoShape" data-sub:.@demo-parent^shape_only="detail ? window.formatShapeChange(detail) : ''"></span></div>
+        </div>
+      </div>
+      <h4>10.b Constant Index Signals</h4>
+      <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
+        <div>Post 0: <strong id="post0Title" data-sub:.@post-objs[0].title^immediate="dm.postObjs[0].title"></strong></div>
+        <div>Post 1: <strong id="post1Title" data-sub:.@post-objs[1].title^immediate="dm.postObjs[1].title"></strong></div>
+        <div style="margin-top:6px">
+          <button id="setPost0Title" data-sub:post-objs[0].title@.click="'NewP0Title'">Set post 0 title</button>
+          <button id="setPost1Title" data-sub:post-objs[1].title@.click="'NewP1Title'">Set post 1 title</button>
+        </div>
+      </div>
       <h4>State Tree (Live Debug)</h4>
       <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
       <h4>11. Actions demo + OOB HTML morph</h4>
@@ -272,6 +296,17 @@
       console.warn = (...args) => { try { append(args); } finally { orig.warn.apply(console, args); } };
     })();
   </script>
+  <script>
+    window.formatShapeChange = function (change) {
+      if (!change) return '';
+      const parts = [];
+      if (change.added && change.added.length) parts.push('added: ' + change.added.join(','));
+      if (change.removed && change.removed.length) parts.push('removed: ' + change.removed.join(','));
+      if (change.addedRange) parts.push('addedRange: ' + change.addedRange.join(','));
+      if (change.removedRange) parts.push('removedRange: ' + change.removedRange.join(','));
+      return parts.join(' | ');
+    };
+  </script>
   <script src="dmax.js"></script>
   <script>
     (function () {
@@ -337,14 +372,16 @@
       }
 
       function initPortedExamples() {
-        const root = document.getElementById('ported-examples');
-        if (!root) return;
-        const nodes = [root].concat(Array.from(root.querySelectorAll('*')));
+        const roots = [document.getElementById('ported-examples'), document.getElementById('__fg_reactivity_tests')].filter(Boolean);
+        if (!roots.length) return;
         const deferred = [];
-        for (const n of nodes) {
-          for (const a of Array.from(n.attributes || EMPTY_ARR)) {
-            if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value);
-            else deferred.push([n, a.name, a.value]);
+        for (const root of roots) {
+          const nodes = [root].concat(Array.from(root.querySelectorAll('*')));
+          for (const n of nodes) {
+            for (const a of Array.from(n.attributes || EMPTY_ARR)) {
+              if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value);
+              else deferred.push([n, a.name, a.value]);
+            }
           }
         }
         for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal);
@@ -355,6 +392,13 @@
       initPortedExamples();
     })();
   </script>
+  <div id="__fg_reactivity_tests" style="display:none">
+    <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount || 0) + 1, window.__contentCount)"></span>
+    <span id="shapeSub" data-sub:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
+    <button id="chgChild" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { child: ((dm.parent && dm.parent.child) || 0) + 1 })">Change child</button>
+    <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
+    <button id="removeKey" data-sub:parent@.click="(function(){ const o = Object.assign({}, dm.parent || {}); delete o.added; return o; })()">Remove key</button>
+  </div>
   <script src="asserts.js"></script>
 
 </body>

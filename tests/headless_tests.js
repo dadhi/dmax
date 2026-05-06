@@ -280,6 +280,10 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     const inlineThreadItems = Array.from(inlineThreads.children);
     if (threadItems.length === 4) pass('Section9 nested data-dump rendered 4 threads after shape change'); else fail('Section9 nested data-dump thread count wrong');
     if (inlineThreadItems.length === 4) pass('Section9 nested inline data-dump rendered 4 threads after shape change'); else fail('Section9 nested inline data-dump thread count wrong');
+    const replyCount = threadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
+    const inlineReplyCount = inlineThreadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
+    if (replyCount === 2) pass('Section9 nested data-dump rendered nested replies'); else fail('Section9 nested data-dump replies wrong');
+    if (inlineReplyCount === 2) pass('Section9 nested inline data-dump rendered nested replies'); else fail('Section9 nested inline data-dump replies wrong');
 
     // Section 10: modifiers
     const onceBtn = doc.getElementById('onceBtn');
@@ -322,8 +326,63 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
     await sleep(120);
     if (Number(andVal.textContent.trim() || 0) === 1) pass('Modifiers ^and allows when gate true'); else fail('Modifiers ^and failed when gate true');
 
-    //todo: @feat restore fine-grained content/shape demo fixtures in index.html before re-enabling these signal-shape regression tests.
-    //todo: @feat restore bracket-index demo fixtures in index.html before re-enabling postObjs[idx] regression coverage.
+    // Section 10.a: content vs shape
+    const contentSub = doc.getElementById('contentSub');
+    const shapeSub = doc.getElementById('shapeSub');
+    const chgChild = doc.getElementById('chgChild');
+    const addKey = doc.getElementById('addKey');
+    const removeKey = doc.getElementById('removeKey');
+    const demoContent = doc.getElementById('demoContent');
+    const demoShape = doc.getElementById('demoShape');
+    const demoChangeChild = doc.getElementById('demoChangeChild');
+    const demoAddKey = doc.getElementById('demoAddKey');
+    const demoRemoveKey = doc.getElementById('demoRemoveKey');
+    if (!contentSub || !shapeSub || !chgChild || !addKey || !removeKey || !demoContent || !demoShape || !demoChangeChild || !demoAddKey || !demoRemoveKey) fail('Section10.a content/shape elements missing');
+
+    window.__contentCount = 0;
+    window.__shapeCount = 0;
+    fire(chgChild, 'click');
+    await sleep(80);
+    if (window.__contentCount === 1) pass('Section10.a content change notifies default subscriber'); else fail('Section10.a content subscriber did not run on content change');
+    if (window.__shapeCount === 0) pass('Section10.a content change skips shape-only subscriber'); else fail('Section10.a shape-only subscriber ran on content change');
+
+    fire(addKey, 'click');
+    await sleep(80);
+    if (window.__contentCount >= 2) pass('Section10.a shape add keeps default subscriber active'); else fail('Section10.a default subscriber missed shape add');
+    if (window.__shapeCount === 1) pass('Section10.a shape add notifies shape-only subscriber'); else fail('Section10.a shape-only subscriber missed shape add');
+
+    fire(removeKey, 'click');
+    await sleep(80);
+    if (window.__shapeCount === 2) pass('Section10.a shape removal notifies shape-only subscriber'); else fail('Section10.a shape-only subscriber missed shape removal');
+
+    fire(demoChangeChild, 'click');
+    await sleep(80);
+    if (demoContent.textContent.trim() === '2') pass('Section10.a demo content subscriber shows content changes'); else fail('Section10.a demo content subscriber wrong');
+    if (demoShape.textContent.trim() === '') pass('Section10.a demo shape subscriber stays quiet on content change'); else fail('Section10.a demo shape subscriber changed on content update');
+
+    fire(demoAddKey, 'click');
+    await sleep(80);
+    if (/added:\s*addedAt/.test(demoShape.textContent)) pass('Section10.a demo shape subscriber shows shape add detail'); else fail('Section10.a demo shape subscriber missing add detail');
+    fire(demoRemoveKey, 'click');
+    await sleep(80);
+    if (/removed:[^\n]*addedAt/.test(demoShape.textContent)) pass('Section10.a demo shape subscriber shows shape removal detail'); else fail('Section10.a demo shape subscriber missing remove detail');
+
+    // Section 10.b: constant bracket indices
+    const post0Title = doc.getElementById('post0Title');
+    const post1Title = doc.getElementById('post1Title');
+    const setPost0Title = doc.getElementById('setPost0Title');
+    const setPost1Title = doc.getElementById('setPost1Title');
+    if (!post0Title || !post1Title || !setPost0Title || !setPost1Title) fail('Section10.b constant-index elements missing');
+    if (post0Title.textContent.trim() === 'Post A' && post1Title.textContent.trim() === 'Post B') pass('Section10.b constant-index subscriptions render initial values'); else fail('Section10.b constant-index initial render wrong');
+
+    fire(setPost0Title, 'click');
+    await sleep(80);
+    if (post0Title.textContent.trim() === 'NewP0Title') pass('Section10.b constant-index update works for first item'); else fail('Section10.b first constant-index update failed');
+    if (post1Title.textContent.trim() === 'Post B') pass('Section10.b constant-index update stays scoped to first item'); else fail('Section10.b first constant-index update leaked');
+
+    fire(setPost1Title, 'click');
+    await sleep(80);
+    if (post1Title.textContent.trim() === 'NewP1Title') pass('Section10.b constant-index update works for second item'); else fail('Section10.b second constant-index update failed');
 
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
