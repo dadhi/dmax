@@ -830,7 +830,8 @@
           permitMods.push(m)
         }
       }
-      if (isSig && !one && deb <= 0 && thr <= 0 && !permitMods && !trig.not) return fn
+      const hasSigMods = one || deb > 0 || thr > 0 || !!permitMods || !!trig.not
+      if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
       let debArgs = null
       let onDebounce = null
@@ -859,7 +860,7 @@
           if (sigIt.not) trigVal = !trigVal
           if (permitMods && !modsPermitVal(permitMods, trigVal)) return
           try { fn(dm, el, sigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-          if (one && !always && h.remove) h.remove()
+          if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is set
         }
         return h
       }
@@ -885,7 +886,7 @@
         const trigVal = val ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (one && !always && h.remove) h.remove()
+        if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is set
       }
       return h
     }
