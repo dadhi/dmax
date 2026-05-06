@@ -66,7 +66,7 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 
 Signal names are not reserved or validated against runtime helper identifiers. If you choose names that overlap with your own expression conventions, that is the template author's responsibility.
 
-Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Dynamic signal indirection such as `@posts[idx]` is intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need dynamic lookup logic.
+Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Variable bracket indices such as `@posts[idx]` are intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need runtime lookup logic.
 
 ## Fixi feature matrix (aligned to dmax)
 

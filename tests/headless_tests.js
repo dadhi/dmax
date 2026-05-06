@@ -284,14 +284,17 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const extractInlineItemText = (node) => (node.textContent || '').trim().replace(INLINE_LIST_PREFIX_RE, '');
     const dumpItemTexts = dumpNodesAfterUpdate.map(extractDataDumpItemText);
     const inlineItemTexts = inlineNodesAfterUpdate.map(extractInlineItemText);
+    const expectedUpdatedPosts = ['First post', 'Updated second post', 'Third post'];
     if (dumpNodesAfterUpdate.length === dumpNodesBeforeUpdate.length
       && dumpNodesAfterUpdate.every((node, idx) => node === dumpNodesBeforeUpdate[idx])) pass('Section9 data-dump updates item content in place');
     else fail('Section9 data-dump recreated rows for content update');
     if (inlineNodesAfterUpdate.length === inlineNodesBeforeUpdate.length
       && inlineNodesAfterUpdate.every((node, idx) => node === inlineNodesBeforeUpdate[idx])) pass('Section9 inline data-dump updates item content in place');
     else fail('Section9 inline data-dump recreated rows for content update');
-    if (dumpItemTexts[0] === 'First post' && dumpItemTexts[1] === 'Updated second post' && dumpItemTexts[2] === 'Third post') pass('Section9 data-dump updates only the changed item content'); else fail('Section9 data-dump item content update wrong');
-    if (inlineItemTexts[0] === 'First post' && inlineItemTexts[1] === 'Updated second post' && inlineItemTexts[2] === 'Third post') pass('Section9 inline data-dump updates only the changed item content'); else fail('Section9 inline data-dump item content update wrong');
+    if (expectedUpdatedPosts.every((text, idx) => dumpItemTexts[idx] === text)) pass('Section9 data-dump updates only the changed item content');
+    else fail('Section9 data-dump item content update wrong');
+    if (expectedUpdatedPosts.every((text, idx) => inlineItemTexts[idx] === text)) pass('Section9 inline data-dump updates only the changed item content');
+    else fail('Section9 inline data-dump item content update wrong');
     const threadUl = doc.getElementById('thread-posts');
     const inlineThreads = doc.getElementById('inline-threads');
     const refreshThreads = doc.getElementById('refreshThreads');
