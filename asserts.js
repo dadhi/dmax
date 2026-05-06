@@ -80,6 +80,10 @@
     __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
     __assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
     __assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
+    __assert(parseItem, ['XXX', TARG, 'posts[0]'], { "kind": SIGNAL, "not": null, "path": ["0"], "root": "posts" }, 'constant bracket index root path');
+    __assert(parseItem, ['XXX', TARG, 'post-objs[1].title'], { "kind": SIGNAL, "not": null, "path": ["1", "title"], "root": "postObjs" }, 'constant bracket index with dotted tail');
+    __assert(parseItem, ['XXX', TARG, 'posts[idx]'], null, 'error: variable bracket index rejected');
+    __assert(parseItem, ['XXX', TARG, 'posts[0'], null, 'error: missing closing bracket rejected');
     __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
     __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
@@ -101,6 +105,13 @@
     __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 27], 'combine global+local mods and keep repeats')
     __assert(parse, ['data-sub^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 24], 'push all global mods to items')
     __assert(parse, ['data-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 24], 'add item local spread mod')
+    __assert(parse, ['data-sub:result@post-objs[1].title'], [__parseIt({
+      ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "result" }],
+      "@": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": ["1", "title"], "root": "postObjs" }]
+    }), 34], 'parse trigger with constant bracket index')
+    __assert(parse, ['data-sub:result@post-objs[idx].title'], [__parseIt({
+      ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "result" }]
+    }), 36], 'parse rejects variable bracket index trigger')
     __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -143,8 +154,65 @@
       return _dm.get(sig.root)
     }, [{ root: 'busy' }, false, true], false, 'defSig keeps existing signal value')
     __assert(buildDumpItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dDump item ref helper')
+    __assert(buildDumpItemRef, ['posts', null, 2], 'posts.2', 'dDump item ref helper root only')
     __assert(buildDumpItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dDump item expr helper')
+    __assert(buildDumpItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dDump item expr helper root only')
     __assert(replaceDumpTokens, ['data-dump@$item.replies+$index', 'threads.0', '0'], 'data-dump@threads.0.replies+0', 'dDump token rewrite helper')
+    __assert(replaceDumpTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dDump token rewrite helper no-op')
+    function __tRewriteDumpBindings() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', '$index')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<span data-dump@$item.replies+$index="$item.title"></span>'
+      const child = tpl.content.firstElementChild
+      root.appendChild(child)
+      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      return {
+        rootVal: root.getAttribute('data-sub:.'),
+        rootAttrs: DUMP_ATTRS.get(root),
+        childAttrs: DUMP_ATTRS.get(child)
+      }
+    }
+    __assert(__tRewriteDumpBindings, [], {
+      rootVal: '2',
+      rootAttrs: [['data-sub:.', '2']],
+      childAttrs: [['data-dump@threads.2.replies+2', 'dm.threads[2].title']]
+    }, 'dDump rewriteDumpBindings rewrites names and values')
+    function __tRewriteDumpBindingsNoop() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', 'plain-text')
+      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      return { value: root.getAttribute('data-sub:.'), hasAttrs: DUMP_ATTRS.has(root) }
+    }
+    __assert(__tRewriteDumpBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dDump rewriteDumpBindings no-op leaves attrs untouched')
+    function __tWireDumpCloneRewrittenAttrs() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', '$index')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<span data-dump@$item.replies+$index="$item.title"></span>'
+      const child = tpl.content.firstElementChild
+      root.appendChild(child)
+      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      const calls = []
+      const savedWireNode = wireNode
+      wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireDumpClone(root) } finally { wireNode = savedWireNode }
+      return calls
+    }
+    __assert(__tWireDumpCloneRewrittenAttrs, [], [
+      ['data-sub:.', '2'],
+      ['data-dump@threads.2.replies+2', 'dm.threads[2].title']
+    ], 'dDump wireDumpClone uses rewritten attrs when available')
+    function __tWireDumpCloneDomAttrsFallback() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', 'plain-text')
+      const calls = []
+      const savedWireNode = wireNode
+      wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireDumpClone(root) } finally { wireNode = savedWireNode }
+      return calls
+    }
+    __assert(__tWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
     __assert(() => ({ ...buildActionBaseHeaders(false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
