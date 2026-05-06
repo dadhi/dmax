@@ -555,14 +555,14 @@
       __reset();
       const st = setTimeout, si = setInterval
       const qTo = [], qInt = []
-      setTimeout = (cb, _ms) => (qTo.push(cb), qTo.length)
-      setInterval = (cb, _ms) => (qInt.push(cb), qInt.length)
+      setTimeout = (cb, _ms, ...args) => (qTo.push([cb, args]), qTo.length)
+      setInterval = (cb, _ms, ...args) => (qInt.push([cb, args]), qInt.length)
       try {
         const host = document.createElement('div')
         dSub(host, 'data-sub:intMeta@_interval.25', `({root: trig.root, path: trig.path, val, detail})`)
         dSub(host, 'data-sub:timeoutMeta@_timeout.50', `({root: trig.root, path: trig.path, val, detail})`)
-        if (qInt[0]) qInt[0]()
-        if (qTo[0]) qTo[0]()
+        if (qInt[0]) qInt[0][0](...qInt[0][1])
+        if (qTo[0]) qTo[0][0](...qTo[0][1])
         return { i: DM['intMeta'], t: DM['timeoutMeta'] }
       } finally {
         setTimeout = st
@@ -573,6 +573,29 @@
       i: { root: 'interval', path: ['25'], val: 25, detail: { tick: 0, ms: 25, type: 'interval' } },
       t: { root: 'timeout', path: ['50'], val: 50, detail: { tick: 0, ms: 50, type: 'timeout' } }
     }, 'dSub interval/timeout special triggers');
+    function __tSubSpecialTimerOnceCleanup() {
+      __reset();
+      const st = setTimeout, si = setInterval, ct = clearTimeout, ci = clearInterval
+      const qTo = [], qInt = [], cleared = []
+      setTimeout = (cb, _ms, ...args) => (qTo.push([cb, args]), qTo.length)
+      setInterval = (cb, _ms, ...args) => (qInt.push([cb, args]), qInt.length)
+      clearTimeout = (id) => cleared.push(['timeout', id])
+      clearInterval = (id) => cleared.push(['interval', id])
+      try {
+        const host = document.createElement('div')
+        dSub(host, 'data-sub:intOnce@_interval.25^once', 'val')
+        dSub(host, 'data-sub:timeoutOnce@_timeout.50^once', 'val')
+        if (qInt[0]) qInt[0][0](...qInt[0][1])
+        if (qTo[0]) qTo[0][0](...qTo[0][1])
+        return cleared
+      } finally {
+        setTimeout = st
+        setInterval = si
+        clearTimeout = ct
+        clearInterval = ci
+      }
+    }
+    __assert(__tSubSpecialTimerOnceCleanup, [], [['interval', 1], ['timeout', 1]], 'dSub interval/timeout ^once cleanup');
     function __tSubRepeatedPermitGating() {
       __reset();
       _dm.set('gateA', true)
