@@ -669,39 +669,41 @@
       return sub
     }
     const PASSIVE_LISTENER_OPTS = Object.freeze({ passive: true })
-    function invokeSub(subOrFn, detail, trigVal, el, trig) {
-      if (typeof subOrFn === 'function') subOrFn(DM, el, trig, trig.kind === SIGNAL ? getSigValOrIt(trig) : trigVal, detail)
-      else subOrFn.fn(DM, subOrFn.el, subOrFn.trig, getSigValOrIt(subOrFn.trig), detail)
-    }
+    function invokeSub(fn, detail, trigVal, el, trig) { fn(DM, el, trig, trig.kind === SIGNAL ? getSigValOrIt(trig) : trigVal, detail) }
+    function invokeBoundSub(sub, detail) { sub.fn(DM, sub.el, sub.trig, getSigValOrIt(sub.trig), detail) }
     function getListenerOpts(mods) {
       for (let i = 0; i < mods.length; ++i) if (mods[i].root === MOD_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
     }
     function getTrigMods(trig, mods) {
-      if (trig.kind !== SPECIAL || (trig.root !== SPEC_INTERVAL && trig.root !== SPEC_TIMEOUT)) return mods
-      let filtered = null
-      for (let i = 0; i < mods.length; ++i) {
-        const m = mods[i]
-        if (m.root === MOD_DEBOUNCE || m.root === MOD_THROTTLE) {
-          if (!filtered) filtered = mods.slice(0, i)
-          continue
+      if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
+        let filtered = null
+        for (let i = 0; i < mods.length; ++i) {
+          const m = mods[i]
+          if (m.root === MOD_DEBOUNCE || m.root === MOD_THROTTLE) {
+            if (!filtered) filtered = mods.slice(0, i)
+            continue
+          }
+          if (filtered) filtered.push(m)
         }
-        if (filtered) filtered.push(m)
+        return filtered || mods
       }
-      return filtered || mods
+      return mods
     }
     function bindEventSub(elSubs, tarEl, evName, fn, el, trig, mods, getTrigVal) {
       const modded = applyTrigMods(fn, trig, getTrigMods(trig, mods))
       const listener = (detail) => invokeSub(modded, detail, getTrigVal(detail), el, trig)
       const opts = getListenerOpts(mods)
-      const remove = () => { try { tarEl.removeEventListener(evName, listener, opts) } catch (_) { /* removal best-effort during cleanup / ^once */ } }
+      const remove = () => { try { tarEl.removeEventListener(evName, listener, opts) } catch (_) { /* best-effort: listener may already be detached / removed */ } }
       modded.remove = listener.remove = remove
       tarEl.addEventListener(evName, listener, opts)
       elSubs.push({ type: 'event', tarEl, evName, handler: listener, remove })
       return modded
     }
     function onIntervalSub(state) {
-      try { invokeSub(state.fn, { tick: state.tick++, ms: state.ms, type: SPEC_INTERVAL }, state.ms, state.el, state.trig) }
+      const detail = { tick: state.tick, ms: state.ms, type: SPEC_INTERVAL }
+      state.tick++
+      try { invokeSub(state.fn, detail, state.ms, state.el, state.trig) }
       catch (e) { console.error(`[dmax] Error: interval handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
     function onTimeoutSub(state) {
@@ -712,17 +714,15 @@
       const modded = applyTrigMods(fn, trig, getTrigMods(trig, mods))
       if (type === SPEC_INTERVAL) {
         const state = { fn: modded, el, trig, ms, tick: 0 }
-        let id = 0
+        const id = setInterval(onIntervalSub, ms, state)
         const remove = () => clearInterval(id)
         modded.remove = remove
-        id = setInterval(onIntervalSub, ms, state)
         elSubs.push({ type: 'interval', id, remove })
       } else {
         const state = { fn: modded, el, trig, ms }
-        let id = 0
+        const id = setTimeout(onTimeoutSub, ms, state)
         const remove = () => clearTimeout(id)
         modded.remove = remove
-        id = setTimeout(onTimeoutSub, ms, state)
         elSubs.push({ type: 'timeout', id, remove })
       }
       return modded
@@ -832,7 +832,7 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        invokeSub(h, h.changeMod === SIG_CHANGED_ANY ? null : col[1])
+        invokeBoundSub(h, h.changeMod === SIG_CHANGED_ANY ? null : col[1])
       }
 
       updateDebug()
@@ -948,7 +948,7 @@
           const sub = addSignalSub(el, trig, mods, fn)
           if (!ranImmediate && isImmediateMod(mods, true)) {
             ranImmediate = true
-            invokeSub(sub, null)
+            invokeBoundSub(sub, null)
           }
         } else if (kind === EV_PROP || kind === SPECIAL) {
           let ev = path && path.length ? path[0] : null
@@ -1033,7 +1033,7 @@
           const v = getSigValOrIt(sigRead)
           setProp(el, aName, writePropTar, v)
         })
-        if (isImmediateMod(readMods, true)) invokeSub(sub, null)
+        if (isImmediateMod(readMods, true)) invokeBoundSub(sub, null)
       }
 
       if (shouldWriteSig) {
@@ -1084,7 +1084,7 @@
         if (kind === SIGNAL) {
           if (!expected(root)) return
           const sub = addSignalSub(el, trig, mods, (dm, sigEl, sigTrig, trigVal, detail) => applyClasses(fn ? fn(dm, sigEl, sigTrig, trigVal, detail) : trigVal))
-          if (isImmediateMod(mods, false)) invokeSub(sub, null)
+          if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
@@ -1127,7 +1127,7 @@
         if (kind === SIGNAL) {
           if (!expected(root)) return
           const sub = addSignalSub(el, trig, mods, (dm, sigEl, sigTrig, trigVal, detail) => applyDisp(fn ? fn(dm, sigEl, sigTrig, trigVal, detail) : trigVal))
-          if (isImmediateMod(mods, false)) invokeSub(sub, null)
+          if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
@@ -2013,7 +2013,6 @@
         if (boundSubs) {
           for (const l of boundSubs) {
             if (l.remove) l.remove()
-            else if (l.type === 'event') l.tarEl.removeEventListener(l.evName, l.handler)
             else if (l.type === 'interval') clearInterval(l.id)
             else if (l.type === 'timeout') clearTimeout(l.id)
           }
