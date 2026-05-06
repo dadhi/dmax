@@ -662,8 +662,8 @@
     }
     function addSignalSub(el, trig, mods, fn) {
       const subFn = applyTrigMods(fn, trig, mods)
-      if (subFn !== fn && trig.root) subFn.remove = () => removeSigSub(trig.root, subFn)
-      const sub = { el, trig, fn: subFn, changeMod: getSigChangeShape(mods) }
+      const sub = { el, trig, fn: subFn, changeMod: getSigChangeShape(mods), remove: () => removeSigSub(trig.root, subFn) }
+      if (subFn !== fn) subFn.remove = sub.remove
       ensureSigSubs(trig.root).push(sub)
       ensureBoundSubs(el).push(sub)
       return sub
@@ -712,7 +712,7 @@
 
       // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
       let collected = [], diffed = false, diff = null, pathDiffs = []
-      for (const h of handlers) { // h.fn, h.changeMod, h.trig.path
+      for (const h of handlers) {
         const hp = h.trig.path, changeMod = h.changeMod
         if (!hp) {
           if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
@@ -2017,7 +2017,7 @@
         if (boundSubs) {
           for (const l of boundSubs) {
             if (l.type === 'event') l.tarEl.removeEventListener(l.evName, l.handler)
-            else if (l.trig && l.trig.kind === SIGNAL) removeSigSub(l.trig.root, l.fn)
+            else if (l.remove) l.remove()
             else if (l.type === 'interval') clearInterval(l.id)
             else if (l.type === 'timeout') clearTimeout(l.id)
           }
