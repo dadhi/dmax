@@ -875,7 +875,11 @@
       const hasSigMods = one || deb > 0 || thr > 0 || !!permitMods || !!trig.not
       if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
-      let debDm = null, debEl = null, debTrig = null, debVal = null, debDetail = null
+      let debDm = null
+      let debEl = null
+      let debTrig = null
+      let debVal = null
+      let debDetail = null
       let onDebounce = null
 
       const h = function (dm, el, trigIt, providedVal, detail) {

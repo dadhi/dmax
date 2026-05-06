@@ -587,7 +587,7 @@
         dSub(host, 'data-sub:timeoutOnce@_timeout.50^once', 'val')
         if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
         if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
-        return cleared
+        return { cleared, intOnce: DM['intOnce'], timeoutOnce: DM['timeoutOnce'] }
       } finally {
         setTimeout = st
         setInterval = si
@@ -595,7 +595,11 @@
         clearInterval = ci
       }
     }
-    __assert(__tSubSpecialTimerOnceCleanup, [], [['interval', 1], ['timeout', 1]], 'dSub interval/timeout ^once cleanup');
+    __assert(__tSubSpecialTimerOnceCleanup, [], {
+      cleared: [['interval', 1], ['timeout', 1]],
+      intOnce: 25,
+      timeoutOnce: 50
+    }, 'dSub interval/timeout ^once cleanup');
     function __tSubRepeatedPermitGating() {
       __reset();
       _dm.set('gateA', true)
