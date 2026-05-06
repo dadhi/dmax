@@ -188,6 +188,7 @@
       </ul>
       <div>
         <button id="addPost" data-sub:posts@.click="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
+        <button id="updateSecondPost" data-sub:posts@.click="(dm.posts || []).map((post, idx) => idx === 1 ? 'Updated second post' : post)">Update Second</button>
         <button id="removeFirst" data-sub:posts@.click="(dm.posts || []).slice(1)">Remove First</button>
         <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
         <button id="refreshThreads" data-sub:threads@.click="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
