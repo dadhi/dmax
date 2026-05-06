@@ -159,7 +159,7 @@
     __assert(buildDumpItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dDump item expr helper root only')
     __assert(replaceDumpTokens, ['data-dump@$item.replies+$index', 'threads.0', '0'], 'data-dump@threads.0.replies+0', 'dDump token rewrite helper')
     __assert(replaceDumpTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dDump token rewrite helper no-op')
-    function __tRewriteDumpBindings() {
+    function __testRewriteDumpBindings() {
       const root = document.createElement('li')
       root.setAttribute('data-sub:.', '$index')
       const tpl = document.createElement('template')
@@ -173,19 +173,19 @@
         childAttrs: DUMP_ATTRS.get(child)
       }
     }
-    __assert(__tRewriteDumpBindings, [], {
+    __assert(__testRewriteDumpBindings, [], {
       rootVal: '2',
       rootAttrs: [['data-sub:.', '2']],
       childAttrs: [['data-dump@threads.2.replies+2', 'dm.threads[2].title']]
     }, 'dDump rewriteDumpBindings rewrites names and values')
-    function __tRewriteDumpBindingsNoop() {
+    function __testRewriteDumpBindingsNoop() {
       const root = document.createElement('li')
       root.setAttribute('data-sub:.', 'plain-text')
       rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
       return { value: root.getAttribute('data-sub:.'), hasAttrs: DUMP_ATTRS.has(root) }
     }
-    __assert(__tRewriteDumpBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dDump rewriteDumpBindings no-op leaves attrs untouched')
-    function __tWireDumpCloneRewrittenAttrs() {
+    __assert(__testRewriteDumpBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dDump rewriteDumpBindings no-op leaves attrs untouched')
+    function __testWireDumpCloneRewrittenAttrs() {
       const root = document.createElement('li')
       root.setAttribute('data-sub:.', '$index')
       const tpl = document.createElement('template')
@@ -199,11 +199,11 @@
       try { wireDumpClone(root) } finally { wireNode = savedWireNode }
       return calls
     }
-    __assert(__tWireDumpCloneRewrittenAttrs, [], [
+    __assert(__testWireDumpCloneRewrittenAttrs, [], [
       ['data-sub:.', '2'],
       ['data-dump@threads.2.replies+2', 'dm.threads[2].title']
     ], 'dDump wireDumpClone uses rewritten attrs when available')
-    function __tWireDumpCloneDomAttrsFallback() {
+    function __testWireDumpCloneDomAttrsFallback() {
       const root = document.createElement('li')
       root.setAttribute('data-sub:.', 'plain-text')
       const calls = []
@@ -212,7 +212,7 @@
       try { wireDumpClone(root) } finally { wireNode = savedWireNode }
       return calls
     }
-    __assert(__tWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
+    __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
     __assert(() => ({ ...buildActionBaseHeaders(false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
