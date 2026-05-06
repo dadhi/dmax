@@ -790,25 +790,9 @@
     }
 
     /**
-     * @typedef {((ev?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} EventTriggerHandler
-     * @typedef {((dm?: any, el?: any, trig?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} SignalTriggerHandler
-     * @typedef {EventTriggerHandler | SignalTriggerHandler} TriggerHandler
+     * @typedef {((dm?: any, el?: any, trig?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} TriggerHandler
      */
 
-    /**
-     * @overload
-     * @param {SignalTriggerHandler} fn
-     * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
-     * @param {Array<{ root: string, path?: any }>} mods
-     * @returns {SignalTriggerHandler}
-     */
-    /**
-     * @overload
-     * @param {EventTriggerHandler} fn
-     * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
-     * @param {Array<{ root: string, path?: any }>} mods
-     * @returns {EventTriggerHandler}
-     */
     /**
      * @param {TriggerHandler} fn
      * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
@@ -836,43 +820,16 @@
       let debArgs = null
       let onDebounce = null
 
-      if (isSig) {
-        const h = function (dm, el, sig, providedVal, detail) {
-          const sigIt = sig || trig
-          if (!inDebounce) {
-            if (deb > 0) {
-              onDebounce ??= function () {
-                inDebounce = true
-                try { h(...debArgs) } finally { inDebounce = false }
-              }
-              debArgs = [dm, el, sigIt, providedVal, detail]
-              clearTimeout(tm)
-              tm = setTimeout(onDebounce, deb)
-              return
-            }
-            if (thr > 0) {
-              const now = Date.now()
-              if (now - last < thr) return
-              last = now
-            }
-          }
-          let trigVal = providedVal ?? getSigValOrIt(sigIt)
-          if (sigIt.not) trigVal = !trigVal
-          if (permitMods && !modsPermitVal(permitMods, trigVal)) return
-          try { fn(dm, el, sigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-          if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is set
-        }
-        return h
-      }
-      const h = function (ev, val, detail) {
+      const h = function (dm, el, trigIt, providedVal, detail) {
+        trigIt = trigIt || trig
         if (!inDebounce) {
-          if (prv) ev?.preventDefault?.()
+          if (!isSig && prv) detail?.preventDefault?.()
           if (deb > 0) {
             onDebounce ??= function () {
               inDebounce = true
               try { h(...debArgs) } finally { inDebounce = false }
             }
-            debArgs = [ev, val, detail]
+            debArgs = [dm, el, trigIt, providedVal, detail]
             clearTimeout(tm)
             tm = setTimeout(onDebounce, deb)
             return
@@ -883,9 +840,12 @@
             last = now
           }
         }
-        const trigVal = val ?? detail ?? ev?.detail?.value ?? ev?.detail?.ms
+        const forwardedDetail = providedVal == null && detail && detail.detail && ('value' in detail.detail || 'ms' in detail.detail) ? null : detail
+        let trigVal = providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail
+        if (isSig) trigVal = providedVal ?? getSigValOrIt(trigIt)
+        if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
-        try { fn(ev, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+        try { fn(dm, el, trigIt, trigVal, forwardedDetail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is set
       }
       return h
@@ -929,29 +889,30 @@
           let ev = path && path.length ? path[0] : null
           if (kind === SPECIAL) {
             if (root === SPEC_WIN) {
-              const onWin = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-              const modded = applyTrigMods(onWin, trig, mods), evName = ev || SPEC_WIN_EV
-              window.addEventListener(evName, modded)
-              elSubs.push({ type: 'event', tarEl: window, evName, handler: modded })
+              const modded = applyTrigMods(fn, trig, mods), evName = ev || SPEC_WIN_EV
+              const listener = (e) => modded(DM, el, trig, e?.type ?? null, e)
+              modded.remove = () => { try { window.removeEventListener(evName, listener) } catch (_) { } }
+              window.addEventListener(evName, listener)
+              elSubs.push({ type: 'event', tarEl: window, evName, handler: listener })
               continue
             }
             if (root === SPEC_DOC) {
-              const onDoc = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-              const modded = applyTrigMods(onDoc, trig, mods), evName = ev || SPEC_DOC_EV
-              document.addEventListener(evName, modded)
-              elSubs.push({ type: 'event', tarEl: document, evName, handler: modded })
+              const modded = applyTrigMods(fn, trig, mods), evName = ev || SPEC_DOC_EV
+              const listener = (e) => modded(DM, el, trig, e?.type ?? null, e)
+              modded.remove = () => { try { document.removeEventListener(evName, listener) } catch (_) { } }
+              document.addEventListener(evName, listener)
+              elSubs.push({ type: 'event', tarEl: document, evName, handler: listener })
               continue
             }
             if (root === SPEC_INTERVAL) {
               const ms = parseInt(ev) || SPEC_INTERVAL_MS
               let count = 0
-              const onInt = (e, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
-              const modded = applyTrigMods(onInt, trig, mods)
+              const modded = applyTrigMods(fn, trig, mods)
               const id = setInterval(() => {
                 try {
                   const tick = count++
                   const detail = { tick, ms, type: SPEC_INTERVAL }
-                  modded(undefined, ms, detail)
+                  modded(DM, el, trig, ms, detail)
                 } catch (e) { console.error(`[dmax] Error: interval handler (${ms}ms) failed:`, e?.message ?? e) }
               }, ms)
               elSubs.push({ type: 'interval', id })
@@ -959,10 +920,9 @@
             }
             if (root === SPEC_TIMEOUT) {
               const ms = parseInt(ev) || SPEC_TIMEOUT_MS
-              const onTimeout = (_, trigVal, detail) => fn(DM, el, trig, trigVal, detail)
-              const modded = applyTrigMods(onTimeout, trig, mods)
+              const modded = applyTrigMods(fn, trig, mods)
               const id = setTimeout(() => {
-                try { modded(undefined, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error(`[dmax] Error: timeout handler (${ms}ms) failed:`, e?.message ?? e) }
+                try { modded(DM, el, trig, ms, { tick: 0, ms, type: SPEC_TIMEOUT }) } catch (e) { console.error(`[dmax] Error: timeout handler (${ms}ms) failed:`, e?.message ?? e) }
               }, ms)
               elSubs.push({ type: 'timeout', id })
               continue
@@ -971,11 +931,12 @@
               const formEl = el && el.closest ? el.closest('form') : null
               if (formEl) {
                 const formEv = ev || 'submit'
-                const onForm = (e, trigVal, detail) => fn(DM, el, trig, trigVal ?? e?.type ?? null, detail ?? e)
-                const modded = applyTrigMods(onForm, trig, mods)
-                formEl.addEventListener(formEv, modded)
-                elSubs.push({ type: 'event', tarEl: formEl, evName: formEv, handler: modded })
-                if (isImmediateMod(mods, false)) modded()
+                const modded = applyTrigMods(fn, trig, mods)
+                const listener = (e) => modded(DM, el, trig, e?.type ?? null, e)
+                modded.remove = () => { try { formEl.removeEventListener(formEv, listener) } catch (_) { } }
+                formEl.addEventListener(formEv, listener)
+                elSubs.push({ type: 'event', tarEl: formEl, evName: formEv, handler: listener })
+                if (isImmediateMod(mods, false)) modded(DM, el, trig, null, null)
               }
               continue
             }
@@ -987,14 +948,14 @@
           ev = ev ?? getDefaultEvent(tarEl)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
           const finalEvent = ev
-          const baseHandler = (evObj) => fn(DM, el, trig, getElPropVal(tarEl, propPath), evObj)
-          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { tarEl.removeEventListener(finalEvent, moddedHandler) } catch (_) { } }
-          tarEl.addEventListener(finalEvent, moddedHandler)
-          elSubs.push({ type: 'event', tarEl, evName: finalEvent, handler: moddedHandler })
+          const moddedHandler = applyTrigMods(fn, trig, mods)
+          const listener = (evObj) => moddedHandler(DM, el, trig, getElPropVal(tarEl, propPath), evObj)
+          moddedHandler.remove = () => { try { tarEl.removeEventListener(finalEvent, listener) } catch (_) { } }
+          tarEl.addEventListener(finalEvent, listener)
+          elSubs.push({ type: 'event', tarEl, evName: finalEvent, handler: listener })
           if (isImmediateMod(mods, false)) {
             ranImmediate = true
-            moddedHandler()
+            moddedHandler(DM, el, trig, getElPropVal(tarEl, propPath), null)
           }
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
       }
@@ -1033,7 +994,7 @@
       if (shouldReadSig) {
         if (!expected(sigRead.root)) return
         const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
-        const sub = addSignalSub(el, sigRead, readMods, (dm, sigEl, sigTrig, trigVal, detail) => {
+        const sub = addSignalSub(el, sigRead, readMods, (_dm, _sigEl, _sigTrig, _trigVal, _detail) => {
           const v = getSigValOrIt(sigRead)
           setProp(el, aName, writePropTar, v)
         })
@@ -1055,12 +1016,13 @@
         ev = ev ?? getDefaultEvent(tarEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
-        const baseHandler = (_) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath))
-        const moddedHandler = applyTrigMods(baseHandler, trig ?? DEFAULT_PROP_TAR, writeMods)
-        moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, moddedHandler); } catch (_) { } };
-        tarEl.addEventListener(ev, moddedHandler)
-        elSubs.push({ type: 'event', tarEl, evName: ev, handler: moddedHandler })
-        if (isImmediateMod(writeMods, true)) moddedHandler()
+        const evTrig = trig ?? DEFAULT_PROP_TAR
+        const moddedHandler = applyTrigMods((_dm, _el, _trig, _trigVal, _detail) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath)), evTrig, writeMods)
+        const listener = (evObj) => moddedHandler(DM, el, evTrig, getElPropVal(tarEl, propPath), evObj)
+        moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, listener); } catch (_) { } };
+        tarEl.addEventListener(ev, listener)
+        elSubs.push({ type: 'event', tarEl, evName: ev, handler: listener })
+        if (isImmediateMod(writeMods, true)) moddedHandler(DM, el, evTrig, getElPropVal(tarEl, propPath), null)
       }
     }
 
@@ -1097,12 +1059,12 @@
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (evObj) => applyClasses(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), evObj) : true)
-          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
-          evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
-          if (isImmediateMod(mods, false)) moddedHandler()
+          const moddedHandler = applyTrigMods((dm, _el, _trig, trigVal, detail) => applyClasses(fn ? fn(dm, el, trig, trigVal, detail) : true), trig, mods)
+          const listener = (evObj) => moddedHandler(DM, el, trig, getElPropVal(evTarEl, null), evObj)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, listener) } catch (_) { } }
+          evTarEl.addEventListener(ev, listener)
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: listener })
+          if (isImmediateMod(mods, false)) moddedHandler(DM, el, trig, getElPropVal(evTarEl, null), null)
         }
       }
     }
@@ -1144,12 +1106,12 @@
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (evObj) => applyDisp(fn ? fn(DM, el, trig, getElPropVal(evTarEl, null), evObj) : true)
-          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
-          evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
-          if (isImmediateMod(mods, false)) moddedHandler()
+          const moddedHandler = applyTrigMods((dm, _el, _trig, trigVal, detail) => applyDisp(fn ? fn(dm, el, trig, trigVal, detail) : true), trig, mods)
+          const listener = (evObj) => moddedHandler(DM, el, trig, getElPropVal(evTarEl, null), evObj)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, listener) } catch (_) { } }
+          evTarEl.addEventListener(ev, listener)
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: listener })
+          if (isImmediateMod(mods, false)) moddedHandler(DM, el, trig, getElPropVal(evTarEl, null), null)
         }
       }
     }
@@ -1221,7 +1183,7 @@
         }
       }
 
-      addSignalSub(el, trig, mods, (dm, _, __, trigVal, detail) => doRender(detail))
+      addSignalSub(el, trig, mods, (_dm, _el, _trig, _trigVal, detail) => doRender(detail))
       if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1520,7 +1482,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          addSignalSub(el, trig, mods, (dm, _, __, trigVal, detail) => doRequest())
+          addSignalSub(el, trig, mods, (_dm, _el, _trig, _trigVal, _detail) => doRequest())
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             doRequest()
@@ -1530,14 +1492,14 @@
           if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
-          const baseHandler = (_) => doRequest()
-          const moddedHandler = applyTrigMods(baseHandler, trig, mods)
-          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, moddedHandler) } catch (_) { } }
-          evTarEl.addEventListener(ev, moddedHandler)
-          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: moddedHandler })
+          const moddedHandler = applyTrigMods((_dm, _el, _trig, _trigVal, _detail) => doRequest(), trig, mods)
+          const listener = (evObj) => moddedHandler(DM, el, trig, getElPropVal(evTarEl, null), evObj)
+          moddedHandler.remove = () => { try { evTarEl.removeEventListener(ev, listener) } catch (_) { } }
+          evTarEl.addEventListener(ev, listener)
+          elSubs.push({ type: 'event', tarEl: evTarEl, evName: ev, handler: listener })
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
-            moddedHandler()
+            moddedHandler(DM, el, trig, getElPropVal(evTarEl, null), null)
           }
         } else {
           console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', aName)

@@ -334,7 +334,8 @@
       __reset();
       _dm.set('a', 5)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: SIGNAL, root: 'a', path: null, not: null }, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
+      const trig = { kind: SIGNAL, root: 'a', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
       h()
       _dm.set('a', 6)
       h()
@@ -345,27 +346,30 @@
       __reset();
       _dm.set('gate', false)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_AND, path: 'gate' }])
-      h(null, null, 1)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_AND, path: 'gate' }])
+      h(DM, null, trig, null, 1)
       _dm.set('gate', true)
-      h(null, null, 2)
+      h(DM, null, trig, null, 2)
       return c
     }
     __assert(__tTrigModsAnd, [], 1, 'applyTrigMods: and gate');
     function __tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
       h.remove = () => ++r
-      h(ev, null, null)
+      h(DM, null, trig, null, ev)
       return { p, r, c }
     }
     __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrigMods: prevent + once');
     function __tTrigModsValueFallback() {
       const out = []
-      const handler = applyTrigMods((_ev, trigVal, detail) => out.push({ trigVal, detail }), { kind: EV_PROP, root: '', path: null, not: null }, [])
-      handler({ detail: { value: 9 } }, null, null)
-      handler({ detail: { ms: 12 } }, null, null)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const handler = applyTrigMods((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
+      handler(DM, null, trig, null, { detail: { value: 9 } })
+      handler(DM, null, trig, null, { detail: { ms: 12 } })
       return out
     }
     __assert(__tTrigModsValueFallback, [], [{ trigVal: 9, detail: null }, { trigVal: 12, detail: null }], 'applyTrigMods: event detail fallback');
@@ -377,9 +381,10 @@
       clearTimeout = (n) => q.delete(n)
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_DEBOUNCE, path: 8 }])
-        h(null, null, 1)
-        h(null, null, 2)
+        const trig = { kind: EV_PROP, root: '', path: null, not: null }
+        const h = applyTrigMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_DEBOUNCE, path: 8 }])
+        h(DM, null, trig, null, 1)
+        h(DM, null, trig, null, 2)
         for (const [k, v] of q) {
           q.delete(k)
           v[0](...v[1])
@@ -397,12 +402,13 @@
       Date.now = () => now
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_THROTTLE, path: 10 }])
-        h(null, null, 1)
+        const trig = { kind: EV_PROP, root: '', path: null, not: null }
+        const h = applyTrigMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_THROTTLE, path: 10 }])
+        h(DM, null, trig, null, 1)
         now = 105
-        h(null, null, 2)
+        h(DM, null, trig, null, 2)
         now = 111
-        h(null, null, 3)
+        h(DM, null, trig, null, 3)
         return out
       } finally {
         Date.now = dn
@@ -415,12 +421,13 @@
       _dm.set('gateB', false)
       let c = 0
       const mods = [{ root: MOD_AND, path: 'gateA' }, { root: MOD_AND, path: 'gateB' }, { root: MOD_GE, path: '5' }, { root: MOD_LT, path: '9' }, { root: MOD_NE, path: '7' }]
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, mods)
-      h(null, 6, null)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, mods)
+      h(DM, null, trig, 6, null)
       _dm.set('gateB', true)
-      h(null, 4, null)
-      h(null, 7, null)
-      h(null, 8, null)
+      h(DM, null, trig, 4, null)
+      h(DM, null, trig, 7, null)
+      h(DM, null, trig, 8, null)
       return c
     }
     __assert(__tTrigModsRepeatedPermitChecks, [], 1, 'applyTrigMods: repeated and/check permit mods');
