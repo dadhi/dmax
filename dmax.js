@@ -54,8 +54,8 @@
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
 
-    const DOT = '.', ID = '#', NOT = '!'
-    const NAME_DELIMS = [DOT] //'[', ']' // @wip parse brackets later
+    const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
+    const NAME_DELIMS = [DOT, BRACKET_OPEN]
     const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
 
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
@@ -88,6 +88,7 @@
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
     const DUMP_STATES = new WeakMap()
+    const DUMP_ATTRS = new WeakMap()
 
     function isSpecial(n) {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -103,7 +104,7 @@
       while (n.startsWith(NOT, p)) ++p
       let not = p == 0 ? null : p % 2 != 0
 
-      let d = n.indexOf(DOT, p)
+      let d = indexFirst(n, NAME_DELIMS, p)
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
 
       if (type === MOD) {
@@ -128,16 +129,31 @@
       }
 
       if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
-      if (d < 0 || d + 1 == n.length) return { kind, not, root, path: null }
+      if (d < 0 || (n[d] === DOT && d + 1 == n.length)) return { kind, not, root, path: null }
 
-      p = d + 1
+      p = d
       let path = []
       while (p >= 0 && p < n.length) {
-        d = n.indexOf(DOT, p)
-        const part = n.slice(p, p = d < 0 ? n.length : d)
-        if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', aName); return null }
-        path.push(kebabToCamel(part))
-        ++p
+        const c = n[p]
+        if (c === DOT) {
+          const partStart = ++p
+          d = indexFirst(n, NAME_DELIMS, p)
+          const part = n.slice(partStart, p = d < 0 ? n.length : d)
+          if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', aName); return null }
+          path.push(kebabToCamel(part))
+          continue
+        }
+        if (c === BRACKET_OPEN) {
+          d = n.indexOf(BRACKET_CLOSE, p + 1)
+          if (d < 0) { console.error('[dmax] Error: Missing closing bracket in path:', n, 'in:', aName); return null }
+          const part = n.slice(p + 1, d)
+          if (!isDigitsOnly(part)) { console.error('[dmax] Error: Only constant numeric bracket indices are supported, found:', part, 'in:', n, 'at:', aName); return null }
+          path.push(part)
+          p = d + 1
+          continue
+        }
+        console.error('[dmax] Error: Unexpected path token in:', n, 'in:', aName)
+        return null
       }
       return { kind, not, root, path }
     }
@@ -520,15 +536,23 @@
       while (stack.length) {
         const node = stack.pop()
         const attrs = node.attributes || EMPTY_ARR
+        let nextAttrs = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
           const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
           const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
-          try {
-            if (nextName !== attr.name) { node.removeAttribute(attr.name); node.setAttribute(nextName, nextVal) }
-            else if (nextVal !== attr.value) node.setAttribute(nextName, nextVal)
-          } catch (e) { console.error('[dmax] Error: dDump setAttribute failed for', nextName, e.message) }
+          if (nextName !== attr.name || nextVal !== attr.value) {
+            if (!nextAttrs) {
+              // Keep a parallel attribute list for later wiring because HTML accepts
+              // some static directive names that DOM setAttribute rejects when recreated.
+              nextAttrs = []
+              for (let j = attrs.length - 1; j > i; --j) nextAttrs.push([attrs[j].name, attrs[j].value])
+            }
+            if (nextName === attr.name) attr.value = nextVal
+          }
+          if (nextAttrs) nextAttrs.push([nextName, nextVal])
         }
+        if (nextAttrs) DUMP_ATTRS.set(node, nextAttrs)
         const children = node.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
@@ -538,10 +562,15 @@
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
-        const attrs = el.attributes || EMPTY_ARR
-        for (let i = 0; i < attrs.length; ++i) {
-          const attr = attrs[i]
-          wireNode(el, attr.name, attr.value)
+        const dumpAttrs = DUMP_ATTRS.get(el)
+        if (dumpAttrs && dumpAttrs.length) {
+          for (let i = 0; i < dumpAttrs.length; ++i) wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+        } else {
+          const attrs = el.attributes || EMPTY_ARR
+          for (let i = 0; i < attrs.length; ++i) {
+            const attr = attrs[i]
+            wireNode(el, attr.name, attr.value)
+          }
         }
         const children = el.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
@@ -845,7 +874,7 @@
           wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
           subFn.remove = wrappedSubFn.remove
           elSubs.push({ type: 'signal', el, kind, root, path, fn: wrappedSubFn })
-          if (!ranImmediate && isImmediateMod(mods, false)) {
+          if (!ranImmediate && isImmediateMod(mods, true)) {
             ranImmediate = true
             subFn(null, getSigValOrIt(trig), null)
           }
@@ -990,7 +1019,7 @@
         moddedHandler.remove = () => { try { tarEl.removeEventListener(ev, moddedHandler); } catch (_) { } };
         tarEl.addEventListener(ev, moddedHandler)
         elSubs.push({ type: 'event', tarEl, evName: ev, handler: moddedHandler })
-        if (isImmediateMod(writeMods, false)) moddedHandler()
+        if (isImmediateMod(writeMods, true)) moddedHandler()
       }
     }
 
@@ -1107,7 +1136,7 @@
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
 
-    // data-dump@items^immediate uses an inline template child and renders immediately.
+    // data-dump@items uses an inline template child and renders immediately by default.
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
     function dDump(el, aName) {
@@ -1121,6 +1150,8 @@
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
       if (!tpl) { console.error('[dmax] Error: dDump template not found for:', aName); return }
+      const tplFirst = tpl.content && tpl.content.firstElementChild
+      if (!tplFirst) { console.error('[dmax] Error: dDump template root not found for:', aName); return }
       let dumpState = DUMP_STATES.get(el)
       if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
       const sigRoot = trig.root
@@ -1147,8 +1178,7 @@
           const frag = document.createDocumentFragment()
           for (let idx = oldLen; idx < newLen; idx++) {
             try {
-              if (!tpl.content || !tpl.content.firstElementChild) break
-              const node = tpl.content.firstElementChild.cloneNode(true)
+              const node = tplFirst.cloneNode(true)
               const idxText = String(idx)
               rewriteDumpBindings(node, buildDumpItemRef(sigRoot, sigPath, idx), buildDumpItemExpr(sigRoot, sigPath, idx), idxText)
               frag.appendChild(node)
@@ -1170,7 +1200,7 @@
       wrappedSubFn.remove = () => removeSigSub(root, wrappedSubFn)
       subFn.remove = wrappedSubFn.remove
       ensureBoundSubs(el).push({ type: 'signal', el, kind: SIGNAL, root, path, fn: wrappedSubFn })
-      if (isImmediateMod(mods, false)) doRender(null)
+      if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
     // data-post^json^busy.busy:result@.click+#id.prop+signal="url"
@@ -1222,8 +1252,12 @@
         else if (mr === MOD_URL) urlMods.push(m)
         else if (mr === MOD_BODY) bodyMods.push(m)
         else if (mr === MOD_HDR) hdrMods.push(m)
-        else if (!sendAll && (mr === MOD_SEND_ALL || mr === MOD_SYNC_ALL)) sendAll = true
-        else if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
+        else if (mr === MOD_SYNC_ALL) {
+          sendAll = true
+          patchAll = true
+        }
+        else if (!sendAll && mr === MOD_SEND_ALL) sendAll = true
+        else if (!patchAll && mr === MOD_PATCH_ALL) patchAll = true
       }
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {

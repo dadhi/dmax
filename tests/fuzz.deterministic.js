@@ -11,7 +11,7 @@ const { pathToFileURL } = require('url');
 // Test Case Generators
 // ============================================================================
 
-const SIGNAL_NAMES = ['foo', 'bar', 'count', 'user.name', 'ui.theme-color', 'posts[idx]', 'items[0].title'];
+const SIGNAL_NAMES = ['foo', 'bar', 'count', 'user.name', 'ui.theme-color', 'posts[0]', 'items[0].title'];
 // Note: Parser doesn't validate signal/property names - they're just strings that may fail at runtime
 const INVALID_SIGNAL_NAMES = []; // Removed: parser accepts all non-empty strings, validation is runtime
 
@@ -476,8 +476,8 @@ async function runRegressionTests(runner) {
     // Bug: camelCase in attributes lowercased
     { attr: 'data-sub:.text-content@foo', expr: '"test"', valid: true, desc: 'kebab-case property works' },
     
-    // Bug: bracket-index subscriptions
-    { attr: 'data-sub:result@posts[idx]', expr: 'dm.posts[dm.idx]', valid: true, desc: 'bracket-index subscription' },
+    // Bug: constant bracket-index subscriptions
+    { attr: 'data-sub:result@posts[0]', expr: 'dm.posts[0]', valid: true, desc: 'constant bracket-index subscription' },
 
     // Bug: infinite loops
     { attr: 'data-sync:foo:foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },

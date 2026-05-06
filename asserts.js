@@ -80,6 +80,10 @@
     __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
     __assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
     __assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
+    __assert(parseItem, ['XXX', TARG, 'posts[0]'], { "kind": SIGNAL, "not": null, "path": ["0"], "root": "posts" }, 'constant bracket index root path');
+    __assert(parseItem, ['XXX', TARG, 'post-objs[1].title'], { "kind": SIGNAL, "not": null, "path": ["1", "title"], "root": "postObjs" }, 'constant bracket index with dotted tail');
+    __assert(parseItem, ['XXX', TARG, 'posts[idx]'], null, 'error: variable bracket index rejected');
+    __assert(parseItem, ['XXX', TARG, 'posts[0'], null, 'error: missing closing bracket rejected');
     __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
     __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
@@ -101,6 +105,13 @@
     __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 27], 'combine global+local mods and keep repeats')
     __assert(parse, ['data-sub^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 24], 'push all global mods to items')
     __assert(parse, ['data-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 24], 'add item local spread mod')
+    __assert(parse, ['data-sub:result@post-objs[1].title'], [__parseIt({
+      ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "result" }],
+      "@": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": ["1", "title"], "root": "postObjs" }]
+    }), 34], 'parse trigger with constant bracket index')
+    __assert(parse, ['data-sub:result@post-objs[idx].title'], [__parseIt({
+      ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "result" }]
+    }), 36], 'parse rejects variable bracket index trigger')
     __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -143,8 +154,65 @@
       return _dm.get(sig.root)
     }, [{ root: 'busy' }, false, true], false, 'defSig keeps existing signal value')
     __assert(buildDumpItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dDump item ref helper')
+    __assert(buildDumpItemRef, ['posts', null, 2], 'posts.2', 'dDump item ref helper root only')
     __assert(buildDumpItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dDump item expr helper')
+    __assert(buildDumpItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dDump item expr helper root only')
     __assert(replaceDumpTokens, ['data-dump@$item.replies+$index', 'threads.0', '0'], 'data-dump@threads.0.replies+0', 'dDump token rewrite helper')
+    __assert(replaceDumpTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dDump token rewrite helper no-op')
+    function __testRewriteDumpBindings() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', '$index')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<span data-dump@$item.replies+$index="$item.title"></span>'
+      const child = tpl.content.firstElementChild
+      root.appendChild(child)
+      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      return {
+        rootVal: root.getAttribute('data-sub:.'),
+        rootAttrs: DUMP_ATTRS.get(root),
+        childAttrs: DUMP_ATTRS.get(child)
+      }
+    }
+    __assert(__testRewriteDumpBindings, [], {
+      rootVal: '2',
+      rootAttrs: [['data-sub:.', '2']],
+      childAttrs: [['data-dump@threads.2.replies+2', 'dm.threads[2].title']]
+    }, 'dDump rewriteDumpBindings rewrites names and values')
+    function __testRewriteDumpBindingsNoop() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', 'plain-text')
+      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      return { value: root.getAttribute('data-sub:.'), hasAttrs: DUMP_ATTRS.has(root) }
+    }
+    __assert(__testRewriteDumpBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dDump rewriteDumpBindings no-op leaves attrs untouched')
+    function __testWireDumpCloneRewrittenAttrs() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', '$index')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<span data-dump@$item.replies+$index="$item.title"></span>'
+      const child = tpl.content.firstElementChild
+      root.appendChild(child)
+      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      const calls = []
+      const savedWireNode = wireNode
+      wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireDumpClone(root) } finally { wireNode = savedWireNode }
+      return calls
+    }
+    __assert(__testWireDumpCloneRewrittenAttrs, [], [
+      ['data-sub:.', '2'],
+      ['data-dump@threads.2.replies+2', 'dm.threads[2].title']
+    ], 'dDump wireDumpClone uses rewritten attrs when available')
+    function __testWireDumpCloneDomAttrsFallback() {
+      const root = document.createElement('li')
+      root.setAttribute('data-sub:.', 'plain-text')
+      const calls = []
+      const savedWireNode = wireNode
+      wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireDumpClone(root) } finally { wireNode = savedWireNode }
+      return calls
+    }
+    __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
     __assert(() => ({ ...buildActionBaseHeaders(false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
@@ -399,13 +467,23 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo^immediate', 'dm.foo');
+      dSub(el, 'data-sub:bar@foo', 'dm.foo');
       const im = DM['bar'];
       setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
-    __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+    __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo immediate-by-default and change propagation');
+    function __tSubSignalNotImmediate() {
+      __reset();
+      _dm.set('foo', 7);
+      const el = document.createElement('div');
+      dSub(el, 'data-sub:bar@foo^notimmediate', 'dm.foo');
+      const before = DM['bar'];
+      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      return { before, after: DM['bar'] };
+    }
+    __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dSub @foo^notimmediate skips setup run but handles later changes');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
@@ -531,13 +609,26 @@
       inp.value = 'Initial'
       dSync(inp, 'data-sync:name@.')
       const before = inp.value
+      const sigAfterElementWrite = DM['name']
       setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       const elAfterSignal = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
-      return { before, elAfterSignal, sigAfterEvent: DM['name'] }
+      return { before, sigAfterElementWrite, elAfterSignal, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way');
+    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', sigAfterElementWrite: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way immediate by default');
+    function __tSyncPropToSignalNotImmediate() {
+      __reset();
+      const inp = document.createElement('input')
+      _dm.set('name', 'Ada')
+      inp.value = 'Initial'
+      dSync(inp, 'data-sync^notimmediate:name@.')
+      const sigBeforeChange = DM['name']
+      inp.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      return { sigBeforeChange, sigAfterEvent: DM['name'] }
+    }
+    __assert(__tSyncPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dSync ^notimmediate keeps prop->signal opt-out');
     function __tSyncCheckboxDefaultProp() {
       __reset();
       const cb = document.createElement('input')
@@ -668,14 +759,14 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['a', 'b', 'c'])
-        dDump(el, 'data-dump@items^immediate')
+        dDump(el, 'data-dump@items')
         const before = el.children.length
         setSigAndNotifySubs('t', { root: 'items', path: null }, ['a'])
         const after = el.children.length
         return { before, after }
       } finally { el.remove() }
     }
-    __assert(__tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump remove from end: 3 items shrinks to 1')
+    __assert(__tDumpRemoveFromEnd, [], { before: 3, after: 1 }, 'dDump immediate-by-default remove from end: 3 items shrinks to 1')
     function __tDumpIndexPlaceholder() {
       __reset()
       const el = document.createElement('ul')
@@ -685,7 +776,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('rows', ['x', 'y'])
-        dDump(el, 'data-dump@rows^immediate')
+        dDump(el, 'data-dump@rows')
         return Array.from(el.children).map(n => n.getAttribute('data-idx'))
       } finally { el.remove() }
     }
@@ -699,7 +790,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('rows', ['x', 'y'])
-        dDump(el, 'data-dump@rows^immediate')
+        dDump(el, 'data-dump@rows')
         return Array.from(el.children).map(n => n.getAttribute('data-val'))
       } finally { el.remove() }
     }
@@ -713,7 +804,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('list', ['a', 'b', 'c'])
-        dDump(el, 'data-dump@list^immediate')
+        dDump(el, 'data-dump@list')
         const count = el.children.length
         const tplStillChild = !!el.querySelector('template')
         return { count, tplStillChild }
@@ -729,11 +820,27 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['x', 'y', 'z'])
-        dDump(el, 'data-dump@items^immediate')
+        dDump(el, 'data-dump@items')
         return el.children.length
       } finally { el.remove() }
     }
-    __assert(__tDumpImmediate, [], 3, 'dDump ^immediate renders existing signal array on setup')
+    __assert(__tDumpImmediate, [], 3, 'dDump renders existing signal array on setup by default')
+    function __tDumpNotImmediate() {
+      __reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li>item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['x', 'y'])
+        dDump(el, 'data-dump@items^notimmediate')
+        const before = el.children.length
+        setSigAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
+        return { before, after: el.children.length }
+      } finally { el.remove() }
+    }
+    __assert(__tDumpNotImmediate, [], { before: 0, after: 3 }, 'dDump ^notimmediate skips initial render and still responds to later changes')
     function __tDumpExplicitTemplate() {
       __reset()
       const tplEl = document.createElement('template')
@@ -744,7 +851,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['a', 'b'])
-        dDump(el, 'data-dump+#myTpl@items^immediate')
+        dDump(el, 'data-dump+#myTpl@items')
         return el.children.length
       } finally { tplEl.remove(); el.remove() }
     }

@@ -41,17 +41,29 @@ function waitFor(conditionFn, timeout = 15000, interval = 100) {
     virtualConsole,
   });
 
-  const { document } = dom.window;
-  const summaryText = await waitFor(() => {
-    const summary = document.getElementById('summary')?.textContent || '';
-    return /Tests (\d+): Passed (\d+), Failed 0/.test(summary) ? summary : '';
+  const { window } = dom;
+  const { document } = window;
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      window.removeEventListener('dmax:tests:done', onDone);
+      reject(new Error('Timed out after 20000ms waiting for dmax:tests:done event'));
+    }, 20000);
+    function onDone() {
+      clearTimeout(timer);
+      resolve();
+    }
+    window.addEventListener('dmax:tests:done', onDone, { once: true });
   });
 
-  const match = summaryText.match(/Tests (\d+): Passed (\d+), Failed 0/);
+  const summaryText = document.getElementById('summary')?.textContent || '';
+  const match = summaryText.match(/Tests (\d+): Passed (\d+), Failed (\d+)/);
+  assert(match, `expected final notebook summary, got ${summaryText}`);
   const total = Number(match[1]);
   const passed = Number(match[2]);
+  const failed = Number(match[3]);
 
   assert(total > 0, `expected notebook asserts to run, got ${summaryText}`);
+  assert.strictEqual(failed, 0, `expected all notebook asserts to pass, got ${summaryText}`);
   assert.strictEqual(total, passed, `expected all notebook asserts to pass, got ${summaryText}`);
   assert.strictEqual(document.getElementById('live-dsub')?.tagName, 'SECTION', 'live examples section exists');
   assert.strictEqual(document.getElementById('ported-examples')?.tagName, 'SECTION', 'ported examples section exists');

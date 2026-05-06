@@ -929,13 +929,13 @@
       reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo^immediate', 'dm.foo');
+      dSub(el, 'data-sub:bar@foo', 'dm.foo');
       const im = DM['bar'];
       setSignalVal('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
-    assert(tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo^immediate and change propagation');
+    assert(tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo immediate-by-default and change propagation');
 
     // // Cleanup the subs bound to the data-attr defined on the removed element
     //   const observer = new MutationObserver(records => {
