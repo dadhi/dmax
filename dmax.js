@@ -998,7 +998,7 @@
         const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
         const sub = addSignalSub(el, sigRead, readMods, (dm, sigEl, sigTrig, trigVal, detail) => {
           const v = getSigValOrIt(sigRead)
-          setProp(sigEl, aName, writePropTar, v)
+          setProp(el, aName, writePropTar, v)
         })
         if (isImmediateMod(readMods, true)) invokeSignalSub(sub, null)
       }

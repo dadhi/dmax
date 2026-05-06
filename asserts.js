@@ -262,6 +262,7 @@
     __assert(isJsonContentType, ['application/problem+json; charset=utf-8'], true, 'json content-type +json with semicolon')
     __assert(isJsonContentType, ['application/problem+json\tcharset=utf-8'], true, 'json content-type +json with tab separator')
     __assert(isJsonContentType, ['application/problem+jsonified'], false, 'json content-type +json boundary check')
+    function __sigTrig(root, path) { return { kind: SIGNAL, root, path, not: null } }
     // @TEST register sink subscriber
     function __reg(root, path, changeMod, sink) {
       let arr = _subs.get(root)
@@ -270,7 +271,7 @@
         fn: (_dm, _el, _trig, _trigVal, detail) => sink.push(detail),
         changeMod,
         path,
-        trig: { kind: SIGNAL, root, path, not: null }
+        trig: __sigTrig(root, path)
       });
     }
     function __reset() { _subs.clear(); _dm.clear() }
