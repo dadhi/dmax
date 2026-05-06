@@ -1252,8 +1252,9 @@
         else if (mr === MOD_URL) urlMods.push(m)
         else if (mr === MOD_BODY) bodyMods.push(m)
         else if (mr === MOD_HDR) hdrMods.push(m)
-        else if (!sendAll && (mr === MOD_SEND_ALL || mr === MOD_SYNC_ALL)) sendAll = true
-        else if (!patchAll && (mr === MOD_PATCH_ALL || mr === MOD_SYNC_ALL)) patchAll = true
+        else if (mr === MOD_SYNC_ALL) sendAll = patchAll = true
+        else if (!sendAll && mr === MOD_SEND_ALL) sendAll = true
+        else if (!patchAll && mr === MOD_PATCH_ALL) patchAll = true
       }
       if (resultTar && resultTar.mods) {
         for (const m of resultTar.mods) {
