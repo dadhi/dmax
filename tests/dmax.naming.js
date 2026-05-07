@@ -6,6 +6,7 @@ const dmaxPath = path.join(process.cwd(), 'dmax.js');
 const source = fs.readFileSync(dmaxPath, 'utf8');
 
 const disallowed = [
+  { re: /\b(?:async\s+)?function\s+[A-Za-z0-9_$]+\s*\(/, msg: 'classic function declarations should stay out of dmax.js' },
   { re: /\b__[A-Za-z0-9_]+\b/, msg: 'double-underscore names should stay out of dmax.js' },
   { re: /\b(?:sg|sgVal|sgName|getSgChangeShape)\b|SG_CHANGED_[A-Z_]+/, msg: 'sig names should use the sig prefix consistently' },
   {
