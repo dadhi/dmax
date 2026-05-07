@@ -70,6 +70,12 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await waitFor(() => /Tests \d+: Passed \d+, Failed 0/.test(doc.getElementById('summary')?.textContent || ''));
     await sleep(100);
 
+    const exampleLabels = Array.from(doc.querySelectorAll('#ported-examples .page'));
+    if (exampleLabels.length === 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
+    if (exampleLabels.some((el) => /data-sub:\.@count@#btn1@#btn2/.test(el.textContent || ''))) pass('Section4 label shows shorthand default button triggers'); else fail('Section4 label missing shorthand default button triggers');
+    if (exampleLabels.some((el) => /data-sub:posts@\./.test(el.textContent || ''))) pass('Section9 label shows list action attributes'); else fail('Section9 label missing list action attributes');
+    if (exampleLabels.some((el) => /data-sub:demo-parent@\./.test(el.textContent || ''))) pass('Section10.a label shows remove-key attribute'); else fail('Section10.a label missing remove-key attribute');
+
     // Section 1: data-sync
     const nameInput = findByAttr('input', 'data-sub:user.name@.input');
     const nameOut = findByAttr('strong', 'data-sync:user.name');
@@ -193,7 +199,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     // Section 4: side effects + multi triggers
     const btn1 = doc.getElementById('btn1');
     const btn2 = doc.getElementById('btn2');
-    const multiDisplay = findByAttr('strong', 'data-sub:.@count@#btn1.click@#btn2.click');
+    const multiDisplay = findByAttr('strong', 'data-sub:.@count@#btn1@#btn2');
     if (!btn1 || !btn2 || !multiDisplay) fail('Section4 elements missing');
     pageLogs.length = 0;
     fire(btn1, 'click');

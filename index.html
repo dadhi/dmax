@@ -52,6 +52,22 @@
       background: #f8fafc;
     }
 
+    .page {
+      margin: 4px 0 10px;
+      padding: 6px 8px;
+      border: 1px solid #dbeafe;
+      border-radius: 6px;
+      background: #f8fbff;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .page code {
+      white-space: normal;
+      word-break: break-word;
+    }
+
     .chk.pass {
       color: #16a34a;
     }
@@ -96,16 +112,19 @@
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
+      <div class="page"><code>data-sync@user.name</code> · <code>data-sub:user.name@.input="val"</code> · <code>data-sync@user.age</code> · <code>data-sub:user.age@.input="Number(val || 0)"</code></div>
       <label>User Name: <input type="text" data-sync@user.name data-sub:user.name@.input="val"></label>
       <p>Hello, <strong data-sync:user.name></strong>!</p>
       <label>Age: <input type="number" data-sync@user.age data-sub:user.age@.input="Number(val || 0)"></label>
       <p>Age: <span data-sync:user.age></span> years old</p>
       <h4>1.a data-sync Direction Examples</h4>
+      <div class="page"><code>data-sync@user.name</code> · <code>data-sub:user.name@.input="val"</code></div>
       <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
       <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-sub:user.name@.input="val"></label>
       <label>Two-way: <input id="twoWay" data-sync@user.name data-sub:user.name@.input="val"></label>
       <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
+      <div class="page"><code>data-sync:user.ui.theme-color</code> · <code>data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor"</code> · <code>data-sync:user.ui.font-size</code> · <code>data-sub:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`"</code> · <code>data-sync:user.ui.is-active</code></div>
       <label>Theme Color: <input type="color" data-sync:user.ui.theme-color></label>
       <div style="padding:8px;border:1px solid #ccc;margin:6px 0" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
       <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
@@ -114,21 +133,22 @@
       <label><input type="checkbox" data-sync:user.ui.is-active> Active</label>
       <p>Status: <strong data-sub:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
       <h4>3. Multiple Triggers &amp; Targets</h4>
-      <button data-sub:count@.click="dm.count + 1">+1</button>
-      <button data-sub:count@.click="dm.count - 1">-1</button>
-      <button data-sub:count@.click="0">Reset</button>
+      <div class="page"><code>data-sub:count@.="dm.count + 1"</code> · <code>data-sub:count@.="dm.count - 1"</code> · <code>data-sub:count@.="0"</code><br><code>data-sub:.@count="dm.count"</code> · <code>data-sub:.:doubled@count="dm.count * 2"</code> · <code>data-sub:.@.="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`"</code><br><code>data-sub^once:once-test@.="(dm.onceTest || 0) + 1"</code> · <code>data-sub^once:always-test@.^always="(dm.alwaysTest || 0) + 1"</code> · <code>data-sub:guard-val@.="dm.guardVal + 1"</code></div>
+      <button data-sub:count@.="dm.count + 1">+1</button>
+      <button data-sub:count@.="dm.count - 1">-1</button>
+      <button data-sub:count@.="0">Reset</button>
       <p>Count: <strong data-sub:.@count="dm.count"></strong></p>
       <p>Doubled: <span data-sub:.:doubled@count="dm.count * 2"></span></p>
-      <button id="probeBtn" data-sub:.@.click="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
+      <button id="probeBtn" data-sub:.@.="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
       <span id="probeOut" data-sub:.@count="trig ? trig.root : ''"></span>
       <div>
-        <button id="gOnceBtn" data-sub^once:once-test@.click="(dm.onceTest || 0) + 1">Once +1</button>
+        <button id="gOnceBtn" data-sub^once:once-test@.="(dm.onceTest || 0) + 1">Once +1</button>
         <span data-sub:.@once-test="dm.onceTest"></span>
-        <button id="gAlwaysBtn" data-sub^once:always-test@.click^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
+        <button id="gAlwaysBtn" data-sub^once:always-test@.^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
         <span data-sub:.@always-test="dm.alwaysTest"></span>
       </div>
       <div>
-        <button id="incGuard" data-sub:guard-val@.click="dm.guardVal + 1">Inc Guard</button>
+        <button id="incGuard" data-sub:guard-val@.="dm.guardVal + 1">Inc Guard</button>
         <span data-sub:.@guard-val="dm.guardVal"></span>
         <span data-sub:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
         <span data-sub:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
@@ -139,27 +159,33 @@
         <span data-sub:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
       </div>
       <h4>4. Side Effects &amp; Multiple Triggers</h4>
+      <div class="page"><code>data-sub:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"</code> · <code>data-sub:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"</code></div>
       <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
-      <p><span data-sub:.@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
-      <p><strong data-sub:.@count@#btn1.click@#btn2.click="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
+      <p><span data-sub:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
+      <p><strong data-sub:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
+      <div class="page"><code>data-sync@message</code> · <code>data-sub:message@.input="val"</code> · <code>data-sub:.@#src.input="document.getElementById('src').value"</code> · <code>data-sub:.value@#src.input="document.getElementById('src').value"</code></div>
       <input id="src" placeholder="Type here..." data-sync@message data-sub:message@.input="val">
       <p data-sub:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
+      <div class="page"><code>data-sub:.@_window.resize="window.innerWidth + 'px'"</code> · <code>data-sub:.@_interval.1000="new Date().toLocaleTimeString()"</code> · <code>data-sub:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"</code></div>
       <p>Window width: <span data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
       <p>Current time: <span data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
       <h4>7. Default Props &amp; Events</h4>
+      <div class="page"><code>data-sub:.@#inp1.input="document.getElementById('inp1').value"</code> · <code>data-sub:.@#btn3="'Clicked!'"</code></div>
       <input id="inp1" placeholder="Mirrors on input">
       <p><span data-sub:.@#inp1.input="document.getElementById('inp1').value"></span></p>
       <button id="btn3">Click me</button>
       <p><span data-sub:.@#btn3="'Clicked!'"></span></p>
       <h4>8. Classes &amp; Display</h4>
+      <div class="page"><code>data-sync:user.ui.is-active</code> · <code>data-class+active+!inactive@user.ui.is-active="dm.user.ui.isActive"</code> · <code>data-disp:.@user.ui.is-active="dm.user.ui.isActive"</code> · <code>data-disp:.@user.ui.is-active="!dm.user.ui.isActive"</code></div>
       <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
       <div id="classBox" data-class+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
       <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
       <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
       <h4>9. List Rendering (data-dump)</h4>
+      <div class="page"><code>data-dump+#tpl-post@posts</code> · <code>data-class+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0"</code> · <code>data-dump@posts</code><br><code>data-sub:posts@.="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])"</code> · <code>data-sub:posts@.="(dm.posts || []).map((post, idx) =&gt; idx === 1 ? 'Updated second post' : post)"</code> · <code>data-sub:posts@.="(dm.posts || []).slice(1)"</code> · <code>data-sub:posts@.="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))"</code></div>
         <template id="tpl-post">
           <li data-index="$index" data-class+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0">
           <span class="num" data-sub:.@posts="$index + 1"></span>
@@ -188,30 +214,32 @@
         </template>
       </ul>
       <div>
-        <button id="addPost" data-sub:posts@.click="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
-        <button id="updateSecondPost" data-sub:posts@.click="(dm.posts || []).map((post, idx) => idx === 1 ? 'Updated second post' : post)">Update Second</button>
-        <button id="removeFirst" data-sub:posts@.click="(dm.posts || []).slice(1)">Remove First</button>
-        <button id="removePost" data-sub:posts@.click="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
-        <button id="refreshThreads" data-sub:threads@.click="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
+        <button id="addPost" data-sub:posts@.="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
+        <button id="updateSecondPost" data-sub:posts@.="(dm.posts || []).map((post, idx) => idx === 1 ? 'Updated second post' : post)">Update Second</button>
+        <button id="removeFirst" data-sub:posts@.="(dm.posts || []).slice(1)">Remove First</button>
+        <button id="removePost" data-sub:posts@.="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
+        <button id="refreshThreads" data-sub:threads@.="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
       </div>
       <h4>10. Modifiers demo</h4>
-      <button id="onceBtn" data-sub:mod-once@.click^once="(dm.modOnce || 0) + 1">Once</button>
+      <div class="page"><code>data-sub:mod-once@.^once="(dm.modOnce || 0) + 1"</code> · <code>data-sub:mod-deb@.^debounce.120="(dm.modDeb || 0) + 1"</code> · <code>data-sub:mod-thr@.^throttle.120="(dm.modThr || 0) + 1"</code> · <code>data-sub:mod-and@.^and.gate="(dm.modAnd || 0) + 1"</code></div>
+      <button id="onceBtn" data-sub:mod-once@.^once="(dm.modOnce || 0) + 1">Once</button>
       <span data-sub:.@mod-once="dm.modOnce"></span>
-      <button id="debBtn" data-sub:mod-deb@.click^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
+      <button id="debBtn" data-sub:mod-deb@.^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
       <span data-sub:.@mod-deb="dm.modDeb"></span>
-      <button id="thrBtn" data-sub:mod-thr@.click^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
+      <button id="thrBtn" data-sub:mod-thr@.^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
       <span data-sub:.@mod-thr="dm.modThr"></span>
       <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
-      <button id="andBtn" data-sub:mod-and@.click^and.gate="(dm.modAnd || 0) + 1">AND</button>
+      <button id="andBtn" data-sub:mod-and@.^and.gate="(dm.modAnd || 0) + 1">AND</button>
       <span data-sub:.@mod-and="dm.modAnd"></span>
       <h4>10.a Content vs Shape</h4>
+      <div class="page"><code>data-sub:demo-parent@.="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent &amp;&amp; dm.demoParent.child) || 0) + 1 })"</code><br><code>data-sub:demo-parent@.="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })"</code> · <code>data-sub:demo-parent@.="((o) =&gt; (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))"</code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Parent signal preview:</div>
         <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-sub:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
         <div style="margin-top:6px">
-          <button id="demoChangeChild" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
-          <button id="demoAddKey" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
-          <button id="demoRemoveKey" data-sub:demo-parent@.click="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
+          <button id="demoChangeChild" data-sub:demo-parent@.="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
+          <button id="demoAddKey" data-sub:demo-parent@.="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
+          <button id="demoRemoveKey" data-sub:demo-parent@.="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
           <div>Content subscriber: <span id="demoContent" data-sub:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
@@ -219,22 +247,24 @@
         </div>
       </div>
       <h4>10.b Constant Index Signals</h4>
+      <div class="page"><code>data-sub:.@post-objs[0].title="dm.postObjs[0].title"</code> · <code>data-sub:.@post-objs[1].title="dm.postObjs[1].title"</code> · <code>data-sub:post-objs[0].title@.="'NewP0Title'"</code> · <code>data-sub:post-objs[1].title@.="'NewP1Title'"</code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Post 0: <strong id="post0Title" data-sub:.@post-objs[0].title="dm.postObjs[0].title"></strong></div>
         <div>Post 1: <strong id="post1Title" data-sub:.@post-objs[1].title="dm.postObjs[1].title"></strong></div>
         <div style="margin-top:6px">
-          <button id="setPost0Title" data-sub:post-objs[0].title@.click="'NewP0Title'">Set post 0 title</button>
-          <button id="setPost1Title" data-sub:post-objs[1].title@.click="'NewP1Title'">Set post 1 title</button>
+          <button id="setPost0Title" data-sub:post-objs[0].title@.="'NewP0Title'">Set post 0 title</button>
+          <button id="setPost1Title" data-sub:post-objs[1].title@.="'NewP1Title'">Set post 1 title</button>
         </div>
       </div>
       <h4>State Tree (Live Debug)</h4>
       <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <button id="loadPost" data-get^busy.busy^err.err^code.code:post-result@.click="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
+      <div class="page"><code>data-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'"</code> · <code>data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'"</code><br><code>data-sub:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })"</code><br><code>data-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'"</code> · <code>data-get^busy.busy^err.err^code.code:oob-html@.="'/mock/oob'"</code> · <code>data-get^busy.busy^err.err:sse-status@.="'/mock/dmax-sse'"</code></div>
+      <button id="loadPost" data-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
       <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span> | Code: <span data-sub:.@code="dm.code"></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <button id="loadPostCustomBusy" data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.click="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
+        <button id="loadPostCustomBusy" data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
         <strong style="margin-left:8px" data-disp:.@post-loading="dm.postLoading">Loading…</strong>
         <div>Error: <span data-sub:.@post-error="dm.postError"></span> | Code: <span data-sub:.@post-code="dm.postCode"></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
@@ -243,16 +273,16 @@
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-sub:draftPost@.click="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-post^json^busy.busy^err.err^code.code:created-post@.click+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <button id="create-post" data-sub:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
       <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <button id="oobLoad" data-get^busy.busy^err.err^code.code:oob-html@.click="'/mock/oob'">Load OOB HTML + morph</button>
+        <button id="oobLoad" data-get^busy.busy^err.err^code.code:oob-html@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
         <div data-sub:.@oob-html="applyOobHtml(dm.oobHtml)"></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <button id="sseLoad" data-get^busy.busy^err.err:sse-status@.click="'/mock/dmax-sse'">Run dmax SSE stream</button>
+        <button id="sseLoad" data-get^busy.busy^err.err:sse-status@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
         <div>Message: <span data-sub:.@sse-message="dm.sseMessage"></span> | Count: <span data-sub:.@sse-count="dm.sseCount"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
