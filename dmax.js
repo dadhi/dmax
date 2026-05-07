@@ -650,22 +650,22 @@
       if (!list) map.set(key, list = [])
       return list
     }
-    function ensureSigSubs(root) { return ensureMapList(_subs, root) }
     function removeSigSub(sub) {
       const subs = _subs.get(sub.trig.root)
       if (!subs || !subs.length) return
       for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
-    function ensureBoundSubs(el) { return ensureMapList(_cleanupBoundSubs, el) }
+    function clearSubId(sub) {
+      if (sub.trig.root === SPEC_INTERVAL) clearInterval(sub.clearId)
+      else clearTimeout(sub.clearId)
+      sub.clearId = null
+    }
     function removeSubOrClearId(sub) {
       try {
         const ev = sub.ev
         if (ev) ev.tarEl.removeEventListener(ev.evName, sub.fn, ev.opts)
-        else if (sub.clearId != null) {
-          if (sub.trig.root === SPEC_INTERVAL) clearInterval(sub.clearId)
-          else clearTimeout(sub.clearId)
-          sub.clearId = null
-        } else removeSigSub(sub)
+        else if (sub.clearId != null) clearSubId(sub)
+        else removeSigSub(sub)
       } catch (_) {
       }
     }
@@ -691,22 +691,15 @@
       if (trig.kind === SIGNAL) {
         const sub = { el, trig, fn, sigChangeMod: getSigChangeShape(mods), ev: null, clearId: null }
         sub.fn = applyTrigMods(fn, trig, mods, sub)
-        ensureSigSubs(trig.root).push(sub)
-        const boundSubs = elSubs || ensureBoundSubs(el)
-        boundSubs.push(sub)
+        ensureMapList(_subs, trig.root).push(sub), (elSubs || ensureMapList(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
       if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
         const ms = parseInt(evName) || (trig.root === SPEC_INTERVAL ? SPEC_INTERVAL_MS : SPEC_TIMEOUT_MS)
         const sub = { el, trig, fn: null, sigChangeMod: null, ev: null, clearId: null }
         sub.fn = applyTrigMods(fn, trig, mods, sub)
-        if (trig.root === SPEC_INTERVAL) {
-          const state = { sub, ms, tick: 0 }
-          sub.clearId = setInterval(onIntervalSub, ms, state)
-        } else {
-          const state = { sub, ms }
-          sub.clearId = setTimeout(onTimeoutSub, ms, state)
-        }
+        if (trig.root === SPEC_INTERVAL) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
+        else sub.clearId = setTimeout(onTimeoutSub, ms, { sub, ms })
         elSubs.push(sub)
         return sub.fn
       }
@@ -926,7 +919,7 @@
         }
       }
       if (!trigs.length) { fn(DM, el, null, null, null); return }
-      const elSubs = ensureBoundSubs(el)
+      const elSubs = ensureMapList(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (let trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
@@ -1012,7 +1005,7 @@
       const shouldReadSig = !!sigRead && (sigTrig || !propTrig)
       const shouldWriteSig = !!sigWrite && (propTrig || !sigTrig)
 
-      const elSubs = ensureBoundSubs(el)
+      const elSubs = ensureMapList(_cleanupBoundSubs, el)
 
       if (shouldReadSig) {
         if (!expected(sigRead.root)) return
@@ -1066,7 +1059,7 @@
           else tarEl.classList.remove(name)
         }
       }
-      const elSubs = ensureBoundSubs(el)
+      const elSubs = ensureMapList(_cleanupBoundSubs, el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
         const mods = pickMods(trig.mods, globMods)
@@ -1109,7 +1102,7 @@
           tarEl.style.display = 'none'
         }
       }
-      const elSubs = ensureBoundSubs(el)
+      const elSubs = ensureMapList(_cleanupBoundSubs, el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
         const mods = pickMods(trig.mods, globMods)
@@ -1195,7 +1188,7 @@
         }
       }
 
-      addTrigSub(el, trig, mods, (_dm, _el, _trig, _trigVal, detail) => doRender(detail), ensureBoundSubs(el))
+      addTrigSub(el, trig, mods, (_dm, _el, _trig, _trigVal, detail) => doRender(detail), ensureMapList(_cleanupBoundSubs, el))
       if (isImmediateMod(mods, true)) doRender(null)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1487,7 +1480,7 @@
       }
 
       if (!trigs.length) { doRequest(); return }
-      const elSubs = ensureBoundSubs(el)
+      const elSubs = ensureMapList(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
