@@ -71,10 +71,26 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(100);
 
     const exampleLabels = Array.from(doc.querySelectorAll('#ported-examples .page'));
+    const labelCodes = Array.from(doc.querySelectorAll('#ported-examples code[data-attr-name]'));
+    const resolveLabelTarget = (node) => {
+      const id = node.getAttribute('data-attr-for');
+      if (id) return doc.getElementById(id);
+      const templateId = node.getAttribute('data-attr-template');
+      const selector = node.getAttribute('data-attr-selector') || '*';
+      const template = templateId ? doc.getElementById(templateId) : null;
+      return template?.content?.querySelector(selector) || null;
+    };
+    const expectedLabelText = (node) => {
+      const attrName = node.getAttribute('data-attr-name');
+      const target = resolveLabelTarget(node);
+      if (!attrName || !target) return null;
+      const value = target.getAttribute(attrName);
+      return value == null || value === '' ? attrName : `${attrName}="${value}"`;
+    };
     if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
-    if (exampleLabels.some((el) => /data-sub:\.@count@#btn1@#btn2/.test(el.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
-    if (exampleLabels.some((el) => /data-sub:posts@\./.test(el.textContent || ''))) pass('Section9 label shows list action attributes'); else fail('Section9 label missing list action attributes');
-    if (exampleLabels.some((el) => /data-sub:demo-parent@\./.test(el.textContent || ''))) pass('Section10.a label shows remove-key attribute'); else fail('Section10.a label missing remove-key attribute');
+    if (labelCodes.length >= 40) pass('Ported examples render dmax-driven code labels'); else fail('Ported examples missing dmax-driven code labels');
+    if (labelCodes.every((node) => (node.textContent || '').trim() === expectedLabelText(node))) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
+    if (labelCodes.some((node) => /data-sub:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
     // Section 1: data-sync
     const nameInput = findByAttr('input', 'data-sub:user.name@.input');
