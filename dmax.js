@@ -680,7 +680,8 @@
     }
     function addTrigSub(el, trig, mods, fn, elSubs, tarEl, evName, propPath) {
       if (trig.kind === SIGNAL) {
-        const sub = { el, trig, fn: null, changeMod: getSigChangeShape(mods), remove: () => removeSigSub(trig.root, sub.fn) }
+        const sub = { el, trig, fn, changeMod: getSigChangeShape(mods), remove: null }
+        sub.remove = () => removeSigSub(trig.root, sub.fn)
         sub.fn = applyTrigMods(fn, trig, mods, sub.remove)
         ensureSigSubs(trig.root).push(sub)
         const boundSubs = elSubs || ensureBoundSubs(el)
@@ -850,12 +851,12 @@
     function applyTrigMods(fn, trig, mods, remove) {
       const isSig = trig.kind === SIGNAL
       const isTimer = trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
-      let once = false, always = false, prevent = false
+      let onceMod = false, alwaysMod = false, preventMod = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
-        if (m.root === MOD_ONCE) once = true
-        else if (m.root === MOD_ALWAYS) always = true
-        else if (m.root === MOD_PREVENT) prevent = true
+        if (m.root === MOD_ONCE) onceMod = true
+        else if (m.root === MOD_ALWAYS) alwaysMod = true
+        else if (m.root === MOD_PREVENT) preventMod = true
         else if (!isTimer && m.root === MOD_DEBOUNCE) deb = +(resolveModPathVal(m.path) ?? MOD_DEBOUNCE_MS) || MOD_DEBOUNCE_MS
         else if (!isTimer && m.root === MOD_THROTTLE) thr = +(resolveModPathVal(m.path) ?? MOD_THROTTLE_MS) || MOD_THROTTLE_MS
         else if (m.root in PERMIT_MODS) {
@@ -863,7 +864,7 @@
           permitMods.push(m)
         }
       }
-      const hasSigMods = once || deb > 0 || thr > 0 || !!permitMods || !!trig.not
+      const hasSigMods = onceMod || deb > 0 || thr > 0 || !!permitMods || !!trig.not
       if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debTrig = null, debVal = null, debDetail = null
@@ -872,7 +873,7 @@
       const h = function (dm, el, trigIt, providedVal, detail) {
         trigIt = trigIt || trig
         if (!inDebounce) {
-          if (!isSig && prevent) detail?.preventDefault?.()
+          if (!isSig && preventMod) detail?.preventDefault?.()
           if (deb > 0) {
             onDebounce ??= function () {
               inDebounce = true
@@ -894,7 +895,7 @@
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(dm, el, trigIt, trigVal, filteredDetail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (once && !always && remove) remove() // ^always keeps handler even when ^once is set
+        if (onceMod && !alwaysMod && remove) remove() // ^always keeps handler even when ^once is set
       }
       return h
     }
