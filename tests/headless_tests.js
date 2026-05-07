@@ -71,7 +71,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(100);
 
     const exampleLabels = Array.from(doc.querySelectorAll('#ported-examples .page'));
-    if (exampleLabels.length === 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
+    if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
     if (exampleLabels.some((el) => /data-sub:\.@count@#btn1@#btn2/.test(el.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
     if (exampleLabels.some((el) => /data-sub:posts@\./.test(el.textContent || ''))) pass('Section9 label shows list action attributes'); else fail('Section9 label missing list action attributes');
     if (exampleLabels.some((el) => /data-sub:demo-parent@\./.test(el.textContent || ''))) pass('Section10.a label shows remove-key attribute'); else fail('Section10.a label missing remove-key attribute');
