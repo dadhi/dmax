@@ -6,7 +6,7 @@ const dmaxPath = path.join(__dirname, '..', 'dmax.js');
 const limitsPath = path.join(__dirname, 'dmax.size.limits.json');
 const source = fs.readFileSync(dmaxPath, 'utf8');
 const lineParts = source.split(/\r?\n/);
-if (lineParts.at(-1) === '') lineParts.pop(); // keep real blank lines, ignore split's trailing empty item
+if (lineParts[lineParts.length - 1] === '') lineParts.pop(); // keep real blank lines, ignore split's trailing empty item
 const lines = lineParts.length;
 const bytes = Buffer.byteLength(source, 'utf8');
 const limits = Object.freeze(JSON.parse(fs.readFileSync(limitsPath, 'utf8')));
