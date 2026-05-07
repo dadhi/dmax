@@ -680,10 +680,8 @@
     }
     function addTrigSub(el, trig, mods, fn, elSubs, tarEl, evName, propPath) {
       if (trig.kind === SIGNAL) {
-        let subFn = null
-        const remove = () => removeSigSub(trig.root, subFn)
-        subFn = applyTrigMods(fn, trig, mods, remove)
-        const sub = { el, trig, fn: subFn, changeMod: getSigChangeShape(mods), remove }
+        const sub = { el, trig, fn: null, changeMod: getSigChangeShape(mods), remove: () => removeSigSub(trig.root, sub.fn) }
+        sub.fn = applyTrigMods(fn, trig, mods, sub.remove)
         ensureSigSubs(trig.root).push(sub)
         const boundSubs = elSubs || ensureBoundSubs(el)
         boundSubs.push(sub)
@@ -852,12 +850,12 @@
     function applyTrigMods(fn, trig, mods, remove) {
       const isSig = trig.kind === SIGNAL
       const isTimer = trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
-      let once = false, always = false, prv = false
+      let once = false, always = false, prevent = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
         if (m.root === MOD_ONCE) once = true
         else if (m.root === MOD_ALWAYS) always = true
-        else if (m.root === MOD_PREVENT) prv = true
+        else if (m.root === MOD_PREVENT) prevent = true
         else if (!isTimer && m.root === MOD_DEBOUNCE) deb = +(resolveModPathVal(m.path) ?? MOD_DEBOUNCE_MS) || MOD_DEBOUNCE_MS
         else if (!isTimer && m.root === MOD_THROTTLE) thr = +(resolveModPathVal(m.path) ?? MOD_THROTTLE_MS) || MOD_THROTTLE_MS
         else if (m.root in PERMIT_MODS) {
@@ -874,7 +872,7 @@
       const h = function (dm, el, trigIt, providedVal, detail) {
         trigIt = trigIt || trig
         if (!inDebounce) {
-          if (!isSig && prv) detail?.preventDefault?.()
+          if (!isSig && prevent) detail?.preventDefault?.()
           if (deb > 0) {
             onDebounce ??= function () {
               inDebounce = true
