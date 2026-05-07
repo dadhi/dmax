@@ -71,7 +71,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(100);
 
     // Section 1: data-sync
-    const nameInput = findByAttr('input', 'data-sync:user.name');
+    const nameInput = findByAttr('input', 'data-sub:user.name@.input');
     const nameOut = findByAttr('strong', 'data-sync:user.name');
     const sigToProp = doc.getElementById('sigToProp');
     if (!nameInput || !nameOut || !sigToProp) fail('Section1 elements missing');
@@ -89,12 +89,12 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const elToSig = doc.getElementById('elToSig');
     if (elToSig) {
       elToSig.value = 'ElToSigTest';
-      fire(elToSig, 'change');
+      fire(elToSig, 'input');
       await sleep(60);
       if (readState().user?.name === 'ElToSigTest') pass('data-sync element->signal updates signal'); else fail('data-sync element->signal did not update');
       const orig = elToSig.value;
       nameInput.value = 'FromSignal';
-      fire(nameInput, 'change');
+      fire(nameInput, 'input');
       await sleep(60);
       if (elToSig.value === orig) pass('data-sync element->signal is one-way (signal changes do not affect element)'); else fail('data-sync element->signal unexpectedly updated from signal');
     }
@@ -102,11 +102,12 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const twoWay = doc.getElementById('twoWay');
     if (twoWay) {
       twoWay.value = 'TwoWayTest';
-      fire(twoWay, 'change');
+      fire(twoWay, 'input');
       await sleep(60);
       if (readState().user?.name === 'TwoWayTest') pass('data-sync two-way writes to signal'); else fail('data-sync two-way did not write to signal');
-      nameInput.value = 'TwoWayFromSignal';
-      fire(nameInput, 'change');
+      const signalWriter = elToSig || nameInput;
+      signalWriter.value = 'TwoWayFromSignal';
+      fire(signalWriter, 'input');
       await sleep(60);
       if (twoWay.value === 'TwoWayFromSignal') pass('data-sync two-way reflects signal -> element'); else fail('data-sync two-way did not reflect signal->element');
     }
@@ -225,12 +226,12 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
 
     // Section 7: default props + events
     const inp1 = doc.getElementById('inp1');
-    const inp1Preview = findByAttr('span', 'data-sub:.@#inp1');
+    const inp1Preview = findByAttr('span', 'data-sub:.@#inp1.input');
     const btn3 = doc.getElementById('btn3');
     const btn3Preview = findByAttr('span', 'data-sub:.@#btn3');
     if (!inp1 || !inp1Preview || !btn3 || !btn3Preview) fail('Section7 elements missing');
     inp1.value = 'abc';
-    fire(inp1, 'change');
+    fire(inp1, 'input');
     await sleep(60);
     if (inp1Preview.textContent.includes('abc')) pass('Section7 inp1 sync'); else fail('Section7 inp1 failed');
     fire(btn3, 'click');
