@@ -89,7 +89,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     };
     if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
     if (labelCodes.length >= 40) pass('Ported examples render dmax-driven code labels'); else fail('Ported examples missing dmax-driven code labels');
-    if (labelCodes.every((node) => (node.textContent || '').trim() === expectedLabelText(node))) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
+    if (labelCodes.every((node) => (node.textContent || '').trim() === (expectedLabelText(node) || '').trim())) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
     if (labelCodes.some((node) => /data-sub:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
     // Section 1: data-sync
