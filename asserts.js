@@ -250,6 +250,28 @@
     __assert(valChangedDeep, [{ foo: 1, bar: [{ baz: [42] }] }, { foo: 1, bar: [{ baz: [42] }] }], false, 'complex objects')
     __assert(valChangedDeep, [[1, 5, 6, 7], [5, 6, 7, 8]], true, 'flat diff arrays')
     __assert(valChangedDeep, [[5, 6, 7, 8], [5, 6, 7, 8]], false, 'flat equal arrays')
+    __assert((val) => {
+      const el = document.createElement('div')
+      applyClassValue([{ root: 'isActive', not: null }, { root: 'isInactive', not: true }], el, val)
+      return { active: el.classList.contains('is-active'), inactive: el.classList.contains('is-inactive') }
+    }, [true], { active: true, inactive: false }, 'class helper toggles truthy state')
+    __assert((val) => {
+      const el = document.createElement('div')
+      applyClassValue([{ root: 'isActive', not: null }, { root: 'isInactive', not: true }], el, val)
+      return { active: el.classList.contains('is-active'), inactive: el.classList.contains('is-inactive') }
+    }, [false], { active: false, inactive: true }, 'class helper toggles falsy state')
+    __assert((val) => {
+      const el = document.createElement('div')
+      el.style.display = 'flex'
+      applyDisplayValue(el, true, 'flex', val)
+      return el.style.display
+    }, [false], 'none', 'display helper hides on false')
+    __assert(() => {
+      const el = document.createElement('div')
+      el.style.display = 'none'
+      applyDisplayValue(el, true, 'flex', true)
+      return el.style.display
+    }, [], 'flex', 'display helper restores inline display on true')
     __assert(setProp, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV_PROP, not: null, root: "", path: null }, 'Seaman!'],
       'Seaman!', 'default prop')
     __assert(setProp, [null, 'data-eval:#foo.', { kind: EV_PROP, not: null, root: 'foo', path: null }, 'Seaman!'],
