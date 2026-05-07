@@ -2,7 +2,7 @@
     // Returns the index of the first found char (from chars) in the s, or -1 if none found,
     // then you can check s[returnedIndex] to see which char it is.
 
-    var indexFirst = (s, chars, pos = 0) => {
+    const indexFirst = (s, chars, pos = 0) => {
       let i, first = s.length
       for (let c of chars) if ((i = s.indexOf(c, pos)) != -1 && i < first) first = i
       return first === s.length ? -1 : first
@@ -10,7 +10,7 @@
 
     const EMPTY_ARR = Object.freeze([])
     const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
-    var kebabToCamel = (s) => {
+    const kebabToCamel = (s) => {
       if (!s) return s
       let p = s.indexOf('-')
       if (p < 0) return s
@@ -27,7 +27,7 @@
       return res
     }
 
-    var camelToKebab = (s) => {
+    const camelToKebab = (s) => {
       if (!s) return s
       let res = KEBAB_NAMES.get(s)
       if (res) return res
@@ -87,8 +87,7 @@
     const SPEC_TIMEOUT_MS = 500
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
-    const DUMP_STATES = new WeakMap()
-    const DUMP_ATTRS = new WeakMap()
+    const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
 
     var isSpecial = (n) => {
       if (n.startsWith(SPECIAL)) for (const s of SPECIALS) { if (n.startsWith(s, 1)) return true }
@@ -274,10 +273,9 @@
       return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent'
     }
 
-    var getDefaultEvent = (el) => {
-      if (!el) return 'click'
-      let n = el.tagName
-      return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
+    const getDefaultEvent = (el) => {
+      const n = el?.tagName
+      return !n ? 'click' : n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
     }
 
     var getElPropVal = (el, propPath) => {
@@ -287,9 +285,7 @@
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
-    var isDefaultPropName = (el, prop) => {
-      return prop === getDefaultProp(el) || prop === 'value' || prop === 'checked' || prop === 'textContent'
-    }
+    const isDefaultPropName = (el, prop) => prop === getDefaultProp(el) || prop === 'value' || prop === 'checked' || prop === 'textContent'
 
     var mkEv = (nam) => {
       try { return new Event(nam, { bubbles: true }) }
@@ -300,7 +296,7 @@
       }
     }
 
-    var isNil = (v) => { return v === null || v === undefined }
+    const isNil = (v) => v === null || v === undefined
 
     var getPropValAndDepth = (obj, path, depth = -1) => {
       let v = obj
@@ -355,7 +351,7 @@
 
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
 
-    var applyClassValue = (adds, tarEl, val) => {
+    const applyClassValue = (adds, tarEl, val) => {
       for (let i=0;i<adds.length;++i) {
         const add=adds[i], name=camelToKebab(add.root)
         if (add.not ? !val : !!val) tarEl.classList.add(name)
@@ -363,10 +359,11 @@
       }
     }
 
-    var applyDisplayValue = (tarEl, hadInline, origDisp, val) => {
-      if (!val){tarEl.style.display='none';return}
+    const applyDisplayValue = (tarEl, hadInline, origDisp, val) => {
+      const d = tarEl.style.display
+      if (!val){if (d !== 'none') tarEl.style.display='none';return}
       if (hadInline) tarEl.style.display=origDisp
-      else if (getComputedDisplay(tarEl) === 'none') tarEl.style.display=origDisp
+      else if (d === 'none' || getComputedDisplay(tarEl) === 'none') tarEl.style.display=origDisp
       else tarEl.style.removeProperty('display')
     }
 
@@ -1720,18 +1717,9 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
-    const SSE_EV_PATCH_ELS = 'dmax-patch-elements'
-    const SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
-    const SSE_DATA_PATCH_ELS = 'dmaxElements'
-    const SSE_DATA_PATCH_SIGS = 'dmaxSignals'
-    const PATCH_MODE_OUTER = 'outer'
-    const PATCH_MODE_INNER = 'inner'
-    const PATCH_MODE_REPLACE = 'replace'
-    const PATCH_MODE_PREPEND = 'prepend'
-    const PATCH_MODE_APPEND = 'append'
-    const PATCH_MODE_BEFORE = 'before'
-    const PATCH_MODE_AFTER = 'after'
-    const PATCH_MODE_REMOVE = 'remove'
+    const SSE_EV_PATCH_ELS = 'dmax-patch-elements', SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
+    const SSE_DATA_PATCH_ELS = 'dmaxElements', SSE_DATA_PATCH_SIGS = 'dmaxSignals'
+    const PATCH_MODE_OUTER = 'outer', PATCH_MODE_INNER = 'inner', PATCH_MODE_REPLACE = 'replace', PATCH_MODE_PREPEND = 'prepend', PATCH_MODE_APPEND = 'append', PATCH_MODE_BEFORE = 'before', PATCH_MODE_AFTER = 'after', PATCH_MODE_REMOVE = 'remove'
 
     var parseSseEls = (html, ns) => {
       if (!html) return []
@@ -1970,14 +1958,14 @@
       return applied
     }
 
-    var applyDmaxPatchElements = (args) => { return applyPatchEls(args) }
-    var applyDmaxPatchSigs = (aName, args) => { return applyPatchSigs(aName, args) }
-    var applyDmaxSse = (raw, aName) => { return applySse(raw, aName) }
-    var consumeDmaxSseStream = async (body, aName, onOpen, onClose) => { return consumeSseStream(body, aName, onOpen, onClose) }
+    var applyDmaxPatchElements = applyPatchEls
+    var applyDmaxPatchSigs = applyPatchSigs
+    var applyDmaxSse = applySse
+    var consumeDmaxSseStream = consumeSseStream
 
     // Detach listeners and signal subscriptions for a removed subtree.
     var cleanupBoundSubsDeep = (rootNode) => {
-      if (!rootNode || rootNode.nodeType !== ELEMENT_NODE) { return }
+      if (!rootNode || rootNode.nodeType !== ELEMENT_NODE) return
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
