@@ -358,8 +358,7 @@
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
       const trig = { kind: EV_PROP, root: '', path: null, not: null }
-      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
-      h.remove = () => ++r
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }], () => ++r)
       h(DM, null, trig, null, ev)
       return { p, r, c }
     }

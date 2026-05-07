@@ -661,23 +661,12 @@
       return elSubs
     }
     const PASSIVE_LISTENER_OPTS = Object.freeze({ passive: true })
+    const ELEMENT_NODE = 1
     function invokeSub(fn, detail, trigVal, el, trig) { fn(DM, el, trig, trig.kind === SIGNAL ? getSigValOrIt(trig) : trigVal, detail) }
     function invokeBoundSub(sub, detail) { sub.fn(DM, sub.el, sub.trig, getSigValOrIt(sub.trig), detail) }
     function getListenerOpts(mods) {
       for (let i = 0; i < mods.length; ++i) if (mods[i].root === MOD_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
-    }
-    function getTimerTrigMods(mods) {
-      let filtered = null
-      for (let i = 0; i < mods.length; ++i) {
-        const m = mods[i]
-        if (m.root === MOD_DEBOUNCE || m.root === MOD_THROTTLE) {
-          if (!filtered) filtered = mods.slice(0, i)
-          continue
-        }
-        if (filtered) filtered.push(m)
-      }
-      return filtered || mods
     }
     function onIntervalSub(state) {
       const detail = { tick: state.tick, ms: state.ms, type: SPEC_INTERVAL }
@@ -691,39 +680,40 @@
     }
     function addTrigSub(el, trig, mods, fn, elSubs, tarEl, evName, propPath) {
       if (trig.kind === SIGNAL) {
-        const subFn = applyTrigMods(fn, trig, mods)
-        const sub = { el, trig, fn: subFn, changeMod: getSigChangeShape(mods), remove: () => removeSigSub(trig.root, subFn) }
-        if (subFn !== fn) subFn.remove = sub.remove
+        let subFn = null
+        const remove = () => removeSigSub(trig.root, subFn)
+        subFn = applyTrigMods(fn, trig, mods, remove)
+        const sub = { el, trig, fn: subFn, changeMod: getSigChangeShape(mods), remove }
         ensureSigSubs(trig.root).push(sub)
-        ;(elSubs || ensureBoundSubs(el)).push(sub)
+        const boundSubs = elSubs || ensureBoundSubs(el)
+        boundSubs.push(sub)
         return sub
       }
       if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
         const ms = parseInt(evName) || (trig.root === SPEC_INTERVAL ? SPEC_INTERVAL_MS : SPEC_TIMEOUT_MS)
-        const modded = applyTrigMods(fn, trig, getTimerTrigMods(mods))
+        let remove = null
+        const modded = applyTrigMods(fn, trig, mods, () => remove && remove())
         if (trig.root === SPEC_INTERVAL) {
           const state = { fn: modded, el, trig, ms, tick: 0 }
           const id = setInterval(onIntervalSub, ms, state)
-          const remove = () => clearInterval(id)
-          modded.remove = remove
+          remove = () => clearInterval(id)
           elSubs.push({ type: 'interval', id, remove })
         } else {
           const state = { fn: modded, el, trig, ms }
           const id = setTimeout(onTimeoutSub, ms, state)
-          const remove = () => clearTimeout(id)
-          modded.remove = remove
+          remove = () => clearTimeout(id)
           elSubs.push({ type: 'timeout', id, remove })
         }
         return modded
       }
-      const modded = applyTrigMods(fn, trig, mods)
+      let remove = null
+      const modded = applyTrigMods(fn, trig, mods, () => remove && remove())
       const listener = (detail) => {
         const trigVal = trig.kind === SPECIAL ? detail?.type ?? null : getElPropVal(tarEl, propPath)
         invokeSub(modded, detail, trigVal, el, trig)
       }
       const opts = getListenerOpts(mods)
-      const remove = () => tarEl.removeEventListener(evName, listener, opts)
-      modded.remove = listener.remove = remove
+      remove = () => tarEl.removeEventListener(evName, listener, opts)
       tarEl.addEventListener(evName, listener, opts)
       elSubs.push({ type: 'event', tarEl, evName, handler: listener, remove })
       return modded
@@ -849,31 +839,33 @@
     }
 
     /**
-     * @typedef {((dm?: any, el?: any, trig?: any, trigVal?: any, detail?: any) => void) & { remove?: (() => void) | undefined }} TriggerHandler
+     * @typedef {(dm?: any, el?: any, trig?: any, trigVal?: any, detail?: any) => void} TriggerHandler
      */
 
     /**
      * @param {TriggerHandler} fn
      * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
      * @param {Array<{ root: string, path?: any }>} mods
+     * @param {(() => void) | undefined} [remove]
      * @returns {TriggerHandler}
      */
-    function applyTrigMods(fn, trig, mods) {
+    function applyTrigMods(fn, trig, mods, remove) {
       const isSig = trig.kind === SIGNAL
-      let one = false, always = false, prv = false
+      const isTimer = trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
+      let once = false, always = false, prv = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
-        if (m.root === MOD_ONCE) one = true
+        if (m.root === MOD_ONCE) once = true
         else if (m.root === MOD_ALWAYS) always = true
         else if (m.root === MOD_PREVENT) prv = true
-        else if (m.root === MOD_DEBOUNCE) deb = +(resolveModPathVal(m.path) ?? MOD_DEBOUNCE_MS) || MOD_DEBOUNCE_MS
-        else if (m.root === MOD_THROTTLE) thr = +(resolveModPathVal(m.path) ?? MOD_THROTTLE_MS) || MOD_THROTTLE_MS
+        else if (!isTimer && m.root === MOD_DEBOUNCE) deb = +(resolveModPathVal(m.path) ?? MOD_DEBOUNCE_MS) || MOD_DEBOUNCE_MS
+        else if (!isTimer && m.root === MOD_THROTTLE) thr = +(resolveModPathVal(m.path) ?? MOD_THROTTLE_MS) || MOD_THROTTLE_MS
         else if (m.root in PERMIT_MODS) {
           if (!permitMods) permitMods = []
           permitMods.push(m)
         }
       }
-      const hasSigMods = one || deb > 0 || thr > 0 || !!permitMods || !!trig.not
+      const hasSigMods = once || deb > 0 || thr > 0 || !!permitMods || !!trig.not
       if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debTrig = null, debVal = null, debDetail = null
@@ -904,7 +896,7 @@
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(dm, el, trigIt, trigVal, filteredDetail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (one && !always && h.remove) h.remove() // ^always keeps handler even when ^once is set
+        if (once && !always && remove) remove() // ^always keeps handler even when ^once is set
       }
       return h
     }
@@ -1525,14 +1517,14 @@
     // Return true when two nodes can be morphed in place.
     function sameKind(a, b) {
       if (a.nodeType !== b.nodeType) return false
-      if (a.nodeType !== 1 /*ELEMENT*/) return true
+      if (a.nodeType !== ELEMENT_NODE) return true
       if (a.id && b.id) return a.id === b.id
       return a.tagName === b.tagName
     }
 
     function sameSlot(a, b) {
       if (a.nodeType !== b.nodeType) return false
-      if (a.nodeType !== 1 /*ELEMENT*/) return true
+      if (a.nodeType !== ELEMENT_NODE) return true
       if (a.id || b.id) return a.id === b.id
       return a.tagName === b.tagName
     }
@@ -1633,18 +1625,18 @@
       // Map remaining keyed children by id.
       const idMap = new Map()
       for (let n = cur; n; n = n.nextSibling)
-        if (n.nodeType === 1 && n.id) idMap.set(n.id, n)
+        if (n.nodeType === ELEMENT_NODE && n.id) idMap.set(n.id, n)
 
       for (; toChild; toChild = toChild.nextSibling) {
         let match = null
 
-        if (toChild.nodeType === 1 && toChild.id && idMap.has(toChild.id)) {
+        if (toChild.nodeType === ELEMENT_NODE && toChild.id && idMap.has(toChild.id)) {
           // Reuse keyed nodes by id even if they moved.
           match = idMap.get(toChild.id)
           idMap.delete(toChild.id)
         } else {
           // Skip keyed nodes still waiting for their own id match.
-          while (cur && cur.nodeType === 1 && cur.id && idMap.has(cur.id))
+          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap.has(cur.id))
             cur = cur.nextSibling
           if (cur && sameKind(cur, toChild)) {
             match = cur
@@ -1683,7 +1675,7 @@
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
         return
       }
-      if (from.nodeType !== 1 || to.nodeType !== 1) return
+      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE) return
       if (from.tagName !== to.tagName) {
         // Different element type, so replace it.
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
@@ -1999,7 +1991,7 @@
 
     // Detach listeners and signal subscriptions for a removed subtree.
     function cleanupBoundSubsDeep(rootNode) {
-      if (!rootNode || rootNode.nodeType !== 1) { return }
+      if (!rootNode || rootNode.nodeType !== ELEMENT_NODE) { return }
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
