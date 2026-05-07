@@ -198,11 +198,15 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     pageLogs.length = 0;
     fire(btn1, 'click');
     await sleep(120);
-    if (pageLogs.some(l => /Triggered!/.test(l)) && /Button 1/.test(multiDisplay.textContent)) pass('Section4 btn1 visibly updates and triggers side-effect'); else fail('Section4 btn1 did not visibly trigger');
+    const btn1Logged = pageLogs.some((l) => /Triggered!/.test(l));
+    const btn1Visible = /Button 1/.test(multiDisplay.textContent);
+    if (btn1Logged && btn1Visible) pass('Section4 btn1 visibly updates and triggers side-effect'); else fail('Section4 btn1 did not visibly trigger');
     pageLogs.length = 0;
     fire(btn2, 'click');
     await sleep(120);
-    if (pageLogs.some(l => /Triggered!/.test(l)) && /Button 2/.test(multiDisplay.textContent)) pass('Section4 btn2 visibly updates and triggers side-effect'); else fail('Section4 btn2 did not visibly trigger');
+    const btn2Logged = pageLogs.some((l) => /Triggered!/.test(l));
+    const btn2Visible = /Button 2/.test(multiDisplay.textContent);
+    if (btn2Logged && btn2Visible) pass('Section4 btn2 visibly updates and triggers side-effect'); else fail('Section4 btn2 did not visibly trigger');
 
     // Section 5: cross-element property sync
     const src = doc.getElementById('src');
@@ -268,7 +272,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const iterUl = findByAttr('ul', 'data-dump+#tpl-post@posts');
     const inlineUl = doc.getElementById('inline-posts');
     if (!iterUl || !inlineUl) fail('Section9 data-dump elements missing');
-    const hasZebraClasses = (nodes) => nodes.every((node, idx) =>
+    const hasZebraClasses = (nodes) => nodes.length > 0 && nodes.every((node, idx) =>
       node.classList.contains(idx % 2 === 0 ? 'zebra-even' : 'zebra-odd')
     );
     await sleep(80);

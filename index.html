@@ -141,7 +141,7 @@
       <h4>4. Side Effects &amp; Multiple Triggers</h4>
       <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
       <p><span data-sub:.@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
-      <p><strong data-sub:.@count@#btn1.click@#btn2.click="(trig && trig.root === 'btn1' ? 'Button 1' : trig && trig.root === 'btn2' ? 'Button 2' : 'count') + ' → ' + dm.count"></strong></p>
+      <p><strong data-sub:.@count@#btn1.click@#btn2.click="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
       <input id="src" placeholder="Type here..." data-sync@message data-sub:message@.input="val">
       <p data-sub:.@#src.input="document.getElementById('src').value"></p>
