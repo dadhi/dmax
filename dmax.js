@@ -645,20 +645,29 @@
     const _subs = new Map()
     const _debugEls = new Set()
     let _debugQueued = false
-    function ensureSigSubs(root) {
-      let subs = _subs.get(root)
-      if (!subs) _subs.set(root, subs = [])
-      return subs
+    function ensureMapList(map, key) {
+      let list = map.get(key)
+      if (!list) map.set(key, list = [])
+      return list
     }
+    function ensureSigSubs(root) { return ensureMapList(_subs, root) }
     function removeSigSub(sub) {
       const subs = _subs.get(sub.trig.root)
       if (!subs || !subs.length) return
       for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
-    function ensureBoundSubs(el) {
-      let elSubs = _cleanupBoundSubs.get(el)
-      if (!elSubs) _cleanupBoundSubs.set(el, elSubs = [])
-      return elSubs
+    function ensureBoundSubs(el) { return ensureMapList(_cleanupBoundSubs, el) }
+    function removeSubOrClearId(sub) {
+      try {
+        const ev = sub.ev
+        if (ev) ev.tarEl.removeEventListener(ev.evName, sub.fn, ev.opts)
+        else if (sub.clearId != null) {
+          if (sub.trig.root === SPEC_INTERVAL) clearInterval(sub.clearId)
+          else clearTimeout(sub.clearId)
+          sub.clearId = null
+        } else removeSigSub(sub)
+      } catch (_) {
+      }
     }
     const PASSIVE_LISTENER_OPTS = Object.freeze({ passive: true })
     const ELEMENT_NODE = 1
@@ -671,18 +680,17 @@
     function onIntervalSub(state) {
       const detail = { tick: state.tick, ms: state.ms, type: SPEC_INTERVAL }
       state.tick++
-      try { invokeSub(state.fn, detail, state.ms, state.el, state.trig) }
+      try { invokeSub(state.sub.fn, detail, state.ms, state.sub.el, state.sub.trig) }
       catch (e) { console.error(`[dmax] Error: interval handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
     function onTimeoutSub(state) {
-      try { invokeSub(state.fn, { tick: 0, ms: state.ms, type: SPEC_TIMEOUT }, state.ms, state.el, state.trig) }
+      try { invokeSub(state.sub.fn, { tick: 0, ms: state.ms, type: SPEC_TIMEOUT }, state.ms, state.sub.el, state.sub.trig) }
       catch (e) { console.error(`[dmax] Error: timeout handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
     function addTrigSub(el, trig, mods, fn, elSubs, tarEl, evName, propPath) {
       if (trig.kind === SIGNAL) {
-        const sub = { el, trig, fn, changeMod: getSigChangeShape(mods), remove: null }
-        sub.remove = () => removeSigSub(sub)
-        sub.fn = applyTrigMods(fn, trig, mods, sub.remove)
+        const sub = { el, trig, fn, sigChangeMod: getSigChangeShape(mods), ev: null, clearId: null }
+        sub.fn = applyTrigMods(fn, trig, mods, sub)
         ensureSigSubs(trig.root).push(sub)
         const boundSubs = elSubs || ensureBoundSubs(el)
         boundSubs.push(sub)
@@ -690,31 +698,27 @@
       }
       if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
         const ms = parseInt(evName) || (trig.root === SPEC_INTERVAL ? SPEC_INTERVAL_MS : SPEC_TIMEOUT_MS)
-        let remove = null
-        const modded = applyTrigMods(fn, trig, mods, () => remove && remove())
+        const sub = { el, trig, fn: null, sigChangeMod: null, ev: null, clearId: null }
+        sub.fn = applyTrigMods(fn, trig, mods, sub)
         if (trig.root === SPEC_INTERVAL) {
-          const state = { fn: modded, el, trig, ms, tick: 0 }
-          const id = setInterval(onIntervalSub, ms, state)
-          remove = () => clearInterval(id)
-          elSubs.push({ type: 'interval', id, remove })
+          const state = { sub, ms, tick: 0 }
+          sub.clearId = setInterval(onIntervalSub, ms, state)
         } else {
-          const state = { fn: modded, el, trig, ms }
-          const id = setTimeout(onTimeoutSub, ms, state)
-          remove = () => clearTimeout(id)
-          elSubs.push({ type: 'timeout', id, remove })
+          const state = { sub, ms }
+          sub.clearId = setTimeout(onTimeoutSub, ms, state)
         }
-        return modded
+        elSubs.push(sub)
+        return sub.fn
       }
-      let remove = null
-      const modded = applyTrigMods(fn, trig, mods, () => remove && remove())
-      const listener = (detail) => {
+      const opts = getListenerOpts(mods)
+      const sub = { el, trig, fn: null, sigChangeMod: null, ev: { tarEl, evName, opts }, clearId: null }
+      const modded = applyTrigMods(fn, trig, mods, sub)
+      sub.fn = (detail) => {
         const trigVal = trig.kind === SPECIAL ? detail?.type ?? null : getElPropVal(tarEl, propPath)
         invokeSub(modded, detail, trigVal, el, trig)
       }
-      const opts = getListenerOpts(mods)
-      remove = () => tarEl.removeEventListener(evName, listener, opts)
-      tarEl.addEventListener(evName, listener, opts)
-      elSubs.push({ type: 'event', tarEl, evName, handler: listener, remove })
+      tarEl.addEventListener(evName, sub.fn, opts)
+      elSubs.push(sub)
       return modded
     }
     function findFirstKind(items, kind) {
@@ -761,7 +765,7 @@
       // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
       let collected = [], diffed = false, diff = null, pathDiffs = []
       for (const h of handlers) {
-        const hp = h.trig.path, changeMod = h.changeMod
+        const hp = h.trig.path, changeMod = h.sigChangeMod
         if (!hp) {
           if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
             diffed = true
@@ -822,7 +826,7 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        invokeBoundSub(h, h.changeMod === SIG_CHANGED_ANY ? null : col[1])
+        invokeBoundSub(h, h.sigChangeMod === SIG_CHANGED_ANY ? null : col[1])
       }
 
       updateDebug()
@@ -845,10 +849,10 @@
      * @param {TriggerHandler} fn
      * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
      * @param {Array<{ root: string, path?: any }>} mods
-     * @param {(() => void) | undefined} [remove]
+     * @param {{ el?: any, trig: any, fn?: any, sigChangeMod?: any, ev?: { tarEl: EventTarget, evName: string, opts: any } | null, clearId?: any } | undefined} [removeSub]
      * @returns {TriggerHandler}
      */
-    function applyTrigMods(fn, trig, mods, remove) {
+    function applyTrigMods(fn, trig, mods, removeSub) {
       const isSig = trig.kind === SIGNAL
       const isTimer = trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
       let hasOnce = false, hasAlways = false, hasPrevent = false
@@ -895,7 +899,7 @@
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(dm, el, trigIt, trigVal, filteredDetail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
-        if (hasOnce && !hasAlways && remove) remove() // ^always keeps handler even when ^once is set
+        if (hasOnce && !hasAlways && removeSub) removeSubOrClearId(removeSub) // ^always keeps handler even when ^once is set
       }
       return h
     }
@@ -1996,9 +2000,7 @@
         const node = stack.pop()
         const boundSubs = _cleanupBoundSubs.get(node)
         if (boundSubs) {
-          for (const l of boundSubs) {
-            if (l.remove) l.remove()
-          }
+          for (const sub of boundSubs) removeSubOrClearId(sub)
           _cleanupBoundSubs.delete(node)
         }
         const children = node.children
