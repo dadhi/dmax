@@ -83,7 +83,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const expectedLabelText = (node) => {
       const attrName = node.getAttribute('data-attr-name');
       const target = resolveLabelTarget(node);
-      if (!attrName || !target) return null;
+      if (!attrName || !target) return '';
       const value = target.getAttribute(attrName);
       return value == null || value === '' ? attrName : `${attrName}="${value}"`;
     };
