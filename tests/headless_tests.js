@@ -384,8 +384,17 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const demoAddKey = doc.getElementById('demoAddKey');
     const demoRemoveKey = doc.getElementById('demoRemoveKey');
     const missingShapeEls = [
-      ['contentSub', contentSub], ['shapeSub', shapeSub], ['chgChild', chgChild], ['addKey', addKey], ['removeKey', removeKey],
-      ['demoState', demoState], ['demoContent', demoContent], ['demoShape', demoShape], ['demoChangeChild', demoChangeChild], ['demoAddKey', demoAddKey], ['demoRemoveKey', demoRemoveKey]
+      ['contentSub', contentSub],
+      ['shapeSub', shapeSub],
+      ['chgChild', chgChild],
+      ['addKey', addKey],
+      ['removeKey', removeKey],
+      ['demoState', demoState],
+      ['demoContent', demoContent],
+      ['demoShape', demoShape],
+      ['demoChangeChild', demoChangeChild],
+      ['demoAddKey', demoAddKey],
+      ['demoRemoveKey', demoRemoveKey]
     ].filter(([, el]) => !el).map(([name]) => name);
     if (missingShapeEls.length) fail('Section10.a content/shape elements missing: ' + missingShapeEls.join(', '));
 
@@ -418,7 +427,9 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await sleep(80);
     if (/removed:[^\n]*addedAt/.test(demoShape.textContent)) pass('Section10.a demo shape subscriber shows shape removal detail'); else fail('Section10.a demo shape subscriber missing remove detail');
     if (demoContent.textContent.trim() === '2') pass('Section10.a demo remove key preserves remaining content'); else fail('Section10.a demo remove key cleared remaining content');
-    if (/"child": 2/.test(demoState.textContent) && !/addedAt/.test(demoState.textContent)) pass('Section10.a demo remove key only removes the requested property'); else fail('Section10.a demo remove key removed too much state');
+    const demoStateKeepsChild = /"child": 2/.test(demoState.textContent) && !/addedAt/.test(demoState.textContent);
+    if (demoStateKeepsChild) pass('Section10.a demo remove key only removes the requested property');
+    else fail('Section10.a demo remove key removed too much state');
 
     // Section 10.b: constant bracket indices
     const post0Title = doc.getElementById('post0Title');
