@@ -70,6 +70,28 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     await waitFor(() => /Tests \d+: Passed \d+, Failed 0/.test(doc.getElementById('summary')?.textContent || ''));
     await sleep(100);
 
+    const exampleLabels = Array.from(doc.querySelectorAll('#ported-examples .page'));
+    const labelCodes = Array.from(doc.querySelectorAll('#ported-examples code[data-attr-name]'));
+    const resolveLabelTarget = (node) => {
+      const id = node.getAttribute('data-attr-for');
+      if (id) return doc.getElementById(id);
+      const templateId = node.getAttribute('data-attr-template');
+      const selector = node.getAttribute('data-attr-selector') || '*';
+      const template = templateId ? doc.getElementById(templateId) : null;
+      return template?.content?.querySelector(selector) || null;
+    };
+    const expectedLabelText = (node) => {
+      const attrName = node.getAttribute('data-attr-name');
+      const target = resolveLabelTarget(node);
+      if (!attrName || !target) return '';
+      const value = target.getAttribute(attrName);
+      return value == null || value === '' ? attrName : `${attrName}="${value}"`;
+    };
+    if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
+    if (labelCodes.length >= 40) pass('Ported examples render dmax-driven code labels'); else fail('Ported examples missing dmax-driven code labels');
+    if (labelCodes.every((node) => (node.textContent || '').trim() === (expectedLabelText(node) || '').trim())) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
+    if (labelCodes.some((node) => /data-sub:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
+
     // Section 1: data-sync
     const nameInput = findByAttr('input', 'data-sub:user.name@.input');
     const nameOut = findByAttr('strong', 'data-sync:user.name');
@@ -193,13 +215,20 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     // Section 4: side effects + multi triggers
     const btn1 = doc.getElementById('btn1');
     const btn2 = doc.getElementById('btn2');
-    const multiDisplay = findByAttr('strong', 'data-sub:.@count@#btn1.click@#btn2.click');
+    const multiDisplay = findByAttr('strong', 'data-sub:.@count@#btn1@#btn2');
     if (!btn1 || !btn2 || !multiDisplay) fail('Section4 elements missing');
-    const prev = multiDisplay.textContent;
     pageLogs.length = 0;
     fire(btn1, 'click');
     await sleep(120);
-    if (pageLogs.some(l => /Triggered!/.test(l)) || multiDisplay.textContent !== prev) pass('Section4 btn1 triggers side-effect'); else fail('Section4 btn1 did not trigger');
+    const btn1Logged = pageLogs.some((l) => /Triggered!/.test(l));
+    const btn1Visible = /Button 1/.test(multiDisplay.textContent);
+    if (btn1Logged && btn1Visible) pass('Section4 btn1 visibly updates and triggers side-effect'); else fail('Section4 btn1 did not visibly trigger');
+    pageLogs.length = 0;
+    fire(btn2, 'click');
+    await sleep(120);
+    const btn2Logged = pageLogs.some((l) => /Triggered!/.test(l));
+    const btn2Visible = /Button 2/.test(multiDisplay.textContent);
+    if (btn2Logged && btn2Visible) pass('Section4 btn2 visibly updates and triggers side-effect'); else fail('Section4 btn2 did not visibly trigger');
 
     // Section 5: cross-element property sync
     const src = doc.getElementById('src');
@@ -265,14 +294,20 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const iterUl = findByAttr('ul', 'data-dump+#tpl-post@posts');
     const inlineUl = doc.getElementById('inline-posts');
     if (!iterUl || !inlineUl) fail('Section9 data-dump elements missing');
+    const hasZebraClasses = (nodes) => nodes.length > 0 && nodes.every((node, idx) =>
+      node.classList.contains(idx % 2 === 0 ? 'zebra-even' : 'zebra-odd')
+    );
     await sleep(80);
     const initialDumpCount = Array.from(iterUl.children).length;
     const initialInlineCount = Array.from(inlineUl.children).length;
     if (initialDumpCount === 3) pass('Section9 data-dump renders existing items immediately by default'); else fail('Section9 data-dump rendered wrong number');
     if (initialInlineCount === initialDumpCount) pass('Section9 inline data-dump matches primary list'); else fail('Section9 inline data-dump wrong');
+    if (!pageLogs.some((l) => /dClass requires at least one trigger in: data-class\+zebra-even\+!zebra-odd/.test(l))) pass('Section9 zebra classes wire without dClass errors'); else fail('Section9 zebra classes still log missing-trigger errors');
+    if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes render immediately'); else fail('Section9 zebra classes missing on initial render');
     fire(doc.getElementById('addPost'), 'click');
     await sleep(80);
     if (Array.from(iterUl.children).length > initialDumpCount && Array.from(inlineUl.children).length > initialInlineCount) pass('Section9 data-dump updates on append'); else fail('Section9 data-dump did not update on append');
+    if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes stay correct after append'); else fail('Section9 zebra classes wrong after append');
     const updateSecondPost = doc.getElementById('updateSecondPost');
     if (!updateSecondPost) fail('Section9 update-second action missing');
     const dumpNodesBeforeUpdate = Array.from(iterUl.children);
@@ -296,6 +331,12 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     else fail('Section9 data-dump item content update wrong');
     if (expectedUpdatedPosts.every((text, idx) => inlineItemTexts[idx] === text)) pass('Section9 inline data-dump updates only the changed item content');
     else fail('Section9 inline data-dump item content update wrong');
+    fire(doc.getElementById('removeFirst'), 'click');
+    await sleep(80);
+    if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes stay correct after removing first item'); else fail('Section9 zebra classes wrong after removing first item');
+    fire(doc.getElementById('removePost'), 'click');
+    await sleep(80);
+    if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes stay correct after removing last item'); else fail('Section9 zebra classes wrong after removing last item');
     const threadUl = doc.getElementById('thread-posts');
     const inlineThreads = doc.getElementById('inline-threads');
     const refreshThreads = doc.getElementById('refreshThreads');
@@ -358,14 +399,24 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const chgChild = doc.getElementById('chgChild');
     const addKey = doc.getElementById('addKey');
     const removeKey = doc.getElementById('removeKey');
+    const demoState = doc.getElementById('demoState');
     const demoContent = doc.getElementById('demoContent');
     const demoShape = doc.getElementById('demoShape');
     const demoChangeChild = doc.getElementById('demoChangeChild');
     const demoAddKey = doc.getElementById('demoAddKey');
     const demoRemoveKey = doc.getElementById('demoRemoveKey');
     const missingShapeEls = [
-      ['contentSub', contentSub], ['shapeSub', shapeSub], ['chgChild', chgChild], ['addKey', addKey], ['removeKey', removeKey],
-      ['demoContent', demoContent], ['demoShape', demoShape], ['demoChangeChild', demoChangeChild], ['demoAddKey', demoAddKey], ['demoRemoveKey', demoRemoveKey]
+      ['contentSub', contentSub],
+      ['shapeSub', shapeSub],
+      ['chgChild', chgChild],
+      ['addKey', addKey],
+      ['removeKey', removeKey],
+      ['demoState', demoState],
+      ['demoContent', demoContent],
+      ['demoShape', demoShape],
+      ['demoChangeChild', demoChangeChild],
+      ['demoAddKey', demoAddKey],
+      ['demoRemoveKey', demoRemoveKey]
     ].filter(([, el]) => !el).map(([name]) => name);
     if (missingShapeEls.length) fail('Section10.a content/shape elements missing: ' + missingShapeEls.join(', '));
 
@@ -384,6 +435,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     fire(removeKey, 'click');
     await sleep(80);
     if (window.__shapeCount === 2) pass('Section10.a shape removal notifies shape-only subscriber'); else fail('Section10.a shape-only subscriber missed shape removal');
+    if (readState().parent?.child === 2 && !('added' in (readState().parent || {}))) pass('Section10.a remove key preserves remaining parent content'); else fail('Section10.a remove key cleared more than the removed property');
 
     fire(demoChangeChild, 'click');
     await sleep(80);
@@ -396,6 +448,10 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     fire(demoRemoveKey, 'click');
     await sleep(80);
     if (/removed:[^\n]*addedAt/.test(demoShape.textContent)) pass('Section10.a demo shape subscriber shows shape removal detail'); else fail('Section10.a demo shape subscriber missing remove detail');
+    if (demoContent.textContent.trim() === '2') pass('Section10.a demo remove key preserves remaining content'); else fail('Section10.a demo remove key cleared remaining content');
+    const demoStateKeepsChild = /"child": 2/.test(demoState.textContent) && !/addedAt/.test(demoState.textContent);
+    if (demoStateKeepsChild) pass('Section10.a demo remove key only removes the requested property');
+    else fail('Section10.a demo remove key removed too much state');
 
     // Section 10.b: constant bracket indices
     const post0Title = doc.getElementById('post0Title');
