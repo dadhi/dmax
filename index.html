@@ -141,7 +141,7 @@
       <h4>4. Side Effects &amp; Multiple Triggers</h4>
       <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
       <p><span data-sub:.@count@#btn1.click@#btn2.click="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
-      <p><strong data-sub:.@count@#btn1.click@#btn2.click="dm.count + ' (updated)'"></strong></p>
+      <p><strong data-sub:.@count@#btn1.click@#btn2.click="(trig && trig.root === 'btn1' ? 'Button 1' : trig && trig.root === 'btn2' ? 'Button 2' : 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
       <input id="src" placeholder="Type here..." data-sync@message data-sub:message@.input="val">
       <p data-sub:.@#src.input="document.getElementById('src').value"></p>
@@ -160,14 +160,14 @@
       <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
       <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
       <h4>9. List Rendering (data-dump)</h4>
-      <template id="tpl-post">
-        <li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0">
+        <template id="tpl-post">
+          <li data-index="$index" data-class+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0">
           <span class="num" data-sub:.@posts="$index + 1"></span>
           <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
         </li>
       </template>
       <ul data-dump+#tpl-post@posts></ul>
-      <ul id="inline-posts" data-dump@posts><template><li data-index="$index" data-class+zebra-even+!zebra-odd="$index % 2 === 0"><span data-sub:.@posts="$index + 1"></span> <span data-sub:.@posts="dm.posts[$index]"></span></li></template></ul>
+        <ul id="inline-posts" data-dump@posts><template><li data-index="$index" data-class+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0"><span data-sub:.@posts="$index + 1"></span> <span data-sub:.@posts="dm.posts[$index]"></span></li></template></ul>
       <template id="tpl-thread">
         <li class="thread">
           <strong data-sub:.@threads="$item.title"></strong>
@@ -211,7 +211,7 @@
         <div style="margin-top:6px">
           <button id="demoChangeChild" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
           <button id="demoAddKey" data-sub:demo-parent@.click="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
-          <button id="demoRemoveKey" data-sub:demo-parent@.click="(function(){ const o = Object.assign({}, dm.demoParent || {}); delete o.addedAt; return o; })()">Remove key (shape)</button>
+          <button id="demoRemoveKey" data-sub:demo-parent@.click="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
           <div>Content subscriber: <span id="demoContent" data-sub:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
@@ -456,7 +456,7 @@
     <span id="shapeSub" data-sub:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
     <button id="chgChild" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { child: ((dm.parent && dm.parent.child) || 0) + 1 })">Change child</button>
     <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
-    <button id="removeKey" data-sub:parent@.click="(function(){ const o = Object.assign({}, dm.parent || {}); delete o.added; return o; })()">Remove key</button>
+    <button id="removeKey" data-sub:parent@.click="((o) => (delete o.added, o))(Object.assign({}, dm.parent || {}))">Remove key</button>
   </div>
   <script src="asserts.js"></script>
 
