@@ -212,8 +212,8 @@
 
     var compileFn = (aVal, aName, args = FN_ARGS) => {
       let val = '' + aVal
-      const r = val.indexOf('return')
-      let body = r != -1 && (r + 6 >= val.length || indexFirst(val, RETURN_THEN, r + 6) == r + 6) ? val : `return(${val})`
+      const returnPos=val.indexOf('return')
+      let body=returnPos!=-1 && (returnPos+6 >= val.length || indexFirst(val, RETURN_THEN, returnPos+6) == returnPos+6) ? val : `return(${val})`
       body = `try{ ${body} }catch(e){ console.error('[dmax] Error: eval ${aName} value as function:', e.message, '>>>', ${val}); return }`
       let fn;
       try { fn = Function(...args, body) }
@@ -363,10 +363,10 @@
       }
     }
 
-    var applyDisplayValue = (tarEl, hadInline, origDisplay, val) => {
-      if (!val) { tarEl.style.display = 'none'; return }
-      if (hadInline) tarEl.style.display = origDisplay
-      else if (getComputedDisplay(tarEl) === 'none') tarEl.style.display = origDisplay
+    var applyDisplayValue = (tarEl, hadInline, origDisp, val) => {
+      if (!val){tarEl.style.display='none';return}
+      if (hadInline) tarEl.style.display=origDisp
+      else if (getComputedDisplay(tarEl) === 'none') tarEl.style.display=origDisp
       else tarEl.style.removeProperty('display')
     }
 
@@ -1124,7 +1124,7 @@
       const inline = (tarEl.style && tarEl.style.display) || ''
       const hadInline = inline !== ''
       const computed = getComputedDisplay(tarEl)
-      const origDisplay = hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
+      const origDisp=hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
       const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
       const elSubs = ensureMapList(_cleanupBoundSubs, el)
@@ -1133,14 +1133,14 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          const sub = addTrigSub(el, trig, mods, (dm, sigEl, sigTrig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisplay, fn ? fn(dm, sigEl, sigTrig, trigVal, detail) : trigVal), elSubs)
+          const sub = addTrigSub(el, trig, mods, (dm, sigEl, sigTrig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisp, fn ? fn(dm, sigEl, sigTrig, trigVal, detail) : trigVal), elSubs)
           if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
-          const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisplay, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
+          const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
         }
       }
