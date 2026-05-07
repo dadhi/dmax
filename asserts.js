@@ -58,6 +58,16 @@
     const __sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
     const __signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
     const __signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
+    const __getBoundSubs = el => (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get) ? (_cleanupBoundSubs.get(el) || EMPTY_ARR) : EMPTY_ARR
+    const __getEventSub = el => {
+      const subs = __getBoundSubs(el)
+      return subs.find ? subs.find(x => x && x.ev && x.fn) : null
+    }
+    const __fireEventSub = (el, type) => {
+      const sub = __getEventSub(el)
+      if (sub?.fn) sub.fn({ type, detail: null, preventDefault() { } })
+      return sub
+    }
     __assert(indexFirst, ['abcdefg', ['x', 'y', 'z']], -1, 'none found');
     __assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
     __assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
@@ -262,11 +272,16 @@
     __assert(isJsonContentType, ['application/problem+json; charset=utf-8'], true, 'json content-type +json with semicolon')
     __assert(isJsonContentType, ['application/problem+json\tcharset=utf-8'], true, 'json content-type +json with tab separator')
     __assert(isJsonContentType, ['application/problem+jsonified'], false, 'json content-type +json boundary check')
+    function __sigTrig(root, path) { return { kind: SIGNAL, root, path, not: null } }
     // @TEST register sink subscriber
     function __reg(root, path, changeMod, sink) {
       let arr = _subs.get(root)
       if (!arr) _subs.set(root, arr = []);
-      arr.push({ fn: (d) => sink.push(d), changeMod, path });
+      arr.push({
+        fn: (_, __, ___, ____, detail) => sink.push(detail),
+        sigChangeMod: changeMod,
+        trig: __sigTrig(root, path)
+      });
     }
     function __reset() { _subs.clear(); _dm.clear() }
     function __tSetD() {
@@ -329,7 +344,8 @@
       __reset();
       _dm.set('a', 5)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: SIGNAL, root: 'a', path: null, not: null }, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
+      const trig = { kind: SIGNAL, root: 'a', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
       h()
       _dm.set('a', 6)
       h()
@@ -340,27 +356,31 @@
       __reset();
       _dm.set('gate', false)
       let c = 0
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_AND, path: 'gate' }])
-      h(null, null, 1)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_AND, path: 'gate' }])
+      h(DM, null, trig, null, 1)
       _dm.set('gate', true)
-      h(null, null, 2)
+      h(DM, null, trig, null, 2)
       return c
     }
     __assert(__tTrigModsAnd, [], 1, 'applyTrigMods: and gate');
     function __tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }])
-      h.remove = () => ++r
-      h(ev, null, null)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const sub = { trig, fn: null, ev: { tarEl: { removeEventListener: () => ++r }, evName: 'click', opts: false }, clearId: null }
+      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }], sub)
+      sub.fn = h
+      h(DM, null, trig, null, ev)
       return { p, r, c }
     }
     __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrigMods: prevent + once');
     function __tTrigModsValueFallback() {
       const out = []
-      const handler = applyTrigMods((_ev, trigVal, detail) => out.push({ trigVal, detail }), { kind: EV_PROP, root: '', path: null, not: null }, [])
-      handler({ detail: { value: 9 } }, null, null)
-      handler({ detail: { ms: 12 } }, null, null)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const handler = applyTrigMods((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
+      handler(DM, null, trig, null, { detail: { value: 9 } })
+      handler(DM, null, trig, null, { detail: { ms: 12 } })
       return out
     }
     __assert(__tTrigModsValueFallback, [], [{ trigVal: 9, detail: null }, { trigVal: 12, detail: null }], 'applyTrigMods: event detail fallback');
@@ -372,9 +392,10 @@
       clearTimeout = (n) => q.delete(n)
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_DEBOUNCE, path: 8 }])
-        h(null, null, 1)
-        h(null, null, 2)
+        const trig = { kind: EV_PROP, root: '', path: null, not: null }
+        const h = applyTrigMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_DEBOUNCE, path: 8 }])
+        h(DM, null, trig, null, 1)
+        h(DM, null, trig, null, 2)
         for (const [k, v] of q) {
           q.delete(k)
           v[0](...v[1])
@@ -392,12 +413,13 @@
       Date.now = () => now
       try {
         const out = []
-        const h = applyTrigMods((_ev, _sg, dt) => out.push(dt), { kind: EV_PROP, root: '', path: null, not: null }, [{ root: MOD_THROTTLE, path: 10 }])
-        h(null, null, 1)
+        const trig = { kind: EV_PROP, root: '', path: null, not: null }
+        const h = applyTrigMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_THROTTLE, path: 10 }])
+        h(DM, null, trig, null, 1)
         now = 105
-        h(null, null, 2)
+        h(DM, null, trig, null, 2)
         now = 111
-        h(null, null, 3)
+        h(DM, null, trig, null, 3)
         return out
       } finally {
         Date.now = dn
@@ -410,12 +432,13 @@
       _dm.set('gateB', false)
       let c = 0
       const mods = [{ root: MOD_AND, path: 'gateA' }, { root: MOD_AND, path: 'gateB' }, { root: MOD_GE, path: '5' }, { root: MOD_LT, path: '9' }, { root: MOD_NE, path: '7' }]
-      const h = applyTrigMods(() => ++c, { kind: EV_PROP, root: '', path: null, not: null }, mods)
-      h(null, 6, null)
+      const trig = { kind: EV_PROP, root: '', path: null, not: null }
+      const h = applyTrigMods(() => ++c, trig, mods)
+      h(DM, null, trig, 6, null)
       _dm.set('gateB', true)
-      h(null, 4, null)
-      h(null, 7, null)
-      h(null, 8, null)
+      h(DM, null, trig, 4, null)
+      h(DM, null, trig, 7, null)
+      h(DM, null, trig, 8, null)
       return c
     }
     __assert(__tTrigModsRepeatedPermitChecks, [], 1, 'applyTrigMods: repeated and/check permit mods');
@@ -433,11 +456,8 @@
       try {
         const btn = document.createElement('button');
         dSub(btn, 'data-sub:sg@.', `'A'`);
-        const hs = (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get)
-          ? (_cleanupBoundSubs.get(btn) || EMPTY_ARR)
-          : EMPTY_ARR
-        const h = hs.find ? hs.find(x => x && x.type === 'event' && x.handler) : null
-        if (h && h.handler) h.handler({ type: 'click', detail: null, preventDefault() { } })
+        const h = __getEventSub(btn)
+        if (h?.fn) h.fn({ type: 'click', detail: null, preventDefault() { } })
         else btn.dispatchEvent(mkEv('click'));
         return { sg: DM['sg'], diag: h ? 'direct-handler' : 'dispatch' };
       } catch (e) {
@@ -451,11 +471,8 @@
         const inp = document.createElement('input');
         inp.value = 'Zed';
         dSub(inp, 'data-sub:out@.', 'val');
-        const hs = (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get)
-          ? (_cleanupBoundSubs.get(inp) || EMPTY_ARR)
-          : EMPTY_ARR
-        const h = hs.find ? hs.find(x => x && x.type === 'event' && x.handler) : null
-        if (h && h.handler) h.handler({ type: 'change', detail: null, preventDefault() { } })
+        const h = __getEventSub(inp)
+        if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
         return { out: DM['out'], diag: h ? 'direct-handler' : 'dispatch' };
       } catch (e) {
@@ -542,15 +559,15 @@
     function __tSubSpecialIntervalAndTimeout() {
       __reset();
       const st = setTimeout, si = setInterval
-      const qTo = [], qInt = []
-      setTimeout = (cb, _ms) => (qTo.push(cb), qTo.length)
-      setInterval = (cb, _ms) => (qInt.push(cb), qInt.length)
+      const timeoutQueue = [], intervalQueue = []
+      setTimeout = (cb, _ms, ...args) => (timeoutQueue.push([cb, args]), timeoutQueue.length)
+      setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, args]), intervalQueue.length)
       try {
         const host = document.createElement('div')
         dSub(host, 'data-sub:intMeta@_interval.25', `({root: trig.root, path: trig.path, val, detail})`)
         dSub(host, 'data-sub:timeoutMeta@_timeout.50', `({root: trig.root, path: trig.path, val, detail})`)
-        if (qInt[0]) qInt[0]()
-        if (qTo[0]) qTo[0]()
+        if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
+        if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
         return { i: DM['intMeta'], t: DM['timeoutMeta'] }
       } finally {
         setTimeout = st
@@ -561,6 +578,33 @@
       i: { root: 'interval', path: ['25'], val: 25, detail: { tick: 0, ms: 25, type: 'interval' } },
       t: { root: 'timeout', path: ['50'], val: 50, detail: { tick: 0, ms: 50, type: 'timeout' } }
     }, 'dSub interval/timeout special triggers');
+    function __tSubSpecialTimerOnceCleanup() {
+      __reset();
+      const st = setTimeout, si = setInterval, ct = clearTimeout, ci = clearInterval
+      const timeoutQueue = [], intervalQueue = [], cleared = []
+      setTimeout = (cb, _ms, ...args) => (timeoutQueue.push([cb, args]), timeoutQueue.length)
+      setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, args]), intervalQueue.length)
+      clearTimeout = (id) => cleared.push(['timeout', id])
+      clearInterval = (id) => cleared.push(['interval', id])
+      try {
+        const host = document.createElement('div')
+        dSub(host, 'data-sub:intOnce@_interval.25^once', 'val')
+        dSub(host, 'data-sub:timeoutOnce@_timeout.50^once', 'val')
+        if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
+        if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
+        return { cleared, intOnce: DM['intOnce'], timeoutOnce: DM['timeoutOnce'] }
+      } finally {
+        setTimeout = st
+        setInterval = si
+        clearTimeout = ct
+        clearInterval = ci
+      }
+    }
+    __assert(__tSubSpecialTimerOnceCleanup, [], {
+      cleared: [['interval', 1], ['timeout', 1]],
+      intOnce: 25,
+      timeoutOnce: 50
+    }, 'dSub interval/timeout ^once cleanup');
     function __tSubRepeatedPermitGating() {
       __reset();
       _dm.set('gateA', true)
@@ -887,8 +931,7 @@
         _dm.set('items', null)
         dAction(btn, 'data-get:items@.click^immediate', '"https://api.test/items"')
         // click trigger registers the event; immediate also fires doRequest once at setup
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, items: DM['items'] },
@@ -913,8 +956,7 @@
         _dm.set('postResult', null)
         _dm.set('titleVal', 'Hello World')
         dAction(btn, 'data-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { contentType: sentHeaders?.['content-type'], body: JSON.parse(sentBody), result: DM['postResult'] },
@@ -931,8 +973,7 @@
         _dm.set('busy', false)
         _dm.set('data', null)
         dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         const busyDuring = DM['busy']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
         await new Promise(r => setTimeout(r, 0))
@@ -953,8 +994,7 @@
         _dm.set('done', false)
         _dm.set('data2', null)
         dAction(btn, 'data-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         const completeDuring = DM['done']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
         await new Promise(r => setTimeout(r, 0))
@@ -972,8 +1012,7 @@
         const btn = document.createElement('button')
         _dm.set('done2', false)
         dAction(btn, 'data-get^complete.done2:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -990,8 +1029,7 @@
         _dm.set('busy', false)
         _dm.set('errMsg', null)
         dAction(btn, 'data-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1038,8 +1076,7 @@
         _dm.set('a', 1)
         _dm.set('nested', { x: 7, y: 8 })
         dAction(btn, 'data-post^json^send-all:req@.click+nested^spread', '"https://api.test/all"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: JSON.parse(sentBody),
@@ -1059,8 +1096,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^patch-all@.click', '"https://api.test/obj"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { alpha: DM['alpha'], fooBar: DM['fooBar'], hasExtra: _dm.has('extra') },
@@ -1085,8 +1121,7 @@
           })
         }
         dAction(btn, 'data-post^json^sync-all@.click', '"https://api.test/sync"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { sent: JSON.parse(sentBody), alpha: DM['alpha'], fooBar: DM['fooBar'], localOnly: DM['localOnly'], hasIgnored: _dm.has('ignored') },
@@ -1110,8 +1145,7 @@
         _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
         _dm.set('reqHeaders', { authorization: 'Bearer 123', 'x-trace': 'abc' })
         dAction(btn, 'data-get^merge^no-cache^headers.req-headers:profile@.click', '"https://api.test/profile"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: {
@@ -1142,8 +1176,7 @@
         const btn = document.createElement('button')
         _dm.set('res', null)
         dAction(btn, 'data-get^br^gzip^deflate^compress:res@.click', '"https://api.test/enc"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: sentHeaders?.['accept-encoding'],
@@ -1167,8 +1200,7 @@
         _dm.set('reqHeaders', { accept: 'application/json', authorization: 'Bearer old' })
         _dm.set('authorization', 'Bearer new')
         dAction(btn, 'data-get^sse^headers.req-headers^header.authorization:res@.click', '"https://api.test/sse"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { accept: capturedHeaders?.accept, auth: capturedHeaders?.authorization },
@@ -1192,14 +1224,12 @@
         const btn1 = document.createElement('button')
         _dm.set('reqHeaders', { xTraceId: 'req-001', authorization: 'Bearer hdr' })
         dAction(btn1, 'data-get^headers.req-headers:res@.click', '"https://api.test/headers"')
-        let clickSubs = (_cleanupBoundSubs.get(btn1) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn1, 'click')
         await new Promise(r => setTimeout(r, 0))
         const btn2 = document.createElement('button')
         _dm.set('rawHeaders', { 'X-Trace-Id': 'req-raw' })
         dAction(btn2, 'data-get^headers.raw-headers^headers-no-kebab:res@.click', '"https://api.test/headers-raw"')
-        clickSubs = (_cleanupBoundSubs.get(btn2) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn2, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: {
@@ -1228,8 +1258,7 @@
         _dm.set('page', 2)
         _dm.set('payload', 'hello')
         dAction(btn, 'data-post^url.page:res@.click+payload', '"https://api.test/items"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { url: capturedUrl, body: capturedBody },
@@ -1254,8 +1283,7 @@
         _dm.set('cursor', 'abc123')
         _dm.set('filter', 'active')
         dAction(btn, 'data-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         // +filter is GET-default → query string; ^body.cursor overrides → request body (single value unwrapped)
         return {
@@ -1280,8 +1308,7 @@
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
         dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: {
@@ -1307,8 +1334,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^sse:res@.click', '"https://api.test/sse"')
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: {
@@ -1359,8 +1385,7 @@
         })
         try {
           dAction(btn, 'data-get@.click', "'/mock/sse-incr'")
-          const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-          if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+          __fireEventSub(btn, 'click')
           await new Promise(r => setTimeout(r, 20))
         } finally { delete window.fetch }
         return {
@@ -1828,8 +1853,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 30))
       } finally { delete window.fetch }
       return {
@@ -1857,8 +1881,7 @@
       try {
         const btn = document.createElement('button')
         dAction(btn, 'data-get^abort.cancelFn@.click', "'/mock/long'")
-        const clickSubs = (_cleanupBoundSubs.get(btn) || EMPTY_ARR).filter(x => x.type === 'event')
-        if (clickSubs[0]?.handler) clickSubs[0].handler({ type: 'click' })
+        __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 10))
         // Now cancel via the signal stored by ^abort
         const cancelFn = _dm.get('cancelFn')
