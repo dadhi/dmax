@@ -2,10 +2,12 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const dmaxPath = path.join(process.cwd(), 'dmax.js');
+const dmaxPath = path.join(__dirname, '..', 'dmax.js');
 const limitsPath = path.join(__dirname, 'dmax.size.limits.json');
 const source = fs.readFileSync(dmaxPath, 'utf8');
-const lines = source.split(/\r?\n/).length - (source.endsWith('\n') ? 1 : 0);
+const lineParts = source.split(/\r?\n/);
+if (lineParts.at(-1) === '') lineParts.pop(); // keep real blank lines, ignore split's trailing empty item
+const lines = lineParts.length;
 const bytes = Buffer.byteLength(source, 'utf8');
 const limits = Object.freeze(JSON.parse(fs.readFileSync(limitsPath, 'utf8')));
 
