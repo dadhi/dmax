@@ -548,7 +548,7 @@
       btn.textContent = 'C';
       document.body.appendChild(btn);
       try {
-        dSub(btn, `data-sub:eventCustomMeta@#${id}.click`, `({ val, detailType: detail && detail.type, eventValue: detail && detail.detail && detail.detail.value })`);
+        dSub(btn, `data-sub:eventCustomMeta@#${id}.click`, `({ val, detailType: detail?.type, eventValue: detail?.detail?.value })`);
         btn.dispatchEvent(new CustomEvent('click', { bubbles: true, detail: { value: 9 } }));
         return DM['eventCustomMeta'];
       } finally { btn.remove(); }
