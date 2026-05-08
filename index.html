@@ -112,8 +112,8 @@
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-sync@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserNameInput" data-attr-name="data-sub:user.name@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sync@user.age" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sub:user.age@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>User Name: <input id="exUserNameInput" type="text" data-sync@user.name data-sub:user.name@.input="val"></label>
+      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-sync:user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sync@user.age" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sub:user.age@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>User Name: <input id="exUserNameInput" type="text" data-sync:user.name></label>
       <p>Hello, <strong data-sync:user.name></strong>!</p>
       <label>Age: <input id="exUserAgeInput" type="number" data-sync@user.age data-sub:user.age@.input="Number(val || 0)"></label>
       <p>Age: <span data-sync:user.age></span> years old</p>
@@ -121,7 +121,7 @@
       <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-sync@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-sub:user.name@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
       <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
       <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-sub:user.name@.input="val"></label>
-      <label>Two-way: <input id="twoWay" data-sync@user.name data-sub:user.name@.input="val"></label>
+      <label>Two-way: <input id="twoWay" data-sync:user.name></label>
       <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
       <div class="page"><code data-attr-for="themeColorInput" data-attr-name="data-sync:user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeColorPreview" data-attr-name="data-sub:.style.color@user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontSlider" data-attr-name="data-sync:user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontPreview" data-attr-name="data-sub:.style.font-size@user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeActiveToggle" data-attr-name="data-sync:user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
@@ -164,8 +164,8 @@
       <p><span id="example4ConsoleOut" data-sub:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
       <p><strong id="example4VisibleOut" data-sub:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code data-attr-for="src" data-attr-name="data-sync@message" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="src" data-attr-name="data-sub:message@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-sub:.@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-sub:.value@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <input id="src" placeholder="Type here..." data-sync@message data-sub:message@.input="val">
+      <div class="page"><code data-attr-for="src" data-attr-name="data-sync:message" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-sub:.@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-sub:.value@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <input id="src" placeholder="Type here..." data-sync:message>
       <p id="srcPreview" data-sub:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>

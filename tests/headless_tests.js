@@ -93,7 +93,7 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     if (labelCodes.some((node) => /data-sub:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
     // Section 1: data-sync
-    const nameInput = findByAttr('input', 'data-sub:user.name@.input');
+    const nameInput = doc.getElementById('exUserNameInput');
     const nameOut = findByAttr('strong', 'data-sync:user.name');
     const sigToProp = doc.getElementById('sigToProp');
     if (!nameInput || !nameOut || !sigToProp) fail('Section1 elements missing');
@@ -124,12 +124,12 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
     const twoWay = doc.getElementById('twoWay');
     if (twoWay) {
       twoWay.value = 'TwoWayTest';
-      fire(twoWay, 'input');
+      fire(twoWay, 'change');
       await sleep(60);
       if (readState().user?.name === 'TwoWayTest') pass('data-sync two-way writes to signal'); else fail('data-sync two-way did not write to signal');
       const signalWriter = elToSig || nameInput;
       signalWriter.value = 'TwoWayFromSignal';
-      fire(signalWriter, 'input');
+      fire(signalWriter, signalWriter === nameInput ? 'change' : 'input');
       await sleep(60);
       if (twoWay.value === 'TwoWayFromSignal') pass('data-sync two-way reflects signal -> element'); else fail('data-sync two-way did not reflect signal->element');
     }
