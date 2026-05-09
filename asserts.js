@@ -617,7 +617,7 @@
       i: { root: 'interval', path: ['25'], val: 25, detail: { tick: 0, ms: 25, type: 'interval' } },
       t: { root: 'timeout', path: ['50'], val: 50, detail: { tick: 0, ms: 50, type: 'timeout' } }
     }, 'dSub interval/timeout special triggers');
-    function __tSubSpecialTimerZeroDelay() {
+    function __tSubSpecialTimerZeroDelays() {
       __reset();
       const st = setTimeout, si = setInterval
       const timeoutQueue = [], intervalQueue = []
@@ -635,7 +635,7 @@
         setInterval = si
       }
     }
-    __assert(__tSubSpecialTimerZeroDelay, [], {
+    __assert(__tSubSpecialTimerZeroDelays, [], {
       intervalMs: 0,
       timeoutMs: 0,
       i: { root: 'interval', path: ['0'], val: 0, detail: { tick: 0, ms: 0, type: 'interval' } },
