@@ -621,8 +621,8 @@
       __reset();
       const st = setTimeout, si = setInterval
       const timeoutQueue = [], intervalQueue = []
-      setTimeout = (cb, _ms, ...args) => (timeoutQueue.push([cb, _ms, args]), timeoutQueue.length)
-      setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, _ms, args]), intervalQueue.length)
+      setTimeout = (cb, ms, ...args) => (timeoutQueue.push([cb, ms, args]), timeoutQueue.length)
+      setInterval = (cb, ms, ...args) => (intervalQueue.push([cb, ms, args]), intervalQueue.length)
       try {
         const host = document.createElement('div')
         dSub(host, 'data-sub:intZero@_interval.0', `({root: trig.root, path: trig.path, val, detail})`)
