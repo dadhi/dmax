@@ -617,6 +617,30 @@
       i: { root: 'interval', path: ['25'], val: 25, detail: { tick: 0, ms: 25, type: 'interval' } },
       t: { root: 'timeout', path: ['50'], val: 50, detail: { tick: 0, ms: 50, type: 'timeout' } }
     }, 'dSub interval/timeout special triggers');
+    function __tSubSpecialZeroDelay() {
+      __reset();
+      const st = setTimeout, si = setInterval
+      const timeoutQueue = [], intervalQueue = []
+      setTimeout = (cb, _ms, ...args) => (timeoutQueue.push([cb, _ms, args]), timeoutQueue.length)
+      setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, _ms, args]), intervalQueue.length)
+      try {
+        const host = document.createElement('div')
+        dSub(host, 'data-sub:intZero@_interval.0', `({root: trig.root, path: trig.path, val, detail})`)
+        dSub(host, 'data-sub:timeoutZero@_timeout.0', `({root: trig.root, path: trig.path, val, detail})`)
+        if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][2])
+        if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][2])
+        return { intervalMs: intervalQueue[0]?.[1], timeoutMs: timeoutQueue[0]?.[1], i: DM['intZero'], t: DM['timeoutZero'] }
+      } finally {
+        setTimeout = st
+        setInterval = si
+      }
+    }
+    __assert(__tSubSpecialZeroDelay, [], {
+      intervalMs: 0,
+      timeoutMs: 0,
+      i: { root: 'interval', path: ['0'], val: 0, detail: { tick: 0, ms: 0, type: 'interval' } },
+      t: { root: 'timeout', path: ['0'], val: 0, detail: { tick: 0, ms: 0, type: 'timeout' } }
+    }, 'dSub interval/timeout zero delay stays zero');
     function __tSubSpecialTimerOnceCleanup() {
       __reset();
       const st = setTimeout, si = setInterval, ct = clearTimeout, ci = clearInterval

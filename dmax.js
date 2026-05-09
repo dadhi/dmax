@@ -729,17 +729,17 @@
     }
     var addTrigSub = (el, trig, mods, fn, elSubs, tarEl, evName, propPath) => {
       if (trig.kind === SIGNAL) {
-        const sub = { el, trig, fn, sigChangeMod: getSigChangeShape(mods), ev: null, clearId: null }
+        const sub={el,trig,fn,sigChangeMod:getSigChangeShape(mods),ev:null,clearId:null}
         sub.fn = applyTrigMods(fn, trig, mods, sub)
-        ensureMapList(_subs, trig.root).push(sub), (elSubs || ensureMapList(_cleanupBoundSubs, el)).push(sub)
+        ensureMapList(_subs,trig.root).push(sub),(elSubs||ensureMapList(_cleanupBoundSubs,el)).push(sub)
         return sub
       }
       if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
-        const ms = parseInt(evName) || (trig.root === SPEC_INTERVAL ? SPEC_INTERVAL_MS : SPEC_TIMEOUT_MS)
-        const sub = { el, trig, fn: null, sigChangeMod: null, ev: null, clearId: null }
+        const ms=evName!=null&&evName!==''&&(evName=+evName,Number.isFinite(evName))?evName:(trig.root===SPEC_INTERVAL?SPEC_INTERVAL_MS:SPEC_TIMEOUT_MS)
+        const sub={el,trig,fn:null,sigChangeMod:null,ev:null,clearId:null}
         sub.fn = applyTrigMods(fn, trig, mods, sub)
-        if (trig.root === SPEC_INTERVAL) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
-        else sub.clearId = setTimeout(onTimeoutSub, ms, { sub, ms })
+        if (trig.root===SPEC_INTERVAL) sub.clearId=setInterval(onIntervalSub,ms,{sub,ms,tick:0})
+        else sub.clearId=setTimeout(onTimeoutSub,ms,{sub,ms})
         elSubs.push(sub)
         return sub.fn
       }
