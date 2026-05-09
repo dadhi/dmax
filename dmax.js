@@ -497,7 +497,8 @@
     }
 
     var buildActionBaseHeaders = (isJson, isText, isHtml, isForm, isSse, noCache, enc) => {
-      let headers = isHtml ? mergeActionHeaders(isJson ? ACTION_HEADERS_JSON : isForm ? ACTION_HEADERS_FORM : isText ? ACTION_HEADERS_TEXT : ACTION_HEADERS_EMPTY, ACTION_HEADERS_HTML) : isJson ? ACTION_HEADERS_JSON : isForm ? ACTION_HEADERS_FORM : isText ? ACTION_HEADERS_TEXT : ACTION_HEADERS_EMPTY
+      let headers = isJson ? ACTION_HEADERS_JSON : isForm ? ACTION_HEADERS_FORM : isText ? ACTION_HEADERS_TEXT : ACTION_HEADERS_EMPTY
+      if (isHtml) headers = mergeActionHeaders(headers, ACTION_HEADERS_HTML)
       headers = isSse ? mergeActionHeaders(headers, ACTION_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACTION_HEADERS_NO_CACHE) : headers
       if (!enc) return headers
       const out = headers === ACTION_HEADERS_EMPTY ? Object.create(null) : cloneOwnProps(headers)
@@ -1204,7 +1205,8 @@
       for (const m of globMods) {
         const mr = m.root
         if (mr === MOD_JSON) isJson = true
-        else if (mr === MOD_TEXT || mr === MOD_HTML) mr === MOD_TEXT ? isText = true : isHtml = true
+        else if (mr === MOD_TEXT) isText = true
+        else if (mr === MOD_HTML) isHtml = true
         else if (mr === MOD_FORM) isForm = true
         else if (mr === MOD_SSE) noCache = isSse = true
         else if (mr === MOD_NO_CACHE) noCache = true
