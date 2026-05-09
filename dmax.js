@@ -492,14 +492,7 @@
       return Object.freeze(out)
     }
 
-    const isDigitsOnly = (s) => {
-      if (typeof s !== 'string' || !s.length) return false
-      for (let i = 0; i < s.length; ++i) {
-        const c = s.charCodeAt(i)
-        if (c < 48 || c > 57) return false
-      }
-      return true
-    }
+    const isDigitsOnly = (s) => typeof s === 'string' && /^\d+$/.test(s)
 
     const buildDumpItemRef = (sigRoot, sigPath, idx) => {
       let out = sigRoot
@@ -563,12 +556,12 @@
         const el = stack.pop()
         const dumpAttrs = DUMP_ATTRS.get(el)
         if (dumpAttrs && dumpAttrs.length) {
-          for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+          for (let i = 0; i < dumpAttrs.length; ++i) window.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
         } else {
           const attrs = el.attributes || EMPTY_ARR
           for (let i = 0; i < attrs.length; ++i) {
             const attr = attrs[i]
-            globalThis.wireNode(el, attr.name, attr.value)
+            window.wireNode(el, attr.name, attr.value)
           }
         }
         const children = el.children
@@ -1139,7 +1132,7 @@
       else if (an.indexOf('data-dump') === 0) dDump(n, an)
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
-    if (typeof globalThis !== 'undefined') globalThis.wireNode = wireNode
+    window.wireNode = wireNode
 
     // data-dump@items uses an inline template child and renders immediately by default.
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
