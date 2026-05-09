@@ -14,6 +14,7 @@ const disallowed = [
     msg: 'sig-related identifiers should use the standardized internal names'
   },
   { re: /\b(?:selectValue|selectIndex|eventName|eventObj)\b/, msg: 'select/event identifiers should use the sel/ev abbreviations' },
+  { re: /\b(?:SPECIALS?|isSpecial|HEADER_[A-Z_]+|ACTION_[A-Z_]+)\b/, msg: 'special/header/action identifiers should use the spec/h_/act_ standard names' },
   { re: /\b(?:let|const)\s+_(?:activeAbort|mi|mArr|dest|m|mp|k|v)\b/, msg: 'local declarations should not use underscore prefixes' },
   { re: /for\s*\(\s*(?:const|let)\s+_\b/, msg: 'loop variables should not use underscore prefixes' }
 ];
