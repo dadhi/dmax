@@ -905,9 +905,9 @@
     const dSub = (el, aName, aVal) => {
       const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', aName)
-      if (!aVal) { console.error('[dmax] Error: in ', aName, 'it requires a value but found none', aVal); return }
-      let fn = compileFn(aVal, aName)
-      if (!fn) return
+      const hasExpr = aVal != null && '' + aVal
+      let fn = hasExpr ? compileFn(aVal, aName) : ((a, b, c, v) => v)
+      if (hasExpr && !fn) return
       if (tars.length) {
         const rawFn = fn
         fn = (dm, el, trig, trigVal, detail) => {
@@ -923,7 +923,7 @@
           } catch (e) { console.error('[dmax] Error: setting target', failedTar, 'in', aName, 'ended with ex:', e) }
         }
       }
-      if (!trigs.length) { fn(DM, el, null, null, null); return }
+      if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return }
       const elSubs = ensureMapList(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (let trig of trigs) {

@@ -505,6 +505,21 @@
       }
     }
     __assert(__tSubEventPropToSignal, [], { out: 'Zed', diag: 'direct-handler' }, 'dSub event passes element value to signal');
+    function __tSubEventPropToSignalEmptyExpr() {
+      __reset();
+      try {
+        const inp = document.createElement('input');
+        inp.value = 'Zed';
+        dSub(inp, 'data-sub:out@.', '');
+        const h = __getEventSub(inp)
+        if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
+        else inp.dispatchEvent(mkEv('change'));
+        return { out: DM['out'], diag: h ? 'direct-handler' : 'dispatch' };
+      } catch (e) {
+        return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
+      }
+    }
+    __assert(__tSubEventPropToSignalEmptyExpr, [], { out: 'Zed', diag: 'direct-handler' }, 'dSub empty expr passes trigger value to signal');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
@@ -516,6 +531,17 @@
       return { im, after };
     }
     __assert(__tSubSignalImmediateAndChange, [], { im: 7, after: 8 }, 'dSub @foo immediate-by-default and change propagation');
+    function __tSubSignalImmediateAndChangeEmptyExpr() {
+      __reset();
+      _dm.set('foo', 7);
+      const el = document.createElement('div');
+      dSub(el, 'data-sub:bar@foo', '');
+      const im = DM['bar'];
+      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      const after = DM['bar'];
+      return { im, after };
+    }
+    __assert(__tSubSignalImmediateAndChangeEmptyExpr, [], { im: 7, after: 8 }, 'dSub empty expr uses signal trigger value');
     function __tSubSignalNotImmediate() {
       __reset();
       _dm.set('foo', 7);
@@ -526,6 +552,16 @@
       return { before, after: DM['bar'] };
     }
     __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dSub @foo^notimmediate skips setup run but handles later changes');
+    function __tSubSignalEmptyExprNoTarget() {
+      __reset();
+      _dm.set('foo', 7);
+      const el = document.createElement('div');
+      dSub(el, 'data-sub@foo', '');
+      const before = Object.keys(DM).sort();
+      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
+    }
+    __assert(__tSubSignalEmptyExprNoTarget, [], { before: ['foo'], after: ['foo'], foo: 8, bar: undefined }, 'dSub empty expr with no target is a no-op');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
