@@ -7,6 +7,7 @@ const source = fs.readFileSync(dmaxPath, 'utf8');
 
 const disallowed = [
   { re: /\b(?:async\s+)?function\s+[A-Za-z0-9_$]+\s*\(/, msg: 'classic function declarations should stay out of dmax.js' },
+  { re: /\bvar\s+[A-Za-z0-9_$]+\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z0-9_$]+)\s*=>/, msg: 'var arrow-function assignments should stay out of dmax.js' },
   { re: /\b__[A-Za-z0-9_]+\b/, msg: 'double-underscore names should stay out of dmax.js' },
   { re: /\b(?:sg|sgVal|sgName|getSgChangeShape)\b|SG_CHANGED_[A-Z_]+/, msg: 'sig names should use the sig prefix consistently' },
   {
@@ -14,6 +15,8 @@ const disallowed = [
     msg: 'sig-related identifiers should use the standardized internal names'
   },
   { re: /\b(?:selectValue|selectIndex|eventName|eventObj)\b/, msg: 'select/event identifiers should use the sel/ev abbreviations' },
+  { re: /\b(?:SPECIALS?|isSpecial|HEADER_[A-Z_]+|ACTION_[A-Z_]+)\b/, msg: 'special/header/action identifiers should use the spec/h_/act_ standard names' },
+  { re: /\b(?:SSE_DATA_PATCH_ELS|SSE_DATA_PATCH_SIGS|PATCH_MODE_[A-Z_]+)\b/, msg: 'SSE patch identifiers should use the abbreviated SSE_* names' },
   { re: /\b(?:let|const)\s+_(?:activeAbort|mi|mArr|dest|m|mp|k|v)\b/, msg: 'local declarations should not use underscore prefixes' },
   { re: /for\s*\(\s*(?:const|let)\s+_\b/, msg: 'loop variables should not use underscore prefixes' }
 ];
