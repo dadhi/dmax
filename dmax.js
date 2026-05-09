@@ -56,7 +56,7 @@
 
     const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
-    const SIGNAL = 's', EV_PROP = DOT, SPECIAL = '_'
+    const SIGNAL = 's', EV_PROP = DOT, SPEC = '_'
 
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
@@ -71,26 +71,26 @@
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
     const MOD_DEBOUNCE_MS = 500, MOD_THROTTLE_MS = 500, MOD_RETRY_MS = 1000
-    const HEADER_ACCEPT = 'accept', HEADER_ACCEPT_ENCODING = 'accept-encoding', HEADER_AUTHORIZATION = 'authorization'
-    const HEADER_CACHE_CONTROL = 'cache-control', HEADER_CONTENT_TYPE = 'content-type', HEADER_PRAGMA = 'pragma'
-    const ACTION_HEADERS_EMPTY = Object.freeze(Object.create(null))
-    const ACTION_HEADERS_JSON = Object.freeze({ [HEADER_CONTENT_TYPE]: 'application/json', [HEADER_ACCEPT]: 'application/json' })
-    const ACTION_HEADERS_FORM = Object.freeze({ [HEADER_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
-    const ACTION_HEADERS_TEXT = Object.freeze({ [HEADER_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
-    const ACTION_HEADERS_NO_CACHE = Object.freeze({ [HEADER_CACHE_CONTROL]: 'no-cache', [HEADER_PRAGMA]: 'no-cache' })
-    const ACTION_HEADERS_SSE = Object.freeze({ [HEADER_ACCEPT]: 'text/event-stream', [HEADER_CACHE_CONTROL]: 'no-cache', [HEADER_PRAGMA]: 'no-cache' })
+    const H_ACCEPT = 'accept', H_ACCEPT_ENCODING = 'accept-encoding', H_AUTHORIZATION = 'authorization'
+    const H_CACHE_CONTROL = 'cache-control', H_CONTENT_TYPE = 'content-type', H_PRAGMA = 'pragma'
+    const ACT_HEADERS_EMPTY = Object.freeze(Object.create(null))
+    const ACT_HEADERS_JSON = Object.freeze({ [H_CONTENT_TYPE]: 'application/json', [H_ACCEPT]: 'application/json' })
+    const ACT_HEADERS_FORM = Object.freeze({ [H_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
+    const ACT_HEADERS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
+    const ACT_HEADERS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
+    const ACT_HEADERS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
     const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout'
-    const SPECIALS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
+    const SPECS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
     const SPEC_WIN_EV = 'resize'
     const SPEC_DOC_EV = 'visibilitychange'
     const SPEC_INTERVAL_MS = 500
     const SPEC_TIMEOUT_MS = 500
-    const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
+    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
-    const isSpecial = (n) => { if (n.startsWith(SPECIAL)) for (const s of SPECIALS) if (n.startsWith(s, 1)) return true; return false }
+    const isSpec = (n) => { if (n.startsWith(SPEC)) for (const s of SPECS) if (n.startsWith(s, 1)) return true; return false }
 
-    const _KIND = [MOD, SIGNAL, EV_PROP, SPECIAL]
+    const _KIND = [MOD, SIGNAL, EV_PROP, SPEC]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     const parseItem = (aName, type, n, pos = 0) => {
       if (!n) return null
@@ -113,8 +113,8 @@
       let kind = EV_PROP
       if (root && root.length > 0) {
         const id = root[0] === ID
-        if (id || isSpecial(root)) {
-          kind = id ? EV_PROP : SPECIAL
+        if (id || isSpec(root)) {
+          kind = id ? EV_PROP : SPEC
           root = root.slice(1)
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', aName); return null }
         } else {
@@ -463,19 +463,19 @@
     }
 
     const mergeActionHeaders = (base, extra) => {
-      if (!base || base === ACTION_HEADERS_EMPTY) return extra || ACTION_HEADERS_EMPTY
-      if (!extra || extra === ACTION_HEADERS_EMPTY) return base
+      if (!base || base === ACT_HEADERS_EMPTY) return extra || ACT_HEADERS_EMPTY
+      if (!extra || extra === ACT_HEADERS_EMPTY) return base
       const out = cloneOwnProps(base)
       for (const key in extra) if (hasOwn(extra, key)) out[key] = extra[key]
       return Object.freeze(out)
     }
 
     const buildActionBaseHeaders = (isJson, isText, isForm, isSse, noCache, enc) => {
-      let headers = isJson ? ACTION_HEADERS_JSON : isForm ? ACTION_HEADERS_FORM : isText ? ACTION_HEADERS_TEXT : ACTION_HEADERS_EMPTY
-      headers = isSse ? mergeActionHeaders(headers, ACTION_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACTION_HEADERS_NO_CACHE) : headers
+      let headers = isJson ? ACT_HEADERS_JSON : isForm ? ACT_HEADERS_FORM : isText ? ACT_HEADERS_TEXT : ACT_HEADERS_EMPTY
+      headers = isSse ? mergeActionHeaders(headers, ACT_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACT_HEADERS_NO_CACHE) : headers
       if (!enc) return headers
-      const out = headers === ACTION_HEADERS_EMPTY ? Object.create(null) : cloneOwnProps(headers)
-      out[HEADER_ACCEPT_ENCODING] = enc
+      const out = headers === ACT_HEADERS_EMPTY ? Object.create(null) : cloneOwnProps(headers)
+      out[H_ACCEPT_ENCODING] = enc
       return Object.freeze(out)
     }
 
@@ -701,7 +701,7 @@
         ensureMapList(_subs, trig.root).push(sub), (elSubs || ensureMapList(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
-      if (trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
+      if (trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
         const ms = parseInt(evName) || (trig.root === SPEC_INTERVAL ? SPEC_INTERVAL_MS : SPEC_TIMEOUT_MS)
         const sub = { el, trig, fn: null, sigChangeMod: null, ev: null, clearId: null }
         sub.fn = applyTrigMods(fn, trig, mods, sub)
@@ -714,7 +714,7 @@
       const sub = { el, trig, fn: null, sigChangeMod: null, ev: { tarEl, evName, opts }, clearId: null }
       const modded = applyTrigMods(fn, trig, mods, sub)
       sub.fn = (detail) => {
-        const trigVal = trig.kind === SPECIAL ? detail?.type ?? null : getElPropVal(tarEl, propPath)
+        const trigVal = trig.kind === SPEC ? detail?.type ?? null : getElPropVal(tarEl, propPath)
         invokeSub(modded, detail, trigVal, el, trig)
       }
       tarEl.addEventListener(evName, sub.fn, opts)
@@ -854,7 +854,7 @@
      */
     const applyTrigMods = (fn, trig, mods, removeSub) => {
       const isSig = trig.kind === SIGNAL
-      const isTimer = trig.kind === SPECIAL && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
+      const isTimer = trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
@@ -937,9 +937,9 @@
             ranImmediate = true
             invokeBoundSub(sub, null)
           }
-        } else if (kind === EV_PROP || kind === SPECIAL) {
+        } else if (kind === EV_PROP || kind === SPEC) {
           let ev = path && path.length ? path[0] : null
-          if (kind === SPECIAL) {
+          if (kind === SPEC) {
             if (root === SPEC_WIN) {
               addTrigSub(el, trig, mods, fn, elSubs, window, ev || SPEC_WIN_EV)
               continue
@@ -1154,7 +1154,7 @@
       const afterData = aName.slice(5) // strip 'data-'
       const methodEnd = indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
-      const method = ACTION_METHODS[methodName]
+      const method = ACT_METHODS[methodName]
       if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', aName); return }
       const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = aVal ? compileFn(aVal, aName) : null
@@ -1298,7 +1298,7 @@
             finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
           }
 
-          let headers = ACTION_HEADERS_EMPTY, sharedHeaders = true
+          let headers = ACT_HEADERS_EMPTY, sharedHeaders = true
           if (hdrsMod) {
             const hdrObj = resolveModPathVal(hdrsMod.path)
             if (hdrObj && typeof hdrObj === 'object') {
@@ -1307,8 +1307,8 @@
               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[headersNoKebab ? hk : camelToKebab(hk)] = String(hdrObj[hk])
             }
           }
-          if (baseHeaders !== ACTION_HEADERS_EMPTY) {
-            if (headers === ACTION_HEADERS_EMPTY) headers = baseHeaders
+          if (baseHeaders !== ACT_HEADERS_EMPTY) {
+            if (headers === ACT_HEADERS_EMPTY) headers = baseHeaders
             else for (const hk in baseHeaders) if (hasOwn(baseHeaders, hk)) headers[hk] = baseHeaders[hk]
           }
           if (authMod) {
@@ -1318,7 +1318,7 @@
                 headers = cloneOwnProps(headers)
                 sharedHeaders = false
               }
-              headers[HEADER_AUTHORIZATION] = String(authVal)
+              headers[H_AUTHORIZATION] = String(authVal)
             }
           }
           // ^header.<name> sets one request header from a named sig.
