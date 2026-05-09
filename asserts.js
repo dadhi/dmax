@@ -223,12 +223,15 @@
       return calls
     }
     __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
-    __assert(() => ({ ...buildActionBaseHeaders(false, false, false, true, false, 'gzip') }), [], {
+    __assert(() => ({ ...buildActionBaseHeaders(false, false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
       pragma: 'no-cache',
       'accept-encoding': 'gzip'
     }, 'SSE base headers imply no-cache and accept-encoding')
+    __assert(() => ({ ...buildActionBaseHeaders(false, false, true, false, false, false, '') }), [], {
+      accept: 'text/html'
+    }, 'HTML base headers set accept to text/html')
     __assert((id, aName) => {
       const el = getElById(id, aName)
       return el ? el.textContent : null
