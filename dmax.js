@@ -86,10 +86,9 @@
     const SPEC_INTERVAL_MS = 500
     const SPEC_TIMEOUT_MS = 500
     const ACTION_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
+    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
-
-    const isSpecial = (n) => n.startsWith(SPECIAL) && SPECIALS.some((s) => n.startsWith(s, 1))
+    const isSpecial = (n) => { if (n.startsWith(SPECIAL)) for (const s of SPECIALS) if (n.startsWith(s, 1)) return true; return false }
 
     const _KIND = [MOD, SIGNAL, EV_PROP, SPECIAL]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
@@ -251,23 +250,14 @@
       }
     }
 
-    const dDebug = (el) => { if (!el) return; _debugEls.add(el); updateDebug() }
-
-    const getElById = (id, aName) => { if (!id) return null; const el = document.getElementById(id); if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`); return el }
-
-    const getDefaultProp = (el) => {
-      const t = el?.type, n = el?.tagName
-      return t === 'checkbox' || t === 'radio'
-        ? 'checked'
-        : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent'
+    const dDebug = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
+    const getElById = (id, aName) => {
+      const el = document.getElementById(id)
+      if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`)
+      return el
     }
-
-    const getDefaultEvent = (el) => {
-      const n = el?.tagName
-      return n === 'FORM' ? 'submit'
-        : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
-    }
-
+    const getDefaultProp = (el) => { const t = el.type, n = el.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
+    const getDefaultEv = (el) => { const n = el.tagName; return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click' }
     const getElPropVal = (el, propPath) => {
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
@@ -325,7 +315,7 @@
       let obj = tar.root ? getElById(tar.root, aName) : el
       let path = tar.path, prop = null
       if (!path)
-        prop = getDefaultProp(el);
+        prop = getDefaultProp(obj);
       else if (path.length > 0) {
         [obj] = getPropValAndDepth(obj, path, path.length - 1)
         prop = path[path.length - 1]
@@ -404,7 +394,7 @@
       return defaultVal;
     }
 
-    const pickMods = (localMods, fallbackMods) => localMods && localMods.length ? localMods : fallbackMods
+    const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
 
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
@@ -489,7 +479,7 @@
       return Object.freeze(out)
     }
 
-    const isDigitsOnly = (s) => s && /^\d+$/.test(s)
+    const isDigitsOnly = (s) => typeof s == 'string' && RE_DIGITS.test(s)
 
     const buildDumpItemRef = (sigRoot, sigPath, idx) => {
       let out = sigRoot
@@ -981,8 +971,8 @@
           let tarEl = root ? getElById(root, aName) : el
           if (!tarEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
           let propPath = null
-          if (path && path.length && isDefaultPropName(tarEl, path[0])) propPath = path, ev = getDefaultEvent(tarEl)
-          ev = ev ?? getDefaultEvent(tarEl)
+          if (path && path.length && isDefaultPropName(tarEl, path[0])) propPath = path, ev = getDefaultEv(tarEl)
+          ev = ev ?? getDefaultEv(tarEl)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, tarEl, ev, propPath)
           if (isImmediateMod(mods, false)) {
@@ -1043,9 +1033,9 @@
         const writeMods = trig ? pickMods(trig.mods, globMods) : globMods
         let ev = trigPath && trigPath.length ? trigPath[0] : null
         let propPath = null
-        if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEvent(tarEl)
+        if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEv(tarEl)
         if (!propPath && propTar && propTar.path) propPath = propTar.path
-        ev = ev ?? getDefaultEvent(tarEl)
+        ev = ev ?? getDefaultEv(tarEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
         const evTrig = trig ?? DEFAULT_PROP_TAR
@@ -1079,7 +1069,7 @@
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, tarEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
@@ -1111,7 +1101,7 @@
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
@@ -1459,7 +1449,7 @@
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (_dm, _el, _trig, _trigVal, _detail) => doRequest(), elSubs, evTarEl, ev, null)
           if (!ranImmediate && isImmediateMod(mods, false)) {
