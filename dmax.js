@@ -251,19 +251,19 @@
       }
     }
 
-    const dDebug = (el) => { if(!el)return; _debugEls.add(el); updateDebug() }
+    const dDebug = (el) => { if (!el) return; _debugEls.add(el); updateDebug() }
 
-    const getElById = (id, aName) => { if (!id) return null; const el=document.getElementById(id); if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`); return el }
+    const getElById = (id, aName) => { if (!id) return null; const el = document.getElementById(id); if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`); return el }
 
     const getDefaultProp = (el) => {
-      const t=el?.type, n=el?.tagName
+      const t = el?.type, n = el?.tagName
       return t === 'checkbox' || t === 'radio'
         ? 'checked'
         : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent'
     }
 
     const getDefaultEvent = (el) => {
-      const n=el?.tagName
+      const n = el?.tagName
       return n === 'FORM' ? 'submit'
         : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
     }
@@ -489,7 +489,7 @@
       return Object.freeze(out)
     }
 
-    const isDigitsOnly = (s) => typeof s === 'string' && /^\d+$/.test(s)
+    const isDigitsOnly = (s) => s && /^\d+$/.test(s)
 
     const buildDumpItemRef = (sigRoot, sigPath, idx) => {
       let out = sigRoot
@@ -1129,7 +1129,7 @@
       else if (an.indexOf('data-dump') === 0) dDump(n, an)
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
-    globalThis.wireNode = wireNode
+    globalThis.wireNode=wireNode
 
     // data-dump@items uses an inline template child and renders immediately by default.
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
