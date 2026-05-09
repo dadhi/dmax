@@ -204,9 +204,9 @@
       root.appendChild(child)
       rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
       const calls = []
-      const savedWireNode = wireNode
-      wireNode = (_el, aName, value) => calls.push([aName, value])
-      try { wireDumpClone(root) } finally { wireNode = savedWireNode }
+      const savedWireNode = globalThis.wireNode
+      globalThis.wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireDumpClone(root) } finally { globalThis.wireNode = savedWireNode }
       return calls
     }
     __assert(__testWireDumpCloneRewrittenAttrs, [], [
@@ -217,9 +217,9 @@
       const root = document.createElement('li')
       root.setAttribute('data-sub:.', 'plain-text')
       const calls = []
-      const savedWireNode = wireNode
-      wireNode = (_el, aName, value) => calls.push([aName, value])
-      try { wireDumpClone(root) } finally { wireNode = savedWireNode }
+      const savedWireNode = globalThis.wireNode
+      globalThis.wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireDumpClone(root) } finally { globalThis.wireNode = savedWireNode }
       return calls
     }
     __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
