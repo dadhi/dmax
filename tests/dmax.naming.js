@@ -16,6 +16,7 @@ const disallowed = [
   },
   { re: /\b(?:selectValue|selectIndex|eventName|eventObj)\b/, msg: 'select/event identifiers should use the sel/ev abbreviations' },
   { re: /\b(?:SPECIALS?|isSpecial|HEADER_[A-Z_]+|ACTION_[A-Z_]+)\b/, msg: 'special/header/action identifiers should use the spec/h_/act_ standard names' },
+  { re: /\b(?:SSE_DATA_PATCH_ELS|SSE_DATA_PATCH_SIGS|PATCH_MODE_[A-Z_]+)\b/, msg: 'SSE patch identifiers should use the abbreviated SSE_* names' },
   { re: /\b(?:let|const)\s+_(?:activeAbort|mi|mArr|dest|m|mp|k|v)\b/, msg: 'local declarations should not use underscore prefixes' },
   { re: /for\s*\(\s*(?:const|let)\s+_\b/, msg: 'loop variables should not use underscore prefixes' }
 ];

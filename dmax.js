@@ -1684,8 +1684,8 @@
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
     const SSE_EV_PATCH_ELS = 'dmax-patch-elements', SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
-    const SSE_DATA_PATCH_ELS = 'dmaxElements', SSE_DATA_PATCH_SIGS = 'dmaxSignals'
-    const PATCH_MODE_OUTER = 'outer', PATCH_MODE_INNER = 'inner', PATCH_MODE_REPLACE = 'replace', PATCH_MODE_PREPEND = 'prepend', PATCH_MODE_APPEND = 'append', PATCH_MODE_BEFORE = 'before', PATCH_MODE_AFTER = 'after', PATCH_MODE_REMOVE = 'remove'
+    const SSE_ELS = 'dmaxElements', SSE_SIGS = 'dmaxSignals'
+    const SSE_OUTER = 'outer', SSE_INNER = 'inner', SSE_REPLACE = 'replace', SSE_PREPEND = 'prepend', SSE_APPEND = 'append', SSE_BEFORE = 'before', SSE_AFTER = 'after', SSE_REMOVE = 'remove'
 
     const parseSseEls = (html, ns) => {
       if (!html) return []
@@ -1716,8 +1716,8 @@
 
     const applyPatchPair = (tarEl, srcEl, mode) => {
       if (!tarEl || !srcEl) return
-      if (mode === PATCH_MODE_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
-      else if (mode === PATCH_MODE_INNER) {
+      if (mode === SSE_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
+      else if (mode === SSE_INNER) {
         const to = tarEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
         morphChildren(tarEl, to)
@@ -1730,12 +1730,12 @@
     }
 
     const applyPatchEls = (args) => {
-      const mode = String(args.mode || PATCH_MODE_OUTER).toLowerCase()
+      const mode = String(args.mode || SSE_OUTER).toLowerCase()
       const sel = args.selector ? String(args.selector) : ''
       const ns = args.namespace ? String(args.namespace) : 'html'
-      const srcEls = parseSseEls(args[SSE_DATA_PATCH_ELS] || '', ns)
+      const srcEls = parseSseEls(args[SSE_ELS] || '', ns)
 
-      if (mode === PATCH_MODE_REMOVE) {
+      if (mode === SSE_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
@@ -1744,7 +1744,7 @@
         return
       }
 
-      if (mode === PATCH_MODE_APPEND || mode === PATCH_MODE_PREPEND || mode === PATCH_MODE_BEFORE || mode === PATCH_MODE_AFTER) {
+      if (mode === SSE_APPEND || mode === SSE_PREPEND || mode === SSE_BEFORE || mode === SSE_AFTER) {
         if (!sel || !srcEls.length) return
         for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
         return
@@ -1780,7 +1780,7 @@
     }
 
     const applyPatchSigs = (aName, args) => {
-      const raw = args[SSE_DATA_PATCH_SIGS]
+      const raw = args[SSE_SIGS]
       if (!raw) return
       let patchObj = null
       try { patchObj = JSON.parse(raw) } catch (_) { console.error('[dmax] Error: patch sigs in', aName, 'expect JSON but found invalid format'); return }
