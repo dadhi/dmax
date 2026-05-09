@@ -418,7 +418,7 @@
         dSub(liveBtn, `data-sub:#live-raw${liveTrigList}`,
           `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`);
         dSub(liveBtn, `data-sub:#live-branch${liveTrigList}`,
-          `trig && trig.kind === '${SPECIAL}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`);
+          `trig && trig.kind === '${SPEC}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`);
         liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')));
       }
 
