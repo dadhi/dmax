@@ -401,11 +401,14 @@
       const out = []
       const trig = { kind: EV_PROP, root: '', path: null, not: null }
       const handler = applyTrigMods((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
-      handler(DM, null, trig, null, { detail: { value: 9 } })
-      handler(DM, null, trig, null, { detail: { ms: 12 } })
+      handler(DM, null, trig, null, { type: 'custom-value', detail: { value: 9 } })
+      handler(DM, null, trig, null, { type: 'custom-ms', detail: { ms: 12 } })
       return out
     }
-    __assert(__tTrigModsValueFallback, [], [{ trigVal: 9, detail: null }, { trigVal: 12, detail: null }], 'applyTrigMods: event detail fallback');
+    __assert(__tTrigModsValueFallback, [], [
+      { trigVal: 9, detail: { type: 'custom-value', detail: { value: 9 } } },
+      { trigVal: 12, detail: { type: 'custom-ms', detail: { ms: 12 } } }
+    ], 'applyTrigMods: event detail fallback');
     function __tTrigModsDebounce() {
       const st = setTimeout, ct = clearTimeout
       let id = 0
@@ -537,6 +540,20 @@
       } finally { btn.remove(); }
     }
     __assert(__tSubExplicitIdEventPath, [], { kind: EV_PROP, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dSub explicit #id event path metadata');
+    function __tSubExplicitIdEventDetail() {
+      __reset();
+      const id = 'evtbtndetail'
+      const btn = document.createElement('button');
+      btn.id = id;
+      btn.textContent = 'C';
+      document.body.appendChild(btn);
+      try {
+        dSub(btn, `data-sub:eventCustomMeta@#${id}.click`, `({ val, detailType: detail?.type, eventValue: detail?.detail?.value })`);
+        btn.dispatchEvent(new CustomEvent('click', { bubbles: true, detail: { value: 9 } }));
+        return DM['eventCustomMeta'];
+      } finally { btn.remove(); }
+    }
+    __assert(__tSubExplicitIdEventDetail, [], { val: 'C', detailType: 'click', eventValue: 9 }, 'dSub explicit #id event path keeps full event detail');
     function __tSubExplicitIdPropPath() {
       __reset();
       const id = 'evtinputprop'

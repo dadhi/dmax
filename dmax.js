@@ -927,11 +927,10 @@
             last = now
           }
         }
-        const filteredDetail = providedVal == null && detail && detail.detail && ('value' in detail.detail || 'ms' in detail.detail) ? null : detail
         let trigVal = isSig ? (providedVal ?? getSigValOrIt(trigIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
-        try { fn(dm, el, trigIt, trigVal, filteredDetail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+        try { fn(dm, el, trigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
         if (hasOnce && !hasAlways && removeSub) removeSubOrClearId(removeSub) // ^always keeps handler even when ^once is set
       }
       return h
