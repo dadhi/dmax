@@ -86,17 +86,12 @@
     const SPEC_INTERVAL_MS = 500
     const SPEC_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR })
+    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
-
-    var isSpec = (n) => {
-      if (n.startsWith(SPEC)) for (const s of SPECS) { if (n.startsWith(s, 1)) return true }
-      return false
-    }
-
+    const isSpec = (n) => { if (n.startsWith(SPEC)) for (const s of SPECS) if (n.startsWith(s, 1)) return true; return false }
     const _KIND = [MOD, SIGNAL, EV_PROP, SPEC]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
-    var parseItem = (aName, type, n, pos = 0) => {
+    const parseItem = (aName, type, n, pos = 0) => {
       if (!n) return null
 
       let p = pos
@@ -157,7 +152,7 @@
       return { kind, not, root, path }
     }
 
-    var finishParse = (items, p, it, aName) => {
+    const finishParse = (items, p, it, aName) => {
       items[MOD] ??= EMPTY_ARR
       if (it === ALL) {
         items[TARG] ??= EMPTY_ARR
@@ -168,7 +163,7 @@
       return [items, p]
     }
 
-    var parse = (aName, p = 'data-'.length, it = ALL) => {
+    const parse = (aName, p = 'data-'.length, it = ALL) => {
       let items = {}, modItems = null
       while (p >= 0 && p < aName.length) {
         if ((p = indexFirst(aName, it, p)) == -1) { p = aName.length; break }
@@ -199,7 +194,7 @@
       return finishParse(items, p, it, aName)
     }
 
-    var isObjEmpty = (o) => {
+    const isObjEmpty = (o) => {
       for (const key in o) if (key != null) return false
       return true
     }
@@ -209,7 +204,7 @@
     // args available in right data-attr value expression, `trig` maybe null for no triggers or any of the _KIND except MOD
     const FN_ARGS = ['dm', 'el', 'trig', 'val', 'detail']
 
-    var compileFn = (aVal, aName, args = FN_ARGS) => {
+    const compileFn = (aVal, aName, args = FN_ARGS) => {
       let val = '' + aVal
       const returnPos=val.indexOf('return')
       let body=returnPos!=-1 && (returnPos+6 >= val.length || indexFirst(val, RETURN_THEN, returnPos+6) == returnPos+6) ? val : `return(${val})`
@@ -234,7 +229,7 @@
     // - data-def:foo='{bar: "hey"}' // foo signal
     // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
-    var dDef = (el, aName, aVal) => {
+    const dDef = (el, aName, aVal) => {
       const it = parse(aName)[0], tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
       let fn = compileFn(aVal, aName)
@@ -254,31 +249,15 @@
       }
     }
 
-    var dDebug = (el) => {
-      if (!el) return
-      _debugEls.add(el)
-      updateDebug()
-    }
-
-    var getElById = (id, aName) => {
-      if (!id) return null
+    const dDebug = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
+    const getElById = (id, aName) => {
       const el = document.getElementById(id)
       if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`)
-      return el;
-    };
-
-    var getDefaultProp = (el) => {
-      if (!el) return 'textContent'
-      const t = el.type, n = el.tagName
-      return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent'
+      return el
     }
-
-    const getDefaultEvent = (el) => {
-      const n = el?.tagName
-      return !n ? 'click' : n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
-    }
-
-    var getElPropVal = (el, propPath) => {
+    const getDefaultProp = (el) => { const t = el.type, n = el.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
+    const getDefaultEv = (el) => { const n = el.tagName; return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click' }
+    const getElPropVal = (el, propPath) => {
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
       let val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent)
@@ -287,7 +266,7 @@
 
     const isDefaultPropName = (el, prop) => prop === getDefaultProp(el) || prop === 'value' || prop === 'checked' || prop === 'textContent'
 
-    var mkEv = (nam) => {
+    const mkEv = (nam) => {
       try { return new Event(nam, { bubbles: true }) }
       catch (_) {
         const ev = document.createEvent('Event')
@@ -298,7 +277,7 @@
 
     const isNil = (v) => v === null || v === undefined
 
-    var getPropValAndDepth = (obj, path, depth = -1) => {
+    const getPropValAndDepth = (obj, path, depth = -1) => {
       let v = obj
       if (isNil(v) || !path) return [v, 0]
       let n = depth == -1 || depth > path.length ? path.length : depth
@@ -307,7 +286,7 @@
     }
 
     const VAL_CHANGE_DEPTH_MAX = 32
-    var valChangedDeep = (before, after, depth = 0) => {
+    const valChangedDeep = (before, after, depth = 0) => {
       if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] Warning: too deep to compare for signal value change, consider it changed, stopped at:', VAL_CHANGE_DEPTH_MAX); return true }
       const b = before, a = after
       if (Array.isArray(b)) { // means b is also an array
@@ -324,18 +303,18 @@
       return false
     }
 
-    var expected = (cond, ctx = 'expect') => {
+    const expected = (cond, ctx = 'expect') => {
       if (cond) return true
       console.error('[dmax] Unexpected condition in:', ctx)
       return false
     }
 
-    var setProp = (el, aName, tar, val) => {
+    const setProp = (el, aName, tar, val) => {
       if (!expected(tar.kind === EV_PROP)) return null;
       let obj = tar.root ? getElById(tar.root, aName) : el
       let path = tar.path, prop = null
       if (!path)
-        prop = getDefaultProp(el);
+        prop = getDefaultProp(obj);
       else if (path.length > 0) {
         [obj] = getPropValAndDepth(obj, path, path.length - 1)
         prop = path[path.length - 1]
@@ -367,7 +346,7 @@
       else tarEl.style.removeProperty('display')
     }
 
-    var diffShapeShallow = (before, after) => {
+    const diffShapeShallow = (before, after) => {
       let b = before, a = after
       if (!b || typeof b != 'object') b = EMPTY_ARR
       if (!a || typeof a != 'object') a = EMPTY_ARR
@@ -390,7 +369,7 @@
       return added.length ? (removed.length ? { added, removed } : { added }) : (removed.length ? { removed } : null)
     }
 
-    var samePath = (a, b) => {
+    const samePath = (a, b) => {
       if (a.length !== b.length) return false
       for (let i = 0; i < a.length; ++i)
         if (a[i] !== b[i]) return false
@@ -398,7 +377,7 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    var getSigChangeShape = (mods) => {
+    const getSigChangeShape = (mods) => {
       for (const m of mods) {
         if (m.root === MOD_WITH_SHAPE) return SIG_CHANGED_WITH_SHAPE
         if (m.root === MOD_SHAPE_ONLY) return SIG_CHANGED_SHAPE_ONLY
@@ -406,7 +385,7 @@
       return SIG_CHANGED_ANY
     }
 
-    var isImmediateMod = (mods, defaultVal) => {
+    const isImmediateMod = (mods, defaultVal) => {
       for (const m of mods) {
         if (m.root === MOD_IMMEDIATE) return true
         if (m.root === MOD_NOTIMMEDIATE) return false;
@@ -414,15 +393,13 @@
       return defaultVal;
     }
 
-    var pickMods = (localMods, fallbackMods) => {
-      return localMods && localMods.length ? localMods : fallbackMods
-    }
+    const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
 
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
 
-    var getSigValOrIt = (it) => {
+    const getSigValOrIt = (it) => {
       if (!it.kind) return it
       const sig = _dm.get(it.root)
       const path = it.path
@@ -430,7 +407,7 @@
       return it.not ? !val : val
     }
 
-    var resolveModPathVal = (v) => {
+    const resolveModPathVal = (v) => {
       if (v && v.kind) return getSigValOrIt(v)
       if (typeof v !== 'string') return v
       if (_dm.has(v)) return _dm.get(v)
@@ -440,7 +417,7 @@
       return getSigValOrIt(parsed)
     }
 
-    var resolveStatusSig = (mod, fallbackRoot) => {
+    const resolveStatusSig = (mod, fallbackRoot) => {
       if (!mod) return null
       const p = mod.path
       if (typeof p === 'string') return { kind: SIGNAL, not: null, root: p || fallbackRoot, path: null }
@@ -448,12 +425,12 @@
       return { kind: SIGNAL, not: null, root: fallbackRoot, path: null }
     }
 
-    var defSig = (sig, val) => {
+    const defSig = (sig, val) => {
       if (sig && !_dm.has(sig.root)) _dm.set(sig.root, val)
       return sig
     }
 
-    var isJsonContentType = (ct) => {
+    const isJsonContentType = (ct) => {
       const low = String(ct || '').toLowerCase()
       if (low.indexOf('application/json') !== -1) return true
       const p = low.indexOf('+json')
@@ -464,7 +441,7 @@
       return c === ';' || c === ' ' || c === '\t'
     }
 
-    var isTextLikeContentType = (ct) => {
+    const isTextLikeContentType = (ct) => {
       const low = String(ct || '').toLowerCase()
       if (low.indexOf('text/') !== -1) return true
       if (low.indexOf('application/xml') !== -1) return true
@@ -474,21 +451,17 @@
       return false
     }
 
-    var isPlainObj = (val) => {
-      return !!val && typeof val === 'object' && !Array.isArray(val)
-    }
+    const isPlainObj = (val) => !!val && typeof val === 'object' && !Array.isArray(val)
 
-    var hasOwn = (obj, key) => {
-      return Object.prototype.hasOwnProperty.call(obj, key)
-    }
+    const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
 
-    var cloneOwnProps = (obj) => {
+    const cloneOwnProps = (obj) => {
       const out = Object.create(null)
       for (const key in obj) if (hasOwn(obj, key)) out[key] = obj[key]
       return out
     }
 
-    var mergeActionHeaders = (base, extra) => {
+    const mergeActionHeaders = (base, extra) => {
       if (!base || base === ACT_HEADERS_EMPTY) return extra || ACT_HEADERS_EMPTY
       if (!extra || extra === ACT_HEADERS_EMPTY) return base
       const out = cloneOwnProps(base)
@@ -496,7 +469,7 @@
       return Object.freeze(out)
     }
 
-    var buildActionBaseHeaders = (isJson, isText, isForm, isSse, noCache, enc) => {
+    const buildActionBaseHeaders = (isJson, isText, isForm, isSse, noCache, enc) => {
       let headers = isJson ? ACT_HEADERS_JSON : isForm ? ACT_HEADERS_FORM : isText ? ACT_HEADERS_TEXT : ACT_HEADERS_EMPTY
       headers = isSse ? mergeActionHeaders(headers, ACT_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACT_HEADERS_NO_CACHE) : headers
       if (!enc) return headers
@@ -505,28 +478,21 @@
       return Object.freeze(out)
     }
 
-    var isDigitsOnly = (s) => {
-      if (typeof s !== 'string' || !s.length) return false
-      for (let i = 0; i < s.length; ++i) {
-        const c = s.charCodeAt(i)
-        if (c < 48 || c > 57) return false
-      }
-      return true
-    }
+    const isDigitsOnly = (s) => typeof s == 'string' && RE_DIGITS.test(s)
 
-    var buildDumpItemRef = (sigRoot, sigPath, idx) => {
+    const buildDumpItemRef = (sigRoot, sigPath, idx) => {
       let out = sigRoot
       if (sigPath && sigPath.length) for (const part of sigPath) out += '.' + part
       return out + '.' + idx
     }
 
-    var buildDumpItemExpr = (sigRoot, sigPath, idx) => {
+    const buildDumpItemExpr = (sigRoot, sigPath, idx) => {
       let out = 'dm.' + sigRoot
       if (sigPath && sigPath.length) for (const part of sigPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
       return out + '[' + idx + ']'
     }
 
-    var replaceDumpTokens = (s, itemToken, indexToken) => {
+    const replaceDumpTokens = (s, itemToken, indexToken) => {
       if (typeof s !== 'string') return s
       let i = s.indexOf('$')
       if (i < 0) return s
@@ -543,7 +509,7 @@
       return out ? out + s.slice(p) : s
     }
 
-    var rewriteDumpBindings = (rootNode, itemRef, itemExpr, indexText) => {
+    const rewriteDumpBindings = (rootNode, itemRef, itemExpr, indexText) => {
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -570,18 +536,18 @@
       }
     }
 
-    var wireDumpClone = (node) => {
+    const wireDumpClone = (node) => {
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
         const dumpAttrs = DUMP_ATTRS.get(el)
         if (dumpAttrs && dumpAttrs.length) {
-          for (let i = 0; i < dumpAttrs.length; ++i) wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+          for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
         } else {
           const attrs = el.attributes || EMPTY_ARR
           for (let i = 0; i < attrs.length; ++i) {
             const attr = attrs[i]
-            wireNode(el, attr.name, attr.value)
+            globalThis.wireNode(el, attr.name, attr.value)
           }
         }
         const children = el.children
@@ -589,7 +555,7 @@
       }
     }
 
-    var renderDumpState = (el, trig, dumpState, tplFirst, sigRoot, sigPath) => {
+    const renderDumpState = (el, trig, dumpState, tplFirst, sigRoot, sigPath) => {
       const val = getSigValOrIt(trig)
       if (!Array.isArray(val)) return
       const newLen = val.length, oldLen = dumpState.count || 0
@@ -617,7 +583,7 @@
       }
     }
 
-    var mergeActionVals = (prev, next) => {
+    const mergeActionVals = (prev, next) => {
       if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
       if (!isPlainObj(prev) || !isPlainObj(next)) return next
       const out = Object.create(null)
@@ -626,7 +592,7 @@
       return out
     }
 
-    var combineActionResult = (prev, next, mode) => {
+    const combineActionResult = (prev, next, mode) => {
       if (mode === MOD_MERGE) return mergeActionVals(prev, next)
       if (mode === MOD_APPEND) {
         if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
@@ -641,7 +607,7 @@
       return next
     }
 
-    var patchMatchingSigs = (aName, payload, resultMode) => {
+    const patchMatchingSigs = (aName, payload, resultMode) => {
       // Patch-all operates on top-level object fields only; arrays have no stable field names to map onto root signals.
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
       for (const key in payload) {
@@ -653,13 +619,13 @@
       }
     }
 
-    var applyActionPayload = (aName, resultTar, payload, resultMode) => {
+    const applyActionPayload = (aName, resultTar, payload, resultMode) => {
       if (!resultTar) return
       const prev = getSigValOrIt(resultTar)
       setSigAndNotifySubsNLevelsDeep(aName, resultTar, combineActionResult(prev, payload, resultMode))
     }
 
-    var modsPermitVal = (mods, val) => {
+    const modsPermitVal = (mods, val) => {
       for (const m of mods) {
         const mName = m.root, mVal = resolveModPathVal(m.path)
         if (mName === MOD_AND) {
@@ -685,22 +651,22 @@
     const _subs = new Map()
     const _debugEls = new Set()
     let _debugQueued = false
-    var ensureMapList = (map, key) => {
+    const ensureMapList = (map, key) => {
       let list = map.get(key)
       if (!list) map.set(key, list = [])
       return list
     }
-    var removeSigSub = (sub) => {
+    const removeSigSub = (sub) => {
       const subs = _subs.get(sub.trig.root)
       if (!subs || !subs.length) return
       for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
-    var clearSubId = (sub) => {
+    const clearSubId = (sub) => {
       if (sub.trig.root === SPEC_INTERVAL) clearInterval(sub.clearId)
       else clearTimeout(sub.clearId)
       sub.clearId = null
     }
-    var removeSubOrClearId = (sub) => {
+    const removeSubOrClearId = (sub) => {
       try {
         const ev = sub.ev
         if (ev) ev.tarEl.removeEventListener(ev.evName, sub.fn, ev.opts)
@@ -711,23 +677,23 @@
     }
     const PASSIVE_LISTENER_OPTS = Object.freeze({ passive: true })
     const ELEMENT_NODE = 1
-    var invokeSub = (fn, detail, trigVal, el, trig) => { fn(DM, el, trig, trig.kind === SIGNAL ? getSigValOrIt(trig) : trigVal, detail) }
-    var invokeBoundSub = (sub, detail) => { sub.fn(DM, sub.el, sub.trig, getSigValOrIt(sub.trig), detail) }
-    var getListenerOpts = (mods) => {
+    const invokeSub = (fn, detail, trigVal, el, trig) => fn(DM, el, trig, trig.kind === SIGNAL ? getSigValOrIt(trig) : trigVal, detail)
+    const invokeBoundSub = (sub, detail) => sub.fn(DM, sub.el, sub.trig, getSigValOrIt(sub.trig), detail)
+    const getListenerOpts = (mods) => {
       for (let i = 0; i < mods.length; ++i) if (mods[i].root === MOD_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
     }
-    var onIntervalSub = (state) => {
+    const onIntervalSub = (state) => {
       const detail = { tick: state.tick, ms: state.ms, type: SPEC_INTERVAL }
       state.tick++
       try { invokeSub(state.sub.fn, detail, state.ms, state.sub.el, state.sub.trig) }
       catch (e) { console.error(`[dmax] Error: interval handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
-    var onTimeoutSub = (state) => {
+    const onTimeoutSub = (state) => {
       try { invokeSub(state.sub.fn, { tick: 0, ms: state.ms, type: SPEC_TIMEOUT }, state.ms, state.sub.el, state.sub.trig) }
       catch (e) { console.error(`[dmax] Error: timeout handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
-    var addTrigSub = (el, trig, mods, fn, elSubs, tarEl, evName, propPath) => {
+    const addTrigSub = (el, trig, mods, fn, elSubs, tarEl, evName, propPath) => {
       if (trig.kind === SIGNAL) {
         const sub = { el, trig, fn, sigChangeMod: getSigChangeShape(mods), ev: null, clearId: null }
         sub.fn = applyTrigMods(fn, trig, mods, sub)
@@ -754,11 +720,11 @@
       elSubs.push(sub)
       return modded
     }
-    var findFirstKind = (items, kind) => {
+    const findFirstKind = (items, kind) => {
       for (let i = 0; i < items.length; ++i) if (items[i].kind === kind) return items[i]
       return null
     }
-    var updateDebug = () => {
+    const updateDebug = () => {
       if (!_debugEls.size || _debugQueued) return
       _debugQueued = true
       queueMicrotask(() => {
@@ -771,7 +737,7 @@
     }
 
     // If sig does not exist in _dm, then create it on demand.
-    var setSigAndNotifySubs = (aName, tar, val) => {
+    const setSigAndNotifySubs = (aName, tar, val) => {
       if (!expected(tar)) return null
 
       const root = tar.root, path = tar.path
@@ -866,7 +832,7 @@
     }
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
-    var setSigAndNotifySubsNLevelsDeep = (aName, tar, val) => {
+    const setSigAndNotifySubsNLevelsDeep = (aName, tar, val) => {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${aName}`)
         return
@@ -885,7 +851,7 @@
      * @param {{ el?: any, trig: any, fn?: any, sigChangeMod?: any, ev?: { tarEl: EventTarget, evName: string, opts: any } | null, clearId?: any } | undefined} [removeSub]
      * @returns {TriggerHandler}
      */
-    var applyTrigMods = (fn, trig, mods, removeSub) => {
+    const applyTrigMods = (fn, trig, mods, removeSub) => {
       const isSig = trig.kind === SIGNAL
       const isTimer = trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
       let hasOnce = false, hasAlways = false, hasPrevent = false
@@ -936,7 +902,7 @@
       return h
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
-    var dSub = (el, aName, aVal) => {
+    const dSub = (el, aName, aVal) => {
       const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', aName)
       if (!aVal) { console.error('[dmax] Error: in ', aName, 'it requires a value but found none', aVal); return }
@@ -1004,8 +970,8 @@
           let tarEl = root ? getElById(root, aName) : el
           if (!tarEl) { console.error('[dmax] Error: Element is not found in trigger:', trig, 'in:', aName); return }
           let propPath = null
-          if (path && path.length && isDefaultPropName(tarEl, path[0])) propPath = path, ev = getDefaultEvent(tarEl)
-          ev = ev ?? getDefaultEvent(tarEl)
+          if (path && path.length && isDefaultPropName(tarEl, path[0])) propPath = path, ev = getDefaultEv(tarEl)
+          ev = ev ?? getDefaultEv(tarEl)
           if (!ev) { console.error('[dmax] Error: Event is not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, tarEl, ev, propPath)
           if (isImmediateMod(mods, false)) {
@@ -1015,7 +981,7 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
       }
     }
-    var dSync = (el, aName) => {
+    const dSync = (el, aName) => {
       const parsedAttr = parse(aName)[0], tars = parsedAttr[TARG], trigs = parsedAttr[TRIG], globMods = parsedAttr[MOD]
       if (parsedAttr[ADD].length) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
 
@@ -1066,9 +1032,9 @@
         const writeMods = trig ? pickMods(trig.mods, globMods) : globMods
         let ev = trigPath && trigPath.length ? trigPath[0] : null
         let propPath = null
-        if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEvent(tarEl)
+        if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEv(tarEl)
         if (!propPath && propTar && propTar.path) propPath = propTar.path
-        ev = ev ?? getDefaultEvent(tarEl)
+        ev = ev ?? getDefaultEv(tarEl)
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
         const evTrig = trig ?? DEFAULT_PROP_TAR
@@ -1082,7 +1048,7 @@
     // +className adds when expr is truthy and removes when falsy.
     // +!className inverts that rule.
     // Without aVal, the raw signal or trigger value is used.
-    var dClass = (el, aName, aVal) => {
+    const dClass = (el, aName, aVal) => {
       const it = parse(aName)[0], adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
       if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
@@ -1102,7 +1068,7 @@
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, tarEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
@@ -1111,7 +1077,7 @@
     }
     // data-disp:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
-    var dDisp = (el, aName, aVal) => {
+    const dDisp = (el, aName, aVal) => {
       const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
@@ -1134,7 +1100,7 @@
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
@@ -1142,7 +1108,7 @@
       }
     }
     // Dispatch data-* attributes to their setup functions.
-    var wireNode = (n, an, v) => {
+    const wireNode = (n, an, v) => {
       if (an.indexOf('data-def') === 0) dDef(n, an, v)
       else if (an === 'data-debug') dDebug(n)
       else if (an.indexOf('data-sub') === 0) dSub(n, an, v)
@@ -1152,11 +1118,12 @@
       else if (an.indexOf('data-dump') === 0) dDump(n, an)
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
+    globalThis.wireNode=wireNode
 
     // data-dump@items uses an inline template child and renders immediately by default.
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
-    var dDump = (el, aName) => {
+    const dDump = (el, aName) => {
       const it = parse(aName)[0], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
       const trig = trigs[0]
@@ -1182,7 +1149,7 @@
     // data-put^json:result@.click+body="url"
     // data-delete^busy.busy:ok@.click="url"
     // Method is derived from the attribute prefix; aVal is compiled as a URL expression.
-    var dAction = (el, aName, aVal) => {
+    const dAction = (el, aName, aVal) => {
       const afterData = aName.slice(5) // strip 'data-'
       const methodEnd = indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
@@ -1481,7 +1448,7 @@
         } else if (kind === EV_PROP) {
           const evTarEl = root ? getElById(root, aName) : el
           if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEvent(evTarEl)
+          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (_dm, _el, _trig, _trigVal, _detail) => doRequest(), elSubs, evTarEl, ev, null)
           if (!ranImmediate && isImmediateMod(mods, false)) {
@@ -1497,14 +1464,14 @@
     // Match by id first, then by tag name, and clone only when no reusable node fits.
 
     // Return true when two nodes can be morphed in place.
-    var sameKind = (a, b) => {
+    const sameKind = (a, b) => {
       if (a.nodeType !== b.nodeType) return false
       if (a.nodeType !== ELEMENT_NODE) return true
       if (a.id && b.id) return a.id === b.id
       return a.tagName === b.tagName
     }
 
-    var sameSlot = (a, b) => {
+    const sameSlot = (a, b) => {
       if (a.nodeType !== b.nodeType) return false
       if (a.nodeType !== ELEMENT_NODE) return true
       if (a.id || b.id) return a.id === b.id
@@ -1513,7 +1480,7 @@
 
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const TEXT_NODE = 3
-    var getSimpleIdSelector = (selector) => {
+    const getSimpleIdSelector = (selector) => {
       if (!selector || selector[0] !== '#') return null
       for (let i = 1; i < selector.length; ++i) {
         const c = selector[i]
@@ -1522,7 +1489,7 @@
       return selector.length > 1 ? selector.slice(1) : null
     }
 
-    var getPatchTars = (selector) => {
+    const getPatchTars = (selector) => {
       if (!selector) return EMPTY_ARR
       const simpleId = getSimpleIdSelector(selector)
       if (simpleId) {
@@ -1533,7 +1500,7 @@
     }
 
     // Sync attributes from to onto from.
-    var updateAttrs = (from, to) => {
+    const updateAttrs = (from, to) => {
       const toAttrs = to.attributes
       const fromAttrs = from.attributes
       if (fromAttrs.length === toAttrs.length) {
@@ -1580,7 +1547,7 @@
     }
 
     // Reconcile from children to match to children with one forward pass.
-    var morphChildren = (from, to) => {
+    const morphChildren = (from, to) => {
       let cur = from.firstChild
       let toChild = to.firstChild
 
@@ -1652,7 +1619,7 @@
 
     // Update from in place without disturbing matched-node listeners or cleanup state.
     // Preserve caret, selection, and scroll across streamed updates.
-    var morph = (from, to) => {
+    const morph = (from, to) => {
       if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
         return
@@ -1701,7 +1668,7 @@
       }
     }
 
-    var applyOobHtml = (html) => {
+    const applyOobHtml = (html) => {
       if (!html) return ''
       _HTML_PARSE_TEMPLATE.innerHTML = html
       const src = _HTML_PARSE_TEMPLATE.content.querySelector('[data-oob]')
@@ -1720,7 +1687,7 @@
     const SSE_ELS = 'dmaxElements', SSE_SIGS = 'dmaxSignals'
     const SSE_OUTER = 'outer', SSE_INNER = 'inner', SSE_REPLACE = 'replace', SSE_PREPEND = 'prepend', SSE_APPEND = 'append', SSE_BEFORE = 'before', SSE_AFTER = 'after', SSE_REMOVE = 'remove'
 
-    var parseSseEls = (html, ns) => {
+    const parseSseEls = (html, ns) => {
       if (!html) return []
       const namespace = (ns || 'html').toLowerCase()
       if (namespace === 'html') {
@@ -1737,7 +1704,7 @@
       return root ? Array.from(root.children) : []
     }
 
-    var insertFragRelative = (tarEl, srcEls, mode) => {
+    const insertFragRelative = (tarEl, srcEls, mode) => {
       if (!tarEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
       for (const src of srcEls) frag.appendChild(src.cloneNode(true))
@@ -1747,7 +1714,7 @@
       else if (mode === 'after' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
     }
 
-    var applyPatchPair = (tarEl, srcEl, mode) => {
+    const applyPatchPair = (tarEl, srcEl, mode) => {
       if (!tarEl || !srcEl) return
       if (mode === SSE_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
       else if (mode === SSE_INNER) {
@@ -1757,12 +1724,12 @@
       } else morph(tarEl, srcEl)
     }
 
-    var applyPatchSource = (srcEl, mode) => {
+    const applyPatchSource = (srcEl, mode) => {
       if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode)
       else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
     }
 
-    var applyPatchEls = (args) => {
+    const applyPatchEls = (args) => {
       const mode = String(args.mode || SSE_OUTER).toLowerCase()
       const sel = args.selector ? String(args.selector) : ''
       const ns = args.namespace ? String(args.namespace) : 'html'
@@ -1800,7 +1767,7 @@
       for (const src of srcEls) applyPatchSource(src, mode)
     }
 
-    var applyJsonMergePatch = (prev, patch) => {
+    const applyJsonMergePatch = (prev, patch) => {
       if (patch === null) return JSON_MERGE_DELETE
       if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch
       const out = (prev && typeof prev === 'object' && !Array.isArray(prev)) ? { ...prev } : {}
@@ -1812,7 +1779,7 @@
       return out
     }
 
-    var applyPatchSigs = (aName, args) => {
+    const applyPatchSigs = (aName, args) => {
       const raw = args[SSE_SIGS]
       if (!raw) return
       let patchObj = null
@@ -1834,7 +1801,7 @@
       }
     }
 
-    var applySse = (raw, aName = 'dmax-sse') => {
+    const applySse = (raw, aName = 'dmax-sse') => {
       if (!raw) return []
       const applied = []
       const text = String(raw)
@@ -1890,7 +1857,7 @@
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    var consumeSseStream = async (body, aName, onOpen, onClose) => {
+    const consumeSseStream = async (body, aName, onOpen, onClose) => {
       if (!body || typeof body.getReader !== 'function') return []
       const applied = []
       const reader = body.getReader()
@@ -1963,7 +1930,7 @@
     var consumeDmaxSseStream = consumeSseStream
 
     // Detach listeners and signal subscriptions for a removed subtree.
-    var cleanupBoundSubsDeep = (rootNode) => {
+    const cleanupBoundSubsDeep = (rootNode) => {
       if (!rootNode || rootNode.nodeType !== ELEMENT_NODE) return
       const stack = [rootNode]
       while (stack.length) {
