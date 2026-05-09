@@ -251,22 +251,22 @@
       }
     }
 
-    const dDebug = (el) => {
-      if (!el) return
-      _debugEls.add(el)
-      updateDebug()
+    const dDebug = (el) => { if(!el)return; _debugEls.add(el); updateDebug() }
+
+    const getElById = (id, aName) => { if (!id) return null; const el=document.getElementById(id); if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`); return el }
+
+    const getDefaultProp = (el) => {
+      const t=el?.type, n=el?.tagName
+      return t === 'checkbox' || t === 'radio'
+        ? 'checked'
+        : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent'
     }
 
-    const getElById = (id, aName) => {
-      if (!id) return null
-      const el = document.getElementById(id)
-      if (!el) console.error(`[dmax] Error: element #${id} from ${aName} is not found`)
-      return el;
-    };
-
-    const getDefaultProp = (el) => { const t = el?.type, n = el?.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
-
-    const getDefaultEvent = (el) => { const n = el?.tagName; return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click' }
+    const getDefaultEvent = (el) => {
+      const n=el?.tagName
+      return n === 'FORM' ? 'submit'
+        : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
+    }
 
     const getElPropVal = (el, propPath) => {
       if (!el) return null
