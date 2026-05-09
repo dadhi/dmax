@@ -264,12 +264,9 @@
       return el;
     };
 
-    const getDefaultProp = (el) => !el ? 'textContent' : ((el.type === 'checkbox' || el.type === 'radio') ? 'checked' : (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') ? 'value' : 'textContent')
+    const getDefaultProp = (el) => { const t = el?.type, n = el?.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
 
-    const getDefaultEvent = (el) => {
-      const n = el?.tagName
-      return !n ? 'click' : n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click'
-    }
+    const getDefaultEvent = (el) => { const n = el?.tagName; return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click' }
 
     const getElPropVal = (el, propPath) => {
       if (!el) return null
@@ -556,12 +553,12 @@
         const el = stack.pop()
         const dumpAttrs = DUMP_ATTRS.get(el)
         if (dumpAttrs && dumpAttrs.length) {
-          for (let i = 0; i < dumpAttrs.length; ++i) window.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+          for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
         } else {
           const attrs = el.attributes || EMPTY_ARR
           for (let i = 0; i < attrs.length; ++i) {
             const attr = attrs[i]
-            window.wireNode(el, attr.name, attr.value)
+            globalThis.wireNode(el, attr.name, attr.value)
           }
         }
         const children = el.children
@@ -1132,7 +1129,7 @@
       else if (an.indexOf('data-dump') === 0) dDump(n, an)
       else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
     }
-    window.wireNode = wireNode
+    globalThis.wireNode = wireNode
 
     // data-dump@items uses an inline template child and renders immediately by default.
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
