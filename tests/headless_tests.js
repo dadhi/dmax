@@ -274,7 +274,15 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const valSignalStep = doc.getElementById('valSignalStep');
     const valSignalPicked = doc.getElementById('valSignalPicked');
     const valSignalPlusOne = doc.getElementById('valSignalPlusOne');
-    if (!valPickInput || !valPickTyped || !valPropPicked || !valSignalStep || !valSignalPicked || !valSignalPlusOne) fail('Section7.a ^val elements missing');
+    const missingValEls = [
+      ['valpickinput', valPickInput],
+      ['valPickTyped', valPickTyped],
+      ['valPropPicked', valPropPicked],
+      ['valSignalStep', valSignalStep],
+      ['valSignalPicked', valSignalPicked],
+      ['valSignalPlusOne', valSignalPlusOne]
+    ].filter(([, el]) => !el).map(([id]) => id);
+    if (missingValEls.length) fail('Section7.a ^val elements missing: ' + missingValEls.join(', '));
     if (valSignalPicked.textContent.trim() === '7' && valSignalPlusOne.textContent.trim() === '8') pass('Section7.a signal ^val renders initial nested values'); else fail('Section7.a signal ^val initial render wrong');
     valPickInput.value = 'typed text';
     fire(valPickInput, 'input');
