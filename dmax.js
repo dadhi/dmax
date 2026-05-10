@@ -61,7 +61,7 @@
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     const MOD_ONCE = 'once', MOD_ALWAYS = 'always', MOD_DEBOUNCE = 'debounce', MOD_THROTTLE = 'throttle', MOD_PREVENT = 'prevent'
-    const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge'
+    const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge', MOD_VAL = 'val'
     const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_HTML = 'html', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
     const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
@@ -261,7 +261,7 @@
     const getElPropVal = (el, propPath) => {
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
-      let val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : el.textContent)
+      const val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : (prop === 'textContent' ? el.textContent : el[prop]))
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -396,15 +396,39 @@
 
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
 
+    const getModValPath = (mods) => {
+      for (const m of mods) if (m.root === MOD_VAL) {
+        const p = m.path
+        if (p == null) return null
+        if (typeof p === 'string') return [p]
+        if (Array.isArray(p)) return p
+        if (p.kind) {
+          const path = []
+          if (p.root) path.push(p.root)
+          if (p.path && p.path.length) path.push(...p.path)
+          return path.length ? path : null
+        }
+        return [p]
+      }
+      return null
+    }
+    const getTrigEventVal = (tarEl, propPath, mods) => {
+      const valPath = getModValPath(mods)
+      return getElPropVal(tarEl, valPath && valPath.length ? valPath : propPath)
+    }
+
     const PERMIT_MODS = Object.assign(Object.create(null), {
       [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
     })
 
-    const getSigValOrIt = (it) => {
-      if (!it.kind) return it
+    const getSigVal = (it) => {
       const sig = _dm.get(it.root)
       const path = it.path
-      const val = path && path.length ? getPropValAndDepth(sig, path)[0] : sig
+      return path && path.length ? getPropValAndDepth(sig, path)[0] : sig
+    }
+    const getSigValOrIt = (it) => {
+      if (!it.kind) return it
+      const val = getSigVal(it)
       return it.not ? !val : val
     }
 
@@ -679,8 +703,8 @@
     }
     const PASSIVE_LISTENER_OPTS = Object.freeze({ passive: true })
     const ELEMENT_NODE = 1
-    const invokeSub = (fn, detail, trigVal, el, trig) => fn(DM, el, trig, trig.kind === SIGNAL ? getSigValOrIt(trig) : trigVal, detail)
-    const invokeBoundSub = (sub, detail) => sub.fn(DM, sub.el, sub.trig, getSigValOrIt(sub.trig), detail)
+    const invokeSub = (fn, detail, trigVal, el, trig) => fn(DM, el, trig, trig.kind === SIGNAL ? getSigVal(trig) : trigVal, detail)
+    const invokeBoundSub = (sub, detail) => sub.fn(DM, sub.el, sub.trig, getSigVal(sub.trig), detail)
     const getListenerOpts = (mods) => {
       for (let i = 0; i < mods.length; ++i) if (mods[i].root === MOD_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
@@ -715,7 +739,7 @@
       const sub = { el, trig, fn: null, sigChangeMod: null, ev: { tarEl, evName, opts }, clearId: null }
       const modded = applyTrigMods(fn, trig, mods, sub)
       sub.fn = (detail) => {
-        const trigVal = trig.kind === SPEC ? detail?.type ?? null : getElPropVal(tarEl, propPath)
+        const trigVal = trig.kind === SPEC ? detail?.type ?? null : getTrigEventVal(tarEl, propPath, mods)
         invokeSub(modded, detail, trigVal, el, trig)
       }
       tarEl.addEventListener(evName, sub.fn, opts)
@@ -856,6 +880,7 @@
     const applyTrigMods = (fn, trig, mods, removeSub) => {
       const isSig = trig.kind === SIGNAL
       const isTimer = trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
+      const valPath = getModValPath(mods)
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
@@ -869,7 +894,7 @@
           permitMods.push(m)
         }
       }
-      const hasSigMods = hasOnce || deb > 0 || thr > 0 || !!permitMods || !!trig.not
+      const hasSigMods = hasOnce || deb > 0 || thr > 0 || !!permitMods || !!trig.not || !!(valPath && valPath.length)
       if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debTrig = null, debVal = null, debDetail = null
@@ -895,7 +920,8 @@
             last = now
           }
         }
-        let trigVal = isSig ? (providedVal ?? getSigValOrIt(trigIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
+        let trigVal = isSig ? (providedVal ?? getSigVal(trigIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
+        if (isSig && valPath && valPath.length) trigVal = getPropValAndDepth(trigVal, valPath)[0]
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(dm, el, trigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
@@ -978,7 +1004,7 @@
           const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, tarEl, ev, propPath)
           if (isImmediateMod(mods, false)) {
             ranImmediate = true
-            invokeSub(moddedHandler, null, getElPropVal(tarEl, propPath), el, trig)
+            invokeSub(moddedHandler, null, getTrigEventVal(tarEl, propPath, mods), el, trig)
           }
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
       }
@@ -1040,9 +1066,9 @@
         if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
 
         const evTrig = trig ?? DEFAULT_PROP_TAR
-        const writeSig = (_dm, _el, _trig, _trigVal, _detail) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, getElPropVal(tarEl, propPath))
+        const writeSig = (_dm, _el, _trig, trigVal, _detail) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, trigVal)
         const moddedHandler = addTrigSub(el, evTrig, writeMods, writeSig, elSubs, tarEl, ev, propPath)
-        if (isImmediateMod(writeMods, true)) invokeSub(moddedHandler, null, getElPropVal(tarEl, propPath), el, evTrig)
+        if (isImmediateMod(writeMods, true)) invokeSub(moddedHandler, null, getTrigEventVal(tarEl, propPath, writeMods), el, evTrig)
       }
     }
 
@@ -1073,7 +1099,7 @@
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, tarEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
-          if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
+          if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrigEventVal(evTarEl, null, mods), el, trig)
         }
       }
     }
@@ -1105,7 +1131,7 @@
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', aName); return }
           const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(tarEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTarEl, ev, null)
-          if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
+          if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrigEventVal(evTarEl, null, mods), el, trig)
         }
       }
     }

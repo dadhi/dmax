@@ -523,6 +523,22 @@
       }
     }
     __assert(__tSubEventPropToSignalEmptyExpr, [], { out: 'Zed', diag: 'direct-handler' }, 'dSub empty expr passes trigger value to signal');
+    function __tSubEventValModPropToSignal() {
+      __reset();
+      try {
+        const inp = document.createElement('input');
+        inp.value = 'Zed';
+        inp.dataFooBar = 33;
+        dSub(inp, 'data-sub:out@.^val.data-foo-bar', 'val');
+        const h = __getEventSub(inp)
+        if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
+        else inp.dispatchEvent(mkEv('change'));
+        return { out: DM['out'], diag: h ? 'direct-handler' : 'dispatch' };
+      } catch (e) {
+        return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
+      }
+    }
+    __assert(__tSubEventValModPropToSignal, [], { out: 33, diag: 'direct-handler' }, 'dSub ^val selects non-default event property');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
@@ -565,6 +581,17 @@
       return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
     }
     __assert(__tSubSignalEmptyExprNoTarget, [], { before: ['foo'], after: ['foo'], foo: 8, bar: undefined }, 'dSub empty expr with no target is a no-op');
+    function __tSubSignalValModPathAndExpr() {
+      __reset();
+      _dm.set('foo', { bar: 7 });
+      const el = document.createElement('div');
+      dSub(el, 'data-sub:bar@foo^val.bar', '');
+      dSub(el, 'data-sub:baz@foo^val.bar', 'val + 1');
+      const initial = { bar: DM['bar'], baz: DM['baz'] };
+      setSigAndNotifySubs('test', { root: 'foo', path: null }, { bar: 8 });
+      return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
+    }
+    __assert(__tSubSignalValModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dSub signal ^val path feeds raw and expression values');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
