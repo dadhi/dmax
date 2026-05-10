@@ -423,7 +423,7 @@
       }
 
       function installDemoFetchMock() {
-        if (window.__dmaxDemoFetchInstalled) return;
+        if (window.__dmaxDemoFetchInstalled && typeof window.fetch === 'function') return;
         const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
         window.fetch = function (url, init) {
           const u = String(url || '');
@@ -500,6 +500,7 @@
 
       initLiveDSubExamples();
       initPortedExamples();
+      window.addEventListener('dmax:tests:done', installDemoFetchMock);
     })();
   </script>
   <div id="__fg_reactivity_tests" style="display:none">

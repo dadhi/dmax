@@ -31,6 +31,7 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
 }
 
 const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
+const FETCH_FAILURE_RE = /dAction fetch failed/;
 
 (async () => {
   const dom = new JSDOM(html, {
@@ -485,6 +486,49 @@ const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
       const afterRemoveSubs = window.eval('(_subs.get("count") || []).length');
       if (afterRemoveSubs === beforeSubs) pass('Section10.c removed signal subscription is cleaned up'); else fail('Section10.c removed signal subscription still registered after removal');
     }
+
+    // Section 11: actions demo keeps fetch shim after in-page asserts and updates outputs
+    const loadPost = doc.getElementById('loadPost');
+    const createPost = doc.getElementById('create-post');
+    const oobLoad = doc.getElementById('oobLoad');
+    const sseLoad = doc.getElementById('sseLoad');
+    const oobTarget = doc.getElementById('oobTarget');
+    const sseTarget = doc.getElementById('sseTarget');
+    const missingActionDemoEls = [
+      ['loadPost', loadPost],
+      ['create-post', createPost],
+      ['oobLoad', oobLoad],
+      ['sseLoad', sseLoad],
+      ['oobTarget', oobTarget],
+      ['sseTarget', sseTarget]
+    ].filter(([, el]) => !el).map(([name]) => name);
+    if (missingActionDemoEls.length) fail('Section11 action demo elements missing: ' + missingActionDemoEls.join(', '));
+
+    if (typeof window.fetch === 'function') pass('Section11 demo fetch shim remains installed after in-page asserts'); else fail('Section11 demo fetch shim missing after in-page asserts');
+
+    pageLogs.length = 0;
+    fire(loadPost, 'click');
+    await waitFor(() => readState().postResult && readState().code === 200, 2000);
+    if (readState().postResult?.title === 'His mother had always taught him') pass('Section11 GET action populates DummyJSON post'); else fail('Section11 GET action did not populate post result');
+    if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 GET action does not log fetch failure'); else fail('Section11 GET action logged fetch failure');
+
+    pageLogs.length = 0;
+    fire(createPost, 'click');
+    await waitFor(() => readState().createdPost && readState().code === 201, 2000);
+    if (readState().createdPost?.title === 'I am in love with someone.') pass('Section11 POST action populates created post'); else fail('Section11 POST action did not populate created post');
+    if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 POST action does not log fetch failure'); else fail('Section11 POST action logged fetch failure');
+
+    pageLogs.length = 0;
+    fire(oobLoad, 'click');
+    await waitFor(() => /OOB morphed content/.test(oobTarget.textContent || ''), 2000);
+    if (/OOB morphed content/.test(oobTarget.textContent || '')) pass('Section11 OOB action morphs target HTML'); else fail('Section11 OOB action did not morph target HTML');
+    if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 OOB action does not log fetch failure'); else fail('Section11 OOB action logged fetch failure');
+
+    pageLogs.length = 0;
+    fire(sseLoad, 'click');
+    await waitFor(() => readState().sseMessage === 'hello from dmax' && readState().sseCount === 1, 2000);
+    if (/SSE morphed target/.test(sseTarget.textContent || '')) pass('Section11 SSE action updates state and morph target'); else fail('Section11 SSE action did not update target');
+    if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 SSE action does not log fetch failure'); else fail('Section11 SSE action logged fetch failure');
 
     console.log('All tests completed.');
     console.log('SUMMARY:', passCount + ' passed,', failCount + ' failed');
