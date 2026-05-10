@@ -62,7 +62,7 @@
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     const MOD_ONCE = 'once', MOD_ALWAYS = 'always', MOD_DEBOUNCE = 'debounce', MOD_THROTTLE = 'throttle', MOD_PREVENT = 'prevent'
     const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge'
-    const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_FORM = 'form', MOD_SSE = 'sse'
+    const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_HTML = 'html', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
     const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
@@ -75,6 +75,7 @@
     const H_CACHE_CONTROL = 'cache-control', H_CONTENT_TYPE = 'content-type', H_PRAGMA = 'pragma'
     const ACT_HEADERS_EMPTY = Object.freeze(Object.create(null))
     const ACT_HEADERS_JSON = Object.freeze({ [H_CONTENT_TYPE]: 'application/json', [H_ACCEPT]: 'application/json' })
+    const ACT_HEADERS_HTML = Object.freeze({ [H_ACCEPT]: 'text/html' })
     const ACT_HEADERS_FORM = Object.freeze({ [H_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
     const ACT_HEADERS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
     const ACT_HEADERS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
@@ -469,8 +470,9 @@
       return Object.freeze(out)
     }
 
-    const buildActionBaseHeaders = (isJson, isText, isForm, isSse, noCache, enc) => {
+    const buildActionBaseHeaders = (isJson, isText, isHtml, isForm, isSse, noCache, enc) => {
       let headers = isJson ? ACT_HEADERS_JSON : isForm ? ACT_HEADERS_FORM : isText ? ACT_HEADERS_TEXT : ACT_HEADERS_EMPTY
+      if (isHtml) headers = mergeActionHeaders(headers, ACT_HEADERS_HTML)
       headers = isSse ? mergeActionHeaders(headers, ACT_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACT_HEADERS_NO_CACHE) : headers
       if (!enc) return headers
       const out = headers === ACT_HEADERS_EMPTY ? Object.create(null) : cloneOwnProps(headers)
@@ -1160,7 +1162,7 @@
       if (aVal && !urlFn) return
       const resultTar = findFirstKind(tars, SIGNAL)
       let busyMod = null, completeMod = null, errMod = null, codeMod = null
-      let isJson = false, isText = false, isForm = false, isSse = false, noCache = false
+      let isJson = false, isText = false, isHtml = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null, authMod = null
       let headersNoKebab = false
@@ -1172,6 +1174,7 @@
         const mr = m.root
         if (mr === MOD_JSON) isJson = true
         else if (mr === MOD_TEXT) isText = true
+        else if (mr === MOD_HTML) isHtml = true
         else if (mr === MOD_FORM) isForm = true
         else if (mr === MOD_SSE) noCache = isSse = true
         else if (mr === MOD_NO_CACHE) noCache = true
@@ -1226,7 +1229,7 @@
       if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
       if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
       if (encCompress) enc += (enc ? ', ' : '') + 'compress'
-      const baseHeaders = buildActionBaseHeaders(isJson, isText, isForm, isSse, noCache, enc)
+      const baseHeaders = buildActionBaseHeaders(isJson, isText, isHtml, isForm, isSse, noCache, enc)
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null

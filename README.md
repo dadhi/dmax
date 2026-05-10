@@ -231,6 +231,7 @@ Examples:
 
 - **`^json`** — `content-type: application/json` + `accept: application/json`; body serialised as JSON
 - **`^text`** — `content-type: text/plain`
+- **`^html`** — `accept: text/html`
 - **`^form`** — `content-type: application/x-www-form-urlencoded`
 - **`^no-cache`** — adds `cache-control: no-cache` / `pragma: no-cache`
 - **`^brotli`/`^br`, `^gzip`, `^deflate`, `^compress`** — set `accept-encoding`

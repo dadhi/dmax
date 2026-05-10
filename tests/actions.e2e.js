@@ -241,6 +241,7 @@ function getPathname(url) {
   await waitFor(() => /OOB morphed content/.test(oobTarget.textContent || ''))
     .catch(e => { throw new Error('OOB morph did not update target: ' + e.message); });
 
+  assert.strictEqual(window.__lastRequest().init.headers.accept, 'text/html', 'OOB request asks for HTML');
   assert(/via dAction \+ morph/.test(oobTarget.textContent || ''), 'OOB target shows morphed content');
   console.log('OOB test passed');
 
