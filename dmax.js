@@ -265,7 +265,14 @@
       if (prop === 'checked') val = el.checked
       else if (prop === 'value') val = el.value
       else if (prop === 'textContent') val = el.textContent
-      else val = el[prop]
+      else {
+        val = el[prop]
+        if (val === undefined && prop.startsWith('data') && prop.length > 4) {
+          const dataKey = prop[4].toLowerCase() + prop.slice(5)
+          val = el.dataset ? el.dataset[dataKey] : undefined
+          if (val === undefined && el.getAttribute) val = el.getAttribute('data-' + camelToKebab(dataKey))
+        }
+      }
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 

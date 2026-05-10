@@ -528,7 +528,7 @@
       try {
         const inp = document.createElement('input');
         inp.value = 'Zed';
-        inp.dataFooBar = 33;
+        inp.setAttribute('data-foo-bar', '33');
         dSub(inp, 'data-sub:out@.^val.data-foo-bar', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
@@ -538,7 +538,7 @@
         return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    __assert(__tSubEventValModPropToSignal, [], { out: 33, diag: 'direct-handler' }, 'dSub ^val selects non-default event property');
+    __assert(__tSubEventValModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dSub ^val selects non-default event property');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
