@@ -261,7 +261,10 @@
     const getElPropVal = (el, propPath) => {
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
-      const val = prop === 'checked' ? el.checked : (prop === 'value' ? el.value : (prop === 'textContent' ? el.textContent : el[prop]))
+      let val = el[prop]
+      if (prop === 'checked') val = el.checked
+      else if (prop === 'value') val = el.value
+      else if (prop === 'textContent') val = el.textContent
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -399,7 +402,7 @@
     const getModValPath = (mods) => {
       for (const m of mods) if (m.root === MOD_VAL) {
         const p = m.path
-        if (p == null) return null
+        if (p === null || p === undefined) return null
         if (typeof p === 'string') return [p]
         if (Array.isArray(p)) return p
         if (p.kind) {
@@ -894,7 +897,8 @@
           permitMods.push(m)
         }
       }
-      const hasSigMods = hasOnce || deb > 0 || thr > 0 || !!permitMods || !!trig.not || !!(valPath && valPath.length)
+      const hasValPath = !!(valPath && valPath.length)
+      const hasSigMods = hasOnce || deb > 0 || thr > 0 || !!permitMods || !!trig.not || hasValPath
       if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debTrig = null, debVal = null, debDetail = null
