@@ -109,6 +109,7 @@
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
         "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,"oobHtml":"",
         "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null,
+        "val-source":{"bar":7},
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
@@ -178,6 +179,20 @@
       <p><span id="inp1Preview" data-sub:.@#inp1.input="document.getElementById('inp1').value"></span></p>
       <button id="btn3">Click me</button>
       <p><span id="btn3Preview" data-sub:.@#btn3="'Clicked!'"></span></p>
+      <h4>7.a `^val` trigger picks</h4>
+      <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-sub:val-prop-picked@.input^val.data-foo-bar" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-sub:.@val-source^val.bar" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-sub:.@val-source^val.bar" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
+        <label>Non-default event prop:
+          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-sub:val-prop-picked@.input^val.data-foo-bar="Number(val)">
+        </label>
+        <div>Typed text: <span id="valPickTyped" data-sub:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
+        <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-sub:.@val-prop-picked="dm.valPropPicked"></strong></div>
+      </div>
+      <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
+        <button id="valSignalStep" data-sub:val-source@.="({ bar: ((dm.valSource && dm.valSource.bar) || 0) + 1 })">Increment <code>valSource.bar</code></button>
+        <div>Signal child via <code>^val.bar</code>: <strong id="valSignalPicked" data-sub:.@val-source^val.bar="val"></strong></div>
+        <div>Expression on picked child: <strong id="valSignalPlusOne" data-sub:.@val-source^val.bar="val + 1"></strong></div>
+      </div>
       <h4>8. Classes &amp; Display</h4>
       <div class="page"><code data-attr-for="classToggle" data-attr-name="data-sync:user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-class+active+!inactive@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
       <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
