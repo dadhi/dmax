@@ -95,6 +95,11 @@
     const SPEC_INTERVAL_MS = 500
     const SPEC_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
+    const E_RW_REQ = `dSub ${MOD}${MOD_RW} requires an element/property trigger in:`
+    const E_RW_EL = `dSub ${MOD}${MOD_RW} source element is not found in trigger:`
+    const E_RW_EV = `dSub ${MOD}${MOD_RW} event is not found in trigger:`
+    const E_TRIG_EL = 'Element is not found in trigger:'
+    const E_TRIG_EV = 'Event is not found in trigger:'
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
     const isSpec = (n) => { if (n.startsWith(SPEC)) for (const s of SPECS) if (n.startsWith(s, 1)) return true; return false }
@@ -406,10 +411,6 @@
     }
 
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
-    const hasMod = (mods, name) => {
-      for (const m of mods) if (m.root === name) return true
-      return false
-    }
 
     const getModValPath = (mods) => {
       for (const m of mods) if (m.root === MOD_VAL) {
@@ -429,11 +430,11 @@
       const valPath = getModValPath(mods)
       return getElPropVal(tarEl, valPath.length ? valPath : propPath)
     }
-    const getTrigPropTarget = (el, aName, trig, mods, missMsg, evMsg, useValPath = true) => {
+    const getTrigPropTarget = (el, aName, trig, mods, missElMsg, missEvMsg, useValPath = true) => {
       const trigRoot = trig ? trig.root : ''
       const trigPath = trig ? trig.path : null
       const tarEl = trigRoot ? getElById(trigRoot, aName) : el
-      if (!tarEl) { console.error('[dmax] Error:', missMsg, trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
+      if (!tarEl) { console.error('[dmax] Error:', missElMsg, trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
       let ev = trigPath && trigPath.length ? trigPath[0] : null
       let propPath = null
       if (ev && isDefaultPropName(tarEl, ev)) propPath = trigPath, ev = getDefaultEv(tarEl)
@@ -442,45 +443,34 @@
         if (valPath.length) propPath = valPath
       }
       ev = ev ?? getDefaultEv(tarEl)
-      if (!ev) { console.error('[dmax] Error:', evMsg, trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
+      if (!ev) { console.error('[dmax] Error:', missEvMsg, trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
       return { tarEl, ev, propPath, tar: { kind: EV_PROP, not: null, root: trigRoot, path: propPath, mods: NIL } }
     }
-    const addNonSigTrigSub = (el, aName, trig, mods, fn, elSubs, ranImmediate, propTar = null) => {
-      const kind = trig.kind, root = trig.root, path = trig.path
-      let ev = path && path.length ? path[0] : null
+    const addNonSigTrigSub = (el, trig, mods, fn, elSubs, ranImmediate, propTar = null) => {
+      const kind = trig.kind, root = trig.root
+      let ev = trig.path && trig.path.length ? trig.path[0] : null
       if (kind === SPEC) {
-        if (root === SPEC_WIN) {
-          addTrigSub(el, trig, mods, fn, elSubs, window, ev || SPEC_WIN_EV)
-          return ranImmediate
-        }
-        if (root === SPEC_DOC) {
-          addTrigSub(el, trig, mods, fn, elSubs, document, ev || SPEC_DOC_EV)
-          return ranImmediate
-        }
-        if (root === SPEC_INTERVAL) {
-          addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-          return ranImmediate
-        }
-        if (root === SPEC_TIMEOUT) {
-          addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-          return ranImmediate
-        }
-        if (root === SPEC_FORM) {
+        if (root === SPEC_WIN) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
+        else if (root === SPEC_DOC) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
+        else if (root === SPEC_INTERVAL) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
+        else if (root === SPEC_TIMEOUT) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
+        else if (root === SPEC_FORM) {
           const formEl = el && el.closest ? el.closest('form') : null
-          if (!formEl) return ranImmediate
-          const modded = addTrigSub(el, trig, mods, fn, elSubs, formEl, ev || 'submit')
-          if (!ranImmediate && isImmediateMod(mods, false)) {
-            ranImmediate = true
-            invokeSub(modded, null, null, el, trig)
+          if (formEl) {
+            const modded = addTrigSub(el, trig, mods, fn, elSubs, formEl, ev || 'submit')
+            if (!ranImmediate && isImmediateMod(mods, false)) {
+              ranImmediate = true
+              invokeSub(modded, null, null, el, trig)
+            }
           }
-          return ranImmediate
         }
-      }
-      if (!propTar) return null
-      const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, propTar.tarEl, propTar.ev, propTar.propPath)
-      if (!ranImmediate && isImmediateMod(mods, false)) {
-        ranImmediate = true
-        invokeSub(moddedHandler, null, getTrigEventVal(propTar.tarEl, propTar.propPath, mods), el, trig)
+      } else if (!propTar) return null
+      else {
+        const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, propTar.tarEl, propTar.ev, propTar.propPath)
+        if (!ranImmediate && isImmediateMod(mods, false)) {
+          ranImmediate = true
+          invokeSub(moddedHandler, null, getTrigEventVal(propTar.tarEl, propTar.propPath, mods), el, trig)
+        }
       }
       return ranImmediate
     }
@@ -803,6 +793,9 @@
         elSubs.push(sub)
         return sub.fn
       }
+      if (trig.kind === SPEC)
+        if (trig.root === SPEC_WIN) evName ||= SPEC_WIN_EV, tarEl ||= window
+        else if (trig.root === SPEC_DOC) evName ||= SPEC_DOC_EV, tarEl ||= document
       const opts = getListenerOpts(mods)
       const sub = { el, trig, fn: null, sigChangeMod: null, ev: { tarEl, evName, opts }, clearId: null }
       const modded = applyTrigMods(fn, trig, mods, sub)
@@ -1010,9 +1003,9 @@
         const readTrigs = [], writePropTrigs = [], writeSigTrigs = []
         for (const trig of trigs) {
           const mods = pickMods(trig.mods, globMods)
-          if (hasMod(mods, MOD_RW)) {
-            if (trig.kind !== EV_PROP) { console.error('[dmax] Error: dSub ^rw requires an element/property trigger in:', aName); return }
-            const propTar = getTrigPropTarget(el, aName, trig, mods, 'dSub ^rw source element is not found in trigger:', 'dSub ^rw event is not found in trigger:')
+          if (mods.some(m => m.root === MOD_RW)) {
+            if (trig.kind !== EV_PROP) { console.error('[dmax] Error:', E_RW_REQ, aName); return }
+            const propTar = getTrigPropTarget(el, aName, trig, mods, E_RW_EL, E_RW_EV)
             if (!propTar) return
             writePropTrigs.push({ trig, mods, tarEl: propTar.tarEl, ev: propTar.ev, propPath: propTar.propPath, tar: propTar.tar })
             continue
@@ -1036,9 +1029,9 @@
                 invokeBoundSub(sub, null)
               }
             } else if (kind === EV_PROP || kind === SPEC) {
-              const propTar = kind === EV_PROP ? getTrigPropTarget(el, aName, trig, mods, 'dSub ^rw source element is not found in trigger:', 'dSub ^rw event is not found in trigger:') : null
+              const propTar = kind === EV_PROP ? getTrigPropTarget(el, aName, trig, mods, E_RW_EL, E_RW_EV) : null
               if (kind === EV_PROP && !propTar) return
-              const nextRanImmediate = addNonSigTrigSub(el, aName, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, ranImmediate, propTar)
+              const nextRanImmediate = addNonSigTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, ranImmediate, propTar)
               if (nextRanImmediate == null) return
               ranImmediate = nextRanImmediate
             } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
@@ -1084,9 +1077,9 @@
             invokeBoundSub(sub, null)
           }
         } else if (kind === EV_PROP || kind === SPEC) {
-          const propTar = kind === EV_PROP ? getTrigPropTarget(el, aName, trig, mods, 'Element is not found in trigger:', 'Event is not found in trigger:', false) : null
+          const propTar = kind === EV_PROP ? getTrigPropTarget(el, aName, trig, mods, E_TRIG_EL, E_TRIG_EV, false) : null
           if (kind === EV_PROP && !propTar) return
-          const nextRanImmediate = addNonSigTrigSub(el, aName, trig, mods, fn, elSubs, ranImmediate, propTar)
+          const nextRanImmediate = addNonSigTrigSub(el, trig, mods, fn, elSubs, ranImmediate, propTar)
           if (nextRanImmediate == null) return
           ranImmediate = nextRanImmediate
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
