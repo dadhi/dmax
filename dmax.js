@@ -98,8 +98,7 @@
     const E_RW_REQ = `dSub ${MOD}${MOD_RW} requires an element/property trigger in:`
     const E_RW_EL = `dSub ${MOD}${MOD_RW} source element is not found in trigger:`
     const E_RW_EV = `dSub ${MOD}${MOD_RW} event is not found in trigger:`
-    const E_TRIG_EL = 'Element is not found in trigger:'
-    const E_TRIG_EV = 'Event is not found in trigger:'
+    const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
     const isSpec = (n) => { if (n.startsWith(SPEC)) for (const s of SPECS) if (n.startsWith(s, 1)) return true; return false }
@@ -431,8 +430,8 @@
       return getElPropVal(tarEl, valPath.length ? valPath : propPath)
     }
     const getTrigPropTarget = (el, aName, trig, mods, missElMsg, missEvMsg, useValPath = true) => {
-      const trigRoot = trig ? trig.root : ''
-      const trigPath = trig ? trig.path : null
+      const trigRoot = trig.root || ''
+      const trigPath = trig.path
       const tarEl = trigRoot ? getElById(trigRoot, aName) : el
       if (!tarEl) { console.error('[dmax] Error:', missElMsg, trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
       let ev = trigPath && trigPath.length ? trigPath[0] : null
@@ -450,19 +449,10 @@
       const kind = trig.kind, root = trig.root
       let ev = trig.path && trig.path.length ? trig.path[0] : null
       if (kind === SPEC) {
-        if (root === SPEC_WIN) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-        else if (root === SPEC_DOC) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-        else if (root === SPEC_INTERVAL) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-        else if (root === SPEC_TIMEOUT) addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-        else if (root === SPEC_FORM) {
-          const formEl = el && el.closest ? el.closest('form') : null
-          if (formEl) {
-            const modded = addTrigSub(el, trig, mods, fn, elSubs, formEl, ev || 'submit')
-            if (!ranImmediate && isImmediateMod(mods, false)) {
-              ranImmediate = true
-              invokeSub(modded, null, null, el, trig)
-            }
-          }
+        const modded = addTrigSub(el, trig, mods, fn, elSubs, null, ev)
+        if (root === SPEC_FORM && modded && !ranImmediate && isImmediateMod(mods, false)) {
+          ranImmediate = true
+          invokeSub(modded, null, null, el, trig)
         }
       } else {
         if (!propTar) return null
@@ -793,9 +783,19 @@
         elSubs.push(sub)
         return sub.fn
       }
-      if (trig.kind === SPEC)
-        if (trig.root === SPEC_WIN) evName ||= SPEC_WIN_EV, tarEl ||= window
-        else if (trig.root === SPEC_DOC) evName ||= SPEC_DOC_EV, tarEl ||= document
+      if (trig.kind === SPEC) {
+        if (trig.root === SPEC_WIN) {
+          evName ||= SPEC_WIN_EV
+          tarEl ||= window
+        } else if (trig.root === SPEC_DOC) {
+          evName ||= SPEC_DOC_EV
+          tarEl ||= document
+        } else if (trig.root === SPEC_FORM) {
+          evName ||= 'submit'
+          tarEl ||= el && el.closest ? el.closest('form') : null
+          if (!tarEl) { console.error('[dmax] Error:', E_FORM_EL, trig, 'on:', el); return null }
+        }
+      }
       const opts = getListenerOpts(mods)
       const sub = { el, trig, fn: null, sigChangeMod: null, ev: { tarEl, evName, opts }, clearId: null }
       const modded = applyTrigMods(fn, trig, mods, sub)
