@@ -14,7 +14,7 @@
       if (!s) return s
       let p = s.indexOf('-')
       if (p < 0) {
-        KEBAB_NAMES.set(s, s)
+        CAMEL_NAMES.set(s, s)
         return s
       }
       let res = CAMEL_NAMES.get(s)
