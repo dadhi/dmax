@@ -1314,7 +1314,7 @@
             if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
             else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
             else continue
-            ;(isBody ? bodyFields : queryParams)[mKey] = mVal
+            (isBody ? bodyFields : queryParams)[mKey] = mVal
           }
 
           let finalUrl = url
