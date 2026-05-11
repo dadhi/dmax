@@ -13,7 +13,10 @@
     const kebabToCamel = (s) => {
       if (!s) return s
       let p = s.indexOf('-')
-      if (p < 0) return s
+      if (p < 0) {
+        KEBAB_NAMES.set(s, s)
+        return s
+      }
       let res = CAMEL_NAMES.get(s)
       if (res) return res
       res = s.slice(0, p)
@@ -24,6 +27,7 @@
           res += s.slice(p, (p = s.indexOf('-', p)) == -1 ? s.length : p)
       }
       CAMEL_NAMES.set(s, res)
+      KEBAB_NAMES.set(res, s)
       return res
     }
 
@@ -36,13 +40,17 @@
         const c = s.charCodeAt(p)
         if (c >= 65 && c <= 90) break
       }
-      if (p >= s.length) return s
+      if (p >= s.length) {
+        CAMEL_NAMES.set(s, s)
+        return s
+      }
       res = s.slice(0, p)
       for (; p < s.length; ++p) {
         const c = s[p]
         res += c >= 'A' && c <= 'Z' ? '-' + c.toLowerCase() : c
       }
       KEBAB_NAMES.set(s, res)
+      CAMEL_NAMES.set(res, s)
       return res
     }
 
@@ -263,8 +271,7 @@
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
       let val = el[prop]
       if (val === undefined && prop.startsWith('data') && prop.length > 4 && el.getAttribute) {
-        const dataKey = prop[4].toLowerCase() + prop.slice(5)
-        val = el.getAttribute('data-' + camelToKebab(dataKey))
+        val = el.getAttribute(camelToKebab(prop))
       }
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
