@@ -445,9 +445,9 @@
       return { tarEl, ev, propPath, tar: { kind: EV_PROP, not: null, root: trigRoot, path: propPath, mods: NIL } }
     }
     const addNonSigTrigSub = (el, trig, mods, fn, elSubs, ranImmediate, propTar = null) => {
-      const kind = trig.kind, isSpec = kind === SPEC
-      if (!isSpec && !propTar) { console.assert(propTar !== null); return null }
-      const ev = trig.path?.[0] ?? null
+      const isSpec = trig.kind === SPEC, hasTar = propTar !== null
+      console.assert(isSpec || hasTar);if (!isSpec && !hasTar) return null
+      const ev = trig.path?.[0]
       const subTarEl = isSpec ? null : propTar.tarEl, subEv = isSpec ? ev : propTar.ev, subPropPath = isSpec ? null : propTar.propPath
       const modded = addTrigSub(el, trig, mods, fn, elSubs, subTarEl, subEv, subPropPath)
       if (modded && !ranImmediate && isImmediateMod(mods, false) && (!isSpec || trig.root === SPEC_FORM)) {
