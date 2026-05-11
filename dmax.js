@@ -1305,9 +1305,9 @@
             else bodyFields[key] = val
           }
 
-          // ^url.<sigPath> forces a named sig into query params.
-          // ^body.<sigPath> forces a named sig into the request body.
-          for (let i=0,n=urlMods.length+bodyMods.length;i<n;i++) {
+          // ^url.<sigPath> forces named sig into query params.
+          // ^body.<sigPath> forces a sig into request body.
+          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
             const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
             if (!mPath) continue
             let mKey, mVal
