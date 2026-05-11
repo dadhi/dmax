@@ -994,8 +994,9 @@
       if (!tars.length && trigs.length) {
         const readTrigs = [], writePropTrigs = [], writeSigTrigs = []
         for (const trig of trigs) {
-          const mods = pickMods(trig.mods, globMods)
-          if (mods.some(m => m.root === MOD_RW)) {
+          const mods = pickMods(trig.mods, globMods); let hasRw = false
+          for (let i=0;i<mods.length;i++) if (mods[i].root===MOD_RW) { hasRw = true; break }
+          if (hasRw) {
             if (trig.kind !== EV_PROP) { console.error('[dmax] Error:', E_RW_REQ, aName); return }
             const propTar = getTrigPropTarget(el, aName, trig, mods, E_RW_EL, E_RW_EV)
             if (!propTar) return
@@ -1306,17 +1307,14 @@
 
           // ^url.<sigPath> forces a named sig into query params.
           // ^body.<sigPath> forces a named sig into the request body.
-          const modPairs = [{ mods: urlMods, dest: queryParams }, { mods: bodyMods, dest: bodyFields }]
-          for (const modPair of modPairs) {
-            for (const m of modPair.mods) {
-              const mPath = m.path
-              if (!mPath) continue
-              let mKey, mVal
-              if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-              else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
-              else continue
-              modPair.dest[mKey] = mVal
-            }
+          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
+            const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
+            if (!mPath) continue
+            let mKey, mVal
+            if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
+            else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSigValOrIt(mPath) }
+            else continue
+            ;(isBody ? bodyFields : queryParams)[mKey] = mVal
           }
 
           let finalUrl = url
@@ -1473,7 +1471,7 @@
         const mods = pickMods(trig.mods, globMods)
         if (kind === SIGNAL) {
           if (!expected(root)) return
-          addTrigSub(el, trig, mods, (_dm, _el, _trig, _trigVal, _detail) => doRequest(), elSubs)
+          addTrigSub(el, trig, mods, doRequest, elSubs)
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             doRequest()
@@ -1483,7 +1481,7 @@
           if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
           if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
-          const moddedHandler = addTrigSub(el, trig, mods, (_dm, _el, _trig, _trigVal, _detail) => doRequest(), elSubs, evTarEl, ev, null)
+          const moddedHandler = addTrigSub(el, trig, mods, doRequest, elSubs, evTarEl, ev, null)
           if (!ranImmediate && isImmediateMod(mods, false)) {
             ranImmediate = true
             invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
