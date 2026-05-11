@@ -46,8 +46,7 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 ### Core directives
 
 - `data-def` — define signal state
-- `data-sub` — subscribe and update signals/props with expression results
-- `data-sync` — signal/prop synchronization
+- `data-sub` — subscribe and update signals/props with expression results, including `^rw` two-way sync
 - `data-class` — class toggling
 - `data-disp` — show/hide elements
 - `data-dump` — render array items via templates
@@ -64,11 +63,13 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
 
+For two-way sync, put `^rw` on the element/property trigger you want to write back from, e.g. `data-sub@.^rw@user.name` or `data-sub@.^val.value^rw@user.name`.
+
 Signal names are not reserved or validated against runtime helper identifiers. If you choose names that overlap with your own expression conventions, that is the template author's responsibility.
 
 Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Variable bracket indices such as `@posts[idx]` are intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need runtime lookup logic.
 
-Reactive setup is immediate by default for `data-def`, signal-backed `data-sub`, `data-sync`, `data-dump`, and `data-debug`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate`.
+Reactive setup is immediate by default for `data-def`, signal-backed `data-sub`, `data-sub^rw`, `data-dump`, and `data-debug`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate`.
 
 ## Fixi feature matrix (aligned to dmax)
 
@@ -86,7 +87,7 @@ five very small libraries:
 | Fixi piece | What it does | dmax status today | Gap / takeaway |
 | --- | --- | --- | --- |
 | `fixi.js` | Declarative HTTP requests triggered from HTML, with target selection and swap strategies | **Partial overlap** via `data-get|post|put|patch|delete`, plus `^busy`, `^complete`, `^err`, `^code` result/status signals | dmax covers declarative requests. It does **not** yet expose Fixi's small HTML-targeted swap model (`fx-target`, `fx-swap`) as directly. |
-| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-def`, `data-sub`, `data-sync`, `data-class`, `data-disp`, `data-dump` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
+| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-def`, `data-sub`, `data-class`, `data-disp`, `data-dump` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
 | `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Strong overlap** — action responses accept `text/event-stream` and apply `dmax-patch-elements` / `dmax-patch-signals` incrementally via `ReadableStream` + `TextDecoder`; `^open`/`^close` lifecycle signals, `^retry.N` auto-reconnect, and `^abort` cancellation are all supported | Long-lived persistent SSE connections use the same `data-get` grammar; lifecycle signals are first-class. |
 | `paxi.js` | Morph-based DOM patching that preserves focus/form state better than replacement | **Strong overlap** — dmax morphs matched nodes, preserves event listeners, caret/selection for focused inputs, and scroll position; parity matrix tests cover `style`, `href`, `data-*`, `aria-*`, canvas attribute updates, keyed list reconciliation, and mixed keyed/unkeyed collection stability | Keyed-list reconciliation and stable DOM identity are covered by the id-matching algorithm and validated by inline assertions. |
 | `rexi.js` | Tiny imperative `fetch()` helper for code paths where declarative HTML is not enough | **Not planned** — the `^abort.<signal>` modifier covers the cancel use-case declaratively; uncommon imperative paths can use vanilla `fetch()` directly | dmax deliberately keeps the declarative grammar complete for the 80/20 cases; explicit imperative helpers are intentionally out-of-scope for the core runtime. |
@@ -95,7 +96,7 @@ five very small libraries:
 ### What dmax already has that Fixi does not
 
 - A first-class signal store (`data-def`) rather than DOM-only/local imperative state.
-- Declarative signal/property synchronization (`data-sync`) including one-way and two-way flows.
+- Declarative signal/property synchronization via `data-sub`, including one-way and `^rw` two-way flows.
 - Signal-driven class/visibility/list directives (`data-class`, `data-disp`, `data-dump`).
 - Shape-aware updates and signal modifiers for gating/timing.
 - A more unified attribute grammar across signals, props, events, and actions.
@@ -112,17 +113,17 @@ five very small libraries:
 <div data-def='{"count":0,"active":true}'></div>
 
 <button data-sub:count@.click="dm.count + 1">+1</button>
-<span data-sync@count></span>
+<span data-sub:.@count></span>
 
-<input data-sync:user.name>
+<input data-sub@.^rw@user.name>
 <div data-class+active+!inactive@active="dm.active"></div>
 
 <button data-get^busy.post-loading^err.post-error^code.post-code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">
   Load
 </button>
 <strong data-disp@post-loading>Loading…</strong>
-<span data-sync@post-error></span>
-<span data-sync@post-code></span>
+<span data-sub:.@post-error></span>
+<span data-sub:.@post-code></span>
 
 <!-- request spread + dynamic headers + merge result -->
 <button

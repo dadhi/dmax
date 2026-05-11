@@ -729,11 +729,11 @@
       return DM['dst'] ?? null
     }
     __assert(__tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
-    function __tSyncTwoWayDefault() {
+    function __tSubRwTwoWayDefault() {
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
-      dSync(inp, 'data-sync:name')
+      dSub(inp, 'data-sub@.^rw@name')
       const before = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -741,12 +741,12 @@
       setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, elAfterSignal: inp.value }
     }
-    __assert(__tSyncTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSync two-way default');
-    function __tSyncSignalToPropOnly() {
+    __assert(__tSubRwTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSub ^rw two-way default');
+    function __tSubSignalToPropOnly() {
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
-      dSync(inp, 'data-sync@name')
+      dSub(inp, 'data-sub:.@name')
       const before = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -754,13 +754,13 @@
       setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterLocalEvent, elAfterSignal: inp.value }
     }
-    __assert(__tSyncSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSync signal->prop one-way');
-    function __tSyncPropToSignalOnly() {
+    __assert(__tSubSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSub signal->prop one-way');
+    function __tSubPropToSignalOnly() {
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
-      dSync(inp, 'data-sync:name@.')
+      dSub(inp, 'data-sub:name@.')
       const before = inp.value
       const sigAfterElementWrite = DM['name']
       setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
@@ -769,25 +769,25 @@
       inp.dispatchEvent(mkEv('change'))
       return { before, sigAfterElementWrite, elAfterSignal, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSyncPropToSignalOnly, [], { before: 'Initial', sigAfterElementWrite: 'Initial', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSync prop->signal one-way immediate by default');
-    function __tSyncPropToSignalNotImmediate() {
+    __assert(__tSubPropToSignalOnly, [], { before: 'Initial', sigAfterElementWrite: 'Ada', elAfterSignal: 'Initial', sigAfterEvent: 'Bob' }, 'dSub prop->signal one-way waits for an event');
+    function __tSubPropToSignalNotImmediate() {
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
-      dSync(inp, 'data-sync^notimmediate:name@.')
+      dSub(inp, 'data-sub^notimmediate:name@.')
       const sigBeforeChange = DM['name']
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       return { sigBeforeChange, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSyncPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dSync ^notimmediate keeps prop->signal opt-out');
-    function __tSyncCheckboxDefaultProp() {
+    __assert(__tSubPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dSub ^notimmediate matches default prop->signal timing');
+    function __tSubRwCheckboxDefaultProp() {
       __reset();
       const cb = document.createElement('input')
       cb.type = 'checkbox'
       DM['isOn'] = true
-      dSync(cb, 'data-sync:is-on')
+      dSub(cb, 'data-sub@.^rw@is-on')
       const before = cb.checked
       cb.checked = false
       cb.dispatchEvent(mkEv('change'))
@@ -795,7 +795,21 @@
       setSigAndNotifySubs('t', { root: 'isOn', path: null }, true)
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
-    __assert(__tSyncCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSync checkbox checked/value default prop');
+    __assert(__tSubRwCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSub ^rw checkbox checked/value default prop');
+    function __tSubRwValPathBothWays() {
+      __reset();
+      const inp = document.createElement('input')
+      inp.val = { value: 'Initial' }
+      _dm.set('name', 'Ada')
+      dSub(inp, 'data-sub@.^val.val.value^rw@name')
+      const before = inp.val.value
+      inp.val.value = 'Bob'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['name']
+      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      return { before, sigAfterWrite, afterSignal: inp.val.value }
+    }
+    __assert(__tSubRwValPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dSub ^rw honors ^val path both ways');
     function __tClassSignalToggle() {
       __reset()
       const div = document.createElement('div')
