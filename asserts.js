@@ -147,12 +147,14 @@
       return {
         signal: resolveModPathVal({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
         root: resolveModPathVal('gate'),
+        negated: resolveModPathVal('!gate'),
         path: resolveModPathVal('user.name'),
+        numeric: resolveModPathVal('3'),
         literal: resolveModPathVal('literal'),
         nil: resolveModPathVal(null),
       }
     }
-    __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, path: 'Alice', literal: 'literal', nil: null }, 'modifier value helper')
+    __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, negated: false, path: 'Alice', numeric: '3', literal: 'literal', nil: null }, 'modifier value helper')
     __assert(resolveStatusSig, [null, 'busy'], null, 'status signal null')
     __assert(resolveStatusSig, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
     __assert(resolveStatusSig, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
