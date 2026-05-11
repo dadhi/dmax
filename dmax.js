@@ -41,7 +41,7 @@
         if (c >= 65 && c <= 90) break
       }
       if (p >= s.length) {
-        CAMEL_NAMES.set(s, s)
+        KEBAB_NAMES.set(s, s)
         return s
       }
       res = s.slice(0, p)
