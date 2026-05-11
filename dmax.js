@@ -262,7 +262,10 @@
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
       let val = el[prop]
-      if (val === undefined && prop.startsWith('data') && prop.length > 4 && el.getAttribute) val = el.getAttribute(camelToKebab(prop))
+      if (val === undefined && prop.startsWith('data') && prop.length > 4 && el.getAttribute) {
+        const dataKey = prop[4].toLowerCase() + prop.slice(5)
+        val = el.getAttribute('data-' + camelToKebab(dataKey))
+      }
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -407,7 +410,7 @@
           if (!p.root) return p.path || EMPTY_ARR
           return p.path && p.path.length ? [p.root, ...p.path] : [p.root]
         }
-        return EMPTY_ARR
+        return [p]
       }
       return EMPTY_ARR
     }
