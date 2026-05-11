@@ -446,20 +446,13 @@
     }
     const addNonSigTrigSub = (el, trig, mods, fn, elSubs, ranImmediate, propTar = null) => {
       const kind = trig.kind, root = trig.root
-      let ev = trig.path && trig.path.length ? trig.path[0] : null
-      if (kind === SPEC) {
-        const modded = addTrigSub(el, trig, mods, fn, elSubs, null, ev)
-        if (root === SPEC_FORM && modded && !ranImmediate && isImmediateMod(mods, false)) {
-          ranImmediate = true
-          invokeSub(modded, null, null, el, trig)
-        }
-      } else {
-        if (!propTar) return null
-        const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, propTar.tarEl, propTar.ev, propTar.propPath)
-        if (!ranImmediate && isImmediateMod(mods, false)) {
-          ranImmediate = true
-          invokeSub(moddedHandler, null, getTrigEventVal(propTar.tarEl, propTar.propPath, mods), el, trig)
-        }
+      console.assert(kind === SPEC || propTar !== null)
+      if (kind !== SPEC && !propTar) return null
+      const ev = trig.path && trig.path.length ? trig.path[0] : null
+      const modded = addTrigSub(el, trig, mods, fn, elSubs, kind === SPEC ? null : propTar.tarEl, kind === SPEC ? ev : propTar.ev, kind === SPEC ? null : propTar.propPath)
+      if (modded && !ranImmediate && isImmediateMod(mods, false) && (kind !== SPEC || root === SPEC_FORM)) {
+        ranImmediate = true
+        invokeSub(modded, null, kind === SPEC ? null : getTrigEventVal(propTar.tarEl, propTar.propPath, mods), el, trig)
       }
       return ranImmediate
     }
