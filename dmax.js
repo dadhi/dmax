@@ -8,7 +8,7 @@
       return first === s.length ? -1 : first
     }
 
-    const EMPTY_ARR = Object.freeze([])
+    const NIL = Object.freeze([])
     const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
     const kebabToCamel = (s) => {
       if (!s) return s
@@ -95,7 +95,7 @@
     const SPEC_INTERVAL_MS = 500
     const SPEC_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: EMPTY_ARR }), RE_DIGITS = /^\d+$/
+    const DEFAULT_PROP_TAR = Object.freeze({ kind: EV_PROP, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
     const isSpec = (n) => { if (n.startsWith(SPEC)) for (const s of SPECS) if (n.startsWith(s, 1)) return true; return false }
     const _KIND = [MOD, SIGNAL, EV_PROP, SPEC]
@@ -162,11 +162,11 @@
     }
 
     const finishParse = (items, p, it, aName) => {
-      items[MOD] ??= EMPTY_ARR
+      items[MOD] ??= NIL
       if (it === ALL) {
-        items[TARG] ??= EMPTY_ARR
-        items[TRIG] ??= EMPTY_ARR
-        items[ADD] ??= EMPTY_ARR
+        items[TARG] ??= NIL
+        items[TRIG] ??= NIL
+        items[ADD] ??= NIL
       }
       if (p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
       return [items, p]
@@ -190,7 +190,7 @@
           ts.push(item);
           if (p >= aName.length || (it === MODS && aName[p] != MOD)) return finishParse(items, p, it, aName)
         } else if (p >= aName.length || aName[p] != MOD) {
-          item.mods = items[MOD] ?? EMPTY_ARR
+          item.mods = items[MOD] ?? NIL
           ts.push(item);
         } else {
           [modItems, p] = parse(aName, p, MODS)
@@ -360,8 +360,8 @@
 
     const diffShapeShallow = (before, after) => {
       let b = before, a = after
-      if (!b || typeof b != 'object') b = EMPTY_ARR
-      if (!a || typeof a != 'object') a = EMPTY_ARR
+      if (!b || typeof b != 'object') b = NIL
+      if (!a || typeof a != 'object') a = NIL
 
       if (Array.isArray(b)) {
         if (Array.isArray(a))
@@ -410,16 +410,16 @@
     const getModValPath = (mods) => {
       for (const m of mods) if (m.root === MOD_VAL) {
         const p = m.path
-        if (p === null || p === undefined) return EMPTY_ARR
+        if (p === null || p === undefined) return NIL
         if (typeof p === 'string') return [p]
         if (Array.isArray(p)) return p
         if (p.kind) {
-          if (!p.root) return p.path || EMPTY_ARR
+          if (!p.root) return p.path || NIL
           return p.path && p.path.length ? [p.root, ...p.path] : [p.root]
         }
         return [p]
       }
-      return EMPTY_ARR
+      return NIL
     }
     const getTrigEventVal = (tarEl, propPath, mods) => {
       const valPath = getModValPath(mods)
@@ -548,7 +548,7 @@
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
-        const attrs = node.attributes || EMPTY_ARR
+        const attrs = node.attributes || NIL
         let nextAttrs = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
@@ -579,7 +579,7 @@
         if (dumpAttrs && dumpAttrs.length) {
           for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
         } else {
-          const attrs = el.attributes || EMPTY_ARR
+          const attrs = el.attributes || NIL
           for (let i = 0; i < attrs.length; ++i) {
             const attr = attrs[i]
             globalThis.wireNode(el, attr.name, attr.value)
@@ -686,7 +686,7 @@
     const _subs = new Map()
     const _debugEls = new Set()
     let _debugQueued = false
-    const ensureMapList = (map, key) => {
+    const upsert = (map, key) => {
       let list = map.get(key)
       if (!list) map.set(key, list = [])
       return list
@@ -732,7 +732,7 @@
       if (trig.kind === SIGNAL) {
         const sub = { el, trig, fn, sigChangeMod: getSigChangeShape(mods), ev: null, clearId: null }
         sub.fn = applyTrigMods(fn, trig, mods, sub)
-        ensureMapList(_subs, trig.root).push(sub), (elSubs || ensureMapList(_cleanupBoundSubs, el)).push(sub)
+        upsert(_subs, trig.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
       if (trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
@@ -962,7 +962,7 @@
         }
       }
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return }
-      const elSubs = ensureMapList(_cleanupBoundSubs, el)
+      const elSubs = upsert(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (let trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
@@ -1048,7 +1048,7 @@
       const shouldReadSig = !!sigRead && (sigTrig || !propTrig)
       const shouldWriteSig = !!sigWrite && (propTrig || !sigTrig)
 
-      const elSubs = ensureMapList(_cleanupBoundSubs, el)
+      const elSubs = upsert(_cleanupBoundSubs, el)
 
       if (shouldReadSig) {
         if (!expected(sigRead.root)) return
@@ -1095,7 +1095,7 @@
       if (!tarEl) { console.error('[dmax] Error: dClass target element not found in:', aName); return }
       const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
-      const elSubs = ensureMapList(_cleanupBoundSubs, el)
+      const elSubs = upsert(_cleanupBoundSubs, el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
         const mods = pickMods(trig.mods, globMods)
@@ -1127,7 +1127,7 @@
       const origDisp=hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
       const fn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !fn) return
-      const elSubs = ensureMapList(_cleanupBoundSubs, el)
+      const elSubs = upsert(_cleanupBoundSubs, el)
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
         const mods = pickMods(trig.mods, globMods)
@@ -1179,7 +1179,7 @@
       const sigRoot = trig.root
       const sigPath = trig.path
 
-      addTrigSub(el, trig, mods, ()=>renderDumpState(el,trig,dumpState,tplFirst,sigRoot,sigPath), ensureMapList(_cleanupBoundSubs, el))
+      addTrigSub(el, trig, mods, ()=>renderDumpState(el,trig,dumpState,tplFirst,sigRoot,sigPath), upsert(_cleanupBoundSubs, el))
       if (isImmediateMod(mods, true)) renderDumpState(el,trig,dumpState,tplFirst,sigRoot,sigPath)
     }
     // data-get^busy.busy:result@.click^immediate="url"
@@ -1472,7 +1472,7 @@
       }
 
       if (!trigs.length) { doRequest(); return }
-      const elSubs = ensureMapList(_cleanupBoundSubs, el)
+      const elSubs = upsert(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
@@ -1529,11 +1529,11 @@
     }
 
     const getPatchTars = (selector) => {
-      if (!selector) return EMPTY_ARR
+      if (!selector) return NIL
       const simpleId = getSimpleIdSelector(selector)
       if (simpleId) {
         const el = document.getElementById(simpleId)
-        return el ? [el] : EMPTY_ARR
+        return el ? [el] : NIL
       }
       return document.querySelectorAll(selector)
     }
@@ -1727,7 +1727,7 @@
     const SSE_OUTER = 'outer', SSE_INNER = 'inner', SSE_REPLACE = 'replace', SSE_PREPEND = 'prepend', SSE_APPEND = 'append', SSE_BEFORE = 'before', SSE_AFTER = 'after', SSE_REMOVE = 'remove'
 
     const parseSseEls = (html, ns) => {
-      if (!html) return []
+      if (!html) return NIL
       const namespace = (ns || 'html').toLowerCase()
       if (namespace === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
@@ -1841,7 +1841,7 @@
     }
 
     const applySse = (raw, aName = 'dmax-sse') => {
-      if (!raw) return []
+      if (!raw) return NIL
       const applied = []
       const text = String(raw)
       const RE_TRAILING_CR = /\r$/
@@ -1897,7 +1897,7 @@
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
     const consumeSseStream = async (body, aName, onOpen, onClose) => {
-      if (!body || typeof body.getReader !== 'function') return []
+      if (!body || typeof body.getReader !== 'function') return NIL
       const applied = []
       const reader = body.getReader()
       const decoder = new TextDecoder()
