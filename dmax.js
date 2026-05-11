@@ -430,8 +430,7 @@
       return getElPropVal(tarEl, valPath.length ? valPath : propPath)
     }
     const getTrigPropTarget = (el, aName, trig, mods, missElMsg, missEvMsg, useValPath = true) => {
-      const trigRoot = trig.root || ''
-      const trigPath = trig.path
+      const trigRoot = trig?.root || '', trigPath = trig?.path
       const tarEl = trigRoot ? getElById(trigRoot, aName) : el
       if (!tarEl) { console.error('[dmax] Error:', missElMsg, trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
       let ev = trigPath && trigPath.length ? trigPath[0] : null
