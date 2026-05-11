@@ -1087,6 +1087,32 @@
         }
       } finally { delete window.fetch }
     })
+    __asyncAssert('signal-triggered dAction uses dm state (trigger args stay ignored)', async () => {
+      __reset()
+      const fetchCalls = []
+      window.fetch = (url, init) => {
+        fetchCalls.push({ url, method: init.method })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const host = document.createElement('div')
+        _dm.set('route', 'first')
+        _dm.set('fire', 0)
+        _dm.set('res', null)
+        dAction(host, 'data-get:res@fire', '`https://api.test/${dm.route}`')
+        setSigAndNotifySubs('t', { root: 'route', path: null }, 'second')
+        setSigAndNotifySubs('t', { root: 'fire', path: null }, 1)
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, res: DM['res'] },
+          expected: { calls: 1, method: 'GET', url: 'https://api.test/second', res: { ok: true } }
+        }
+      } finally { delete window.fetch }
+    })
     __asyncAssert('^busy.<signal> goes true while fetching then false on success', async () => {
       __reset()
       let resolveFetch
