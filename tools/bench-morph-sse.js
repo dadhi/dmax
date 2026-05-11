@@ -474,7 +474,6 @@ function runDmaxScenarios(window, payloads) {
   const { document, applyDmaxPatchElements, applyDmaxSse, applyDmaxOobHtml } = window
   if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function' || typeof applyDmaxOobHtml !== 'function')
     throw new Error('dmax benchmark helpers are not available on window')
-  const applyOobHtml = applyDmaxOobHtml
 
   const host = document.createElement('div')
   host.id = 'bench-host'
@@ -505,8 +504,8 @@ function runDmaxScenarios(window, payloads) {
       'oob-morph-small-diff',
       500,
       mountBase,
-      () => applyDmaxOobFragments(applyOobHtml, payloads.smallOobFragments),
-      () => applyDmaxOobFragments(applyOobHtml, payloads.baseOobFragments),
+      () => applyDmaxOobFragments(applyDmaxOobHtml, payloads.smallOobFragments),
+      () => applyDmaxOobFragments(applyDmaxOobHtml, payloads.baseOobFragments),
       v.cellText,
       validateSmallUnchangedControls,
       validateBase
