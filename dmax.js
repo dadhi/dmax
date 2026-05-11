@@ -464,8 +464,8 @@
             }
           }
         }
-      } else if (!propTar) return null
-      else {
+      } else {
+        if (!propTar) return null
         const moddedHandler = addTrigSub(el, trig, mods, fn, elSubs, propTar.tarEl, propTar.ev, propTar.propPath)
         if (!ranImmediate && isImmediateMod(mods, false)) {
           ranImmediate = true
