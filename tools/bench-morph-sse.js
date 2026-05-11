@@ -762,7 +762,7 @@ function formatParityProbe(probe) {
 //
 // dmax hot path (full-page morph):
 //   1. HTML parse: _HTML_PARSE_TEMPLATE.innerHTML = html — reused singleton <template>,
-//      no new parser per call. Already ~faster than datastar's DOMParser path.
+//      no new parser per call. Measurably faster than datastar's new DOMParser() per call.
 //   2. Single-pass morph with lazy Map allocation: builds idMap only when needed
 //      (after the fast in-order scan exhausts matched nodes).
 //   3. No extra event dispatch — applyPatchEls is called directly.
