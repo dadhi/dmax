@@ -1307,7 +1307,7 @@
 
           // ^url.<sigPath> forces a named sig into query params.
           // ^body.<sigPath> forces a named sig into the request body.
-          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
+          for (let i=0,n=urlMods.length+bodyMods.length;i<n;i++) {
             const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
             if (!mPath) continue
             let mKey, mVal
@@ -1468,26 +1468,25 @@
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        const mods = pickMods(trig.mods, globMods)
+        if (kind !== SIGNAL && kind !== EV_PROP) { console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', aName); return }
+        const mods = pickMods(trig.mods, globMods), shouldImmediate = !ranImmediate && isImmediateMod(mods, false)
         if (kind === SIGNAL) {
           if (!expected(root)) return
           addTrigSub(el, trig, mods, doRequest, elSubs)
-          if (!ranImmediate && isImmediateMod(mods, false)) {
+          if (shouldImmediate) {
             ranImmediate = true
             doRequest()
           }
-        } else if (kind === EV_PROP) {
-          const evTarEl = root ? getElById(root, aName) : el
-          if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
-          const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
-          if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
-          const moddedHandler = addTrigSub(el, trig, mods, doRequest, elSubs, evTarEl, ev, null)
-          if (!ranImmediate && isImmediateMod(mods, false)) {
-            ranImmediate = true
-            invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
-          }
-        } else {
-          console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', aName)
+          continue
+        }
+        const evTarEl = root ? getElById(root, aName) : el
+        if (!evTarEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', aName); return }
+        const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTarEl)
+        if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', aName); return }
+        const moddedHandler = addTrigSub(el, trig, mods, doRequest, elSubs, evTarEl, ev, null)
+        if (shouldImmediate) {
+          ranImmediate = true
+          invokeSub(moddedHandler, null, getElPropVal(evTarEl, null), el, trig)
         }
       }
     }
