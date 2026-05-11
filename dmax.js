@@ -168,7 +168,7 @@
         items[TRIG] ??= NIL
         items[ADD] ??= NIL
       }
-      if (it === ALL && p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
+      if (it !== MODS && p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
       return [items, p]
     }
 
