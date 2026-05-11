@@ -270,7 +270,7 @@
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
       let val = el[prop]
-      if (val === undefined && prop.startsWith('data') && prop.length > 4 && el.getAttribute) {
+      if (val === undefined && el.getAttribute) {
         val = el.getAttribute(camelToKebab(prop))
       }
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
