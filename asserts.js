@@ -38,7 +38,7 @@
       return stableStringify(a) === stableStringify(b);
   };
   const fmt = (val) => (typeof val === 'string' ? `'${val}'` : stableStringify(val));
-  const __parseIt = (it) => Object.assign({ "^": EMPTY_ARR, ":": EMPTY_ARR, "@": EMPTY_ARR, "+": EMPTY_ARR }, it);
+  const __parseIt = (it) => Object.assign({ "^": NIL, ":": NIL, "@": NIL, "+": NIL }, it);
   const __assert = (fn, args, expected, label) => {
       const fname = fn && fn.name ? fn.name : '(anonymous)';
       const head = label ? `${fname} — ${label}` : fname;
@@ -58,7 +58,7 @@
     const __sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
     const __signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
     const __signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
-    const __getBoundSubs = el => (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get) ? (_cleanupBoundSubs.get(el) || EMPTY_ARR) : EMPTY_ARR
+    const __getBoundSubs = el => (typeof _cleanupBoundSubs !== 'undefined' && _cleanupBoundSubs && _cleanupBoundSubs.get) ? (_cleanupBoundSubs.get(el) || NIL) : NIL
     const __getEventSub = el => {
       const subs = __getBoundSubs(el)
       return subs.find ? subs.find(x => x && x.ev && x.fn) : null
@@ -102,27 +102,28 @@
     __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
     __assert(parse, ['data-def'], [__parseIt({}), 8], 'empty')
     __assert(parse, ['data-sub:'], [__parseIt({}), 9], 'single empty')
-    __assert(parse, ['data-sub:.'], [__parseIt({ ":": [{ "kind": EV_PROP, "mods": EMPTY_ARR, "not": null, "path": null, "root": "" }] }), 10], 'default prop')
+    __assert(parse, ['data-sub:.'], [__parseIt({ ":": [{ "kind": EV_PROP, "mods": NIL, "not": null, "path": null, "root": "" }] }), 10], 'default prop')
     __assert(parse, ['data-sub^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 12], 'global mod')
     __assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 33], '2 global mods')
     __assert(parse, ['data-sub^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 25], '2 global mods and item with mod with item')
-    __assert(parse, ['data-sub@!xxx@!'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": true, "path": null, "root": "xxx" }] }), 15], 'not name and not empty')
-    __assert(parse, ['data-sub:xxx:'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "xxx" }] }), 13], 'single name')
+    __assert(parse, ['data-sub@!xxx@!'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": NIL, "not": true, "path": null, "root": "xxx" }] }), 15], 'not name and not empty')
+    __assert(parse, ['data-sub:xxx:'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "xxx" }] }), 13], 'single name')
     __assert(parse, ['data-sub::'], [__parseIt({}), 10], '2 empties')
-    __assert(parse, ['data-sub:foo^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "foo" }] }), 13], 'name+empty mod')
-    __assert(parse, ['data-sub:foo^^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "foo" }] }), 14], 'name+2 empty mods')
+    __assert(parse, ['data-sub:foo^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 13], 'name+empty mod')
+    __assert(parse, ['data-sub:foo^^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 14], 'name+2 empty mods')
     __assert(parse, ['data-sub:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 22], 'item^mod')
     __assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 38], 'item^mod@item2^mod')
     __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 27], 'combine global+local mods and keep repeats')
     __assert(parse, ['data-sub^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 24], 'push all global mods to items')
     __assert(parse, ['data-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 24], 'add item local spread mod')
     __assert(parse, ['data-sub:result@post-objs[1].title'], [__parseIt({
-      ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "result" }],
-      "@": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": ["1", "title"], "root": "postObjs" }]
+      ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }],
+      "@": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": ["1", "title"], "root": "postObjs" }]
     }), 34], 'parse trigger with constant bracket index')
     __assert(parse, ['data-sub:result@post-objs[idx].title'], [__parseIt({
-      ":": [{ "kind": SIGNAL, "mods": EMPTY_ARR, "not": null, "path": null, "root": "result" }]
+      ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 36], 'parse rejects variable bracket index trigger')
+    __assert(() => getModValPath(NIL) === NIL, [], true, 'getModValPath uses NIL when no val mod exists')
     __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -1759,6 +1760,15 @@
       } finally { root.remove() }
     }
     __assert(__tDmaxSseStreamAppliesBothEvents, [], { events: 3, sseVal: 11, txt: 'new', removed: true }, 'dmax: SSE stream applies patch-signals and patch-elements')
+    __assert(() => getPatchTars('') === NIL, [], true, 'getPatchTars uses NIL for empty selector')
+    __assert(() => parseSseEls('', 'html') === NIL, [], true, 'parseSseEls uses NIL for empty html')
+    __assert(() => applySse('', 't') === NIL, [], true, 'applySse uses NIL for empty input')
+    __asyncAssert('consumeSseStream uses NIL when stream body is missing', async () => {
+      return {
+        actual: await consumeSseStream(null, 't') === NIL,
+        expected: true
+      }
+    })
     function __tDmaxSseMultilineCrlfElements() {
       const root = document.createElement('div')
       root.innerHTML = '<div id="ds-multi">old</div>'
