@@ -261,18 +261,8 @@
     const getElPropVal = (el, propPath) => {
       if (!el) return null
       const prop = propPath && propPath.length ? propPath[0] : getDefaultProp(el)
-      let val = null
-      if (prop === 'checked') val = el.checked
-      else if (prop === 'value') val = el.value
-      else if (prop === 'textContent') val = el.textContent
-      else {
-        val = el[prop]
-        if (val === undefined && prop.startsWith('data') && prop.length > 4) {
-          const dataKey = prop[4].toLowerCase() + prop.slice(5)
-          val = el.dataset ? el.dataset[dataKey] : undefined
-          if (val === undefined && el.getAttribute) val = el.getAttribute('data-' + camelToKebab(dataKey))
-        }
-      }
+      let val = el[prop]
+      if (val === undefined && prop.startsWith('data') && prop.length > 4 && el.getAttribute) val = el.getAttribute(camelToKebab(prop))
       return propPath && propPath.length > 1 ? getPropValAndDepth(val, propPath.slice(1))[0] : val
     }
 
@@ -410,22 +400,20 @@
     const getModValPath = (mods) => {
       for (const m of mods) if (m.root === MOD_VAL) {
         const p = m.path
-        if (p === null || p === undefined) return null
+        if (p === null || p === undefined) return EMPTY_ARR
         if (typeof p === 'string') return [p]
         if (Array.isArray(p)) return p
         if (p.kind) {
-          const path = []
-          if (p.root) path.push(p.root)
-          if (p.path && p.path.length) path.push(...p.path)
-          return path.length ? path : null
+          if (!p.root) return p.path || EMPTY_ARR
+          return p.path && p.path.length ? [p.root, ...p.path] : [p.root]
         }
-        return [p]
+        return EMPTY_ARR
       }
-      return null
+      return EMPTY_ARR
     }
     const getTrigEventVal = (tarEl, propPath, mods) => {
       const valPath = getModValPath(mods)
-      return getElPropVal(tarEl, valPath && valPath.length ? valPath : propPath)
+      return getElPropVal(tarEl, valPath.length ? valPath : propPath)
     }
 
     const PERMIT_MODS = Object.assign(Object.create(null), {
@@ -905,7 +893,7 @@
           permitMods.push(m)
         }
       }
-      const hasValPath = !!(valPath && valPath.length)
+      const hasValPath = !!valPath.length
       const hasSigMods = hasOnce || deb > 0 || thr > 0 || !!permitMods || !!trig.not || hasValPath
       if (isSig && !hasSigMods) return fn
       let tm = 0, last = 0, inDebounce = false
@@ -933,7 +921,7 @@
           }
         }
         let trigVal = isSig ? (providedVal ?? getSigVal(trigIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
-        if (isSig && valPath && valPath.length) trigVal = getPropValAndDepth(trigVal, valPath)[0]
+        if (isSig && valPath.length) trigVal = getPropValAndDepth(trigVal, valPath)[0]
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(dm, el, trigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
