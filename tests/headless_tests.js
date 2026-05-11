@@ -93,20 +93,20 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     if (labelCodes.every((node) => (node.textContent || '').trim() === (expectedLabelText(node) || '').trim())) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
     if (labelCodes.some((node) => /data-sub:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
-    // Section 1: data-sync
+    // Section 1: data-sub sync
     const nameInput = doc.getElementById('exUserNameInput');
-    const nameOut = findByAttr('strong', 'data-sync:user.name');
+    const nameOut = findByAttr('strong', 'data-sub:.@user.name');
     const sigToProp = doc.getElementById('sigToProp');
     if (!nameInput || !nameOut || !sigToProp) fail('Section1 elements missing');
     if (nameOut.textContent.trim() === 'Alice' && sigToProp.value === 'Alice') pass('Section1 initial sync render'); else fail('Section1 did not render initial sync state');
 
     if (sigToProp) {
-      if (sigToProp.value === nameOut.textContent.trim()) pass('data-sync signal->element initial populate'); else fail('data-sync signal->element did not populate');
+      if (sigToProp.value === nameOut.textContent.trim()) pass('data-sub signal->element initial populate'); else fail('data-sub signal->element did not populate');
       const prev = nameOut.textContent.trim();
       sigToProp.value = 'SigToPropTest';
       fire(sigToProp, 'change');
       await sleep(60);
-      if (nameOut.textContent.trim() === prev) pass('data-sync signal->element is one-way'); else fail('data-sync signal->element incorrectly wrote back');
+      if (nameOut.textContent.trim() === prev) pass('data-sub signal->element is one-way'); else fail('data-sub signal->element incorrectly wrote back');
     }
 
     const elToSig = doc.getElementById('elToSig');
@@ -114,12 +114,12 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       elToSig.value = 'ElToSigTest';
       fire(elToSig, 'input');
       await sleep(60);
-      if (readState().user?.name === 'ElToSigTest') pass('data-sync element->signal updates signal'); else fail('data-sync element->signal did not update');
+      if (readState().user?.name === 'ElToSigTest') pass('data-sub element->signal updates signal'); else fail('data-sub element->signal did not update');
       const orig = elToSig.value;
       nameInput.value = 'FromSignal';
       fire(nameInput, 'input');
       await sleep(60);
-      if (elToSig.value === orig) pass('data-sync element->signal is one-way (signal changes do not affect element)'); else fail('data-sync element->signal unexpectedly updated from signal');
+      if (elToSig.value === orig) pass('data-sub element->signal is one-way (signal changes do not affect element)'); else fail('data-sub element->signal unexpectedly updated from signal');
     }
 
     const twoWay = doc.getElementById('twoWay');
@@ -127,16 +127,16 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       twoWay.value = 'TwoWayTest';
       fire(twoWay, 'change');
       await sleep(60);
-      if (readState().user?.name === 'TwoWayTest') pass('data-sync two-way writes to signal'); else fail('data-sync two-way did not write to signal');
+      if (readState().user?.name === 'TwoWayTest') pass('data-sub ^rw two-way writes to signal'); else fail('data-sub ^rw two-way did not write to signal');
       const signalWriter = elToSig || nameInput;
       signalWriter.value = 'TwoWayFromSignal';
       fire(signalWriter, signalWriter === nameInput ? 'change' : 'input');
       await sleep(60);
-      if (twoWay.value === 'TwoWayFromSignal') pass('data-sync two-way reflects signal -> element'); else fail('data-sync two-way did not reflect signal->element');
+      if (twoWay.value === 'TwoWayFromSignal') pass('data-sub ^rw two-way reflects signal -> element'); else fail('data-sub ^rw two-way did not reflect signal->element');
     }
 
     // Section 2: style + boolean deep sync
-    const colorInput = findByAttr('input', 'data-sync:user.ui.theme-color');
+    const colorInput = findByAttr('input', 'data-sub@.^rw@user.ui.theme-color');
     const preview = findByAttr('div', 'data-sub:.style.color@user.ui.theme-color');
     if (!colorInput || !preview) fail('Section2 color elements missing');
     colorInput.value = '#ff0000';
@@ -145,7 +145,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const styleVal = preview.style.color || preview.getAttribute('style') || '';
     if (/ff0000/i.test(styleVal) || /rgb\(255,\s*0,\s*0\)/i.test(styleVal)) pass('Section2 color sync'); else fail('Section2 color not applied');
 
-    const range = findByAttr('input', 'data-sync:user.ui.font-size');
+    const range = findByAttr('input', 'data-sub@.^rw@user.ui.font-size');
     const pfont = findByAttr('p', 'data-sub:.style.font-size@user.ui.font-size');
     if (!range || !pfont) fail('Section2 font elements missing');
     range.value = '24';
@@ -153,7 +153,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     await sleep(60);
     if (/24px/.test(pfont.style.fontSize || pfont.getAttribute('style') || '')) pass('Section2 font-size sync'); else fail('Section2 font-size not applied');
 
-    const checkbox = findByAttr('input', 'data-sync:user.ui.is-active');
+    const checkbox = findByAttr('input', 'data-sub@.^rw@user.ui.is-active');
     const status = findByAttr('strong', 'data-sub:.@user.ui.is-active');
     if (!checkbox || !status) fail('Section2 checkbox elements missing');
     checkbox.checked = false;

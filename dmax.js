@@ -69,7 +69,7 @@
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
     const MOD_ONCE = 'once', MOD_ALWAYS = 'always', MOD_DEBOUNCE = 'debounce', MOD_THROTTLE = 'throttle', MOD_PREVENT = 'prevent'
-    const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge', MOD_VAL = 'val'
+    const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge', MOD_VAL = 'val', MOD_RW = 'rw'
     const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_HTML = 'html', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
     const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
@@ -168,7 +168,7 @@
         items[TRIG] ??= NIL
         items[ADD] ??= NIL
       }
-      if (p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
+      if (it === ALL && p < aName.length) console.warn('[dmax] Warning: Not everything is parsed "', aName.slice(p), '" in', aName)
       return [items, p]
     }
 
@@ -406,6 +406,10 @@
     }
 
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
+    const hasMod = (mods, name) => {
+      for (const m of mods) if (m.root === name) return true
+      return false
+    }
 
     const getModValPath = (mods) => {
       for (const m of mods) if (m.root === MOD_VAL) {
@@ -424,6 +428,20 @@
     const getTrigEventVal = (tarEl, propPath, mods) => {
       const valPath = getModValPath(mods)
       return getElPropVal(tarEl, valPath.length ? valPath : propPath)
+    }
+    const getTrigPropTarget = (el, aName, trig, mods) => {
+      const trigRoot = trig ? trig.root : ''
+      const trigPath = trig ? trig.path : null
+      const tarEl = trigRoot ? getElById(trigRoot, aName) : el
+      if (!tarEl) { console.error('[dmax] Error: dSub ^rw source element is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
+      let ev = trigPath && trigPath.length ? trigPath[0] : null
+      let propPath = null
+      if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEv(tarEl)
+      const valPath = getModValPath(mods)
+      if (valPath.length) propPath = valPath
+      ev = ev ?? getDefaultEv(tarEl)
+      if (!ev) { console.error('[dmax] Error: dSub ^rw event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return null }
+      return { tarEl, ev, propPath, tar: { kind: EV_PROP, not: null, root: trigRoot, path: propPath, mods: NIL } }
     }
 
     const PERMIT_MODS = Object.assign(Object.create(null), {
@@ -946,6 +964,89 @@
       const hasExpr = aVal != null && '' + aVal
       let fn = hasExpr ? compileFn(aVal, aName) : ((a, b, c, v) => v)
       if (hasExpr && !fn) return
+      const elSubs = el ? upsert(_cleanupBoundSubs, el) : null
+      if (!tars.length && trigs.length) {
+        const readTrigs = [], writePropTrigs = [], writeSigTrigs = []
+        for (const trig of trigs) {
+          const mods = pickMods(trig.mods, globMods)
+          if (hasMod(mods, MOD_RW)) {
+            if (trig.kind !== EV_PROP) { console.error('[dmax] Error: dSub ^rw requires an element/property trigger in:', aName); return }
+            const propTar = getTrigPropTarget(el, aName, trig, mods)
+            if (!propTar) return
+            writePropTrigs.push({ trig, mods, tarEl: propTar.tarEl, ev: propTar.ev, propPath: propTar.propPath, tar: propTar.tar })
+            continue
+          }
+          readTrigs.push({ trig, mods })
+          if (trig.kind === SIGNAL) writeSigTrigs.push(trig)
+        }
+        if (writePropTrigs.length && readTrigs.length) {
+          let ranImmediate = false
+          const syncPropTargets = (dm, syncTrig, trigVal, detail) => {
+            const exprVal = fn(dm, el, syncTrig, trigVal, detail)
+            for (const propTrig of writePropTrigs) setProp(el, aName, propTrig.tar, exprVal)
+          }
+          for (const readTrig of readTrigs) {
+            const trig = readTrig.trig, kind = trig.kind, root = trig.root, path = trig.path, mods = readTrig.mods
+            if (kind === SIGNAL) {
+              if (!expected(root)) return
+              const sub = addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs)
+              if (!ranImmediate && isImmediateMod(mods, true)) {
+                ranImmediate = true
+                invokeBoundSub(sub, null)
+              }
+            } else if (kind === EV_PROP || kind === SPEC) {
+              let ev = path && path.length ? path[0] : null
+              if (kind === SPEC) {
+                if (root === SPEC_WIN) {
+                  addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, window, ev || SPEC_WIN_EV)
+                  continue
+                }
+                if (root === SPEC_DOC) {
+                  addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, document, ev || SPEC_DOC_EV)
+                  continue
+                }
+                if (root === SPEC_INTERVAL) {
+                  addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, null, ev)
+                  continue
+                }
+                if (root === SPEC_TIMEOUT) {
+                  addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, null, ev)
+                  continue
+                }
+                if (root === SPEC_FORM) {
+                  const formEl = el && el.closest ? el.closest('form') : null
+                  if (formEl) {
+                    const modded = addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, formEl, ev || 'submit')
+                    if (!ranImmediate && isImmediateMod(mods, false)) {
+                      ranImmediate = true
+                      invokeSub(modded, null, null, el, trig)
+                    }
+                  }
+                  continue
+                }
+              }
+              const propTar = getTrigPropTarget(el, aName, trig, mods)
+              if (!propTar) return
+              const moddedHandler = addTrigSub(el, trig, mods, (dm, _el, syncTrig, trigVal, detail) => syncPropTargets(dm, syncTrig, trigVal, detail), elSubs, propTar.tarEl, propTar.ev, propTar.propPath)
+              if (!ranImmediate && isImmediateMod(mods, false)) {
+                ranImmediate = true
+                invokeSub(moddedHandler, null, getTrigEventVal(propTar.tarEl, propTar.propPath, mods), el, trig)
+              }
+            } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
+          }
+          if (writeSigTrigs.length) {
+            for (const propTrig of writePropTrigs) {
+              const writeSig = (dm, _el, syncTrig, trigVal, detail) => {
+                const exprVal = fn(dm, el, syncTrig, trigVal, detail)
+                for (const sigTrig of writeSigTrigs) setSigAndNotifySubsNLevelsDeep(aName, sigTrig, exprVal)
+              }
+              const moddedHandler = addTrigSub(el, propTrig.trig, propTrig.mods, writeSig, elSubs, propTrig.tarEl, propTrig.ev, propTrig.propPath)
+              if (isImmediateMod(propTrig.mods, true)) invokeSub(moddedHandler, null, getTrigEventVal(propTrig.tarEl, propTrig.propPath, propTrig.mods), el, propTrig.trig)
+            }
+          }
+          return
+        }
+      }
       if (tars.length) {
         const rawFn = fn
         fn = (dm, el, trig, trigVal, detail) => {
@@ -962,7 +1063,6 @@
         }
       }
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return }
-      const elSubs = upsert(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (let trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
@@ -1019,69 +1119,6 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', aName); return }
       }
     }
-    const dSync = (el, aName) => {
-      const parsedAttr = parse(aName)[0], tars = parsedAttr[TARG], trigs = parsedAttr[TRIG], globMods = parsedAttr[MOD]
-      if (parsedAttr[ADD].length) console.warn('[dmax] Warning: dSync supports only targets, triggers, mods but found more:', aName)
-
-      let sigTar = null, propTar = null, sigTrig = null, propTrig = null
-      for (let i = 0; i < tars.length; ++i) {
-        const t = tars[i]
-        if (!sigTar && t.kind === SIGNAL) sigTar = t
-        else if (!propTar && t.kind === EV_PROP) propTar = t
-        if (sigTar && propTar) break
-      }
-      for (let i = 0; i < trigs.length; ++i) {
-        const t = trigs[i]
-        if (!sigTrig && t.kind === SIGNAL) sigTrig = t
-        else if (!propTrig && t.kind === EV_PROP) propTrig = t
-        if (sigTrig && propTrig) break
-      }
-
-      if (!sigTar && !sigTrig) {
-        console.error('[dmax] Error: dSync requires signal target or signal trigger in:', aName)
-        return
-      }
-
-      const sigRead = sigTrig ?? sigTar
-      const sigWrite = sigTar
-      const writePropTar = propTar ?? DEFAULT_PROP_TAR
-      const shouldReadSig = !!sigRead && (sigTrig || !propTrig)
-      const shouldWriteSig = !!sigWrite && (propTrig || !sigTrig)
-
-      const elSubs = upsert(_cleanupBoundSubs, el)
-
-      if (shouldReadSig) {
-        if (!expected(sigRead.root)) return
-        const readMods = sigTrig ? sigTrig.mods : sigTar ? sigTar.mods : globMods
-        const sub = addTrigSub(el, sigRead, readMods, (_dm, _sigEl, _sigTrig, _trigVal, _detail) => {
-          const v = getSigValOrIt(sigRead)
-          setProp(el, aName, writePropTar, v)
-        }, elSubs)
-        if (isImmediateMod(readMods, true)) invokeBoundSub(sub, null)
-      }
-
-      if (shouldWriteSig) {
-        const trig = propTrig
-        const trigRoot = trig ? trig.root : ''
-        const trigPath = trig ? trig.path : null
-        let tarEl = trigRoot ? getElById(trigRoot, aName) : el
-        if (!tarEl) { console.error('[dmax] Error: dSync write source element is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
-
-        const writeMods = trig ? pickMods(trig.mods, globMods) : globMods
-        let ev = trigPath && trigPath.length ? trigPath[0] : null
-        let propPath = null
-        if (trigPath && trigPath.length && isDefaultPropName(tarEl, trigPath[0])) propPath = trigPath, ev = getDefaultEv(tarEl)
-        if (!propPath && propTar && propTar.path) propPath = propTar.path
-        ev = ev ?? getDefaultEv(tarEl)
-        if (!ev) { console.error('[dmax] Error: dSync write event is not found in trigger:', trig ?? DEFAULT_PROP_TAR, 'in:', aName); return }
-
-        const evTrig = trig ?? DEFAULT_PROP_TAR
-        const writeSig = (_dm, _el, _trig, trigVal, _detail) => setSigAndNotifySubsNLevelsDeep(aName, sigWrite, trigVal)
-        const moddedHandler = addTrigSub(el, evTrig, writeMods, writeSig, elSubs, tarEl, ev, propPath)
-        if (isImmediateMod(writeMods, true)) invokeSub(moddedHandler, null, getTrigEventVal(tarEl, propPath, writeMods), el, evTrig)
-      }
-    }
-
     // data-class+my-class+!my-other@signal="expr"
     // +className adds when expr is truthy and removes when falsy.
     // +!className inverts that rule.
@@ -1150,7 +1187,6 @@
       if (an.indexOf('data-def') === 0) dDef(n, an, v)
       else if (an === 'data-debug') dDebug(n)
       else if (an.indexOf('data-sub') === 0) dSub(n, an, v)
-      else if (an.indexOf('data-sync') === 0) dSync(n, an)
       else if (an.indexOf('data-class') === 0) dClass(n, an, v)
       else if (an.indexOf('data-disp') === 0) dDisp(n, an, v)
       else if (an.indexOf('data-dump') === 0) dDump(n, an)

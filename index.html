@@ -113,25 +113,25 @@
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-sync:user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sync@user.age" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sub:user.age@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>User Name: <input id="exUserNameInput" type="text" data-sync:user.name></label>
-      <p>Hello, <strong data-sync:user.name></strong>!</p>
-      <label>Age: <input id="exUserAgeInput" type="number" data-sync@user.age data-sub:user.age@.input="Number(val || 0)"></label>
-      <p>Age: <span data-sync:user.age></span> years old</p>
-      <h4>1.a data-sync Direction Examples</h4>
-      <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-sync@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-sub:user.name@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>Signal -> Element: <input id="sigToProp" data-sync@user.name></label>
+      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-sub@.^rw@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sub@.^rw@user.age" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>User Name: <input id="exUserNameInput" type="text" data-sub@.^rw@user.name></label>
+      <p>Hello, <strong data-sub:.@user.name></strong>!</p>
+      <label>Age: <input id="exUserAgeInput" type="number" data-sub@.^rw@user.age="Number(val || 0)"></label>
+      <p>Age: <span data-sub:.@user.age></span> years old</p>
+      <h4>1.a data-sub Direction Examples</h4>
+      <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-sub:.@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-sub:user.name@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="twoWay" data-attr-name="data-sub@.^rw@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>Signal -> Element: <input id="sigToProp" data-sub:.@user.name></label>
       <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-sub:user.name@.input="val"></label>
-      <label>Two-way: <input id="twoWay" data-sync:user.name></label>
+      <label>Two-way: <input id="twoWay" data-sub@.^rw@user.name></label>
       <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
-      <div class="page"><code data-attr-for="themeColorInput" data-attr-name="data-sync:user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeColorPreview" data-attr-name="data-sub:.style.color@user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontSlider" data-attr-name="data-sync:user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontPreview" data-attr-name="data-sub:.style.font-size@user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeActiveToggle" data-attr-name="data-sync:user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>Theme Color: <input id="themeColorInput" type="color" data-sync:user.ui.theme-color></label>
+      <div class="page"><code data-attr-for="themeColorInput" data-attr-name="data-sub@.^rw@user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeColorPreview" data-attr-name="data-sub:.style.color@user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontSlider" data-attr-name="data-sub@.^rw@user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontPreview" data-attr-name="data-sub:.style.font-size@user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeActiveToggle" data-attr-name="data-sub@.^rw@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>Theme Color: <input id="themeColorInput" type="color" data-sub@.^rw@user.ui.theme-color></label>
       <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
-      <label>Font Size: <span data-sync:user.ui.font-size></span>px</label>
-      <input id="themeFontSlider" type="range" min="12" max="32" data-sync:user.ui.font-size>
+      <label>Font Size: <span data-sub:.@user.ui.font-size></span>px</label>
+      <input id="themeFontSlider" type="range" min="12" max="32" data-sub@.^rw@user.ui.font-size>
       <p id="themeFontPreview" data-sub:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">Resizable text</p>
-      <label><input id="themeActiveToggle" type="checkbox" data-sync:user.ui.is-active> Active</label>
+      <label><input id="themeActiveToggle" type="checkbox" data-sub@.^rw@user.ui.is-active> Active</label>
       <p>Status: <strong data-sub:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
       <h4>3. Multiple Triggers &amp; Targets</h4>
       <div class="page"><code data-attr-for="countPlusBtn" data-attr-name="data-sub:count@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countMinusBtn" data-attr-name="data-sub:count@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countResetBtn" data-attr-name="data-sub:count@." data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="countDisplay" data-attr-name="data-sub:.@count" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="doubledDisplay" data-attr-name="data-sub:.:doubled@count" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="probeBtn" data-attr-name="data-sub:.@." data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="gOnceBtn" data-attr-name="data-sub^once:once-test@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="gAlwaysBtn" data-attr-name="data-sub^once:always-test@.^always" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="incGuard" data-attr-name="data-sub:guard-val@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
@@ -165,8 +165,8 @@
       <p><span id="example4ConsoleOut" data-sub:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
       <p><strong id="example4VisibleOut" data-sub:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code data-attr-for="src" data-attr-name="data-sync:message" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-sub:.@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-sub:.value@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <input id="src" placeholder="Type here..." data-sync:message>
+      <div class="page"><code data-attr-for="src" data-attr-name="data-sub@.^rw@message" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-sub:.@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-sub:.value@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <input id="src" placeholder="Type here..." data-sub@.^rw@message>
       <p id="srcPreview" data-sub:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
@@ -194,8 +194,8 @@
         <div>Expression on picked child: <strong id="valSignalPlusOne" data-sub:.@val-source^val.bar="val + 1"></strong></div>
       </div>
       <h4>8. Classes &amp; Display</h4>
-      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-sync:user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-class+active+!inactive@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label><input id="classToggle" type="checkbox" data-sync:user.ui.is-active> Toggle Active</label>
+      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-sub@.^rw@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-class+active+!inactive@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label><input id="classToggle" type="checkbox" data-sub@.^rw@user.ui.is-active> Toggle Active</label>
       <div id="classBox" data-class+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
       <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
       <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
@@ -243,7 +243,7 @@
       <span data-sub:.@mod-deb="dm.modDeb"></span>
       <button id="thrBtn" data-sub:mod-thr@.^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
       <span data-sub:.@mod-thr="dm.modThr"></span>
-      <label><input id="gate" type="checkbox" data-sync:gate> Gate</label>
+      <label><input id="gate" type="checkbox" data-sub@.^rw@gate> Gate</label>
       <button id="andBtn" data-sub:mod-and@.^and.gate="(dm.modAnd || 0) + 1">AND</button>
       <span data-sub:.@mod-and="dm.modAnd"></span>
       <h4>10.a Content vs Shape</h4>

@@ -153,41 +153,36 @@ function* generateDataSubCombinations() {
   // Removed: Invalid modifier and conflicting modifier tests - parser is lenient
 }
 
-function* generateDataSyncCombinations() {
+function* generateDataSubRwCombinations() {
   // Valid combinations
   
   // 1. Signal to default property (two-way)
   for (const sig of SIGNAL_NAMES.slice(0, 3)) {
-    yield { attr: `data-sync:${sig}`, valid: true, category: 'two-way-default' };
+    yield { attr: `data-sub@.^rw@${sig}`, valid: true, category: 'two-way-default' };
   }
   
-  // 2. Signal to explicit property (two-way)
+  // 2. Signal to element (one-way: signal → element)
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    for (const prop of PROPERTIES.slice(0, 2)) {
-        yield { attr: `data-sync:${sig}:.${prop}`, valid: true, category: 'two-way-explicit' };
-    }
+    yield { attr: `data-sub:.@${sig}`, valid: true, category: 'one-way-sig-to-el' };
   }
   
-  // 3. Signal to element (one-way: signal → element)
+  // 3. Element to signal (one-way: element → signal)
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-sync@${sig}`, valid: true, category: 'one-way-sig-to-el' };
+    yield { attr: `data-sub:${sig}@.`, valid: true, category: 'one-way-el-to-sig' };
+    yield { attr: `data-sub:${sig}@.value`, valid: true, category: 'one-way-el-to-sig-explicit' };
   }
   
-  // 4. Element to signal (one-way: element → signal)
+  // 4. Two-way with explicit ^val path
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-sync:${sig}@.`, valid: true, category: 'one-way-el-to-sig' };
-    yield { attr: `data-sync:${sig}@.value`, valid: true, category: 'one-way-el-to-sig-explicit' };
+    yield { attr: `data-sub@.^val.value^rw@${sig}`, valid: true, category: 'two-way-val-path' };
   }
   
   // 5. Signal to signal
-  yield { attr: 'data-sync:foo:bar', valid: true, category: 'signal-to-signal' };
-  yield { attr: 'data-sync:user.name:display-name', valid: true, category: 'nested-to-signal' };
+  yield { attr: 'data-sub:foo@bar', valid: true, category: 'signal-to-signal' };
+  yield { attr: 'data-sub:display-name@user.name', valid: true, category: 'nested-to-signal' };
   
   // 6. With modifiers
-  yield { attr: 'data-sync^notimmediate:foo', valid: true, category: 'with-mod' };
-  
-  // Note: data-sync has fallback for simple forms - accepts empty/malformed and just returns
-  // Parser doesn't validate signal/property names - they're just strings
+  yield { attr: 'data-sub@.^notimmediate^rw@foo', valid: true, category: 'with-mod' };
 }
 
 function* generateDataClassCombinations() {
@@ -406,8 +401,8 @@ class FuzzTestRunner {
       await this.testAttribute(tc);
     }
     
-    console.log('\n--- Testing data-sync ---');
-    for (const tc of generateDataSyncCombinations()) {
+    console.log('\n--- Testing data-sub ^rw ---');
+    for (const tc of generateDataSubRwCombinations()) {
       await this.testAttribute(tc);
     }
     
@@ -480,7 +475,7 @@ async function runRegressionTests(runner) {
     { attr: 'data-sub:result@posts[0]', expr: 'dm.posts[0]', valid: true, desc: 'constant bracket-index subscription' },
 
     // Bug: infinite loops
-    { attr: 'data-sync:foo:foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },
+    { attr: 'data-sub@.^rw@foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },
     
     // Bug: shape vs content
     { attr: 'data-sub@parent^shape_only', expr: 'dm.parent', valid: true, desc: 'shape modifier works' },
