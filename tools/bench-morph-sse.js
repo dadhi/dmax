@@ -6,6 +6,7 @@ const ROOT = path.resolve(__dirname, '..')
 const HTML_FILE = path.join(ROOT, 'index.html')
 const DMAX_FILE = path.join(ROOT, 'dmax.js')
 const DATASTAR_FILE = path.join(ROOT, 'tools', 'vendor', 'datastar.js')
+const FIXI_FILE = path.join(ROOT, 'tools', 'vendor', 'fixi.js')
 const VENDORED_JSDOM_DIR = path.join(ROOT, 'tools', 'vendor', 'jsdom')
 const GRID_FILL_RATIO = 0.66
 const MAX_CELL_VALUE = 100
@@ -353,6 +354,22 @@ async function loadDatastarWindow() {
   return window
 }
 
+async function loadFixiWindow() {
+  // fixi.js is a self-contained IIFE that needs DOMContentLoaded to initialize.
+  // We load it as an inline classic script; jsdom fires DOMContentLoaded when
+  // the parser finishes, so a short wait is sufficient before running scenarios.
+  const vcon = new VirtualConsole()
+  const dom = new JSDOM(`<!doctype html><html><head></head><body><script>${fs.readFileSync(FIXI_FILE, 'utf8')}</script></body></html>`, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    virtualConsole: vcon
+  })
+  const { window } = dom
+  await new Promise(resolve => setTimeout(resolve, 50))
+  return window
+}
+
 function formatNum(n, digits = 2) {
   return Number(n).toFixed(digits)
 }
@@ -632,6 +649,56 @@ function runDatastarScenarios(window, payloads) {
   ].map(r => ({ framework: 'datastar', ...r }))
 }
 
+// fixi (https://github.com/bigskysoftware/fixi) is a minimalist hypermedia library
+// from the htmx team. Its DOM manipulation model is purely HTTP request → response
+// text → target[swap] = text (outerHTML by default). There is no SSE, no morphing
+// and no signal system — the swap IS the hot path. These scenarios measure only the
+// DOM-assignment step; the HTTP fetch cost is not included (it would dominate and is
+// not relevant to rendering throughput).
+function runFixiScenarios(window, payloads) {
+  const { document } = window
+  const host = document.createElement('div')
+  host.id = 'bench-host'
+  document.body.appendChild(host)
+
+  const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
+  const v = makeValidators(host, () => document.activeElement, payloads, 'fixi')
+  // fixi always resets form state on outerHTML swap; only grid correctness is asserted.
+  const validateBaseGrid = () => v.assertGrid(payloads.expectedBase, 'base-grid')
+  const validateSmallGrid = () => v.assertGrid(payloads.expectedSmall, 'small-grid')
+  const validateLargeGrid = () => v.assertGrid(payloads.expectedLarge, 'large-grid')
+
+  // Simulate fixi's default swap: target.outerHTML = responseText.
+  // We find the target fresh each iteration because outerHTML removes the node.
+  const outerHTMLSwap = (html) => {
+    const el = host.querySelector('#bench-app')
+    if (el) el.outerHTML = html
+  }
+
+  return [
+    runScenario(
+      'full-page-small-diff-outerHTML',
+      120,
+      mountBase,
+      () => outerHTMLSwap(payloads.smallHtml),
+      () => outerHTMLSwap(payloads.baseHtml),
+      v.cellText,
+      validateSmallGrid,
+      validateBaseGrid
+    ),
+    runScenario(
+      'full-page-large-diff-outerHTML',
+      30,
+      mountBase,
+      () => outerHTMLSwap(payloads.largeHtml),
+      () => outerHTMLSwap(payloads.baseHtml),
+      v.cellText,
+      validateLargeGrid,
+      validateBaseGrid
+    )
+  ].map(r => ({ framework: 'fixi', ...r }))
+}
+
 function probeMorphParity(window, payloads, framework, applySmallMorph, applyBaseMorph, applyLargeMorph) {
   const { document } = window
   const host = document.createElement('div')
@@ -678,23 +745,78 @@ function formatParityProbe(probe) {
   }).join(' | ')
 }
 
-// Follow-up performance plan from the current benchmark numbers:
-// 1. Keep singleton/fallback reuse in hot and near-hot helpers to avoid tiny repeated allocations.
-// 2. Add cheap early-outs before full subtree morphs when root text/attrs/child counts already match.
-// 3. Special-case single-target patch/OOB updates so parsing and target lookup stay on the shortest path.
-// 4. Prefer native DOM collections and index loops over Array.from/filter in runtime hot paths unless profiling says otherwise.
-// 5. Only introduce heavier structures (pooled Maps/Sets, more caches) when this benchmark shows a clear win.
+// Hot-path analysis (updated after adding fixi baseline):
+//
+// fixi (outerHTML baseline — no fetch, no morph):
+//   Swap is target[swap]=text. Zero algorithmic work, zero allocations beyond the DOM
+//   engine's own HTML parser cost. This is the theoretical lower bound for any framework
+//   that must re-render HTML from a string response.
+//
+// datastar hot path (full-page morph via idiomorph):
+//   1. HTML parse: new DOMParser().parseFromString() — new parser instance each call,
+//      includes regex pass to strip SVG before parsing (avoids idiomorph namespace bugs).
+//   2. idiomorph: two-pass algorithm — first builds a persistent-ID Set + Map (O(N) scan),
+//      then reconciles the tree. More allocations per morph than dmax's single-pass approach.
+//   3. CustomEvent dispatch overhead: the merge-fragments path goes through
+//      document.dispatchEvent → internal handler → morph, adding event-loop overhead.
+//
+// dmax hot path (full-page morph):
+//   1. HTML parse: _HTML_PARSE_TEMPLATE.innerHTML = html — reused singleton <template>,
+//      no new parser per call. Already ~faster than datastar's DOMParser path.
+//   2. Single-pass morph with lazy Map allocation: builds idMap only when needed
+//      (after the fast in-order scan exhausts matched nodes).
+//   3. No extra event dispatch — applyPatchEls is called directly.
+//
+// Why dmax is ~2× faster on morph and ~10–12× faster on pointed/OOB:
+//   — Pointed/OOB: dmax targets a single element and morphs it in-place; datastar goes
+//     through the full idiomorph setup on each fragment even for single-element patches.
+//   — Full-page: dmax's single-pass morph with lazy-Map + cached template beats
+//     idiomorph's two-pass + new DOMParser.
+//
+// Top 3 EASY improvements (expected measurable gain from the benchmark):
+//
+//   E1. Short-circuit updateAttrs when both from and to have ZERO attributes.
+//       Currently updateAttrs() is called even for wrapper elements with no attributes
+//       (e.g. bare <tbody>, <tr> in some HTML). Add: `if (!fromAttrs.length && !toAttrs.length) return`
+//       Saves attribute iteration for every such element in the tree.
+//
+//   E2. Avoid the `out = []` allocation + push loop in parseSseEls for the common
+//       single-root-element case. Keep a dedicated `firstElementChild/nextElementSibling`
+//       fast path that returns a lightweight 1-element view rather than a fresh Array.
+//       Saves one Array alloc and N push calls per full-page patch.
+//
+//   E3. Avoid querySelector('#bench-app') scan in getPatchTars when the selector is a
+//       plain #id — getSimpleIdSelector already does this, but the OOB path
+//       (applyOobHtml) still calls `content.querySelector('[data-oob]')` every time.
+//       Cache the `data-oob` lookup result or switch to firstElementChild traversal.
+//
+// Top 2 HARDER improvements (more design work, higher ceiling):
+//
+//   H1. Persistent keyed-children index on the container element.
+//       morphChildren currently builds idMap by scanning live DOM siblings on every call
+//       (O(N) per morph). A WeakMap<Element, Map<id, Element>> child index maintained
+//       by the morph itself would make keyed lookup O(1), shrinking the hot path for
+//       large grids with many IDs (all 1024 cells + 64 sum cells = 1088 keyed nodes).
+//
+//   H2. Two-tier incremental/chunked apply for large SSE payloads.
+//       Break large applyPatchEls batches across animation frames using
+//       requestAnimationFrame / queueMicrotask to keep the main thread responsive.
+//       In the benchmark this would show lower worst-case latency at the cost of
+//       throughput, but in production it prevents frame drops on slow hardware.
 
 ;(async () => {
   const payloads = makePayloads()
   const dmaxWindow = await loadDmaxWindow()
   const datastarWindow = await loadDatastarWindow()
+  const fixiWindow = await loadFixiWindow()
   const results = [
     ...runDmaxScenarios(dmaxWindow, payloads),
-    ...runDatastarScenarios(datastarWindow, payloads)
+    ...runDatastarScenarios(datastarWindow, payloads),
+    ...runFixiScenarios(fixiWindow, payloads)
   ]
   const dmaxProbeWindow = await loadDmaxWindow()
   const datastarProbeWindow = await loadDatastarWindow()
+  const fixiProbeWindow = await loadFixiWindow()
   const parityProbes = [
     probeMorphParity(
       dmaxProbeWindow,
@@ -711,12 +833,21 @@ function formatParityProbe(probe) {
       () => applyDatastarFragments(datastarProbeWindow, payloads.smallHtml, 'morph', '#bench-app'),
       () => applyDatastarFragments(datastarProbeWindow, payloads.baseHtml, 'morph', '#bench-app'),
       () => applyDatastarFragments(datastarProbeWindow, payloads.largeHtml, 'morph', '#bench-app')
+    ),
+    probeMorphParity(
+      fixiProbeWindow,
+      payloads,
+      'fixi',
+      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) el.outerHTML = payloads.smallHtml },
+      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) el.outerHTML = payloads.baseHtml },
+      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) el.outerHTML = payloads.largeHtml }
     )
   ]
 
-  console.log('dmax vs Datastar semi-realistic SSE/morph benchmark')
+  console.log('dmax vs Datastar vs fixi semi-realistic SSE/morph benchmark')
   console.log('grid: 32x32, ~66% populated, reactive row/column/total cells plus input/textarea/checkbox/select controls')
   console.log('datastar: vendored tools/vendor/datastar.js, merge-fragments CustomEvent path')
+  console.log('fixi:     vendored tools/vendor/fixi.js, outerHTML swap only (no SSE, no morph, no signals — DOM baseline)')
   console.log('validation: sums are asserted for pointed/OOB/full-page paths; morph form-state parity is reported separately')
   for (const probe of parityProbes) console.log(`parity:${probe.framework.padEnd(9)} ${formatParityProbe(probe)}`)
   console.log(global.gc
@@ -740,8 +871,10 @@ function formatParityProbe(probe) {
   }
   dmaxWindow.close()
   datastarWindow.close()
+  fixiWindow.close()
   dmaxProbeWindow.close()
   datastarProbeWindow.close()
+  fixiProbeWindow.close()
 })().catch(err => {
   console.error(err && err.stack ? err.stack : err)
   process.exitCode = 1
