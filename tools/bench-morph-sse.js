@@ -315,14 +315,15 @@ function loadDatastarScript() {
 }
 
 async function loadDmaxWindow() {
+  const { pathToFileURL } = require('url')
   const html = fs.readFileSync(HTML_FILE, 'utf8')
-    .replace('<script src="dmax.js"></script>', `<script>${fs.readFileSync(DMAX_FILE, 'utf8')}</script>`)
   const vcon = new VirtualConsole()
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     resources: 'usable',
     pretendToBeVisual: true,
-    virtualConsole: vcon
+    virtualConsole: vcon,
+    url: pathToFileURL(HTML_FILE).href
   })
   const { window } = dom
   await new Promise(resolve => {
@@ -470,9 +471,10 @@ function makeValidators(host, activeElementFn, payloads, prefix) {
 }
 
 function runDmaxScenarios(window, payloads) {
-  const { document, applyDmaxPatchElements, applyDmaxSse, applyOobHtml } = window
-  if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function' || typeof applyOobHtml !== 'function')
+  const { document, applyDmaxPatchElements, applyDmaxSse, applyDmaxOobHtml } = window
+  if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function' || typeof applyDmaxOobHtml !== 'function')
     throw new Error('dmax benchmark helpers are not available on window')
+  const applyOobHtml = applyDmaxOobHtml
 
   const host = document.createElement('div')
   host.id = 'bench-host'

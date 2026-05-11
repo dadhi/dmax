@@ -1946,7 +1946,7 @@
       return applied
     }
 
-    var applyDmaxPatchElements = applyPatchEls
+    var applyDmaxPatchElements = applyPatchEls, applyDmaxOobHtml = applyOobHtml
     var applyDmaxPatchSigs = applyPatchSigs
     var applyDmaxSse = applySse
     var consumeDmaxSseStream = consumeSseStream
