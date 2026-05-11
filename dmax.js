@@ -207,17 +207,18 @@
       return finishParse(items, p, it, aName)
     }
 
-    const isObjEmpty = (o) => {
-      for (const key in o) if (key != null) return false
-      return true
-    }
+    const _parseCache = new Map()
+    const parseCached = (aName) => { let r = _parseCache.get(aName); if (!r) _parseCache.set(aName, r = parse(aName)[0]); return r }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
 
     // args available in right data-attr value expression, `trig` maybe null for no triggers or any of the _KIND except MOD
     const FN_ARGS = ['dm', 'el', 'trig', 'val', 'detail']
 
+    const _compiledFnCache = new Map()
     const compileFn = (aVal, aName, args = FN_ARGS) => {
+      const cacheKey = args === FN_ARGS ? aVal + '\x00' + aName : null
+      if (cacheKey !== null && _compiledFnCache.has(cacheKey)) return _compiledFnCache.get(cacheKey)
       let val = '' + aVal
       const returnPos=val.indexOf('return')
       let body=returnPos!=-1 && (returnPos+6 >= val.length || indexFirst(val, RETURN_THEN, returnPos+6) == returnPos+6) ? val : `return(${val})`
@@ -225,6 +226,7 @@
       let fn;
       try { fn = Function(...args, body) }
       catch (e) { console.error(`Error compiling ${aName} value to function:`, e.message, '>>>', val); return }
+      if (cacheKey !== null) _compiledFnCache.set(cacheKey, fn)
       return fn;
     }
 
@@ -243,7 +245,7 @@
     // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
     const dDef = (el, aName, aVal) => {
-      const it = parse(aName)[0], tars = it[TARG]
+      const it = parseCached(aName), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
       let fn = compileFn(aVal, aName)
       if (!fn) return
@@ -504,16 +506,6 @@
       if (end >= low.length) return true
       const c = low[end]
       return c === ';' || c === ' ' || c === '\t'
-    }
-
-    const isTextLikeContentType = (ct) => {
-      const low = String(ct || '').toLowerCase()
-      if (low.indexOf('text/') !== -1) return true
-      if (low.indexOf('application/xml') !== -1) return true
-      if (low.indexOf('application/xhtml+xml') !== -1) return true
-      if (low.indexOf('application/x-www-form-urlencoded') !== -1) return true
-      if (low.indexOf('application/javascript') !== -1) return true
-      return false
     }
 
     const isPlainObj = (val) => !!val && typeof val === 'object' && !Array.isArray(val)
@@ -985,7 +977,7 @@
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     const dSub = (el, aName, aVal) => {
-      const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      const it = parseCached(aName), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', aName)
       const hasExpr = aVal != null && '' + aVal
       let fn = hasExpr ? compileFn(aVal, aName) : ((a, b, c, v) => v)
@@ -1083,7 +1075,7 @@
     // +!className inverts that rule.
     // Without aVal, the raw signal or trigger value is used.
     const dClass = (el, aName, aVal) => {
-      const it = parse(aName)[0], adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      const it = parseCached(aName), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
       if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
@@ -1112,7 +1104,7 @@
     // data-disp:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
     const dDisp = (el, aName, aVal) => {
-      const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      const it = parseCached(aName), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
       const tarEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
@@ -1157,7 +1149,7 @@
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
     const dDump = (el, aName) => {
-      const it = parse(aName)[0], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
+      const it = parseCached(aName), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
       const trig = trigs[0]
       if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', aName); return }
@@ -1188,7 +1180,7 @@
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const method = ACT_METHODS[methodName]
       if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', aName); return }
-      const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
+      const it = parseCached(aName), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !urlFn) return
       const resultTar = findFirstKind(tars, SIGNAL)
