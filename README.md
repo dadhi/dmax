@@ -265,7 +265,7 @@ When an action with `^html` receives a `text/html` response, dmax applies the HT
 | `^html^replace.sig` | `replace` | `dm.sig` CSS selector | `replaceWith` on selector target |
 | `^html^remove.sig` | `remove` | `dm.sig` CSS selector | removes all `querySelectorAll` matches |
 
-For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[attr]'`, etc.). If the signal does not exist, the camelCased mod path is used as an element `id` directly (e.g. `^before.myList` → `#myList`).
+For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[attr]'`, etc.). When the signal value is not a string starting with a recognised CSS selector character (`#`, `.`, `[`, `*`, `:`), it is treated as a bare element `id` and prefixed with `#` (e.g. `^before.myList` with no signal → `#myList`). To use a kebab-case element id, store the selector in a signal: `dm.insertAfter = '#my-list-item'`.
 
 **Examples:**
 

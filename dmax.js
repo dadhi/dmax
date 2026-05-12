@@ -1445,10 +1445,10 @@
                           : hm === MOD_REPLACE ? SSE_REPLACE
                           : hm === MOD_REMOVE  ? SSE_REMOVE
                           : SSE_OUTER
-            const hp = htmlDomMod && htmlDomMod.path
+            const hp = htmlDomMod && htmlDomMod.path, elTarRoot = hp ? '' : (findFirstKind(tars, EV_PROP)?.root ?? '')
             const domSel = hp ? resolveHtmlSelector(hp)
                          : (domMode === SSE_BEFORE || domMode === SSE_AFTER) ? (el.id ? '#' + el.id : '')
-                         : (domMode === SSE_APPEND || domMode === SSE_PREPEND) ? (findFirstKind(tars, EV_PROP)?.root ? '#' + findFirstKind(tars, EV_PROP).root : '')
+                         : (domMode === SSE_APPEND || domMode === SSE_PREPEND) ? (elTarRoot ? '#' + elTarRoot : '')
                          : ''
             applyPatchEls({ [SSE_ELS]: payload, selector: domSel, mode: domMode })
             htmlApplied = true
