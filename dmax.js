@@ -75,6 +75,7 @@
     const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
+    const MOD_BEFORE = 'before', MOD_AFTER = 'after', MOD_INNER = 'inner', MOD_REMOVE = 'remove', MOD_OUTER = 'outer'
     const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
@@ -207,17 +208,18 @@
       return finishParse(items, p, it, aName)
     }
 
-    const isObjEmpty = (o) => {
-      for (const key in o) if (key != null) return false
-      return true
-    }
+    const _parseCache = new Map()
+    const parseCached = (aName) => { let r = _parseCache.get(aName); if (!r) _parseCache.set(aName, r = parse(aName)[0]); return r }
 
     const RETURN_THEN = [' ', '(', '{', ';', '[', '"', '\'', '\n', '\r', '\t']
 
     // args available in right data-attr value expression, `trig` maybe null for no triggers or any of the _KIND except MOD
     const FN_ARGS = ['dm', 'el', 'trig', 'val', 'detail']
 
+    const _compiledFnCache = new Map()
     const compileFn = (aVal, aName, args = FN_ARGS) => {
+      const cacheKey = args === FN_ARGS ? aVal + '\x00' + aName : null
+      if (cacheKey !== null && _compiledFnCache.has(cacheKey)) return _compiledFnCache.get(cacheKey)
       let val = '' + aVal
       const returnPos=val.indexOf('return')
       let body=returnPos!=-1 && (returnPos+6 >= val.length || indexFirst(val, RETURN_THEN, returnPos+6) == returnPos+6) ? val : `return(${val})`
@@ -225,6 +227,7 @@
       let fn;
       try { fn = Function(...args, body) }
       catch (e) { console.error(`Error compiling ${aName} value to function:`, e.message, '>>>', val); return }
+      if (cacheKey !== null) _compiledFnCache.set(cacheKey, fn)
       return fn;
     }
 
@@ -243,7 +246,7 @@
     // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
     const dDef = (el, aName, aVal) => {
-      const it = parse(aName)[0], tars = it[TARG]
+      const it = parseCached(aName), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', aName)
       let fn = compileFn(aVal, aName)
       if (!fn) return
@@ -482,6 +485,13 @@
       return getSigValOrIt(parsed)
     }
 
+    const resolveHtmlSelector = (modPath) => {
+      const v = resolveModPathVal(modPath)
+      if (typeof v === 'string' && v) {
+        const c = v[0]; return (c === '#' || c === '.' || c === '[' || c === '*' || c === ':') ? v : '#' + v
+      }
+      return ''
+    }
     const resolveStatusSig = (mod, fallbackRoot) => {
       if (!mod) return null
       const p = mod.path
@@ -494,6 +504,7 @@
       if (sig && !_dm.has(sig.root)) _dm.set(sig.root, val)
       return sig
     }
+    const setS = (aName, stat, val) => stat && setSigAndNotifySubsNLevelsDeep(aName, stat, val)
 
     const isJsonContentType = (ct) => {
       const low = String(ct || '').toLowerCase()
@@ -504,16 +515,6 @@
       if (end >= low.length) return true
       const c = low[end]
       return c === ';' || c === ' ' || c === '\t'
-    }
-
-    const isTextLikeContentType = (ct) => {
-      const low = String(ct || '').toLowerCase()
-      if (low.indexOf('text/') !== -1) return true
-      if (low.indexOf('application/xml') !== -1) return true
-      if (low.indexOf('application/xhtml+xml') !== -1) return true
-      if (low.indexOf('application/x-www-form-urlencoded') !== -1) return true
-      if (low.indexOf('application/javascript') !== -1) return true
-      return false
     }
 
     const isPlainObj = (val) => !!val && typeof val === 'object' && !Array.isArray(val)
@@ -985,7 +986,7 @@
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     const dSub = (el, aName, aVal) => {
-      const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      const it = parseCached(aName), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', aName)
       const hasExpr = aVal != null && '' + aVal
       let fn = hasExpr ? compileFn(aVal, aName) : ((a, b, c, v) => v)
@@ -1083,7 +1084,7 @@
     // +!className inverts that rule.
     // Without aVal, the raw signal or trigger value is used.
     const dClass = (el, aName, aVal) => {
-      const it = parse(aName)[0], adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      const it = parseCached(aName), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', aName); return }
       if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
@@ -1112,7 +1113,7 @@
     // data-disp:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
     const dDisp = (el, aName, aVal) => {
-      const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      const it = parseCached(aName), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', aName); return }
       const propTar = findFirstKind(tars, EV_PROP)
       const tarEl = (propTar && propTar.root) ? getElById(propTar.root, aName) : el
@@ -1157,7 +1158,7 @@
     // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
     const dDump = (el, aName) => {
-      const it = parse(aName)[0], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
+      const it = parseCached(aName), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', aName); return }
       const trig = trigs[0]
       if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', aName); return }
@@ -1188,7 +1189,7 @@
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const method = ACT_METHODS[methodName]
       if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', aName); return }
-      const it = parse(aName)[0], tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
+      const it = parseCached(aName), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = aVal ? compileFn(aVal, aName) : null
       if (aVal && !urlFn) return
       const resultTar = findFirstKind(tars, SIGNAL)
@@ -1199,6 +1200,7 @@
       let headersNoKebab = false
       let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
+      let htmlMode = null, htmlDomMod = null
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
@@ -1216,7 +1218,11 @@
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
         else if (mr === MOD_HEADERS_NO_KEBAB) headersNoKebab = true
         else if (mr === MOD_AUTH && !authMod) authMod = m
-        else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
+        else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND
+               || mr === MOD_BEFORE || mr === MOD_AFTER || mr === MOD_INNER || mr === MOD_REMOVE) {
+          resultMode = mr
+          if (mr !== MOD_MERGE) { htmlMode = mr; htmlDomMod = m }
+        }
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
         else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
         else if (mr === MOD_ERR && !errMod) errMod = m
@@ -1269,10 +1275,7 @@
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
 
-        if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, true)
-        if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, false)
-        if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
-        if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, null)
+        setS(aName, busyStat, true), setS(aName, completeStat, false), setS(aName, errStat, null), setS(aName, codeStat, null)
 
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
@@ -1395,50 +1398,42 @@
           // Wire up AbortController so ^abort.<signal> lets callers cancel the request.
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
-          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, activeAbort)
+          setS(aName, abortStat, activeAbort)
           const init = { method, headers }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
 
           const res = await window.fetch(finalUrl, init)
           const ct = (res.headers && res.headers.get('content-type')) || ''
-          let payload
+          let payload, htmlApplied = false
           if (ct.includes('text/event-stream')) {
             // Use incremental streaming when the browser exposes a ReadableStream body;
             // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
             if (res.body && typeof res.body.getReader === 'function') {
-              payload = await consumeSseStream(
-                res.body, aName,
-                openStat ? () => {
-                  setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
-                  if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, false)
-                } : null,
-                closeStat || errStat ? (streamErr) => {
-                  if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
-                  if (streamErr) {
-                    if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
-                  } else {
-                    if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
-                  }
-                } : null
-              )
+              payload = await consumeSseStream(res.body, aName, openStat, closeStat, errStat)
             } else {
-              if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
+              setS(aName, openStat, true)
               const sseRaw = await res.text()
               payload = applySse(sseRaw, aName)
-              if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
-              if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
+              setS(aName, openStat, false), setS(aName, closeStat, true)
             }
+          } else if (isHtml && ct.includes('text/html')) {
+            payload = await res.text()
+            const hm = htmlMode
+            const mode = hm || MOD_OUTER
+            const hp = htmlDomMod && htmlDomMod.path, elTarRoot = hp ? '' : (findFirstKind(tars, EV_PROP)?.root ?? '')
+            const selector = hp ? resolveHtmlSelector(hp)
+              : (mode === MOD_BEFORE || mode === MOD_AFTER) ? (el.id ? '#' + el.id : '')
+              : (mode === MOD_APPEND || mode === MOD_PREPEND) ? (elTarRoot ? '#' + elTarRoot : '')
+              : ''
+            applyPatchEls({ [SSE_ELS]: payload, selector, mode })
+            htmlApplied = true
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
 
-          applyActionPayload(aName, resultTar, payload, resultMode)
-          if (patchAll) patchMatchingSigs(aName, payload, resultMode)
-          if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
-          if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
-          if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
-          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, null)
+          if (!htmlApplied) applyActionPayload(aName, resultTar, payload, resultMode)
+          if (!htmlApplied && patchAll) patchMatchingSigs(aName, payload, resultMode)
+          setS(aName, busyStat, false), setS(aName, completeStat, true), setS(aName, errStat, null), setS(aName, codeStat, Number.isFinite(res.status) ? res.status : null), setS(aName, abortStat, null)
           activeAbort = null
 
           // ^retry: auto-reconnect after clean close (stream ended without error and retry is requested)
@@ -1447,15 +1442,13 @@
           }
         } catch (err) {
           activeAbort = null
-          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, null)
-          if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
+          setS(aName, abortStat, null), setS(aName, openStat, false)
           // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
           const isAbort = err && err.name === 'AbortError'
-          if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
+          setS(aName, busyStat, false), setS(aName, completeStat, true)
           if (!isAbort) {
-            if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
-            if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
+            setS(aName, errStat, err && err.message ? err.message : String(err))
+            setS(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
             console.error('[dmax] Error: dAction fetch failed:', err)
             // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
@@ -1533,6 +1526,7 @@
     const updateAttrs = (from, to) => {
       const toAttrs = to.attributes
       const fromAttrs = from.attributes
+      if (!fromAttrs.length && !toAttrs.length) return
       if (fromAttrs.length === toAttrs.length) {
         let same = true
         let orderChanged = false
@@ -1698,32 +1692,20 @@
       }
     }
 
-    const applyOobHtml = (html) => {
-      if (!html) return ''
-      _HTML_PARSE_TEMPLATE.innerHTML = html
-      const src = _HTML_PARSE_TEMPLATE.content.querySelector('[data-oob]')
-      if (!src) return ''
-      const mode = src.getAttribute('data-oob')
-      const id = src.getAttribute('id')
-      const tar = id ? document.getElementById(id) : null
-      if (!tar) return ''
-      if (mode === 'morph') morph(tar, src)
-      else tar.replaceWith(src.cloneNode(true))
-      return 'applied:' + mode
-    }
-
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
     const SSE_EV_PATCH_ELS = 'dmax-patch-elements', SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
     const SSE_ELS = 'dmaxElements', SSE_SIGS = 'dmaxSignals'
-    const SSE_OUTER = 'outer', SSE_INNER = 'inner', SSE_REPLACE = 'replace', SSE_PREPEND = 'prepend', SSE_APPEND = 'append', SSE_BEFORE = 'before', SSE_AFTER = 'after', SSE_REMOVE = 'remove'
 
     const parseSseEls = (html, ns) => {
       if (!html) return NIL
       const namespace = (ns || 'html').toLowerCase()
       if (namespace === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
-        const out = []
-        for (let el = _HTML_PARSE_TEMPLATE.content.firstElementChild; el; el = el.nextElementSibling) out.push(el)
+        const first = _HTML_PARSE_TEMPLATE.content.firstElementChild
+        if (!first) return NIL
+        if (!first.nextElementSibling) return [first]
+        const out = [first]
+        for (let el = first.nextElementSibling; el; el = el.nextElementSibling) out.push(el)
         return out
       }
       const wrap = namespace === 'svg'
@@ -1738,16 +1720,15 @@
       if (!tarEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
       for (const src of srcEls) frag.appendChild(src.cloneNode(true))
-      if (mode === 'append') tarEl.appendChild(frag)
-      else if (mode === 'prepend') tarEl.insertBefore(frag, tarEl.firstChild || null)
-      else if (mode === 'before' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl)
-      else if (mode === 'after' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
+      if (mode === MOD_APPEND) { tarEl.appendChild(frag); return }
+      const par = mode === MOD_PREPEND ? tarEl : tarEl.parentNode
+      if (par) par.insertBefore(frag, mode === MOD_PREPEND ? tarEl.firstChild || null : mode === MOD_BEFORE ? tarEl : tarEl.nextSibling)
     }
 
     const applyPatchPair = (tarEl, srcEl, mode) => {
       if (!tarEl || !srcEl) return
-      if (mode === SSE_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
-      else if (mode === SSE_INNER) {
+      if (mode === MOD_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
+      else if (mode === MOD_INNER) {
         const to = tarEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
         morphChildren(tarEl, to)
@@ -1760,12 +1741,12 @@
     }
 
     const applyPatchEls = (args) => {
-      const mode = String(args.mode || SSE_OUTER).toLowerCase()
+      const mode = String(args.mode || MOD_OUTER).toLowerCase()
       const sel = args.selector ? String(args.selector) : ''
       const ns = args.namespace ? String(args.namespace) : 'html'
       const srcEls = parseSseEls(args[SSE_ELS] || '', ns)
 
-      if (mode === SSE_REMOVE) {
+      if (mode === MOD_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
@@ -1774,7 +1755,7 @@
         return
       }
 
-      if (mode === SSE_APPEND || mode === SSE_PREPEND || mode === SSE_BEFORE || mode === SSE_AFTER) {
+      if (mode === MOD_APPEND || mode === MOD_PREPEND || mode === MOD_BEFORE || mode === MOD_AFTER) {
         if (!sel || !srcEls.length) return
         for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
         return
@@ -1887,7 +1868,7 @@
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    const consumeSseStream = async (body, aName, onOpen, onClose) => {
+    const consumeSseStream = async (body, aName, openStat, closeStat, errStat) => {
       if (!body || typeof body.getReader !== 'function') return NIL
       const applied = []
       const reader = body.getReader()
@@ -1933,7 +1914,11 @@
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          if (!opened) { opened = true; if (onOpen) onOpen() }
+          if (!opened) {
+            opened = true
+            if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
+            if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, false)
+          }
           buf += decoder.decode(value, { stream: true })
           let nl
           while ((nl = buf.indexOf('\n')) >= 0) {
@@ -1950,7 +1935,12 @@
         streamErr = e
         console.error('[dmax] SSE stream error:', e)
       }
-      if (onClose) onClose(streamErr)
+      if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
+      if (streamErr) {
+        if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
+      } else {
+        if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
+      }
       return applied
     }
 

@@ -107,7 +107,7 @@
         "parent":{"child":1},"demo-parent":{"child":1},
         "onceTest":0,"alwaysTest":0,"guardVal":3,"otherFlag":false,
         "modOnce":0,"modDeb":0,"modThr":0,"modAnd":0,"gate":false,
-        "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,"oobHtml":"",
+        "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,
         "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null,
         "val-source":{"bar":7},
         "sse-message":"","sse-count":0,"sse-status":null
@@ -293,11 +293,10 @@
         <button id="create-post" data-sub:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
-      <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <div class="page"><code data-attr-for="oobLoad" data-attr-name="data-get^html^busy.busy^err.err^code.code:oob-html@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-        <button id="oobLoad" data-get^html^busy.busy^err.err^code.code:oob-html@.="'/mock/oob'">Load OOB HTML + morph</button>
+        <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
+        <div class="page"><code data-attr-for="oobLoad" data-attr-name="data-get^html^busy.busy^err.err^code.code@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+        <button id="oobLoad" data-get^html^busy.busy^err.err^code.code@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
-        <div data-sub:.@oob-html="applyOobHtml(dm.oobHtml)"></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
         <div class="page"><code data-attr-for="sseLoad" data-attr-name="data-get^busy.busy^err.err:sse-status@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
@@ -454,7 +453,7 @@
             return Promise.resolve(makeJsonResponse(payload, 201));
           }
           if (u === '/mock/oob') {
-            const html = `<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`;
+            const html = `<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`;
             return Promise.resolve({
               ok: true,
               headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },

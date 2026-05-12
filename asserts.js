@@ -1972,11 +1972,9 @@
       await consumeSseStream(
         fakeBody,
         'test-lc',
-        () => setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, true),
-        (err) => {
-          setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, false)
-          if (!err) setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseClose', path: null }, true)
-        }
+        { kind: SIGNAL, not: null, root: 'sseOpen', path: null },
+        { kind: SIGNAL, not: null, root: 'sseClose', path: null },
+        null
       )
       return {
         actual: { lcVal: _dm.get('lcVal'), sseOpen: _dm.get('sseOpen'), sseClose: _dm.get('sseClose') },
@@ -2050,6 +2048,234 @@
         actual: { abortCalled, signalAborted },
         expected: { abortCalled: true, signalAborted: true }
       }
+    })
+    // ---- missing utility function tests ----
+    __assert(isDigitsOnly, ['0'], true, 'isDigitsOnly single zero')
+    __assert(isDigitsOnly, ['123'], true, 'isDigitsOnly multi-digit')
+    __assert(isDigitsOnly, ['0x1'], false, 'isDigitsOnly hex prefix rejected')
+    __assert(isDigitsOnly, [''], false, 'isDigitsOnly empty string rejected')
+    __assert(isDigitsOnly, [' '], false, 'isDigitsOnly space rejected')
+    __assert(isDigitsOnly, [null], false, 'isDigitsOnly null rejected')
+    __assert(samePath, [['a', 'b'], ['a', 'b']], true, 'samePath equal arrays')
+    __assert(samePath, [['a', 'b'], ['a', 'c']], false, 'samePath different last element')
+    __assert(samePath, [['a'], ['a', 'b']], false, 'samePath different lengths')
+    __assert(samePath, [[], []], true, 'samePath both empty')
+    __assert(pickMods, [[], ['fallback']], ['fallback'], 'pickMods uses fallback when local empty')
+    __assert(pickMods, [['local'], ['fallback']], ['local'], 'pickMods uses local when non-empty')
+    __assert(pickMods, [[], []], [], 'pickMods both empty returns empty')
+    __assert(isPlainObj, [{}], true, 'isPlainObj plain object')
+    __assert(isPlainObj, [{ a: 1 }], true, 'isPlainObj object with prop')
+    __assert(isPlainObj, [[]], false, 'isPlainObj array rejected')
+    __assert(isPlainObj, [null], false, 'isPlainObj null rejected')
+    __assert(isPlainObj, [42], false, 'isPlainObj number rejected')
+    __assert(hasOwn, [{ a: 1 }, 'a'], true, 'hasOwn own property')
+    __assert(hasOwn, [{ a: 1 }, 'b'], false, 'hasOwn missing property')
+    __assert(hasOwn, [Object.create({ inherited: 1 }), 'inherited'], false, 'hasOwn does not see inherited props')
+    __assert(() => { const o = cloneOwnProps({ a: 1, b: 2 }); return { a: o.a, b: o.b, proto: Object.getPrototypeOf(o) } }, [],
+      { a: 1, b: 2, proto: null }, 'cloneOwnProps copies own props, null prototype')
+    __assert(() => { const src = Object.create({ inherited: 9 }); src.own = 7; const o = cloneOwnProps(src); return { own: o.own, hasInherited: 'inherited' in o } }, [],
+      { own: 7, hasInherited: false }, 'cloneOwnProps does not copy inherited props')
+    __assert(() => ({ ...mergeActionHeaders(null, null) }), [], {}, 'mergeActionHeaders both null returns empty')
+    __assert(() => ({ ...mergeActionHeaders(null, { accept: 'text/plain' }) }), [], { accept: 'text/plain' }, 'mergeActionHeaders null base returns extra')
+    __assert(() => ({ ...mergeActionHeaders({ accept: 'text/html' }, null) }), [], { accept: 'text/html' }, 'mergeActionHeaders null extra returns base')
+    __assert(() => ({ ...mergeActionHeaders({ accept: 'text/html', 'content-type': 'text/html' }, { accept: 'application/json' }) }), [],
+      { accept: 'application/json', 'content-type': 'text/html' }, 'mergeActionHeaders extra overrides base')
+    __assert(mergeActionVals, [1, 2], 2, 'mergeActionVals scalars returns next')
+    __assert(mergeActionVals, [[1, 2], [3, 4]], [1, 2, 3, 4], 'mergeActionVals arrays concatenated')
+    __assert(mergeActionVals, [{ a: 1 }, { b: 2 }], { a: 1, b: 2 }, 'mergeActionVals plain objects merged')
+    __assert(mergeActionVals, [{ a: 1, c: { x: 1 } }, { c: { y: 2 } }], { a: 1, c: { x: 1, y: 2 } }, 'mergeActionVals deep merge nested objects')
+    __assert(mergeActionVals, [{ a: 1 }, [1, 2]], [1, 2], 'mergeActionVals object+array returns next')
+    __assert(combineActionResult, [1, 2, 'replace'], 2, 'combineActionResult replace returns next')
+    __assert(combineActionResult, [[1], [2], 'merge'], [1, 2], 'combineActionResult merge arrays')
+    __assert(combineActionResult, ['hello ', 'world', 'append'], 'hello world', 'combineActionResult append strings')
+    __assert(combineActionResult, ['world', 'hello ', 'prepend'], 'hello world', 'combineActionResult prepend strings')
+    __assert(combineActionResult, [[2, 3], [1], 'prepend'], [1, 2, 3], 'combineActionResult prepend arrays reversed')
+    __assert(getSimpleIdSelector, [''], null, 'getSimpleIdSelector empty string is null')
+    __assert(getSimpleIdSelector, ['#foo'], 'foo', 'getSimpleIdSelector plain id')
+    __assert(getSimpleIdSelector, ['#foo.bar'], null, 'getSimpleIdSelector compound selector rejected')
+    __assert(getSimpleIdSelector, ['#foo bar'], null, 'getSimpleIdSelector selector with space rejected')
+    __assert(getSimpleIdSelector, ['.cls'], null, 'getSimpleIdSelector class selector rejected')
+    __assert(getSimpleIdSelector, ['#'], null, 'getSimpleIdSelector bare hash rejected')
+    __assert(applyJsonMergePatch, [{ a: 1 }, { b: 2 }], { a: 1, b: 2 }, 'applyJsonMergePatch merges new key')
+    __assert(applyJsonMergePatch, [{ a: 1, b: 2 }, { a: 99 }], { a: 99, b: 2 }, 'applyJsonMergePatch updates existing key')
+    __assert(applyJsonMergePatch, [{ a: 1, b: 2 }, { b: null }], { a: 1 }, 'applyJsonMergePatch null removes key')
+    __assert(applyJsonMergePatch, [null, 42], 42, 'applyJsonMergePatch non-object patch replaces prev')
+    __assert(applyJsonMergePatch, [{ a: 1 }, null], JSON_MERGE_DELETE, 'applyJsonMergePatch null patch returns delete sentinel')
+    __assert(applyJsonMergePatch, [{ a: { x: 1 } }, { a: { y: 2 } }], { a: { x: 1, y: 2 } }, 'applyJsonMergePatch deep merge')
+    // ---- dAction ^html response modes ----
+    __asyncAssert('^html default (outer) morphs element matched by id in response', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<div id="html-outer-target"><span>old</span></div>'
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<div id="html-outer-target"><span>new</span></div>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        return { actual: container.querySelector('#html-outer-target span')?.textContent, expected: 'new' }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^replace replaces element by id (no morph)', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<p id="html-replace-target">old</p>'
+      document.body.appendChild(container)
+      try {
+        const origEl = container.querySelector('#html-replace-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<p id="html-replace-target">new</p>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^replace@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const newEl = container.querySelector('#html-replace-target')
+        return { actual: { text: newEl?.textContent, replaced: newEl !== origEl }, expected: { text: 'new', replaced: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^inner morphs children only by id in response', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<section id="html-inner-target"><b>old</b></section>'
+      document.body.appendChild(container)
+      try {
+        const origEl = container.querySelector('#html-inner-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<section id="html-inner-target"><em>new</em></section>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^inner@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const el = container.querySelector('#html-inner-target')
+        return { actual: { sameNode: el === origEl, child: el?.querySelector('em')?.textContent }, expected: { sameNode: true, child: 'new' } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^remove removes element by id from response', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<div id="html-remove-target">bye</div><div id="html-remove-keep">keep</div>'
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<div id="html-remove-target"></div>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^remove@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        return { actual: { removed: !container.querySelector('#html-remove-target'), kept: !!container.querySelector('#html-remove-keep') }, expected: { removed: true, kept: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^before inserts HTML before the action element', async () => {
+      __reset()
+      const container = document.createElement('div')
+      const anchor = document.createElement('button')
+      anchor.id = 'html-before-anchor'
+      container.appendChild(anchor)
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<span class="inserted-before">inserted</span>' })
+        dAction(anchor, 'data-get^html^before@.click', "'/mock/html'")
+        __fireEventSub(anchor, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        const children = Array.from(container.children)
+        return { actual: { insertedFirst: children[0]?.classList.contains('inserted-before'), anchorSecond: children[1] === anchor }, expected: { insertedFirst: true, anchorSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^after inserts HTML after the action element', async () => {
+      __reset()
+      const container = document.createElement('div')
+      const anchor = document.createElement('button')
+      anchor.id = 'html-after-anchor'
+      container.appendChild(anchor)
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<span class="inserted-after">inserted</span>' })
+        dAction(anchor, 'data-get^html^after@.click', "'/mock/html'")
+        __fireEventSub(anchor, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        const children = Array.from(container.children)
+        return { actual: { anchorFirst: children[0] === anchor, insertedSecond: children[1]?.classList.contains('inserted-after') }, expected: { anchorFirst: true, insertedSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^before.sig inserts HTML before signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<span id="html-before-sig-target">target</span>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('insertTarget', '#html-before-sig-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<em class="sig-before">sig-before</em>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^before.insert-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const children = Array.from(container.children)
+        return { actual: { insertedFirst: children[0]?.classList.contains('sig-before'), targetSecond: children[1]?.id === 'html-before-sig-target' }, expected: { insertedFirst: true, targetSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^after.sig inserts HTML after signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<span id="html-after-sig-target">target</span>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('insertTarget', '#html-after-sig-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<em class="sig-after">sig-after</em>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^after.insert-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const children = Array.from(container.children)
+        return { actual: { targetFirst: children[0]?.id === 'html-after-sig-target', insertedSecond: children[1]?.classList.contains('sig-after') }, expected: { targetFirst: true, insertedSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^append.sig appends HTML inside signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<ul id="html-append-list"><li>existing</li></ul>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('listTarget', '#html-append-list')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<li class="appended">new item</li>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^append.list-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const list = container.querySelector('#html-append-list')
+        const items = list ? Array.from(list.children) : []
+        return { actual: { count: items.length, lastIsNew: items[items.length - 1]?.classList.contains('appended') }, expected: { count: 2, lastIsNew: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^prepend.sig prepends HTML inside signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<ul id="html-prepend-list"><li>existing</li></ul>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('listTarget', '#html-prepend-list')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<li class="prepended">new item</li>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^prepend.list-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const list = container.querySelector('#html-prepend-list')
+        const items = list ? Array.from(list.children) : []
+        return { actual: { count: items.length, firstIsNew: items[0]?.classList.contains('prepended') }, expected: { count: 2, firstIsNew: true } }
+      } finally { delete window.fetch; container.remove() }
     })
   const __finishAssertSuite = () => {
     __restoreAssertState()
