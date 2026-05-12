@@ -155,7 +155,7 @@ function getPathname(url) {
           }
         },
         async text() {
-          return '<div id="oobTarget" data-oob="morph"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>';
+          return '<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>';
         }
       });
     }

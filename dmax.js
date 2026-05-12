@@ -1394,7 +1394,7 @@
 
           const res = await window.fetch(finalUrl, init)
           const ct = (res.headers && res.headers.get('content-type')) || ''
-          let payload
+          let payload, htmlApplied = false
           if (ct.includes('text/event-stream')) {
             // Use incremental streaming when the browser exposes a ReadableStream body;
             // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
@@ -1421,11 +1421,20 @@
               if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
               if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
             }
+          } else if (isHtml && ct.includes('text/html')) {
+            payload = await res.text()
+            const elTar = findFirstKind(tars, EV_PROP)
+            const sel = elTar && elTar.root ? '#' + elTar.root : ''
+            const domMode = resultMode === MOD_PREPEND ? SSE_PREPEND
+                          : resultMode === MOD_APPEND  ? SSE_APPEND
+                          : SSE_OUTER
+            applyPatchEls({ [SSE_ELS]: payload, selector: sel, mode: domMode })
+            htmlApplied = true
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
 
-          applyActionPayload(aName, resultTar, payload, resultMode)
-          if (patchAll) patchMatchingSigs(aName, payload, resultMode)
+          if (!htmlApplied) applyActionPayload(aName, resultTar, payload, resultMode)
+          if (!htmlApplied && patchAll) patchMatchingSigs(aName, payload, resultMode)
           if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
           if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
           if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
