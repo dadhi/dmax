@@ -75,7 +75,7 @@
     const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
-    const MOD_BEFORE = 'before', MOD_AFTER = 'after', MOD_INNER = 'inner', MOD_REMOVE = 'remove'
+    const MOD_BEFORE = 'before', MOD_AFTER = 'after', MOD_INNER = 'inner', MOD_REMOVE = 'remove', MOD_OUTER = 'outer'
     const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
@@ -1437,18 +1437,11 @@
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
             const hm = htmlMode
-            const domMode = hm === MOD_PREPEND ? SSE_PREPEND
-                          : hm === MOD_APPEND  ? SSE_APPEND
-                          : hm === MOD_BEFORE  ? SSE_BEFORE
-                          : hm === MOD_AFTER   ? SSE_AFTER
-                          : hm === MOD_INNER   ? SSE_INNER
-                          : hm === MOD_REPLACE ? SSE_REPLACE
-                          : hm === MOD_REMOVE  ? SSE_REMOVE
-                          : SSE_OUTER
+            const domMode = hm || MOD_OUTER
             const hp = htmlDomMod && htmlDomMod.path, elTarRoot = hp ? '' : (findFirstKind(tars, EV_PROP)?.root ?? '')
             const domSel = hp ? resolveHtmlSelector(hp)
-                         : (domMode === SSE_BEFORE || domMode === SSE_AFTER) ? (el.id ? '#' + el.id : '')
-                         : (domMode === SSE_APPEND || domMode === SSE_PREPEND) ? (elTarRoot ? '#' + elTarRoot : '')
+                         : (domMode === MOD_BEFORE || domMode === MOD_AFTER) ? (el.id ? '#' + el.id : '')
+                         : (domMode === MOD_APPEND || domMode === MOD_PREPEND) ? (elTarRoot ? '#' + elTarRoot : '')
                          : ''
             applyPatchEls({ [SSE_ELS]: payload, selector: domSel, mode: domMode })
             htmlApplied = true
@@ -1725,7 +1718,6 @@
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
     const SSE_EV_PATCH_ELS = 'dmax-patch-elements', SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
     const SSE_ELS = 'dmaxElements', SSE_SIGS = 'dmaxSignals'
-    const SSE_OUTER = 'outer', SSE_INNER = 'inner', SSE_REPLACE = 'replace', SSE_PREPEND = 'prepend', SSE_APPEND = 'append', SSE_BEFORE = 'before', SSE_AFTER = 'after', SSE_REMOVE = 'remove'
 
     const parseSseEls = (html, ns) => {
       if (!html) return NIL
@@ -1751,16 +1743,16 @@
       if (!tarEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
       for (const src of srcEls) frag.appendChild(src.cloneNode(true))
-      if (mode === 'append') tarEl.appendChild(frag)
-      else if (mode === 'prepend') tarEl.insertBefore(frag, tarEl.firstChild || null)
-      else if (mode === 'before' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl)
-      else if (mode === 'after' && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
+      if (mode === MOD_APPEND) tarEl.appendChild(frag)
+      else if (mode === MOD_PREPEND) tarEl.insertBefore(frag, tarEl.firstChild || null)
+      else if (mode === MOD_BEFORE && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl)
+      else if (mode === MOD_AFTER && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
     }
 
     const applyPatchPair = (tarEl, srcEl, mode) => {
       if (!tarEl || !srcEl) return
-      if (mode === SSE_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
-      else if (mode === SSE_INNER) {
+      if (mode === MOD_REPLACE) tarEl.replaceWith(srcEl.cloneNode(true))
+      else if (mode === MOD_INNER) {
         const to = tarEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
         morphChildren(tarEl, to)
@@ -1773,12 +1765,12 @@
     }
 
     const applyPatchEls = (args) => {
-      const mode = String(args.mode || SSE_OUTER).toLowerCase()
+      const mode = String(args.mode || MOD_OUTER).toLowerCase()
       const sel = args.selector ? String(args.selector) : ''
       const ns = args.namespace ? String(args.namespace) : 'html'
       const srcEls = parseSseEls(args[SSE_ELS] || '', ns)
 
-      if (mode === SSE_REMOVE) {
+      if (mode === MOD_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
@@ -1787,7 +1779,7 @@
         return
       }
 
-      if (mode === SSE_APPEND || mode === SSE_PREPEND || mode === SSE_BEFORE || mode === SSE_AFTER) {
+      if (mode === MOD_APPEND || mode === MOD_PREPEND || mode === MOD_BEFORE || mode === MOD_AFTER) {
         if (!sel || !srcEls.length) return
         for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
         return
