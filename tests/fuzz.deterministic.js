@@ -20,6 +20,7 @@ const INVALID_PROPERTIES = []; // Removed: parser doesn't validate property name
 
 const EVENTS = ['click', 'input', 'change', 'mouseover', 'keydown'];
 const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500'];
+const SPECIAL_EVENTS_WITH_IO = ['_viewed']; // require IntersectionObserver, warn when unavailable
 
 const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10'];
 const INVALID_MODIFIERS = ['', 'unknown'];
@@ -125,6 +126,10 @@ function* generateDataSubCombinations() {
   // 6. Special triggers
   for (const special of SPECIAL_EVENTS) {
     yield { attr: `data-sub:foo@${special}`, valid: true, category: 'special-trigger' };
+  }
+  // IntersectionObserver-based triggers warn when IO is unavailable (e.g. JSDOM)
+  for (const special of SPECIAL_EVENTS_WITH_IO) {
+    yield { attr: `data-sub:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver not available' };
   }
   
   // 7. No target (side effect)

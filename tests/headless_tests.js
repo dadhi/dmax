@@ -39,7 +39,16 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     resources: 'usable',
     url: pathToFileURL(file).href,
     pretendToBeVisual: true,
-    virtualConsole: vcon
+    virtualConsole: vcon,
+    beforeParse(win) {
+      const observers = [];
+      win.__intersectionObservers = observers;
+      win.IntersectionObserver = function (cb) {
+        const obs = { cb, els: [], observe(el) { this.els.push(el); }, unobserve(el) { this.els = this.els.filter(e => e !== el); }, disconnect() { this.els = []; } };
+        observers.push(obs);
+        return obs;
+      };
+    }
   });
   const { window } = dom;
 
@@ -253,6 +262,18 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     if (intSpan.textContent.length) pass('Section6 interval update'); else fail('Section6 interval did not update');
     await sleep(500);
     if (timeoutSpan.textContent.length) pass('Section6 timeout update'); else fail('Section6 timeout did not update');
+
+    // Section 6.a: _viewed trigger
+    const viewedSpan = doc.getElementById('viewedOut');
+    if (!viewedSpan) { fail('Section6a viewedOut element missing'); } else {
+      const observers = window.__intersectionObservers || [];
+      const viewedObs = observers.find(o => o.els.includes(viewedSpan));
+      if (!viewedObs) { fail('Section6a IntersectionObserver not registered for viewedOut'); } else {
+        viewedObs.cb([{ isIntersecting: true, intersectionRatio: 1.0, target: viewedSpan }]);
+        await sleep(60);
+        if (viewedSpan.textContent.includes('Viewed')) pass('Section6a _viewed trigger fired'); else fail('Section6a _viewed did not update viewedOut');
+      }
+    }
 
     // Section 7: default props + events
     const inp1 = doc.getElementById('inp1');
