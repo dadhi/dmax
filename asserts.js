@@ -1972,11 +1972,9 @@
       await consumeSseStream(
         fakeBody,
         'test-lc',
-        () => setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, true),
-        (err) => {
-          setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseOpen', path: null }, false)
-          if (!err) setSigAndNotifySubsNLevelsDeep('test-lc', { kind: SIGNAL, not: null, root: 'sseClose', path: null }, true)
-        }
+        { kind: SIGNAL, not: null, root: 'sseOpen', path: null },
+        { kind: SIGNAL, not: null, root: 'sseClose', path: null },
+        null
       )
       return {
         actual: { lcVal: _dm.get('lcVal'), sseOpen: _dm.get('sseOpen'), sseClose: _dm.get('sseClose') },

@@ -1270,14 +1270,13 @@
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
 
+      const setS = (stat, val) => stat && setSigAndNotifySubsNLevelsDeep(aName, stat, val)
+
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
 
-        if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, true)
-        if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, false)
-        if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
-        if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, null)
+        setS(busyStat, true), setS(completeStat, false), setS(errStat, null), setS(codeStat, null)
 
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
@@ -1400,7 +1399,7 @@
           // Wire up AbortController so ^abort.<signal> lets callers cancel the request.
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
-          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, activeAbort)
+          setS(abortStat, activeAbort)
           const init = { method, headers }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
@@ -1412,27 +1411,12 @@
             // Use incremental streaming when the browser exposes a ReadableStream body;
             // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
             if (res.body && typeof res.body.getReader === 'function') {
-              payload = await consumeSseStream(
-                res.body, aName,
-                openStat ? () => {
-                  setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
-                  if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, false)
-                } : null,
-                closeStat || errStat ? (streamErr) => {
-                  if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
-                  if (streamErr) {
-                    if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
-                  } else {
-                    if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
-                  }
-                } : null
-              )
+              payload = await consumeSseStream(res.body, aName, openStat, closeStat, errStat)
             } else {
-              if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
+              setS(openStat, true)
               const sseRaw = await res.text()
               payload = applySse(sseRaw, aName)
-              if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
-              if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
+              setS(openStat, false), setS(closeStat, true)
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
@@ -1450,11 +1434,7 @@
 
           if (!htmlApplied) applyActionPayload(aName, resultTar, payload, resultMode)
           if (!htmlApplied && patchAll) patchMatchingSigs(aName, payload, resultMode)
-          if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
-          if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, null)
-          if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(res.status) ? res.status : null)
-          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, null)
+          setS(busyStat, false), setS(completeStat, true), setS(errStat, null), setS(codeStat, Number.isFinite(res.status) ? res.status : null), setS(abortStat, null)
           activeAbort = null
 
           // ^retry: auto-reconnect after clean close (stream ended without error and retry is requested)
@@ -1463,15 +1443,13 @@
           }
         } catch (err) {
           activeAbort = null
-          if (abortStat) setSigAndNotifySubsNLevelsDeep(aName, abortStat, null)
-          if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
+          setS(abortStat, null), setS(openStat, false)
           // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
           const isAbort = err && err.name === 'AbortError'
-          if (busyStat) setSigAndNotifySubsNLevelsDeep(aName, busyStat, false)
-          if (completeStat) setSigAndNotifySubsNLevelsDeep(aName, completeStat, true)
+          setS(busyStat, false), setS(completeStat, true)
           if (!isAbort) {
-            if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, err && err.message ? err.message : String(err))
-            if (codeStat) setSigAndNotifySubsNLevelsDeep(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
+            setS(errStat, err && err.message ? err.message : String(err))
+            setS(codeStat, Number.isFinite(err && err.status) ? err.status : null)
             console.error('[dmax] Error: dAction fetch failed:', err)
             // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
@@ -1891,7 +1869,7 @@
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    const consumeSseStream = async (body, aName, onOpen, onClose) => {
+    const consumeSseStream = async (body, aName, openStat, closeStat, errStat) => {
       if (!body || typeof body.getReader !== 'function') return NIL
       const applied = []
       const reader = body.getReader()
@@ -1937,7 +1915,11 @@
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          if (!opened) { opened = true; if (onOpen) onOpen() }
+          if (!opened) {
+            opened = true
+            if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, true)
+            if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, false)
+          }
           buf += decoder.decode(value, { stream: true })
           let nl
           while ((nl = buf.indexOf('\n')) >= 0) {
@@ -1954,7 +1936,12 @@
         streamErr = e
         console.error('[dmax] SSE stream error:', e)
       }
-      if (onClose) onClose(streamErr)
+      if (openStat) setSigAndNotifySubsNLevelsDeep(aName, openStat, false)
+      if (streamErr) {
+        if (errStat) setSigAndNotifySubsNLevelsDeep(aName, errStat, streamErr.message || String(streamErr))
+      } else {
+        if (closeStat) setSigAndNotifySubsNLevelsDeep(aName, closeStat, true)
+      }
       return applied
     }
 
