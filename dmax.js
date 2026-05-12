@@ -91,10 +91,7 @@
     const ACT_HS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
     const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed'
     const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED]
-    const SP_WIN_EV = 'resize'
-    const SP_DOC_EV = 'visibilitychange'
-    const SP_INTERVAL_MS = 500
-    const SP_TIMEOUT_MS = 500
+    const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const E_RW_REQ = `dSub ${MOD}${M_RW} requires an element/property trigger in:`
     const E_RW_EL = `dSub ${MOD}${M_RW} source element is not found in trigger:`
@@ -280,7 +277,7 @@
       if (val === undefined && el.getAttribute) {
         val = el.getAttribute(camelToKebab(prop))
       }
-      return prPath && prPath.length > 1 ? getPropValAndDepth(val, prPath.slice(1))[0] : val
+      return prPath && prPath.length > 1 ? getPrValAndDepth(val, prPath.slice(1))[0] : val
     }
 
     const isDefaultPrName = (el, prop) => prop === getDefaultPr(el) || prop === 'value' || prop === 'checked' || prop === 'textContent'
@@ -296,7 +293,7 @@
 
     const isNil = (v) => v === null || v === undefined
 
-    const getPropValAndDepth = (obj, path, depth = -1) => {
+    const getPrValAndDepth = (obj, path, depth = -1) => {
       let v = obj
       if (isNil(v) || !path) return [v, 0]
       let n = depth == -1 || depth > path.length ? path.length : depth
@@ -335,7 +332,7 @@
       if (!path)
         prop = getDefaultPr(obj);
       else if (path.length > 0) {
-        [obj] = getPropValAndDepth(obj, path, path.length - 1)
+        [obj] = getPrValAndDepth(obj, path, path.length - 1)
         prop = path[path.length - 1]
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', dKey); return }
@@ -467,7 +464,7 @@
     const getSiVal = (it) => {
       const sig = _dm.get(it.root)
       const path = it.path
-      return path && path.length ? getPropValAndDepth(sig, path)[0] : sig
+      return path && path.length ? getPrValAndDepth(sig, path)[0] : sig
     }
     const getSiValOrIt = (it) => {
       if (!it.kind) return it
@@ -841,7 +838,7 @@
       let siVal = _dm.get(root), curVal = siVal, parent = siVal, d = 0, last = null
       if (path) {
         if (!expected(path.length)) return null;
-        [parent, d] = getPropValAndDepth(parent, path, path.length - 1)
+        [parent, d] = getPrValAndDepth(parent, path, path.length - 1)
         if (!parent) { console.error('[dmax] Error: cannot set value to missing signal parent at:', root, 'at path:', path, 'at index:', d - 1, 'in:', dKey); return }
         curVal = parent[last = path[d]]
       }
@@ -894,11 +891,11 @@
         for (const col of collected) // check if the same
           if ((p = col[0].trig.path) && samePath(p, hp)) { hCol = col; break }
 
-        const pathCur = getPropValAndDepth(siVal, hp)[0]
+        const pathCur = getPrValAndDepth(siVal, hp)[0]
         let pathVal
         if (hCol) pathVal = hCol[2]
         else {
-          pathVal = getPropValAndDepth(val, hp)[0]
+          pathVal = getPrValAndDepth(val, hp)[0]
           if (!valChangedDeep(pathCur, pathVal)) continue
         }
 
@@ -991,7 +988,7 @@
           }
         }
         let trigVal = isSig ? (providedVal ?? getSiVal(trigIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
-        if (isSig && valPath.length) trigVal = getPropValAndDepth(trigVal, valPath)[0]
+        if (isSig && valPath.length) trigVal = getPrValAndDepth(trigVal, valPath)[0]
         if (trigIt.not) trigVal = !trigVal
         if (permitMods && !modsPermitVal(permitMods, trigVal)) return
         try { fn(dm, el, trigIt, trigVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
