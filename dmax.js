@@ -1715,8 +1715,12 @@
       const namespace = (ns || 'html').toLowerCase()
       if (namespace === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
-        const first = _HTML_PARSE_TEMPLATE.content.firstElementChild; if (!first) return NIL; if (!first.nextElementSibling) return [first]
-        const out = [first]; for (let el = first.nextElementSibling; el; el = el.nextElementSibling) out.push(el); return out
+        const first = _HTML_PARSE_TEMPLATE.content.firstElementChild
+        if (!first) return NIL
+        if (!first.nextElementSibling) return [first]
+        const out = [first]
+        for (let el = first.nextElementSibling; el; el = el.nextElementSibling) out.push(el)
+        return out
       }
       const wrap = namespace === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
