@@ -170,9 +170,10 @@
       <p id="srcPreview" data-sub:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
-      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-sub:.@_window.resize" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-sub:.@_interval.1000" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-sub:.@_timeout.1500" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-sub:.@_window.resize" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-sub:.@_interval.1000" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-sub:.@_timeout.1500" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-sub:.@_viewed^once" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
       <p>Window width: <span id="windowWidthOut" data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
       <p>Current time: <span id="timeOut" data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
+      <p>Scroll into view: <span id="viewedOut" data-sub:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
       <h4>7. Default Props &amp; Events</h4>
       <div class="page"><code data-attr-for="inp1Preview" data-attr-name="data-sub:.@#inp1.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="btn3Preview" data-attr-name="data-sub:.@#btn3" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
       <input id="inp1" placeholder="Mirrors on input">

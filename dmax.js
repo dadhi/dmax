@@ -89,8 +89,8 @@
     const ACT_HEADERS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
     const ACT_HEADERS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
     const ACT_HEADERS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
-    const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout'
-    const SPECS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT]
+    const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout', SPEC_VIEWED = 'viewed'
+    const SPECS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT, SPEC_VIEWED]
     const SPEC_WIN_EV = 'resize'
     const SPEC_DOC_EV = 'visibilitychange'
     const SPEC_INTERVAL_MS = 500
@@ -730,6 +730,7 @@
     }
     const clearSubId = (sub) => {
       if (sub.trig.root === SPEC_INTERVAL) clearInterval(sub.clearId)
+      else if (sub.trig.root === SPEC_VIEWED) sub.clearId.disconnect()
       else clearTimeout(sub.clearId)
       sub.clearId = null
     }
@@ -773,6 +774,20 @@
         sub.fn = applyTrigMods(fn, trig, mods, sub)
         if (trig.root === SPEC_INTERVAL) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
         else sub.clearId = setTimeout(onTimeoutSub, ms, { sub, ms })
+        elSubs.push(sub)
+        return sub.fn
+      }
+      if (trig.kind === SPEC && trig.root === SPEC_VIEWED) {
+        if (typeof IntersectionObserver === 'undefined') { console.warn('[dmax] Warning: IntersectionObserver not available, _viewed trigger skipped on:', el); return null }
+        const sub = { el, trig, fn: null, sigChangeMod: null, ev: null, clearId: null }
+        sub.fn = applyTrigMods(fn, trig, mods, sub)
+        const observer = new IntersectionObserver((entries) => {
+          for (const entry of entries) if (entry.isIntersecting)
+            try { invokeSub(sub.fn, { ratio: entry.intersectionRatio, type: SPEC_VIEWED }, entry.intersectionRatio, el, trig) }
+            catch (e) { console.error('[dmax] Error: viewed handler failed:', e?.message ?? e) }
+        })
+        observer.observe(el)
+        sub.clearId = observer
         elSubs.push(sub)
         return sub.fn
       }
