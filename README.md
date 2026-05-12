@@ -242,7 +242,77 @@ Examples:
 - **`^body.<signalPath>`** — force specific signal to request body (see above)
 - **`^header.<name>`** — set a single header from a named signal (see above)
 - **`^auth.<signalPath>`** — set the `authorization` header from a named signal (see above)
-- **`^replace`** (default), **`^merge`**, **`^append`**, **`^prepend`** — response result mode
+- **`^replace`** (default), **`^merge`**, **`^append`**, **`^prepend`** — response result mode for JSON signals; for `^html` responses these map directly to DOM modes (see matrix below)
+- **`^before`**, **`^after`**, **`^inner`**, **`^remove`** — HTML DOM-only modes (see matrix below)
+
+### `^html` response DOM update matrix
+
+When an action with `^html` receives a `text/html` response, dmax applies the HTML to the live DOM. Elements are matched by their `id` attribute unless a selector is provided.
+
+| Client mods | DOM mode | Target resolution | Behaviour |
+| --- | --- | --- | --- |
+| `^html` *(default)* | `outer` | element `id` from HTML response | morph in-place — preserves form state |
+| `^html^replace` | `replace` | element `id` from HTML response | `replaceWith` — discards old node |
+| `^html^inner` | `inner` | element `id` from HTML response | morph children only — outer node kept |
+| `^html^remove` | `remove` | element `id` from HTML response | removes matched node |
+| `^html^before` | `before` | action element itself | insert before the action element |
+| `^html^before.sig` | `before` | `dm.sig` CSS selector | insert before selector target |
+| `^html^after` | `after` | action element itself | insert after the action element |
+| `^html^after.sig` | `after` | `dm.sig` CSS selector | insert after selector target |
+| `^html^append.sig` | `append` | `dm.sig` CSS selector | insert at end of selector target |
+| `^html^prepend.sig` | `prepend` | `dm.sig` CSS selector | insert at start of selector target |
+| `^html^inner.sig` | `inner` | `dm.sig` CSS selector | morph children of selector target |
+| `^html^replace.sig` | `replace` | `dm.sig` CSS selector | `replaceWith` on selector target |
+| `^html^remove.sig` | `remove` | `dm.sig` CSS selector | removes all `querySelectorAll` matches |
+
+For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[attr]'`, etc.). If the signal does not exist, the camelCased mod path is used as an element `id` directly (e.g. `^before.myList` → `#myList`).
+
+**Examples:**
+
+```html
+<!-- Morph element with id="result" in place (default) -->
+<button data-get^html@.click="'/api/fragment'">Load</button>
+
+<!-- Insert new content before this button -->
+<button id="add-btn" data-post^html^before@.click="'/api/new-item'">Add</button>
+
+<!-- Insert after a signal-specified target -->
+<button data-post^html^after.insert-after@.click="'/api/new-item'">Add</button>
+<!-- dm.insertAfter = '#item-42' -->
+
+<!-- Append items into a list -->
+<button data-get^html^append.items-list@.click="'/api/more'">Load more</button>
+<!-- dm.itemsList = '#item-list' -->
+
+<!-- Replace element (no morph) -->
+<button data-get^html^replace@.click="'/api/fresh'">Refresh</button>
+```
+
+### SSE `dmax-patch-elements` update matrix
+
+Sent by the server as `event: dmax-patch-elements` in an SSE stream:
+
+| `mode` field | Matching | Behaviour |
+| --- | --- | --- |
+| `outer` *(default)* | element `id` or `selector` | morph in-place — preserves form state |
+| `inner` | element `id` or `selector` | morph children only — outer node kept |
+| `replace` | element `id` or `selector` | `replaceWith` — destroys old node |
+| `append` | CSS `selector` | insert at end of target |
+| `prepend` | CSS `selector` | insert at start of target |
+| `before` | CSS `selector` | insert before target |
+| `after` | CSS `selector` | insert after target |
+| `remove` | element `id` or `selector` | remove target |
+
+When a `selector` field is present, `querySelectorAll` is used; otherwise each source element is matched to the live DOM by its `id` attribute via `getElementById`. Morph (`outer`/`inner`) preserves event listeners, focus, caret position, and scroll position.
+
+### dAction full response matrix
+
+| Response `content-type` | Client mod required | Behaviour |
+| --- | --- | --- |
+| `text/event-stream` | `^sse` | incremental stream; applies `dmax-patch-elements` / `dmax-patch-signals` as each chunk arrives |
+| `text/html` | `^html` | calls HTML DOM update path (see `^html` matrix above) — signal storage skipped |
+| `application/json` | *(default or `^json`)* | stored in signal target; `^patch-all`/`^sync-all` also patches matching root signals |
+| `text/plain` | `^text` | stored as string signal value |
 
 ### Response status signals
 
@@ -276,4 +346,4 @@ Example:
 
 For `dmax-patch-elements` with `mode: outer|inner`, dmax uses the built-in `morph(...)` implementation to preserve listeners/state while applying updates.
 When `dmax-patch-elements` is sent without a `selector`, each top-level `dmaxElements` node must include an `id` so dmax can target existing DOM nodes.
-Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` are supported.
+Only `dmax-patch-elements` / `dmax-patch-signals` and `dmaxElements` / `dmaxSignals` SSE event types are supported.

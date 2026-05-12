@@ -2104,6 +2104,181 @@
     __assert(applyJsonMergePatch, [null, 42], 42, 'applyJsonMergePatch non-object patch replaces prev')
     __assert(applyJsonMergePatch, [{ a: 1 }, null], JSON_MERGE_DELETE, 'applyJsonMergePatch null patch returns delete sentinel')
     __assert(applyJsonMergePatch, [{ a: { x: 1 } }, { a: { y: 2 } }], { a: { x: 1, y: 2 } }, 'applyJsonMergePatch deep merge')
+    // ---- dAction ^html response modes ----
+    __asyncAssert('^html default (outer) morphs element matched by id in response', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<div id="html-outer-target"><span>old</span></div>'
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<div id="html-outer-target"><span>new</span></div>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        return { actual: container.querySelector('#html-outer-target span')?.textContent, expected: 'new' }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^replace replaces element by id (no morph)', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<p id="html-replace-target">old</p>'
+      document.body.appendChild(container)
+      try {
+        const origEl = container.querySelector('#html-replace-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<p id="html-replace-target">new</p>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^replace@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const newEl = container.querySelector('#html-replace-target')
+        return { actual: { text: newEl?.textContent, replaced: newEl !== origEl }, expected: { text: 'new', replaced: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^inner morphs children only by id in response', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<section id="html-inner-target"><b>old</b></section>'
+      document.body.appendChild(container)
+      try {
+        const origEl = container.querySelector('#html-inner-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<section id="html-inner-target"><em>new</em></section>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^inner@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const el = container.querySelector('#html-inner-target')
+        return { actual: { sameNode: el === origEl, child: el?.querySelector('em')?.textContent }, expected: { sameNode: true, child: 'new' } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^remove removes element by id from response', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<div id="html-remove-target">bye</div><div id="html-remove-keep">keep</div>'
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<div id="html-remove-target"></div>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^remove@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        return { actual: { removed: !container.querySelector('#html-remove-target'), kept: !!container.querySelector('#html-remove-keep') }, expected: { removed: true, kept: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^before inserts HTML before the action element', async () => {
+      __reset()
+      const container = document.createElement('div')
+      const anchor = document.createElement('button')
+      anchor.id = 'html-before-anchor'
+      container.appendChild(anchor)
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<span class="inserted-before">inserted</span>' })
+        dAction(anchor, 'data-get^html^before@.click', "'/mock/html'")
+        __fireEventSub(anchor, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        const children = Array.from(container.children)
+        return { actual: { insertedFirst: children[0]?.classList.contains('inserted-before'), anchorSecond: children[1] === anchor }, expected: { insertedFirst: true, anchorSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^after inserts HTML after the action element', async () => {
+      __reset()
+      const container = document.createElement('div')
+      const anchor = document.createElement('button')
+      anchor.id = 'html-after-anchor'
+      container.appendChild(anchor)
+      document.body.appendChild(container)
+      try {
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<span class="inserted-after">inserted</span>' })
+        dAction(anchor, 'data-get^html^after@.click', "'/mock/html'")
+        __fireEventSub(anchor, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        const children = Array.from(container.children)
+        return { actual: { anchorFirst: children[0] === anchor, insertedSecond: children[1]?.classList.contains('inserted-after') }, expected: { anchorFirst: true, insertedSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^before.sig inserts HTML before signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<span id="html-before-sig-target">target</span>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('insertTarget', '#html-before-sig-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<em class="sig-before">sig-before</em>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^before.insert-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const children = Array.from(container.children)
+        return { actual: { insertedFirst: children[0]?.classList.contains('sig-before'), targetSecond: children[1]?.id === 'html-before-sig-target' }, expected: { insertedFirst: true, targetSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^after.sig inserts HTML after signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<span id="html-after-sig-target">target</span>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('insertTarget', '#html-after-sig-target')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<em class="sig-after">sig-after</em>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^after.insert-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const children = Array.from(container.children)
+        return { actual: { targetFirst: children[0]?.id === 'html-after-sig-target', insertedSecond: children[1]?.classList.contains('sig-after') }, expected: { targetFirst: true, insertedSecond: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^append.sig appends HTML inside signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<ul id="html-append-list"><li>existing</li></ul>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('listTarget', '#html-append-list')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<li class="appended">new item</li>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^append.list-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const list = container.querySelector('#html-append-list')
+        const items = list ? Array.from(list.children) : []
+        return { actual: { count: items.length, lastIsNew: items[items.length - 1]?.classList.contains('appended') }, expected: { count: 2, lastIsNew: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
+    __asyncAssert('^html^prepend.sig prepends HTML inside signal-specified selector target', async () => {
+      __reset()
+      const container = document.createElement('div')
+      container.innerHTML = '<ul id="html-prepend-list"><li>existing</li></ul>'
+      document.body.appendChild(container)
+      try {
+        _dm.set('listTarget', '#html-prepend-list')
+        window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<li class="prepended">new item</li>' })
+        const btn = document.createElement('button')
+        document.body.appendChild(btn)
+        dAction(btn, 'data-get^html^prepend.list-target@.click', "'/mock/html'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        btn.remove()
+        const list = container.querySelector('#html-prepend-list')
+        const items = list ? Array.from(list.children) : []
+        return { actual: { count: items.length, firstIsNew: items[0]?.classList.contains('prepended') }, expected: { count: 2, firstIsNew: true } }
+      } finally { delete window.fetch; container.remove() }
+    })
   const __finishAssertSuite = () => {
     __restoreAssertState()
     window.dispatchEvent(new CustomEvent('dmax:tests:done'))

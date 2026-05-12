@@ -75,6 +75,7 @@
     const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
+    const MOD_BEFORE = 'before', MOD_AFTER = 'after', MOD_INNER = 'inner', MOD_REMOVE = 'remove'
     const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
     const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
     const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
@@ -484,6 +485,13 @@
       return getSigValOrIt(parsed)
     }
 
+    const resolveHtmlSelector = (modPath) => {
+      const v = resolveModPathVal(modPath)
+      if (typeof v === 'string' && v) {
+        const c = v[0]; return (c === '#' || c === '.' || c === '[' || c === '*' || c === ':') ? v : '#' + v
+      }
+      return ''
+    }
     const resolveStatusSig = (mod, fallbackRoot) => {
       if (!mod) return null
       const p = mod.path
@@ -1191,6 +1199,7 @@
       let headersNoKebab = false
       let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
+      let htmlMode = null, htmlDomMod = null
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
@@ -1208,7 +1217,11 @@
         else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
         else if (mr === MOD_HEADERS_NO_KEBAB) headersNoKebab = true
         else if (mr === MOD_AUTH && !authMod) authMod = m
-        else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) resultMode = mr
+        else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND
+               || mr === MOD_BEFORE || mr === MOD_AFTER || mr === MOD_INNER || mr === MOD_REMOVE) {
+          resultMode = mr
+          if (mr !== MOD_MERGE) { htmlMode = mr; htmlDomMod = m }
+        }
         else if (mr === MOD_BUSY && !busyMod) busyMod = m
         else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
         else if (mr === MOD_ERR && !errMod) errMod = m
@@ -1423,12 +1436,21 @@
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
-            const elTar = findFirstKind(tars, EV_PROP)
-            const sel = elTar && elTar.root ? '#' + elTar.root : ''
-            const domMode = resultMode === MOD_PREPEND ? SSE_PREPEND
-                          : resultMode === MOD_APPEND  ? SSE_APPEND
+            const hm = htmlMode
+            const domMode = hm === MOD_PREPEND ? SSE_PREPEND
+                          : hm === MOD_APPEND  ? SSE_APPEND
+                          : hm === MOD_BEFORE  ? SSE_BEFORE
+                          : hm === MOD_AFTER   ? SSE_AFTER
+                          : hm === MOD_INNER   ? SSE_INNER
+                          : hm === MOD_REPLACE ? SSE_REPLACE
+                          : hm === MOD_REMOVE  ? SSE_REMOVE
                           : SSE_OUTER
-            applyPatchEls({ [SSE_ELS]: payload, selector: sel, mode: domMode })
+            const hp = htmlDomMod && htmlDomMod.path
+            const domSel = hp ? resolveHtmlSelector(hp)
+                         : (domMode === SSE_BEFORE || domMode === SSE_AFTER) ? (el.id ? '#' + el.id : '')
+                         : (domMode === SSE_APPEND || domMode === SSE_PREPEND) ? (findFirstKind(tars, EV_PROP)?.root ? '#' + findFirstKind(tars, EV_PROP).root : '')
+                         : ''
+            applyPatchEls({ [SSE_ELS]: payload, selector: domSel, mode: domMode })
             htmlApplied = true
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
