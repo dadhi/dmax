@@ -504,6 +504,7 @@
       if (sig && !_dm.has(sig.root)) _dm.set(sig.root, val)
       return sig
     }
+    const setS = (aName, stat, val) => stat && setSigAndNotifySubsNLevelsDeep(aName, stat, val)
 
     const isJsonContentType = (ct) => {
       const low = String(ct || '').toLowerCase()
@@ -1270,13 +1271,11 @@
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
 
-      const setS = (stat, val) => stat && setSigAndNotifySubsNLevelsDeep(aName, stat, val)
-
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', aName); return }
 
-        setS(busyStat, true), setS(completeStat, false), setS(errStat, null), setS(codeStat, null)
+        setS(aName, busyStat, true), setS(aName, completeStat, false), setS(aName, errStat, null), setS(aName, codeStat, null)
 
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
@@ -1399,7 +1398,7 @@
           // Wire up AbortController so ^abort.<signal> lets callers cancel the request.
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
-          setS(abortStat, activeAbort)
+          setS(aName, abortStat, activeAbort)
           const init = { method, headers }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
@@ -1413,10 +1412,10 @@
             if (res.body && typeof res.body.getReader === 'function') {
               payload = await consumeSseStream(res.body, aName, openStat, closeStat, errStat)
             } else {
-              setS(openStat, true)
+              setS(aName, openStat, true)
               const sseRaw = await res.text()
               payload = applySse(sseRaw, aName)
-              setS(openStat, false), setS(closeStat, true)
+              setS(aName, openStat, false), setS(aName, closeStat, true)
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
@@ -1434,7 +1433,7 @@
 
           if (!htmlApplied) applyActionPayload(aName, resultTar, payload, resultMode)
           if (!htmlApplied && patchAll) patchMatchingSigs(aName, payload, resultMode)
-          setS(busyStat, false), setS(completeStat, true), setS(errStat, null), setS(codeStat, Number.isFinite(res.status) ? res.status : null), setS(abortStat, null)
+          setS(aName, busyStat, false), setS(aName, completeStat, true), setS(aName, errStat, null), setS(aName, codeStat, Number.isFinite(res.status) ? res.status : null), setS(aName, abortStat, null)
           activeAbort = null
 
           // ^retry: auto-reconnect after clean close (stream ended without error and retry is requested)
@@ -1443,13 +1442,13 @@
           }
         } catch (err) {
           activeAbort = null
-          setS(abortStat, null), setS(openStat, false)
+          setS(aName, abortStat, null), setS(aName, openStat, false)
           // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
           const isAbort = err && err.name === 'AbortError'
-          setS(busyStat, false), setS(completeStat, true)
+          setS(aName, busyStat, false), setS(aName, completeStat, true)
           if (!isAbort) {
-            setS(errStat, err && err.message ? err.message : String(err))
-            setS(codeStat, Number.isFinite(err && err.status) ? err.status : null)
+            setS(aName, errStat, err && err.message ? err.message : String(err))
+            setS(aName, codeStat, Number.isFinite(err && err.status) ? err.status : null)
             console.error('[dmax] Error: dAction fetch failed:', err)
             // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
