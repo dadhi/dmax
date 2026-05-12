@@ -64,7 +64,7 @@
 
     const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
-    const SIGNAL = 's', EV_PR = DOT, SPEC = '_'
+    const SIGNAL = 's', EV_PR = DOT, SP = '_'
 
     const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
     const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
@@ -72,7 +72,7 @@
     const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge', MOD_VAL = 'val', MOD_RW = 'rw'
     const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_HTML = 'html', MOD_FORM = 'form', MOD_SSE = 'sse'
     const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
-    const MOD_NO_CACHE = 'noCache', MOD_HEADERS = 'headers', MOD_HEADERS_NO_KEBAB = 'headersNoKebab', MOD_AUTH = 'auth'
+    const MOD_NO_CACHE = 'noCache', MOD_HS = 'hs', MOD_HS_NO_KEBAB = 'hsNoKebab', MOD_AUTH = 'auth'
     const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
     const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
     const MOD_BEFORE = 'before', MOD_AFTER = 'after', MOD_INNER = 'inner', MOD_REMOVE = 'remove', MOD_OUTER = 'outer'
@@ -82,19 +82,19 @@
     const MOD_DEBOUNCE_MS = 500, MOD_THROTTLE_MS = 500, MOD_RETRY_MS = 1000
     const H_ACCEPT = 'accept', H_ACCEPT_ENCODING = 'accept-encoding', H_AUTHORIZATION = 'authorization'
     const H_CACHE_CONTROL = 'cache-control', H_CONTENT_TYPE = 'content-type', H_PRAGMA = 'pragma'
-    const ACT_HEADERS_EMPTY = Object.freeze(Object.create(null))
-    const ACT_HEADERS_JSON = Object.freeze({ [H_CONTENT_TYPE]: 'application/json', [H_ACCEPT]: 'application/json' })
-    const ACT_HEADERS_HTML = Object.freeze({ [H_ACCEPT]: 'text/html' })
-    const ACT_HEADERS_FORM = Object.freeze({ [H_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
-    const ACT_HEADERS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
-    const ACT_HEADERS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
-    const ACT_HEADERS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
-    const SPEC_WIN = 'window', SPEC_DOC = 'document', SPEC_FORM = 'form', SPEC_INTERVAL = 'interval', SPEC_TIMEOUT = 'timeout', SPEC_VIEWED = 'viewed'
-    const SPS = [SPEC_WIN, SPEC_DOC, SPEC_FORM, SPEC_INTERVAL, SPEC_TIMEOUT, SPEC_VIEWED]
-    const SPEC_WIN_EV = 'resize'
-    const SPEC_DOC_EV = 'visibilitychange'
-    const SPEC_INTERVAL_MS = 500
-    const SPEC_TIMEOUT_MS = 500
+    const ACT_HS_EMPTY = Object.freeze(Object.create(null))
+    const ACT_HS_JSON = Object.freeze({ [H_CONTENT_TYPE]: 'application/json', [H_ACCEPT]: 'application/json' })
+    const ACT_HS_HTML = Object.freeze({ [H_ACCEPT]: 'text/html' })
+    const ACT_HS_FORM = Object.freeze({ [H_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
+    const ACT_HS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
+    const ACT_HS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
+    const ACT_HS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
+    const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed'
+    const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED]
+    const SP_WIN_EV = 'resize'
+    const SP_DOC_EV = 'visibilitychange'
+    const SP_INTERVAL_MS = 500
+    const SP_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const E_RW_REQ = `dSub ${MOD}${MOD_RW} requires an element/property trigger in:`
     const E_RW_EL = `dSub ${MOD}${MOD_RW} source element is not found in trigger:`
@@ -102,8 +102,8 @@
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const DEFAULT_PR_TA = Object.freeze({ kind: EV_PR, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
-    const isSp = (n) => { if (n.startsWith(SPEC)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
-    const _KIND = [MOD, SIGNAL, EV_PR, SPEC]
+    const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
+    const _KIND = [MOD, SIGNAL, EV_PR, SP]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     const parseItem = (dKey, type, n, pos = 0) => {
       if (!n) return null
@@ -127,7 +127,7 @@
       if (root && root.length > 0) {
         const id = root[0] === ID
         if (id || isSp(root)) {
-          kind = id ? EV_PR : SPEC
+          kind = id ? EV_PR : SP
           root = root.slice(1)
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', dKey); return null }
         } else {
@@ -448,12 +448,12 @@
       return { taEl, ev, prPath, tar: { kind: EV_PR, not: null, root: trigRoot, path: prPath, mods: NIL } }
     }
     const addNonSiTrSub = (el, trig, mods, fn, elSubs, ranImmediate, prTa = null) => {
-      const isSp = trig.kind === SPEC, hasTa = prTa !== null
+      const isSp = trig.kind === SP, hasTa = prTa !== null
       console.assert(isSp || hasTa);if (!isSp && !hasTa) return null
       const ev = trig.path?.[0]
       const subTaEl = isSp ? null : prTa.taEl, subEv = isSp ? ev : prTa.ev, subPrPath = isSp ? null : prTa.prPath
       const modded = addTrSub(el, trig, mods, fn, elSubs, subTaEl, subEv, subPrPath)
-      if (modded && !ranImmediate && isImmediateMod(mods, false) && (!isSp || trig.root === SPEC_FORM)) {
+      if (modded && !ranImmediate && isImmediateMod(mods, false) && (!isSp || trig.root === SP_FORM)) {
         ranImmediate = true
         invokeSub(modded, null, isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, trig)
       }
@@ -527,20 +527,20 @@
       return out
     }
 
-    const mergeActionHeaders = (base, extra) => {
-      if (!base || base === ACT_HEADERS_EMPTY) return extra || ACT_HEADERS_EMPTY
-      if (!extra || extra === ACT_HEADERS_EMPTY) return base
+    const mergeActionHs = (base, extra) => {
+      if (!base || base === ACT_HS_EMPTY) return extra || ACT_HS_EMPTY
+      if (!extra || extra === ACT_HS_EMPTY) return base
       const out = cloneOwnProps(base)
       for (const key in extra) if (hasOwn(extra, key)) out[key] = extra[key]
       return Object.freeze(out)
     }
 
-    const buildActionBaseHeaders = (isJson, isText, isHtml, isForm, isSse, noCache, enc) => {
-      let headers = isJson ? ACT_HEADERS_JSON : isForm ? ACT_HEADERS_FORM : isText ? ACT_HEADERS_TEXT : ACT_HEADERS_EMPTY
-      if (isHtml) headers = mergeActionHeaders(headers, ACT_HEADERS_HTML)
-      headers = isSse ? mergeActionHeaders(headers, ACT_HEADERS_SSE) : noCache ? mergeActionHeaders(headers, ACT_HEADERS_NO_CACHE) : headers
-      if (!enc) return headers
-      const out = headers === ACT_HEADERS_EMPTY ? Object.create(null) : cloneOwnProps(headers)
+    const buildActionBaseHs = (isJson, isText, isHtml, isForm, isSse, noCache, enc) => {
+      let hs = isJson ? ACT_HS_JSON : isForm ? ACT_HS_FORM : isText ? ACT_HS_TEXT : ACT_HS_EMPTY
+      if (isHtml) hs = mergeActionHs(hs, ACT_HS_HTML)
+      hs = isSse ? mergeActionHs(hs, ACT_HS_SSE) : noCache ? mergeActionHs(hs, ACT_HS_NO_CACHE) : hs
+      if (!enc) return hs
+      const out = hs === ACT_HS_EMPTY ? Object.create(null) : cloneOwnProps(hs)
       out[H_ACCEPT_ENCODING] = enc
       return Object.freeze(out)
     }
@@ -729,8 +729,8 @@
       for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
     const clearSubId = (sub) => {
-      if (sub.trig.root === SPEC_INTERVAL) clearInterval(sub.clearId)
-      else if (sub.trig.root === SPEC_VIEWED) sub.clearId.disconnect()
+      if (sub.trig.root === SP_INTERVAL) clearInterval(sub.clearId)
+      else if (sub.trig.root === SP_VIEWED) sub.clearId.disconnect()
       else clearTimeout(sub.clearId)
       sub.clearId = null
     }
@@ -752,13 +752,13 @@
       return PASSIVE_LISTENER_OPTS
     }
     const onIntervalSub = (state) => {
-      const detail = { tick: state.tick, ms: state.ms, type: SPEC_INTERVAL }
+      const detail = { tick: state.tick, ms: state.ms, type: SP_INTERVAL }
       state.tick++
       try { invokeSub(state.sub.fn, detail, state.ms, state.sub.el, state.sub.trig) }
       catch (e) { console.error(`[dmax] Error: interval handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
     const onTimeoutSub = (state) => {
-      try { invokeSub(state.sub.fn, { tick: 0, ms: state.ms, type: SPEC_TIMEOUT }, state.ms, state.sub.el, state.sub.trig) }
+      try { invokeSub(state.sub.fn, { tick: 0, ms: state.ms, type: SP_TIMEOUT }, state.ms, state.sub.el, state.sub.trig) }
       catch (e) { console.error(`[dmax] Error: timeout handler (${state.ms}ms) failed:`, e?.message ?? e) }
     }
     const addTrSub = (el, trig, mods, fn, elSubs, taEl, evName, prPath) => {
@@ -768,22 +768,22 @@
         upsert(_subs, trig.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
-      if (trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)) {
-        const ms = parseInt(evName) || (trig.root === SPEC_INTERVAL ? SPEC_INTERVAL_MS : SPEC_TIMEOUT_MS)
+      if (trig.kind === SP && (trig.root === SP_INTERVAL || trig.root === SP_TIMEOUT)) {
+        const ms = parseInt(evName) || (trig.root === SP_INTERVAL ? SP_INTERVAL_MS : SP_TIMEOUT_MS)
         const sub = { el, trig, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, trig, mods, sub)
-        if (trig.root === SPEC_INTERVAL) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
+        if (trig.root === SP_INTERVAL) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
         else sub.clearId = setTimeout(onTimeoutSub, ms, { sub, ms })
         elSubs.push(sub)
         return sub.fn
       }
-      if (trig.kind === SPEC && trig.root === SPEC_VIEWED) {
+      if (trig.kind === SP && trig.root === SP_VIEWED) {
         if (typeof IntersectionObserver === 'undefined') { console.warn('[dmax] Warning: IntersectionObserver not available, _viewed trigger skipped on:', el); return null }
         const sub = { el, trig, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, trig, mods, sub)
         const observer = new IntersectionObserver((entries) => {
           for (const entry of entries) if (entry.isIntersecting)
-            try { invokeSub(sub.fn, { ratio: entry.intersectionRatio, type: SPEC_VIEWED }, entry.intersectionRatio, el, trig) }
+            try { invokeSub(sub.fn, { ratio: entry.intersectionRatio, type: SP_VIEWED }, entry.intersectionRatio, el, trig) }
             catch (e) { console.error('[dmax] Error: viewed handler failed:', e?.message ?? e) }
         })
         observer.observe(el)
@@ -791,14 +791,14 @@
         elSubs.push(sub)
         return sub.fn
       }
-      if (trig.kind === SPEC) {
-        if (trig.root === SPEC_WIN) {
-          evName ||= SPEC_WIN_EV
+      if (trig.kind === SP) {
+        if (trig.root === SP_WIN) {
+          evName ||= SP_WIN_EV
           taEl ||= window
-        } else if (trig.root === SPEC_DOC) {
-          evName ||= SPEC_DOC_EV
+        } else if (trig.root === SP_DOC) {
+          evName ||= SP_DOC_EV
           taEl ||= document
-        } else if (trig.root === SPEC_FORM) {
+        } else if (trig.root === SP_FORM) {
           evName ||= 'submit'
           taEl ||= el && el.closest ? el.closest('form') : null
           if (!taEl) { console.error('[dmax] Error:', E_FORM_EL, trig, 'on:', el); return null }
@@ -808,7 +808,7 @@
       const sub = { el, trig, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
       const modded = applyTrMs(fn, trig, mods, sub)
       sub.fn = (detail) => {
-        const trigVal = trig.kind === SPEC ? detail?.type ?? null : getTrEvVal(taEl, prPath, mods)
+        const trigVal = trig.kind === SP ? detail?.type ?? null : getTrEvVal(taEl, prPath, mods)
         invokeSub(modded, detail, trigVal, el, trig)
       }
       taEl.addEventListener(evName, sub.fn, opts)
@@ -948,7 +948,7 @@
      */
     const applyTrMs = (fn, trig, mods, removeSub) => {
       const isSig = trig.kind === SIGNAL
-      const isTimer = trig.kind === SPEC && (trig.root === SPEC_INTERVAL || trig.root === SPEC_TIMEOUT)
+      const isTimer = trig.kind === SP && (trig.root === SP_INTERVAL || trig.root === SP_TIMEOUT)
       const valPath = getMValPath(mods)
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
@@ -1037,7 +1037,7 @@
                 ranImmediate = true
                 invokeBoundSub(sub, null)
               }
-            } else if (kind === EV_PR || kind === SPEC) {
+            } else if (kind === EV_PR || kind === SP) {
               const prTa = kind === EV_PR ? getTrPrTa(el, dKey, trig, mods, E_RW_EL, E_RW_EV) : null
               if (kind === EV_PR && !prTa) return
               const nextRanImmediate = addNonSiTrSub(el, trig, mods, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ranImmediate, prTa)
@@ -1085,7 +1085,7 @@
             ranImmediate = true
             invokeBoundSub(sub, null)
           }
-        } else if (kind === EV_PR || kind === SPEC) {
+        } else if (kind === EV_PR || kind === SP) {
           const prTa = kind === EV_PR ? getTrPrTa(el, dKey, trig, mods, E_TRIG_EL, E_TRIG_EV, false) : null
           if (kind === EV_PR && !prTa) return
           const nextRanImmediate = addNonSiTrSub(el, trig, mods, fn, elSubs, ranImmediate, prTa)
@@ -1212,7 +1212,7 @@
       let isJson = false, isText = false, isHtml = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null, authMod = null
-      let headersNoKebab = false
+      let hsNoKebab = false
       let sendAll = false, patchAll = false
       let resultMode = MOD_REPLACE
       let htmlMode = null, htmlDomMod = null
@@ -1230,8 +1230,8 @@
         else if (mr === MOD_GZIP) encGzip = true
         else if (mr === MOD_DEFLATE) encDeflate = true
         else if (mr === MOD_COMPRESS) encCompress = true
-        else if (mr === MOD_HEADERS && !hdrsMod) hdrsMod = m
-        else if (mr === MOD_HEADERS_NO_KEBAB) headersNoKebab = true
+        else if (mr === MOD_HS && !hdrsMod) hdrsMod = m
+        else if (mr === MOD_HS_NO_KEBAB) hsNoKebab = true
         else if (mr === MOD_AUTH && !authMod) authMod = m
         else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND
                || mr === MOD_BEFORE || mr === MOD_AFTER || mr === MOD_INNER || mr === MOD_REMOVE) {
@@ -1281,7 +1281,7 @@
       if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
       if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
       if (encCompress) enc += (enc ? ', ' : '') + 'compress'
-      const baseHeaders = buildActionBaseHeaders(isJson, isText, isHtml, isForm, isSse, noCache, enc)
+      const baseHs = buildActionBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
@@ -1346,27 +1346,27 @@
             finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
           }
 
-          let headers = ACT_HEADERS_EMPTY, sharedHeaders = true
+          let hs = ACT_HS_EMPTY, sharedHs = true
           if (hdrsMod) {
             const hdrObj = resolveMPathVal(hdrsMod.path)
             if (hdrObj && typeof hdrObj === 'object') {
-              headers = Object.create(null)
-              sharedHeaders = false
-              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) headers[headersNoKebab ? hk : camelToKebab(hk)] = String(hdrObj[hk])
+              hs = Object.create(null)
+              sharedHs = false
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = String(hdrObj[hk])
             }
           }
-          if (baseHeaders !== ACT_HEADERS_EMPTY) {
-            if (headers === ACT_HEADERS_EMPTY) headers = baseHeaders
-            else for (const hk in baseHeaders) if (hasOwn(baseHeaders, hk)) headers[hk] = baseHeaders[hk]
+          if (baseHs !== ACT_HS_EMPTY) {
+            if (hs === ACT_HS_EMPTY) hs = baseHs
+            else for (const hk in baseHs) if (hasOwn(baseHs, hk)) hs[hk] = baseHs[hk]
           }
           if (authMod) {
             const authVal = resolveMPathVal(authMod.path)
             if (authVal != null) {
-              if (sharedHeaders) {
-                headers = cloneOwnProps(headers)
-                sharedHeaders = false
+              if (sharedHs) {
+                hs = cloneOwnProps(hs)
+                sharedHs = false
               }
-              headers[H_AUTHORIZATION] = String(authVal)
+              hs[H_AUTHORIZATION] = String(authVal)
             }
           }
           // ^header.<name> sets one request header from a named sig.
@@ -1380,11 +1380,11 @@
               mVal = getSiValOrIt(mPath)
             }
             else continue
-            if (sharedHeaders) {
-              headers = cloneOwnProps(headers)
-              sharedHeaders = false
+            if (sharedHs) {
+              hs = cloneOwnProps(hs)
+              sharedHs = false
             }
-            headers[mKey] = String(mVal ?? '')
+            hs[mKey] = String(mVal ?? '')
           }
 
           let bodyCount = 0, firstBodyKey = null
@@ -1414,7 +1414,7 @@
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
           setS(dKey, abortStat, activeAbort)
-          const init = { method, headers }
+          const init = { method, headers: hs }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
 
