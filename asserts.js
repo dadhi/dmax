@@ -83,9 +83,9 @@
     __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
     __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
     __assert((s) => camelToKebab(kebabToCamel(s)), ['data-foo-bar'], 'data-foo-bar', 'camel/kebab roundtrip keeps original kebab');
-    __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PROP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
+    __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV_PR, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
     __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
-    __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PROP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
+    __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV_PR, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
     __assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SIGNAL, "not": true, "path": null, "root": "foo" }, 'negated once');
     __assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SIGNAL, "not": false, "path": null, "root": "foo" }, 'double negation even');
     __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
@@ -98,11 +98,11 @@
     __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
     __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
-    __assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PROP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
+    __assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PR, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
     __assert(parse, ['data-def'], [__parseIt({}), 8], 'empty')
     __assert(parse, ['data-sub:'], [__parseIt({}), 9], 'single empty')
-    __assert(parse, ['data-sub:.'], [__parseIt({ ":": [{ "kind": EV_PROP, "mods": NIL, "not": null, "path": null, "root": "" }] }), 10], 'default prop')
+    __assert(parse, ['data-sub:.'], [__parseIt({ ":": [{ "kind": EV_PR, "mods": NIL, "not": null, "path": null, "root": "" }] }), 10], 'default prop')
     __assert(parse, ['data-sub^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 12], 'global mod')
     __assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 33], '2 global mods')
     __assert(parse, ['data-sub^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 25], '2 global mods and item with mod with item')
@@ -123,7 +123,7 @@
     __assert(parse, ['data-sub:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 36], 'parse rejects variable bracket index trigger')
-    __assert(() => getModValPath(NIL) === NIL, [], true, 'getModValPath uses NIL when no val mod exists')
+    __assert(() => getMValPath(NIL) === NIL, [], true, 'getMValPath uses NIL when no val mod exists')
     __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -135,10 +135,10 @@
       _dm.set('user', { name: 'Alice' })
       _dm.set('gate', 0)
       return {
-        root: getSigValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
-        path: getSigValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
-        missingPath: getSigValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
-        negated: getSigValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
+        root: getSiValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
+        path: getSiValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        missingPath: getSiValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
+        negated: getSiValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
       }
     }
     __assert(__tGetSignalValOrIt, [], { root: { name: 'Alice' }, path: 'Alice', missingPath: undefined, negated: true }, 'signal value helper')
@@ -147,13 +147,13 @@
       _dm.set('user', { name: 'Alice' })
       _dm.set('gate', true)
       return {
-        signal: resolveModPathVal({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
-        root: resolveModPathVal('gate'),
-        negated: resolveModPathVal('!gate'),
-        path: resolveModPathVal('user.name'),
-        numeric: resolveModPathVal('3'),
-        literal: resolveModPathVal('literal'),
-        nil: resolveModPathVal(null),
+        signal: resolveMPathVal({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        root: resolveMPathVal('gate'),
+        negated: resolveMPathVal('!gate'),
+        path: resolveMPathVal('user.name'),
+        numeric: resolveMPathVal('3'),
+        literal: resolveMPathVal('literal'),
+        nil: resolveMPathVal(null),
       }
     }
     __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, negated: false, path: 'Alice', numeric: '3', literal: 'literal', nil: null }, 'modifier value helper')
@@ -240,10 +240,10 @@
       const el = getElById(id, aName)
       return el ? el.textContent : null
     }, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
-    __assert(getElPropVal, [null, null], null, 'null element prop')
-    __assert(getElPropVal, [null, ['value']], null, 'null element nested prop')
-    __assert(getElPropVal, [getElById('foo', 'xxx'), null], 'good', 'default text prop')
-    __assert(getElPropVal, [{ tagName: 'DIV', textContent: { nested: 7 } }, ['textContent', 'nested']], 7, 'nested text prop')
+    __assert(getElPrVal, [null, null], null, 'null element prop')
+    __assert(getElPrVal, [null, ['value']], null, 'null element nested prop')
+    __assert(getElPrVal, [getElById('foo', 'xxx'), null], 'good', 'default text prop')
+    __assert(getElPrVal, [{ tagName: 'DIV', textContent: { nested: 7 } }, ['textContent', 'nested']], 7, 'nested text prop')
     __assert(getPropValAndDepth, [getElById('foo', 'xxx'), ['textContent']], ['good', 1], 'depth 1')
     __assert(getPropValAndDepth, [{ foo: { bar: { baz: 42 } } }, ['foo', 'bar', 'baz']], [42, 3], '42')
     __assert(getPropValAndDepth, [{ foo: { bar: null } }, ['foo', 'bar', 'baz']], [null, 2], 'null')
@@ -279,13 +279,13 @@
       applyDisplayValue(el, true, 'flex', true)
       return el.style.display
     }, [], 'flex', 'display helper restores inline display on true')
-    __assert(setProp, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV_PROP, not: null, root: "", path: null }, 'Seaman!'],
+    __assert(setPr, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV_PR, not: null, root: "", path: null }, 'Seaman!'],
       'Seaman!', 'default prop')
-    __assert(setProp, [null, 'data-eval:#foo.', { kind: EV_PROP, not: null, root: 'foo', path: null }, 'Seaman!'],
+    __assert(setPr, [null, 'data-eval:#foo.', { kind: EV_PR, not: null, root: 'foo', path: null }, 'Seaman!'],
       'Seaman!', '#foo default prop')
-    __assert(setProp, [null, 'data-eval:#foo.style.color', { kind: EV_PROP, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    __assert(setPr, [null, 'data-eval:#foo.style.color', { kind: EV_PR, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       'lime', '#foo nested prop')
-    __assert(setProp, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    __assert(setPr, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
     __assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
     __assert(diffShapeShallow, [[1, 2], [3, 4]], null, 'arrays same length')
@@ -308,7 +308,7 @@
       if (!arr) _subs.set(root, arr = []);
       arr.push({
         fn: (_, __, ___, ____, detail) => sink.push(detail),
-        sigChangeMod: changeMod,
+        siChangeM: changeMod,
         trig: __sigTrig(root, path)
       });
     }
@@ -321,7 +321,7 @@
       __reg('user', ['name'], SIG_CHANGED_WITH_SHAPE, nm);
       __reg('user', ['age'], SIG_CHANGED_WITH_SHAPE, age);
       __reg('user', ['name', 'first'], SIG_CHANGED_WITH_SHAPE, deep);
-      setSigAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
+      setSiAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
       return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
     }
     __assert(__tSetD, [], { r: 1, nm: 1, age: 0, deep: 0, val: 'Bob' }, 'path update, exact match');
@@ -332,7 +332,7 @@
       __reg('user', ['children'], SIG_CHANGED_ANY, c0);
       __reg('user', ['children'], SIG_CHANGED_WITH_SHAPE, c1);
       __reg('user', ['children'], SIG_CHANGED_SHAPE_ONLY, c2);
-      setSigAndNotifySubs('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
+      setSiAndNotifySubs('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('user')?.children };
@@ -341,7 +341,7 @@
     function __tSetA() {
       __reset()
       _dm.set('sg', 1);
-      setSigAndNotifySubs('t', { root: 'sg', path: null }, 2);
+      setSiAndNotifySubs('t', { root: 'sg', path: null }, 2);
       return _dm.get('sg');
     }
     __assert(__tSetA, [], 2, 'root update no subs');
@@ -352,7 +352,7 @@
       __reg('sg', null, SIG_CHANGED_ANY, c0);
       __reg('sg', null, SIG_CHANGED_WITH_SHAPE, c1);
       __reg('sg', null, SIG_CHANGED_SHAPE_ONLY, c2);
-      setSigAndNotifySubs('t', { root: 'sg', path: null }, 'b');
+      setSiAndNotifySubs('t', { root: 'sg', path: null }, 'b');
       return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
     }
     __assert(__tSetB, [], { c0: 1, c1: 1, c2: 0, val: 'b' }, 'root content change notify vs shape');
@@ -363,7 +363,7 @@
       __reg('sg', null, SIG_CHANGED_ANY, c0);
       __reg('sg', null, SIG_CHANGED_WITH_SHAPE, c1);
       __reg('sg', null, SIG_CHANGED_SHAPE_ONLY, c2);
-      setSigAndNotifySubs('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
+      setSiAndNotifySubs('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
       return { c0: c0.length, c1: c1.length, c2: c2.length, d1, d2, val: _dm.get('sg') };
@@ -374,40 +374,40 @@
       _dm.set('a', 5)
       let c = 0
       const trig = { kind: SIGNAL, root: 'a', path: null, not: null }
-      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
+      const h = applyTrMs(() => ++c, trig, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
       h()
       _dm.set('a', 6)
       h()
       return c
     }
-    __assert(__tTrigModsEqNe, [], 1, 'applyTrigMods: eq/ne filter');
+    __assert(__tTrigModsEqNe, [], 1, 'applyTrMs: eq/ne filter');
     function __tTrigModsAnd() {
       __reset();
       _dm.set('gate', false)
       let c = 0
-      const trig = { kind: EV_PROP, root: '', path: null, not: null }
-      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_AND, path: 'gate' }])
+      const trig = { kind: EV_PR, root: '', path: null, not: null }
+      const h = applyTrMs(() => ++c, trig, [{ root: MOD_AND, path: 'gate' }])
       h(DM, null, trig, null, 1)
       _dm.set('gate', true)
       h(DM, null, trig, null, 2)
       return c
     }
-    __assert(__tTrigModsAnd, [], 1, 'applyTrigMods: and gate');
+    __assert(__tTrigModsAnd, [], 1, 'applyTrMs: and gate');
     function __tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
-      const trig = { kind: EV_PROP, root: '', path: null, not: null }
-      const sub = { trig, fn: null, ev: { tarEl: { removeEventListener: () => ++r }, evName: 'click', opts: false }, clearId: null }
-      const h = applyTrigMods(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }], sub)
+      const trig = { kind: EV_PR, root: '', path: null, not: null }
+      const sub = { trig, fn: null, ev: { taEl: { removeEventListener: () => ++r }, evName: 'click', opts: false }, clearId: null }
+      const h = applyTrMs(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }], sub)
       sub.fn = h
       h(DM, null, trig, null, ev)
       return { p, r, c }
     }
-    __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrigMods: prevent + once');
+    __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrMs: prevent + once');
     function __tTrigModsValueFallback() {
       const out = []
-      const trig = { kind: EV_PROP, root: '', path: null, not: null }
-      const handler = applyTrigMods((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
+      const trig = { kind: EV_PR, root: '', path: null, not: null }
+      const handler = applyTrMs((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
       handler(DM, null, trig, null, { type: 'custom-value', detail: { value: 9 } })
       handler(DM, null, trig, null, { type: 'custom-ms', detail: { ms: 12 } })
       return out
@@ -415,7 +415,7 @@
     __assert(__tTrigModsValueFallback, [], [
       { trigVal: 9, detail: { type: 'custom-value', detail: { value: 9 } } },
       { trigVal: 12, detail: { type: 'custom-ms', detail: { ms: 12 } } }
-    ], 'applyTrigMods: event detail fallback');
+    ], 'applyTrMs: event detail fallback');
     function __tTrigModsDebounce() {
       const st = setTimeout, ct = clearTimeout
       let id = 0
@@ -424,8 +424,8 @@
       clearTimeout = (n) => q.delete(n)
       try {
         const out = []
-        const trig = { kind: EV_PROP, root: '', path: null, not: null }
-        const h = applyTrigMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_DEBOUNCE, path: 8 }])
+        const trig = { kind: EV_PR, root: '', path: null, not: null }
+        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_DEBOUNCE, path: 8 }])
         h(DM, null, trig, null, 1)
         h(DM, null, trig, null, 2)
         for (const [k, v] of q) {
@@ -438,15 +438,15 @@
         clearTimeout = ct
       }
     }
-    __assert(__tTrigModsDebounce, [], [2], 'applyTrigMods: debounce keeps last call');
+    __assert(__tTrigModsDebounce, [], [2], 'applyTrMs: debounce keeps last call');
     function __tTrigModsThrottle() {
       const dn = Date.now
       let now = 100
       Date.now = () => now
       try {
         const out = []
-        const trig = { kind: EV_PROP, root: '', path: null, not: null }
-        const h = applyTrigMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_THROTTLE, path: 10 }])
+        const trig = { kind: EV_PR, root: '', path: null, not: null }
+        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_THROTTLE, path: 10 }])
         h(DM, null, trig, null, 1)
         now = 105
         h(DM, null, trig, null, 2)
@@ -457,15 +457,15 @@
         Date.now = dn
       }
     }
-    __assert(__tTrigModsThrottle, [], [1, 3], 'applyTrigMods: throttle rate limit');
+    __assert(__tTrigModsThrottle, [], [1, 3], 'applyTrMs: throttle rate limit');
     function __tTrigModsRepeatedPermitChecks() {
       __reset();
       _dm.set('gateA', true)
       _dm.set('gateB', false)
       let c = 0
       const mods = [{ root: MOD_AND, path: 'gateA' }, { root: MOD_AND, path: 'gateB' }, { root: MOD_GE, path: '5' }, { root: MOD_LT, path: '9' }, { root: MOD_NE, path: '7' }]
-      const trig = { kind: EV_PROP, root: '', path: null, not: null }
-      const h = applyTrigMods(() => ++c, trig, mods)
+      const trig = { kind: EV_PR, root: '', path: null, not: null }
+      const h = applyTrMs(() => ++c, trig, mods)
       h(DM, null, trig, 6, null)
       _dm.set('gateB', true)
       h(DM, null, trig, 4, null)
@@ -473,7 +473,7 @@
       h(DM, null, trig, 8, null)
       return c
     }
-    __assert(__tTrigModsRepeatedPermitChecks, [], 1, 'applyTrigMods: repeated and/check permit mods');
+    __assert(__tTrigModsRepeatedPermitChecks, [], 1, 'applyTrMs: repeated and/check permit mods');
     function __tSubImmediateProp() {
       __reset();
       const fooEl = getElById('foo', 'probe'); if (fooEl) fooEl.textContent = 'good';
@@ -549,7 +549,7 @@
       const el = document.createElement('div');
       dSub(el, 'data-sub:bar@foo', 'dm.foo');
       const im = DM['bar'];
-      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
@@ -560,7 +560,7 @@
       const el = document.createElement('div');
       dSub(el, 'data-sub:bar@foo', '');
       const im = DM['bar'];
-      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
       return { im, after };
     }
@@ -571,7 +571,7 @@
       const el = document.createElement('div');
       dSub(el, 'data-sub:bar@foo^notimmediate', 'dm.foo');
       const before = DM['bar'];
-      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       return { before, after: DM['bar'] };
     }
     __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dSub @foo^notimmediate skips setup run but handles later changes');
@@ -581,7 +581,7 @@
       const el = document.createElement('div');
       dSub(el, 'data-sub@foo', '');
       const before = Object.keys(DM).sort();
-      setSigAndNotifySubs('test', { root: 'foo', path: null }, 8);
+      setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
     }
     __assert(__tSubSignalEmptyExprNoTarget, [], { before: ['foo'], after: ['foo'], foo: 8, bar: undefined }, 'dSub empty expr with no target is a no-op');
@@ -592,7 +592,7 @@
       dSub(el, 'data-sub:bar@foo^val.bar', '');
       dSub(el, 'data-sub:baz@foo^val.bar', 'val + 1');
       const initial = { bar: DM['bar'], baz: DM['baz'] };
-      setSigAndNotifySubs('test', { root: 'foo', path: null }, { bar: 8 });
+      setSiAndNotifySubs('test', { root: 'foo', path: null }, { bar: 8 });
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
     __assert(__tSubSignalValModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dSub signal ^val path feeds raw and expression values');
@@ -609,7 +609,7 @@
         return DM['eventMeta'];
       } finally { btn.remove(); }
     }
-    __assert(__tSubExplicitIdEventPath, [], { kind: EV_PROP, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dSub explicit #id event path metadata');
+    __assert(__tSubExplicitIdEventPath, [], { kind: EV_PR, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dSub explicit #id event path metadata');
     function __tSubExplicitIdEventDetail() {
       __reset();
       const id = 'evtbtndetail'
@@ -637,7 +637,7 @@
         return DM['propMeta'];
       } finally { inp.remove(); }
     }
-    __assert(__tSubExplicitIdPropPath, [], { kind: EV_PROP, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dSub explicit #id prop trigger path');
+    __assert(__tSubExplicitIdPropPath, [], { kind: EV_PR, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dSub explicit #id prop trigger path');
     function __tSubSpecialWindowAndDocument() {
       __reset();
       const host = document.createElement('div');
@@ -721,11 +721,11 @@
       _dm.set('src', 1)
       const host = document.createElement('div');
       dSub(host, 'data-sub:dst@src^and.gateA^and.gateB^ge.5^lt.9^ne.7', 'val')
-      setSigAndNotifySubs('t', { root: 'src', path: null }, 8)
+      setSiAndNotifySubs('t', { root: 'src', path: null }, 8)
       _dm.set('gateB', true)
-      setSigAndNotifySubs('t', { root: 'src', path: null }, 4)
-      setSigAndNotifySubs('t', { root: 'src', path: null }, 7)
-      setSigAndNotifySubs('t', { root: 'src', path: null }, 8)
+      setSiAndNotifySubs('t', { root: 'src', path: null }, 4)
+      setSiAndNotifySubs('t', { root: 'src', path: null }, 7)
+      setSiAndNotifySubs('t', { root: 'src', path: null }, 8)
       return DM['dst'] ?? null
     }
     __assert(__tSubRepeatedPermitGating, [], 8, 'dSub repeated permit mods gating');
@@ -738,7 +738,7 @@
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       const sigAfterWrite = DM['name']
-      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, elAfterSignal: inp.value }
     }
     __assert(__tSubRwTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dSub ^rw two-way default');
@@ -751,7 +751,7 @@
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       const sigAfterLocalEvent = DM['name']
-      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterLocalEvent, elAfterSignal: inp.value }
     }
     __assert(__tSubSignalToPropOnly, [], { before: 'Ada', sigAfterLocalEvent: 'Ada', elAfterSignal: 'Eve' }, 'dSub signal->prop one-way');
@@ -763,7 +763,7 @@
       dSub(inp, 'data-sub:name@.')
       const before = inp.value
       const sigAfterElementWrite = DM['name']
-      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       const elAfterSignal = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -792,7 +792,7 @@
       cb.checked = false
       cb.dispatchEvent(mkEv('change'))
       const sigAfterWrite = DM['isOn']
-      setSigAndNotifySubs('t', { root: 'isOn', path: null }, true)
+      setSiAndNotifySubs('t', { root: 'isOn', path: null }, true)
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
     __assert(__tSubRwCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dSub ^rw checkbox checked/value default prop');
@@ -806,7 +806,7 @@
       inp.val.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       const sigAfterWrite = DM['name']
-      setSigAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
+      setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, afterSignal: inp.val.value }
     }
     __assert(__tSubRwValPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dSub ^rw honors ^val path both ways');
@@ -816,9 +816,9 @@
       _dm.set('active', false)
       dClass(div, 'data-class+active@active^immediate')
       const hadBefore = div.classList.contains('active')
-      setSigAndNotifySubs('t', { root: 'active', path: null }, true)
+      setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('active')
-      setSigAndNotifySubs('t', { root: 'active', path: null }, false)
+      setSiAndNotifySubs('t', { root: 'active', path: null }, false)
       const hadFinal = div.classList.contains('active')
       return { hadBefore, hadAfter, hadFinal }
     }
@@ -829,7 +829,7 @@
       _dm.set('active', false)
       dClass(div, 'data-class+!inactive@active^immediate')
       const hadBefore = div.classList.contains('inactive')
-      setSigAndNotifySubs('t', { root: 'active', path: null }, true)
+      setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('inactive')
       return { hadBefore, hadAfter }
     }
@@ -841,7 +841,7 @@
       dClass(div, 'data-class+is-active+!is-inactive@active^immediate')
       const activeBefore = div.classList.contains('is-active')
       const inactiveBefore = div.classList.contains('is-inactive')
-      setSigAndNotifySubs('t', { root: 'active', path: null }, false)
+      setSiAndNotifySubs('t', { root: 'active', path: null }, false)
       const activeAfter = div.classList.contains('is-active')
       const inactiveAfter = div.classList.contains('is-inactive')
       return { activeBefore, inactiveBefore, activeAfter, inactiveAfter }
@@ -853,7 +853,7 @@
       _dm.set('count', 2)
       dClass(div, 'data-class+even@count^immediate', 'dm.count % 2 === 0')
       const hadBefore = div.classList.contains('even')
-      setSigAndNotifySubs('t', { root: 'count', path: null }, 3)
+      setSiAndNotifySubs('t', { root: 'count', path: null }, 3)
       const hadAfter = div.classList.contains('even')
       return { hadBefore, hadAfter }
     }
@@ -865,9 +865,9 @@
       _dm.set('visible', true)
       dDisp(div, 'data-disp:.@visible^immediate')
       const displayBefore = div.style.display
-      setSigAndNotifySubs('t', { root: 'visible', path: null }, false)
+      setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfterHide = div.style.display
-      setSigAndNotifySubs('t', { root: 'visible', path: null }, true)
+      setSiAndNotifySubs('t', { root: 'visible', path: null }, true)
       const displayAfterShow = div.style.display
       return { displayBefore, displayAfterHide, displayAfterShow }
     }
@@ -879,7 +879,7 @@
       _dm.set('count', 0)
       dDisp(div, 'data-disp:.@count^immediate', 'dm.count > 0')
       const displayBefore = div.style.display
-      setSigAndNotifySubs('t', { root: 'count', path: null }, 5)
+      setSiAndNotifySubs('t', { root: 'count', path: null }, 5)
       const displayAfter = div.style.display
       return { displayBefore, displayAfter }
     }
@@ -894,7 +894,7 @@
         _dm.set('show', true)
         dDisp(box, 'data-disp:.@show^immediate')
         const displayBefore = box.style.display
-        setSigAndNotifySubs('t', { root: 'show', path: null }, false)
+        setSiAndNotifySubs('t', { root: 'show', path: null }, false)
         const displayAfter = box.style.display
         return { displayBefore, displayAfter }
       } finally { box.remove() }
@@ -911,7 +911,7 @@
         _dm.set('items', [])
         dDump(el, 'data-dump@items')
         const before = el.children.length
-        setSigAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
         const after = el.children.length
         return { before, after }
       } finally { el.remove() }
@@ -928,7 +928,7 @@
         _dm.set('items', ['a', 'b', 'c'])
         dDump(el, 'data-dump@items')
         const before = el.children.length
-        setSigAndNotifySubs('t', { root: 'items', path: null }, ['a'])
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['a'])
         const after = el.children.length
         return { before, after }
       } finally { el.remove() }
@@ -1003,7 +1003,7 @@
         _dm.set('items', ['x', 'y'])
         dDump(el, 'data-dump@items^notimmediate')
         const before = el.children.length
-        setSigAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
         return { before, after: el.children.length }
       } finally { el.remove() }
     }
@@ -1104,8 +1104,8 @@
         _dm.set('fire', 0)
         _dm.set('res', null)
         dAction(host, 'data-get:res@fire', '`https://api.test/${dm.route}`')
-        setSigAndNotifySubs('t', { root: 'route', path: null }, 'second')
-        setSigAndNotifySubs('t', { root: 'fire', path: null }, 1)
+        setSiAndNotifySubs('t', { root: 'route', path: null }, 'second')
+        setSiAndNotifySubs('t', { root: 'fire', path: null }, 1)
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, res: DM['res'] },
@@ -1201,7 +1201,7 @@
         dAction(div, 'data-get:content@reload^immediate', '"https://api.test/content"')
         await new Promise(r => setTimeout(r, 0))
         const afterImmediate = fetchUrls.length
-        setSigAndNotifySubs('t', { root: 'reload', path: null }, 1)
+        setSiAndNotifySubs('t', { root: 'reload', path: null }, 1)
         await new Promise(r => setTimeout(r, 0))
         return {
           actual: { afterImmediate, total: fetchUrls.length, content: DM['content'] },
