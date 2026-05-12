@@ -55,9 +55,9 @@
     }
 
     // Updated attribute-token syntax reference
-    // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
-    // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
-    // Use ^ for modifiers (trigger guards/timing/options): data-get^no-cache:posts^replace+user.name^query.username
+    // data-m-it@foo-bar-signal+#tpl-id  (data-m-it = iterate/dump)
+    // data-m-cl+zebra-even+!zebra-odd   (data-m-cl = class toggle)
+    // Use ^ for modifiers (trigger guards/timing/options): data-m-get^no-cache:posts^replace+user.name^query.username
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
@@ -238,10 +238,10 @@
         _dm.has(key) ? { value: _dm.get(key), enumerable: true, configurable: true } : undefined
     });
 
-    // - data-def='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
-    // - data-def:foo='{bar: "hey"}' // foo signal
-    // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
-    // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
+    // - data-m-si='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
+    // - data-m-si:foo='{bar: "hey"}' // foo signal
+    // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
+    // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
     const dDef = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', dKey)
@@ -1091,7 +1091,7 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', dKey); return }
       }
     }
-    // data-class+my-class+!my-other@signal="expr"
+    // data-m-cl+my-class+!my-other@signal="expr"
     // +className adds when expr is truthy and removes when falsy.
     // +!className inverts that rule.
     // Without dVal, the raw signal or trigger value is used.
@@ -1122,7 +1122,7 @@
         }
       }
     }
-    // data-disp:.@signal="expr"
+    // data-m-vi:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
     const dDisp = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
@@ -1154,20 +1154,21 @@
         }
       }
     }
-    // Dispatch data-* attributes to their setup functions.
+    // Dispatch data-m-* attributes to their setup functions via the dataM registry.
+    // dataM maps the feature suffix (after 'data-m-') to a handler (el, dKey, dVal).
+    // Users may extend dataM with custom features: dataM.myFeat = (el, dKey, dVal) => { ... }
+    const dataM = {}
     const wireNode = (n, an, v) => {
-      if (an.indexOf('data-def') === 0) dDef(n, an, v)
-      else if (an === 'data-debug') dDebug(n)
-      else if (an.indexOf('data-sub') === 0) dSub(n, an, v)
-      else if (an.indexOf('data-class') === 0) dClass(n, an, v)
-      else if (an.indexOf('data-disp') === 0) dDisp(n, an, v)
-      else if (an.indexOf('data-dump') === 0) dDump(n, an)
-      else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
+      if (an.indexOf('data-m-') !== 0) return
+      const rest = an.slice(7), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
+      const fn = dataM[fe]
+      if (fn) fn(n, an, v)
     }
-    globalThis.wireNode=wireNode
+    globalThis.dataM = dataM
+    globalThis.wireNode = wireNode
 
-    // data-dump@items uses an inline template child and renders immediately by default.
-    // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
+    // data-m-it@items uses an inline template child and renders immediately by default.
+    // data-m-it+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
     const dDump = (el, dKey) => {
       const it = parseCached(dKey), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
@@ -1190,13 +1191,13 @@
       addTrSub(el, trig, mods, ()=>renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath), upsert(_cleanupBoundSubs, el))
       if (isImmediateMod(mods, true)) renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath)
     }
-    // data-get^busy.busy:result@.click^immediate="url"
-    // data-post^json^busy.busy:result@.click+#id.prop+signal="url"
-    // data-put^json:result@.click+body="url"
-    // data-delete^busy.busy:ok@.click="url"
-    // Method is derived from the attribute prefix; dVal is compiled as a URL expression.
+    // data-m-get^busy.busy:result@.click^immediate="url"
+    // data-m-post^json^busy.busy:result@.click+#id.prop+signal="url"
+    // data-m-put^json:result@.click+body="url"
+    // data-m-delete^busy.busy:ok@.click="url"
+    // Method is derived from the feature suffix after 'data-m-'; dVal is compiled as a URL expression.
     const dAction = (el, dKey, dVal) => {
-      const afterData = dKey.slice(5) // strip 'data-'
+      const afterData = dKey.slice(7) // strip 'data-m-'
       const methodEnd = indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const method = ACT_METHODS[methodName]
@@ -1496,6 +1497,9 @@
       }
     }
     // Morph updates DOM in place so matched nodes keep listeners, state, focus, and scroll.
+    // Populate dataM after all handler functions are defined.
+    dataM.si = dDef; dataM.ex = dSub; dataM.it = dDump; dataM.cl = dClass; dataM.vi = dDisp; dataM.debug = dDebug
+    dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dAction
     // Match by id first, then by tag name, and clone only when no reusable node fits.
 
     // Return true when two nodes can be morphed in place.

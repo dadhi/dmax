@@ -100,36 +100,36 @@
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '.'], { "kind": EV_PR, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
-    __assert(parse, ['data-def'], [__parseIt({}), 8], 'empty')
-    __assert(parse, ['data-sub:'], [__parseIt({}), 9], 'single empty')
-    __assert(parse, ['data-sub:.'], [__parseIt({ ":": [{ "kind": EV_PR, "mods": NIL, "not": null, "path": null, "root": "" }] }), 10], 'default prop')
-    __assert(parse, ['data-sub^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 12], 'global mod')
-    __assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 33], '2 global mods')
-    __assert(parse, ['data-sub^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 25], '2 global mods and item with mod with item')
-    __assert(parse, ['data-sub@!xxx@!'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": NIL, "not": true, "path": null, "root": "xxx" }] }), 15], 'not name and not empty')
-    __assert(parse, ['data-sub:xxx:'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "xxx" }] }), 13], 'single name')
-    __assert(parse, ['data-sub::'], [__parseIt({}), 10], '2 empties')
-    __assert(parse, ['data-sub:foo^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 13], 'name+empty mod')
-    __assert(parse, ['data-sub:foo^^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 14], 'name+2 empty mods')
-    __assert(parse, ['data-sub:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 22], 'item^mod')
-    __assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 38], 'item^mod@item2^mod')
-    __assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 27], 'combine global+local mods and keep repeats')
-    __assert(parse, ['data-sub^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 24], 'push all global mods to items')
-    __assert(parse, ['data-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 24], 'add item local spread mod')
-    __assert(parse, ['data-sub:result@post-objs[1].title'], [__parseIt({
+    __assert(parse, ['data-m-si'], [__parseIt({}), 9], 'empty')
+    __assert(parse, ['data-m-ex:'], [__parseIt({}), 10], 'single empty')
+    __assert(parse, ['data-m-ex:.'], [__parseIt({ ":": [{ "kind": EV_PR, "mods": NIL, "not": null, "path": null, "root": "" }] }), 11], 'default prop')
+    __assert(parse, ['data-m-ex^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 13], 'global mod')
+    __assert(parse, ['data-m-ex^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 34], '2 global mods')
+    __assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 26], '2 global mods and item with mod with item')
+    __assert(parse, ['data-m-ex@!xxx@!'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": NIL, "not": true, "path": null, "root": "xxx" }] }), 16], 'not name and not empty')
+    __assert(parse, ['data-m-ex:xxx:'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "xxx" }] }), 14], 'single name')
+    __assert(parse, ['data-m-ex::'], [__parseIt({}), 11], '2 empties')
+    __assert(parse, ['data-m-ex:foo^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 14], 'name+empty mod')
+    __assert(parse, ['data-m-ex:foo^^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 15], 'name+2 empty mods')
+    __assert(parse, ['data-m-ex:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 23], 'item^mod')
+    __assert(parse, ['data-m-ex:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 39], 'item^mod@item2^mod')
+    __assert(parse, ['data-m-ex^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 28], 'combine global+local mods and keep repeats')
+    __assert(parse, ['data-m-ex^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 25], 'push all global mods to items')
+    __assert(parse, ['data-m-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 26], 'add item local spread mod')
+    __assert(parse, ['data-m-ex:result@post-objs[1].title'], [__parseIt({
       ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }],
       "@": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": ["1", "title"], "root": "postObjs" }]
-    }), 34], 'parse trigger with constant bracket index')
-    __assert(parse, ['data-sub:result@post-objs[idx].title'], [__parseIt({
+    }), 35], 'parse trigger with constant bracket index')
+    __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }]
-    }), 36], 'parse rejects variable bracket index trigger')
+    }), 37], 'parse rejects variable bracket index trigger')
     __assert(() => getMValPath(NIL) === NIL, [], true, 'getMValPath uses NIL when no val mod exists')
-    __assert(__sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
-    __assert(__sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
-    __assert(__sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
-    __assert(__sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
-    __assert(__signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
-    __assert(__signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+    __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
+    __assert(__sign, ['data-m-si:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
+    __assert(__sign, ['data-m-si:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
+    __assert(__sign, ['data-m-si:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
+    __assert(__signEl, [{ "name": "John" }, 'data-m-si:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
+    __assert(__signDmSet, ['name', 'Noize', 'data-m-si:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
     function __tGetSignalValOrIt() {
       _dm.clear()
       _dm.set('user', { name: 'Alice' })
@@ -171,39 +171,39 @@
     __assert(buildDumpItemRef, ['posts', null, 2], 'posts.2', 'dDump item ref helper root only')
     __assert(buildDumpItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dDump item expr helper')
     __assert(buildDumpItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dDump item expr helper root only')
-    __assert(replaceDumpTokens, ['data-dump@$item.replies+$index', 'threads.0', '0'], 'data-dump@threads.0.replies+0', 'dDump token rewrite helper')
+    __assert(replaceDumpTokens, ['data-m-it@$item.replies+$index', 'threads.0', '0'], 'data-m-it@threads.0.replies+0', 'dDump token rewrite helper')
     __assert(replaceDumpTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dDump token rewrite helper no-op')
     function __testRewriteDumpBindings() {
       const root = document.createElement('li')
-      root.setAttribute('data-sub:.', '$index')
+      root.setAttribute('data-m-ex:.', '$index')
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<span data-dump@$item.replies+$index="$item.title"></span>'
+      tpl.innerHTML = '<span data-m-it@$item.replies+$index="$item.title"></span>'
       const child = tpl.content.firstElementChild
       root.appendChild(child)
       rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
       return {
-        rootVal: root.getAttribute('data-sub:.'),
+        rootVal: root.getAttribute('data-m-ex:.'),
         rootAttrs: DUMP_ATTRS.get(root),
         childAttrs: DUMP_ATTRS.get(child)
       }
     }
     __assert(__testRewriteDumpBindings, [], {
       rootVal: '2',
-      rootAttrs: [['data-sub:.', '2']],
-      childAttrs: [['data-dump@threads.2.replies+2', 'dm.threads[2].title']]
+      rootAttrs: [['data-m-ex:.', '2']],
+      childAttrs: [['data-m-it@threads.2.replies+2', 'dm.threads[2].title']]
     }, 'dDump rewriteDumpBindings rewrites names and values')
     function __testRewriteDumpBindingsNoop() {
       const root = document.createElement('li')
-      root.setAttribute('data-sub:.', 'plain-text')
+      root.setAttribute('data-m-ex:.', 'plain-text')
       rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
-      return { value: root.getAttribute('data-sub:.'), hasAttrs: DUMP_ATTRS.has(root) }
+      return { value: root.getAttribute('data-m-ex:.'), hasAttrs: DUMP_ATTRS.has(root) }
     }
     __assert(__testRewriteDumpBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dDump rewriteDumpBindings no-op leaves attrs untouched')
     function __testWireDumpCloneRewrittenAttrs() {
       const root = document.createElement('li')
-      root.setAttribute('data-sub:.', '$index')
+      root.setAttribute('data-m-ex:.', '$index')
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<span data-dump@$item.replies+$index="$item.title"></span>'
+      tpl.innerHTML = '<span data-m-it@$item.replies+$index="$item.title"></span>'
       const child = tpl.content.firstElementChild
       root.appendChild(child)
       rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
@@ -214,19 +214,19 @@
       return calls
     }
     __assert(__testWireDumpCloneRewrittenAttrs, [], [
-      ['data-sub:.', '2'],
-      ['data-dump@threads.2.replies+2', 'dm.threads[2].title']
+      ['data-m-ex:.', '2'],
+      ['data-m-it@threads.2.replies+2', 'dm.threads[2].title']
     ], 'dDump wireDumpClone uses rewritten attrs when available')
     function __testWireDumpCloneDomAttrsFallback() {
       const root = document.createElement('li')
-      root.setAttribute('data-sub:.', 'plain-text')
+      root.setAttribute('data-m-ex:.', 'plain-text')
       const calls = []
       const savedWireNode = globalThis.wireNode
       globalThis.wireNode = (_el, aName, value) => calls.push([aName, value])
       try { wireDumpClone(root) } finally { globalThis.wireNode = savedWireNode }
       return calls
     }
-    __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-sub:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
+    __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-m-ex:.', 'plain-text']], 'dDump wireDumpClone falls back to DOM attrs')
     __assert(() => ({ ...buildActionBaseHs(false, false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
@@ -239,7 +239,7 @@
     __assert((id, aName) => {
       const el = getElById(id, aName)
       return el ? el.textContent : null
-    }, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
+    }, ['foo', 'data-m-ex:#foo@bar'], 'good', 'get existing elem')
     __assert(getElPrVal, [null, null], null, 'null element prop')
     __assert(getElPrVal, [null, ['value']], null, 'null element nested prop')
     __assert(getElPrVal, [getElById('foo', 'xxx'), null], 'good', 'default text prop')
@@ -478,7 +478,7 @@
       __reset();
       const fooEl = getElById('foo', 'probe'); if (fooEl) fooEl.textContent = 'good';
       const before = fooEl?.textContent || '';
-      dSub(null, 'data-sub:#foo.', `'Seaman!'`);
+      dSub(null, 'data-m-ex:#foo.', `'Seaman!'`);
       const after = fooEl?.textContent || '';
       return { before, after };
     }
@@ -487,7 +487,7 @@
       __reset();
       try {
         const btn = document.createElement('button');
-        dSub(btn, 'data-sub:sg@.', `'A'`);
+        dSub(btn, 'data-m-ex:sg@.', `'A'`);
         const h = __getEventSub(btn)
         if (h?.fn) h.fn({ type: 'click', detail: null, preventDefault() { } })
         else btn.dispatchEvent(mkEv('click'));
@@ -502,7 +502,7 @@
       try {
         const inp = document.createElement('input');
         inp.value = 'Zed';
-        dSub(inp, 'data-sub:out@.', 'val');
+        dSub(inp, 'data-m-ex:out@.', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -517,7 +517,7 @@
       try {
         const inp = document.createElement('input');
         inp.value = 'Zed';
-        dSub(inp, 'data-sub:out@.', '');
+        dSub(inp, 'data-m-ex:out@.', '');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -533,7 +533,7 @@
         const inp = document.createElement('input');
         inp.value = 'Zed';
         inp.setAttribute('data-foo-bar', '33');
-        dSub(inp, 'data-sub:out@.^val.data-foo-bar', 'val');
+        dSub(inp, 'data-m-ex:out@.^val.data-foo-bar', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -547,7 +547,7 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo', 'dm.foo');
+      dSub(el, 'data-m-ex:bar@foo', 'dm.foo');
       const im = DM['bar'];
       setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
@@ -558,7 +558,7 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo', '');
+      dSub(el, 'data-m-ex:bar@foo', '');
       const im = DM['bar'];
       setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
@@ -569,7 +569,7 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo^notimmediate', 'dm.foo');
+      dSub(el, 'data-m-ex:bar@foo^notimmediate', 'dm.foo');
       const before = DM['bar'];
       setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       return { before, after: DM['bar'] };
@@ -579,7 +579,7 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub@foo', '');
+      dSub(el, 'data-m-ex@foo', '');
       const before = Object.keys(DM).sort();
       setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
@@ -589,8 +589,8 @@
       __reset();
       _dm.set('foo', { bar: 7 });
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo^val.bar', '');
-      dSub(el, 'data-sub:baz@foo^val.bar', 'val + 1');
+      dSub(el, 'data-m-ex:bar@foo^val.bar', '');
+      dSub(el, 'data-m-ex:baz@foo^val.bar', 'val + 1');
       const initial = { bar: DM['bar'], baz: DM['baz'] };
       setSiAndNotifySubs('test', { root: 'foo', path: null }, { bar: 8 });
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
@@ -604,7 +604,7 @@
       btn.textContent = 'C';
       document.body.appendChild(btn);
       try {
-        dSub(btn, `data-sub:eventMeta@#${id}.click`, `({kind: trig.kind, root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+        dSub(btn, `data-m-ex:eventMeta@#${id}.click`, `({kind: trig.kind, root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
         btn.dispatchEvent(mkEv('click'));
         return DM['eventMeta'];
       } finally { btn.remove(); }
@@ -618,7 +618,7 @@
       btn.textContent = 'C';
       document.body.appendChild(btn);
       try {
-        dSub(btn, `data-sub:eventCustomMeta@#${id}.click`, `({ val, detailType: detail?.type, eventValue: detail?.detail?.value })`);
+        dSub(btn, `data-m-ex:eventCustomMeta@#${id}.click`, `({ val, detailType: detail?.type, eventValue: detail?.detail?.value })`);
         btn.dispatchEvent(new CustomEvent('click', { bubbles: true, detail: { value: 9 } }));
         return DM['eventCustomMeta'];
       } finally { btn.remove(); }
@@ -632,7 +632,7 @@
       inp.value = 'Alpha';
       document.body.appendChild(inp);
       try {
-        dSub(inp, `data-sub:propMeta@#${id}.value`, `({kind: trig.kind, root: trig.root, path: trig.path, val})`);
+        dSub(inp, `data-m-ex:propMeta@#${id}.value`, `({kind: trig.kind, root: trig.root, path: trig.path, val})`);
         inp.dispatchEvent(mkEv('change'));
         return DM['propMeta'];
       } finally { inp.remove(); }
@@ -641,8 +641,8 @@
     function __tSubSpecialWindowAndDocument() {
       __reset();
       const host = document.createElement('div');
-      dSub(host, 'data-sub:winMeta@_window.resize', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
-      dSub(host, 'data-sub:docMeta@_document.visibilitychange', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+      dSub(host, 'data-m-ex:winMeta@_window.resize', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+      dSub(host, 'data-m-ex:docMeta@_document.visibilitychange', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
       window.dispatchEvent(mkEv('resize'));
       document.dispatchEvent(mkEv('visibilitychange'));
       return { win: DM['winMeta'], doc: DM['docMeta'] };
@@ -658,7 +658,7 @@
       form.appendChild(input);
       document.body.appendChild(form);
       try {
-        dSub(input, 'data-sub:formMeta@_form.submit', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+        dSub(input, 'data-m-ex:formMeta@_form.submit', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
         const ev = mkEv('submit')
         form.dispatchEvent(ev)
         return DM['formMeta']
@@ -673,8 +673,8 @@
       setInterval = (cb, _ms, ...args) => (intervalQueue.push([cb, args]), intervalQueue.length)
       try {
         const host = document.createElement('div')
-        dSub(host, 'data-sub:intMeta@_interval.25', `({root: trig.root, path: trig.path, val, detail})`)
-        dSub(host, 'data-sub:timeoutMeta@_timeout.50', `({root: trig.root, path: trig.path, val, detail})`)
+        dSub(host, 'data-m-ex:intMeta@_interval.25', `({root: trig.root, path: trig.path, val, detail})`)
+        dSub(host, 'data-m-ex:timeoutMeta@_timeout.50', `({root: trig.root, path: trig.path, val, detail})`)
         if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
         if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
         return { i: DM['intMeta'], t: DM['timeoutMeta'] }
@@ -697,8 +697,8 @@
       clearInterval = (id) => cleared.push(['interval', id])
       try {
         const host = document.createElement('div')
-        dSub(host, 'data-sub:intOnce@_interval.25^once', 'val')
-        dSub(host, 'data-sub:timeoutOnce@_timeout.50^once', 'val')
+        dSub(host, 'data-m-ex:intOnce@_interval.25^once', 'val')
+        dSub(host, 'data-m-ex:timeoutOnce@_timeout.50^once', 'val')
         if (intervalQueue[0]) intervalQueue[0][0](...intervalQueue[0][1])
         if (timeoutQueue[0]) timeoutQueue[0][0](...timeoutQueue[0][1])
         return { cleared, intOnce: DM['intOnce'], timeoutOnce: DM['timeoutOnce'] }
@@ -720,7 +720,7 @@
       _dm.set('gateB', false)
       _dm.set('src', 1)
       const host = document.createElement('div');
-      dSub(host, 'data-sub:dst@src^and.gateA^and.gateB^ge.5^lt.9^ne.7', 'val')
+      dSub(host, 'data-m-ex:dst@src^and.gateA^and.gateB^ge.5^lt.9^ne.7', 'val')
       setSiAndNotifySubs('t', { root: 'src', path: null }, 8)
       _dm.set('gateB', true)
       setSiAndNotifySubs('t', { root: 'src', path: null }, 4)
@@ -733,7 +733,7 @@
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
-      dSub(inp, 'data-sub@.^rw@name')
+      dSub(inp, 'data-m-ex@.^rw@name')
       const before = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -746,7 +746,7 @@
       __reset();
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
-      dSub(inp, 'data-sub:.@name')
+      dSub(inp, 'data-m-ex:.@name')
       const before = inp.value
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -760,7 +760,7 @@
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
-      dSub(inp, 'data-sub:name@.')
+      dSub(inp, 'data-m-ex:name@.')
       const before = inp.value
       const sigAfterElementWrite = DM['name']
       setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
@@ -775,7 +775,7 @@
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
-      dSub(inp, 'data-sub^notimmediate:name@.')
+      dSub(inp, 'data-m-ex^notimmediate:name@.')
       const sigBeforeChange = DM['name']
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -787,7 +787,7 @@
       const cb = document.createElement('input')
       cb.type = 'checkbox'
       DM['isOn'] = true
-      dSub(cb, 'data-sub@.^rw@is-on')
+      dSub(cb, 'data-m-ex@.^rw@is-on')
       const before = cb.checked
       cb.checked = false
       cb.dispatchEvent(mkEv('change'))
@@ -801,7 +801,7 @@
       const inp = document.createElement('input')
       inp.val = { value: 'Initial' }
       _dm.set('name', 'Ada')
-      dSub(inp, 'data-sub@.^val.val.value^rw@name')
+      dSub(inp, 'data-m-ex@.^val.val.value^rw@name')
       const before = inp.val.value
       inp.val.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -814,7 +814,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', false)
-      dClass(div, 'data-class+active@active^immediate')
+      dClass(div, 'data-m-cl+active@active^immediate')
       const hadBefore = div.classList.contains('active')
       setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('active')
@@ -827,7 +827,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', false)
-      dClass(div, 'data-class+!inactive@active^immediate')
+      dClass(div, 'data-m-cl+!inactive@active^immediate')
       const hadBefore = div.classList.contains('inactive')
       setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('inactive')
@@ -838,7 +838,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', true)
-      dClass(div, 'data-class+is-active+!is-inactive@active^immediate')
+      dClass(div, 'data-m-cl+is-active+!is-inactive@active^immediate')
       const activeBefore = div.classList.contains('is-active')
       const inactiveBefore = div.classList.contains('is-inactive')
       setSiAndNotifySubs('t', { root: 'active', path: null }, false)
@@ -851,7 +851,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('count', 2)
-      dClass(div, 'data-class+even@count^immediate', 'dm.count % 2 === 0')
+      dClass(div, 'data-m-cl+even@count^immediate', 'dm.count % 2 === 0')
       const hadBefore = div.classList.contains('even')
       setSiAndNotifySubs('t', { root: 'count', path: null }, 3)
       const hadAfter = div.classList.contains('even')
@@ -863,7 +863,7 @@
       const div = document.createElement('div')
       div.style.display = 'block'
       _dm.set('visible', true)
-      dDisp(div, 'data-disp:.@visible^immediate')
+      dDisp(div, 'data-m-vi:.@visible^immediate')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfterHide = div.style.display
@@ -877,7 +877,7 @@
       const div = document.createElement('div')
       div.style.display = 'flex'
       _dm.set('count', 0)
-      dDisp(div, 'data-disp:.@count^immediate', 'dm.count > 0')
+      dDisp(div, 'data-m-vi:.@count^immediate', 'dm.count > 0')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'count', path: null }, 5)
       const displayAfter = div.style.display
@@ -892,7 +892,7 @@
       document.body.appendChild(box)
       try {
         _dm.set('show', true)
-        dDisp(box, 'data-disp:.@show^immediate')
+        dDisp(box, 'data-m-vi:.@show^immediate')
         const displayBefore = box.style.display
         setSiAndNotifySubs('t', { root: 'show', path: null }, false)
         const displayAfter = box.style.display
@@ -909,7 +909,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', [])
-        dDump(el, 'data-dump@items')
+        dDump(el, 'data-m-it@items')
         const before = el.children.length
         setSiAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b'])
         const after = el.children.length
@@ -926,7 +926,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['a', 'b', 'c'])
-        dDump(el, 'data-dump@items')
+        dDump(el, 'data-m-it@items')
         const before = el.children.length
         setSiAndNotifySubs('t', { root: 'items', path: null }, ['a'])
         const after = el.children.length
@@ -943,7 +943,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('rows', ['x', 'y'])
-        dDump(el, 'data-dump@rows')
+        dDump(el, 'data-m-it@rows')
         return Array.from(el.children).map(n => n.getAttribute('data-idx'))
       } finally { el.remove() }
     }
@@ -957,7 +957,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('rows', ['x', 'y'])
-        dDump(el, 'data-dump@rows')
+        dDump(el, 'data-m-it@rows')
         return Array.from(el.children).map(n => n.getAttribute('data-val'))
       } finally { el.remove() }
     }
@@ -971,7 +971,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('list', ['a', 'b', 'c'])
-        dDump(el, 'data-dump@list')
+        dDump(el, 'data-m-it@list')
         const count = el.children.length
         const tplStillChild = !!el.querySelector('template')
         return { count, tplStillChild }
@@ -987,7 +987,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['x', 'y', 'z'])
-        dDump(el, 'data-dump@items')
+        dDump(el, 'data-m-it@items')
         return el.children.length
       } finally { el.remove() }
     }
@@ -1001,7 +1001,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['x', 'y'])
-        dDump(el, 'data-dump@items^notimmediate')
+        dDump(el, 'data-m-it@items^notimmediate')
         const before = el.children.length
         setSiAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
         return { before, after: el.children.length }
@@ -1018,7 +1018,7 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['a', 'b'])
-        dDump(el, 'data-dump+#myTpl@items')
+        dDump(el, 'data-m-it+#myTpl@items')
         return el.children.length
       } finally { tplEl.remove(); el.remove() }
     }
@@ -1052,7 +1052,7 @@
       try {
         const btn = document.createElement('button')
         _dm.set('items', null)
-        dAction(btn, 'data-get:items@.click^immediate', '"https://api.test/items"')
+        dAction(btn, 'data-m-get:items@.click^immediate', '"https://api.test/items"')
         // click trigger registers the event; immediate also fires doRequest once at setup
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
@@ -1078,7 +1078,7 @@
         const btn = document.createElement('button')
         _dm.set('postResult', null)
         _dm.set('titleVal', 'Hello World')
-        dAction(btn, 'data-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
+        dAction(btn, 'data-m-post^json:postResult@.click+titleVal', '"https://api.test/posts"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1103,7 +1103,7 @@
         _dm.set('route', 'first')
         _dm.set('fire', 0)
         _dm.set('res', null)
-        dAction(host, 'data-get:res@fire', '`https://api.test/${dm.route}`')
+        dAction(host, 'data-m-get:res@fire', '`https://api.test/${dm.route}`')
         setSiAndNotifySubs('t', { root: 'route', path: null }, 'second')
         setSiAndNotifySubs('t', { root: 'fire', path: null }, 1)
         await new Promise(r => setTimeout(r, 0))
@@ -1121,7 +1121,7 @@
         const btn = document.createElement('button')
         _dm.set('busy', false)
         _dm.set('data', null)
-        dAction(btn, 'data-get^busy.busy:data@.click', '"https://api.test/data"')
+        dAction(btn, 'data-m-get^busy.busy:data@.click', '"https://api.test/data"')
         __fireEventSub(btn, 'click')
         const busyDuring = DM['busy']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
@@ -1142,7 +1142,7 @@
         _dm.set('busy2', false)
         _dm.set('done', false)
         _dm.set('data2', null)
-        dAction(btn, 'data-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
+        dAction(btn, 'data-m-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
         __fireEventSub(btn, 'click')
         const completeDuring = DM['done']
         resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
@@ -1160,7 +1160,7 @@
       try {
         const btn = document.createElement('button')
         _dm.set('done2', false)
-        dAction(btn, 'data-get^complete.done2:data@.click', '"https://api.test/data"')
+        dAction(btn, 'data-m-get^complete.done2:data@.click', '"https://api.test/data"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
@@ -1177,7 +1177,7 @@
         const btn = document.createElement('button')
         _dm.set('busy', false)
         _dm.set('errMsg', null)
-        dAction(btn, 'data-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
+        dAction(btn, 'data-m-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
@@ -1198,7 +1198,7 @@
         const div = document.createElement('div')
         _dm.set('reload', 0)
         _dm.set('content', null)
-        dAction(div, 'data-get:content@reload^immediate', '"https://api.test/content"')
+        dAction(div, 'data-m-get:content@reload^immediate', '"https://api.test/content"')
         await new Promise(r => setTimeout(r, 0))
         const afterImmediate = fetchUrls.length
         setSiAndNotifySubs('t', { root: 'reload', path: null }, 1)
@@ -1224,7 +1224,7 @@
         const btn = document.createElement('button')
         _dm.set('a', 1)
         _dm.set('nested', { x: 7, y: 8 })
-        dAction(btn, 'data-post^json^send-all:req@.click+nested^spread', '"https://api.test/all"')
+        dAction(btn, 'data-m-post^json^send-all:req@.click+nested^spread', '"https://api.test/all"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1244,7 +1244,7 @@
       })
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get^patch-all@.click', '"https://api.test/obj"')
+        dAction(btn, 'data-m-get^patch-all@.click', '"https://api.test/obj"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1269,7 +1269,7 @@
             json: async () => ({ alpha: 3, 'foo-bar': 4, ignored: 5 })
           })
         }
-        dAction(btn, 'data-post^json^sync-all@.click', '"https://api.test/sync"')
+        dAction(btn, 'data-m-post^json^sync-all@.click', '"https://api.test/sync"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1293,7 +1293,7 @@
         const btn = document.createElement('button')
         _dm.set('profile', { name: 'Alice', meta: { age: 1, city: 'Riga' } })
         _dm.set('reqHs', { authorization: 'Bearer 123', 'x-trace': 'abc' })
-        dAction(btn, 'data-get^merge^no-cache^hs.req-hs:profile@.click', '"https://api.test/profile"')
+        dAction(btn, 'data-m-get^merge^no-cache^hs.req-hs:profile@.click', '"https://api.test/profile"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1324,7 +1324,7 @@
       try {
         const btn = document.createElement('button')
         _dm.set('res', null)
-        dAction(btn, 'data-get^br^gzip^deflate^compress:res@.click', '"https://api.test/enc"')
+        dAction(btn, 'data-m-get^br^gzip^deflate^compress:res@.click', '"https://api.test/enc"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1348,7 +1348,7 @@
         const btn = document.createElement('button')
         _dm.set('reqHs', { accept: 'application/json', authorization: 'Bearer old' })
         _dm.set('authorization', 'Bearer new')
-        dAction(btn, 'data-get^sse^hs.req-hs^header.authorization:res@.click', '"https://api.test/sse"')
+        dAction(btn, 'data-m-get^sse^hs.req-hs^header.authorization:res@.click', '"https://api.test/sse"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1372,12 +1372,12 @@
       try {
         const btn1 = document.createElement('button')
         _dm.set('reqHs', { xTraceId: 'req-001', authorization: 'Bearer hdr' })
-        dAction(btn1, 'data-get^hs.req-hs:res@.click', '"https://api.test/hs"')
+        dAction(btn1, 'data-m-get^hs.req-hs:res@.click', '"https://api.test/hs"')
         __fireEventSub(btn1, 'click')
         await new Promise(r => setTimeout(r, 0))
         const btn2 = document.createElement('button')
         _dm.set('rawHs', { 'X-Trace-Id': 'req-raw' })
-        dAction(btn2, 'data-get^hs.raw-hs^hs-no-kebab:res@.click', '"https://api.test/hs-raw"')
+        dAction(btn2, 'data-m-get^hs.raw-hs^hs-no-kebab:res@.click', '"https://api.test/hs-raw"')
         __fireEventSub(btn2, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1406,7 +1406,7 @@
         const btn = document.createElement('button')
         _dm.set('page', 2)
         _dm.set('payload', 'hello')
-        dAction(btn, 'data-post^url.page:res@.click+payload', '"https://api.test/items"')
+        dAction(btn, 'data-m-post^url.page:res@.click+payload', '"https://api.test/items"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1431,7 +1431,7 @@
         const btn = document.createElement('button')
         _dm.set('cursor', 'abc123')
         _dm.set('filter', 'active')
-        dAction(btn, 'data-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
+        dAction(btn, 'data-m-get^body.cursor+filter:res@.click', '"https://api.test/stream"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         // +filter is GET-default → query string; ^body.cursor overrides → request body (single value unwrapped)
@@ -1456,7 +1456,7 @@
         const btn = document.createElement('button')
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
-        dAction(btn, 'data-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
+        dAction(btn, 'data-m-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1482,7 +1482,7 @@
       }
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get^sse:res@.click', '"https://api.test/sse"')
+        dAction(btn, 'data-m-get^sse:res@.click', '"https://api.test/sse"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1533,7 +1533,7 @@
           body: fakeBody
         })
         try {
-          dAction(btn, 'data-get@.click', "'/mock/sse-incr'")
+          dAction(btn, 'data-m-get@.click', "'/mock/sse-incr'")
           __fireEventSub(btn, 'click')
           await new Promise(r => setTimeout(r, 20))
         } finally { delete window.fetch }
@@ -2008,7 +2008,7 @@
       })
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
+        dAction(btn, 'data-m-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 30))
       } finally { delete window.fetch }
@@ -2036,7 +2036,7 @@
       }
       try {
         const btn = document.createElement('button')
-        dAction(btn, 'data-get^abort.cancelFn@.click', "'/mock/long'")
+        dAction(btn, 'data-m-get^abort.cancelFn@.click', "'/mock/long'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 10))
         // Now cancel via the signal stored by ^abort
@@ -2112,7 +2112,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<div id="html-outer-target"><span>new</span></div>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2129,7 +2129,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<p id="html-replace-target">new</p>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^replace@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^replace@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2147,7 +2147,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<section id="html-inner-target"><em>new</em></section>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^inner@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^inner@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2164,7 +2164,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<div id="html-remove-target"></div>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^remove@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^remove@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2180,7 +2180,7 @@
       document.body.appendChild(container)
       try {
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<span class="inserted-before">inserted</span>' })
-        dAction(anchor, 'data-get^html^before@.click', "'/mock/html'")
+        dAction(anchor, 'data-m-get^html^before@.click', "'/mock/html'")
         __fireEventSub(anchor, 'click')
         await new Promise(r => setTimeout(r, 0))
         const children = Array.from(container.children)
@@ -2196,7 +2196,7 @@
       document.body.appendChild(container)
       try {
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<span class="inserted-after">inserted</span>' })
-        dAction(anchor, 'data-get^html^after@.click', "'/mock/html'")
+        dAction(anchor, 'data-m-get^html^after@.click', "'/mock/html'")
         __fireEventSub(anchor, 'click')
         await new Promise(r => setTimeout(r, 0))
         const children = Array.from(container.children)
@@ -2213,7 +2213,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<em class="sig-before">sig-before</em>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^before.insert-target@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^before.insert-target@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2231,7 +2231,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<em class="sig-after">sig-after</em>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^after.insert-target@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^after.insert-target@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2249,7 +2249,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<li class="appended">new item</li>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^append.list-target@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^append.list-target@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()
@@ -2268,7 +2268,7 @@
         window.fetch = () => Promise.resolve({ ok: true, headers: { get: () => 'text/html' }, text: async () => '<li class="prepended">new item</li>' })
         const btn = document.createElement('button')
         document.body.appendChild(btn)
-        dAction(btn, 'data-get^html^prepend.list-target@.click', "'/mock/html'")
+        dAction(btn, 'data-m-get^html^prepend.list-target@.click', "'/mock/html'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         btn.remove()

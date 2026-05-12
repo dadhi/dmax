@@ -64,7 +64,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
   });
 
   const doc = window.document;
-  const debug = doc.querySelector('[data-debug]');
+  const debug = doc.querySelector('[data-m-debug]');
   let passCount = 0, failCount = 0;
   const fail = (m) => { console.error('FAIL:', m); failCount++; process.exitCode = 2; };
   const pass = (m) => { console.log('PASS:', m); passCount++; };
@@ -106,22 +106,22 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
     if (labelCodes.length >= 40) pass('Ported examples render dmax-driven code labels'); else fail('Ported examples missing dmax-driven code labels');
     if (labelCodes.every((node) => (node.textContent || '').trim() === (expectedLabelText(node) || '').trim())) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
-    if (labelCodes.some((node) => /data-sub:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
+    if (labelCodes.some((node) => /data-m-ex:\.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
-    // Section 1: data-sub sync
+    // Section 1: data-m-ex sync
     const nameInput = doc.getElementById('exUserNameInput');
-    const nameOut = findByAttr('strong', 'data-sub:.@user.name');
+    const nameOut = findByAttr('strong', 'data-m-ex:.@user.name');
     const sigToProp = doc.getElementById('sigToProp');
     if (!nameInput || !nameOut || !sigToProp) fail('Section1 elements missing');
     if (nameOut.textContent.trim() === 'Alice' && sigToProp.value === 'Alice') pass('Section1 initial sync render'); else fail('Section1 did not render initial sync state');
 
     if (sigToProp) {
-      if (sigToProp.value === nameOut.textContent.trim()) pass('data-sub signal->element initial populate'); else fail('data-sub signal->element did not populate');
+      if (sigToProp.value === nameOut.textContent.trim()) pass('data-m-ex signal->element initial populate'); else fail('data-m-ex signal->element did not populate');
       const prev = nameOut.textContent.trim();
       sigToProp.value = 'SigToPropTest';
       fire(sigToProp, 'change');
       await sleep(60);
-      if (nameOut.textContent.trim() === prev) pass('data-sub signal->element is one-way'); else fail('data-sub signal->element incorrectly wrote back');
+      if (nameOut.textContent.trim() === prev) pass('data-m-ex signal->element is one-way'); else fail('data-m-ex signal->element incorrectly wrote back');
     }
 
     const elToSig = doc.getElementById('elToSig');
@@ -129,12 +129,12 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       elToSig.value = 'ElToSigTest';
       fire(elToSig, 'input');
       await sleep(60);
-      if (readState().user?.name === 'ElToSigTest') pass('data-sub element->signal updates signal'); else fail('data-sub element->signal did not update');
+      if (readState().user?.name === 'ElToSigTest') pass('data-m-ex element->signal updates signal'); else fail('data-m-ex element->signal did not update');
       const orig = elToSig.value;
       nameInput.value = 'FromSignal';
       fire(nameInput, 'input');
       await sleep(60);
-      if (elToSig.value === orig) pass('data-sub element->signal is one-way (signal changes do not affect element)'); else fail('data-sub element->signal unexpectedly updated from signal');
+      if (elToSig.value === orig) pass('data-m-ex element->signal is one-way (signal changes do not affect element)'); else fail('data-m-ex element->signal unexpectedly updated from signal');
     }
 
     const twoWay = doc.getElementById('twoWay');
@@ -142,17 +142,17 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       twoWay.value = 'TwoWayTest';
       fire(twoWay, 'change');
       await sleep(60);
-      if (readState().user?.name === 'TwoWayTest') pass('data-sub ^rw two-way writes to signal'); else fail('data-sub ^rw two-way did not write to signal');
+      if (readState().user?.name === 'TwoWayTest') pass('data-m-ex ^rw two-way writes to signal'); else fail('data-m-ex ^rw two-way did not write to signal');
       const signalWriter = elToSig || nameInput;
       signalWriter.value = 'TwoWayFromSignal';
       fire(signalWriter, signalWriter === nameInput ? 'change' : 'input');
       await sleep(60);
-      if (twoWay.value === 'TwoWayFromSignal') pass('data-sub ^rw two-way reflects signal -> element'); else fail('data-sub ^rw two-way did not reflect signal->element');
+      if (twoWay.value === 'TwoWayFromSignal') pass('data-m-ex ^rw two-way reflects signal -> element'); else fail('data-m-ex ^rw two-way did not reflect signal->element');
     }
 
     // Section 2: style + boolean deep sync
-    const colorInput = findByAttr('input', 'data-sub@.^rw@user.ui.theme-color');
-    const preview = findByAttr('div', 'data-sub:.style.color@user.ui.theme-color');
+    const colorInput = findByAttr('input', 'data-m-ex@.^rw@user.ui.theme-color');
+    const preview = findByAttr('div', 'data-m-ex:.style.color@user.ui.theme-color');
     if (!colorInput || !preview) fail('Section2 color elements missing');
     colorInput.value = '#ff0000';
     fire(colorInput, 'change');
@@ -160,16 +160,16 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const styleVal = preview.style.color || preview.getAttribute('style') || '';
     if (/ff0000/i.test(styleVal) || /rgb\(255,\s*0,\s*0\)/i.test(styleVal)) pass('Section2 color sync'); else fail('Section2 color not applied');
 
-    const range = findByAttr('input', 'data-sub@.^rw@user.ui.font-size');
-    const pfont = findByAttr('p', 'data-sub:.style.font-size@user.ui.font-size');
+    const range = findByAttr('input', 'data-m-ex@.^rw@user.ui.font-size');
+    const pfont = findByAttr('p', 'data-m-ex:.style.font-size@user.ui.font-size');
     if (!range || !pfont) fail('Section2 font elements missing');
     range.value = '24';
     fire(range, 'change');
     await sleep(60);
     if (/24px/.test(pfont.style.fontSize || pfont.getAttribute('style') || '')) pass('Section2 font-size sync'); else fail('Section2 font-size not applied');
 
-    const checkbox = findByAttr('input', 'data-sub@.^rw@user.ui.is-active');
-    const status = findByAttr('strong', 'data-sub:.@user.ui.is-active');
+    const checkbox = findByAttr('input', 'data-m-ex@.^rw@user.ui.is-active');
+    const status = findByAttr('strong', 'data-m-ex:.@user.ui.is-active');
     if (!checkbox || !status) fail('Section2 checkbox elements missing');
     checkbox.checked = false;
     fire(checkbox, 'change');
@@ -183,7 +183,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const btnPlus = Array.from(doc.getElementsByTagName('button')).find(b => b.textContent.trim() === '+1');
     const btnMinus = Array.from(doc.getElementsByTagName('button')).find(b => b.textContent.trim() === '-1');
     const btnReset = Array.from(doc.getElementsByTagName('button')).find(b => b.textContent.trim() === 'Reset');
-    const countDisplay = findByAttr('strong', 'data-sub:.@count');
+    const countDisplay = findByAttr('strong', 'data-m-ex:.@count');
     if (!btnPlus || !btnMinus || !btnReset || !countDisplay) fail('Section3 elements missing');
     const before = Number(readState().count);
     fire(btnPlus, 'click');
@@ -202,8 +202,8 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
 
     const gOnceBtn = doc.getElementById('gOnceBtn');
     const gAlwaysBtn = doc.getElementById('gAlwaysBtn');
-    const gOnceDisplay = findByAttr('span', 'data-sub:.@once-test');
-    const gAlwaysDisplay = findByAttr('span', 'data-sub:.@always-test');
+    const gOnceDisplay = findByAttr('span', 'data-m-ex:.@once-test');
+    const gAlwaysDisplay = findByAttr('span', 'data-m-ex:.@always-test');
     if (!gOnceBtn || !gAlwaysBtn || !gOnceDisplay || !gAlwaysDisplay) fail('Global-mod elements missing');
     fire(gOnceBtn, 'click');
     await sleep(80);
@@ -216,8 +216,8 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     if (Number(gAlwaysDisplay.textContent.trim() || 0) >= 2) pass('Global ^once overridden by ^always works'); else fail('Global ^once overridden by ^always failed');
 
     const incGuard = doc.getElementById('incGuard');
-    const gtOut = findByAttr('span', 'data-sub:.@guard-val^gt.5');
-    const eqOut = findByAttr('span', 'data-sub:.@guard-val^eq.3');
+    const gtOut = findByAttr('span', 'data-m-ex:.@guard-val^gt.5');
+    const eqOut = findByAttr('span', 'data-m-ex:.@guard-val^eq.3');
     if (!incGuard || !gtOut || !eqOut) fail('Guard elements missing');
     fire(incGuard, 'click');
     await sleep(50);
@@ -231,7 +231,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     // Section 4: side effects + multi triggers
     const btn1 = doc.getElementById('btn1');
     const btn2 = doc.getElementById('btn2');
-    const multiDisplay = findByAttr('strong', 'data-sub:.@count@#btn1@#btn2');
+    const multiDisplay = findByAttr('strong', 'data-m-ex:.@count@#btn1@#btn2');
     if (!btn1 || !btn2 || !multiDisplay) fail('Section4 elements missing');
     pageLogs.length = 0;
     fire(btn1, 'click');
@@ -248,7 +248,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
 
     // Section 5: cross-element property sync
     const src = doc.getElementById('src');
-    const previewSrc = findByAttr('p', 'data-sub:.@#src.input');
+    const previewSrc = findByAttr('p', 'data-m-ex:.@#src.input');
     const mirror = doc.getElementById('mirror');
     if (!src || !previewSrc || !mirror) fail('Section5 elements missing');
     src.value = 'hello world';
@@ -257,9 +257,9 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     if (previewSrc.textContent.includes('hello') && mirror.value.includes('hello')) pass('Section5 cross-element sync'); else fail('Section5 did not sync');
 
     // Section 6: window events + intervals
-    const winSpan = findByAttr('span', 'data-sub:.@_window.resize');
-    const intSpan = findByAttr('span', 'data-sub:.@_interval.1000');
-    const timeoutSpan = findByAttr('span', 'data-sub:.@_timeout.1500');
+    const winSpan = findByAttr('span', 'data-m-ex:.@_window.resize');
+    const intSpan = findByAttr('span', 'data-m-ex:.@_interval.1000');
+    const timeoutSpan = findByAttr('span', 'data-m-ex:.@_timeout.1500');
     if (!winSpan || !intSpan || !timeoutSpan) fail('Section6 elements missing');
     window.dispatchEvent(new window.Event('resize'));
     await sleep(60);
@@ -283,9 +283,9 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
 
     // Section 7: default props + events
     const inp1 = doc.getElementById('inp1');
-    const inp1Preview = findByAttr('span', 'data-sub:.@#inp1.input');
+    const inp1Preview = findByAttr('span', 'data-m-ex:.@#inp1.input');
     const btn3 = doc.getElementById('btn3');
-    const btn3Preview = findByAttr('span', 'data-sub:.@#btn3');
+    const btn3Preview = findByAttr('span', 'data-m-ex:.@#btn3');
     if (!inp1 || !inp1Preview || !btn3 || !btn3Preview) fail('Section7 elements missing');
     inp1.value = 'abc';
     fire(inp1, 'input');
@@ -344,23 +344,23 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     await sleep(80);
     if (window.getComputedStyle(displayNeg).display === 'none') pass('Negated display hides when active'); else fail('Negated display did not hide when active');
 
-    // Section 9: data-dump
-    const iterUl = findByAttr('ul', 'data-dump+#tpl-post@posts');
+    // Section 9: data-m-it
+    const iterUl = findByAttr('ul', 'data-m-it+#tpl-post@posts');
     const inlineUl = doc.getElementById('inline-posts');
-    if (!iterUl || !inlineUl) fail('Section9 data-dump elements missing');
+    if (!iterUl || !inlineUl) fail('Section9 data-m-it elements missing');
     const hasZebraClasses = (nodes) => nodes.length > 0 && nodes.every((node, idx) =>
       node.classList.contains(idx % 2 === 0 ? 'zebra-even' : 'zebra-odd')
     );
     await sleep(80);
     const initialDumpCount = Array.from(iterUl.children).length;
     const initialInlineCount = Array.from(inlineUl.children).length;
-    if (initialDumpCount === 3) pass('Section9 data-dump renders existing items immediately by default'); else fail('Section9 data-dump rendered wrong number');
-    if (initialInlineCount === initialDumpCount) pass('Section9 inline data-dump matches primary list'); else fail('Section9 inline data-dump wrong');
-    if (!pageLogs.some((l) => /dClass requires at least one trigger in: data-class\+zebra-even\+!zebra-odd/.test(l))) pass('Section9 zebra classes wire without dClass errors'); else fail('Section9 zebra classes still log missing-trigger errors');
+    if (initialDumpCount === 3) pass('Section9 data-m-it renders existing items immediately by default'); else fail('Section9 data-m-it rendered wrong number');
+    if (initialInlineCount === initialDumpCount) pass('Section9 inline data-m-it matches primary list'); else fail('Section9 inline data-m-it wrong');
+    if (!pageLogs.some((l) => /dClass requires at least one trigger in: data-m-cl\+zebra-even\+!zebra-odd/.test(l))) pass('Section9 zebra classes wire without dClass errors'); else fail('Section9 zebra classes still log missing-trigger errors');
     if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes render immediately'); else fail('Section9 zebra classes missing on initial render');
     fire(doc.getElementById('addPost'), 'click');
     await sleep(80);
-    if (Array.from(iterUl.children).length > initialDumpCount && Array.from(inlineUl.children).length > initialInlineCount) pass('Section9 data-dump updates on append'); else fail('Section9 data-dump did not update on append');
+    if (Array.from(iterUl.children).length > initialDumpCount && Array.from(inlineUl.children).length > initialInlineCount) pass('Section9 data-m-it updates on append'); else fail('Section9 data-m-it did not update on append');
     if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes stay correct after append'); else fail('Section9 zebra classes wrong after append');
     const updateSecondPost = doc.getElementById('updateSecondPost');
     if (!updateSecondPost) fail('Section9 update-second action missing');
@@ -376,15 +376,15 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const inlineItemTexts = inlineNodesAfterUpdate.map(extractInlineItemText);
     const expectedUpdatedPosts = ['First post', 'Updated second post', 'Third post'];
     if (dumpNodesAfterUpdate.length === dumpNodesBeforeUpdate.length
-      && dumpNodesAfterUpdate.every((node, idx) => node === dumpNodesBeforeUpdate[idx])) pass('Section9 data-dump updates item content in place');
-    else fail('Section9 data-dump recreated rows for content update');
+      && dumpNodesAfterUpdate.every((node, idx) => node === dumpNodesBeforeUpdate[idx])) pass('Section9 data-m-it updates item content in place');
+    else fail('Section9 data-m-it recreated rows for content update');
     if (inlineNodesAfterUpdate.length === inlineNodesBeforeUpdate.length
-      && inlineNodesAfterUpdate.every((node, idx) => node === inlineNodesBeforeUpdate[idx])) pass('Section9 inline data-dump updates item content in place');
-    else fail('Section9 inline data-dump recreated rows for content update');
-    if (expectedUpdatedPosts.every((text, idx) => dumpItemTexts[idx] === text)) pass('Section9 data-dump updates only the changed item content');
-    else fail('Section9 data-dump item content update wrong');
-    if (expectedUpdatedPosts.every((text, idx) => inlineItemTexts[idx] === text)) pass('Section9 inline data-dump updates only the changed item content');
-    else fail('Section9 inline data-dump item content update wrong');
+      && inlineNodesAfterUpdate.every((node, idx) => node === inlineNodesBeforeUpdate[idx])) pass('Section9 inline data-m-it updates item content in place');
+    else fail('Section9 inline data-m-it recreated rows for content update');
+    if (expectedUpdatedPosts.every((text, idx) => dumpItemTexts[idx] === text)) pass('Section9 data-m-it updates only the changed item content');
+    else fail('Section9 data-m-it item content update wrong');
+    if (expectedUpdatedPosts.every((text, idx) => inlineItemTexts[idx] === text)) pass('Section9 inline data-m-it updates only the changed item content');
+    else fail('Section9 inline data-m-it item content update wrong');
     fire(doc.getElementById('removeFirst'), 'click');
     await sleep(80);
     if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes stay correct after removing first item'); else fail('Section9 zebra classes wrong after removing first item');
@@ -394,17 +394,17 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const threadUl = doc.getElementById('thread-posts');
     const inlineThreads = doc.getElementById('inline-threads');
     const refreshThreads = doc.getElementById('refreshThreads');
-    if (!threadUl || !inlineThreads || !refreshThreads) fail('Section9 nested data-dump elements missing');
+    if (!threadUl || !inlineThreads || !refreshThreads) fail('Section9 nested data-m-it elements missing');
     fire(refreshThreads, 'click');
     await sleep(80);
     const threadItems = Array.from(threadUl.children);
     const inlineThreadItems = Array.from(inlineThreads.children);
-    if (threadItems.length === 4) pass('Section9 nested data-dump rendered 4 threads after shape change'); else fail('Section9 nested data-dump thread count wrong');
-    if (inlineThreadItems.length === 4) pass('Section9 nested inline data-dump rendered 4 threads after shape change'); else fail('Section9 nested inline data-dump thread count wrong');
+    if (threadItems.length === 4) pass('Section9 nested data-m-it rendered 4 threads after shape change'); else fail('Section9 nested data-m-it thread count wrong');
+    if (inlineThreadItems.length === 4) pass('Section9 nested inline data-m-it rendered 4 threads after shape change'); else fail('Section9 nested inline data-m-it thread count wrong');
     const firstThreadReplyCount = threadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
     const firstInlineThreadReplyCount = inlineThreadItems[0]?.querySelectorAll('.thread-replies > li').length || 0;
-    if (firstThreadReplyCount === 2) pass('Section9 nested data-dump rendered nested replies'); else fail('Section9 nested data-dump replies wrong');
-    if (firstInlineThreadReplyCount === 2) pass('Section9 nested inline data-dump rendered nested replies'); else fail('Section9 nested inline data-dump replies wrong');
+    if (firstThreadReplyCount === 2) pass('Section9 nested data-m-it rendered nested replies'); else fail('Section9 nested data-m-it replies wrong');
+    if (firstInlineThreadReplyCount === 2) pass('Section9 nested inline data-m-it rendered nested replies'); else fail('Section9 nested inline data-m-it replies wrong');
 
     // Section 10: modifiers
     const onceBtn = doc.getElementById('onceBtn');
@@ -412,10 +412,10 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const thrBtn = doc.getElementById('thrBtn');
     const gate = doc.getElementById('gate');
     const andBtn = doc.getElementById('andBtn');
-    const onceVal = findByAttr('span', 'data-sub:.@mod-once');
-    const debVal = findByAttr('span', 'data-sub:.@mod-deb');
-    const thrVal = findByAttr('span', 'data-sub:.@mod-thr');
-    const andVal = findByAttr('span', 'data-sub:.@mod-and');
+    const onceVal = findByAttr('span', 'data-m-ex:.@mod-once');
+    const debVal = findByAttr('span', 'data-m-ex:.@mod-deb');
+    const thrVal = findByAttr('span', 'data-m-ex:.@mod-thr');
+    const andVal = findByAttr('span', 'data-m-ex:.@mod-and');
     if (!onceBtn || !debBtn || !thrBtn || !gate || !andBtn || !onceVal || !debVal || !thrVal || !andVal) fail('Modifiers elements missing');
 
     fire(onceBtn, 'click');
@@ -525,11 +525,11 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     if (post1Title.textContent.trim() === 'NewP1Title') pass('Section10.b constant-index update works for second item'); else fail('Section10.b second constant-index update failed');
 
     // Section 10.c: removed nodes clean up signal subscriptions
-    doc.body.insertAdjacentHTML('beforeend', '<span data-sub:.@count="dm.count"></span>');
+    doc.body.insertAdjacentHTML('beforeend', '<span data-m-ex:.@count="dm.count"></span>');
     const dynamicSub = doc.body.lastElementChild;
     if (typeof window.wireNode !== 'function') fail('Section10.c wireNode unavailable');
     else {
-      const attrName = dynamicSub.getAttributeNames().find((name) => name.startsWith('data-sub'));
+      const attrName = dynamicSub.getAttributeNames().find((name) => name.startsWith('data-m-ex'));
       const beforeSubs = window.eval('(_subs.get("count") || []).length');
       window.wireNode(dynamicSub, attrName, dynamicSub.getAttribute(attrName));
       const afterWireSubs = window.eval('(_subs.get("count") || []).length');
