@@ -1525,6 +1525,7 @@
     const updateAttrs = (from, to) => {
       const toAttrs = to.attributes
       const fromAttrs = from.attributes
+      if (!fromAttrs.length && !toAttrs.length) return
       if (fromAttrs.length === toAttrs.length) {
         let same = true
         let orderChanged = false
@@ -1693,8 +1694,8 @@
     const applyOobHtml = (html) => {
       if (!html) return ''
       _HTML_PARSE_TEMPLATE.innerHTML = html
-      const src = _HTML_PARSE_TEMPLATE.content.querySelector('[data-oob]')
-      if (!src) return ''
+      const src = _HTML_PARSE_TEMPLATE.content.firstElementChild
+      if (!src || !src.hasAttribute('data-oob')) return ''
       const mode = src.getAttribute('data-oob')
       const id = src.getAttribute('id')
       const tar = id ? document.getElementById(id) : null
@@ -1714,9 +1715,8 @@
       const namespace = (ns || 'html').toLowerCase()
       if (namespace === 'html') {
         _HTML_PARSE_TEMPLATE.innerHTML = html
-        const out = []
-        for (let el = _HTML_PARSE_TEMPLATE.content.firstElementChild; el; el = el.nextElementSibling) out.push(el)
-        return out
+        const first = _HTML_PARSE_TEMPLATE.content.firstElementChild; if (!first) return NIL; if (!first.nextElementSibling) return [first]
+        const out = [first]; for (let el = first.nextElementSibling; el; el = el.nextElementSibling) out.push(el); return out
       }
       const wrap = namespace === 'svg'
         ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
