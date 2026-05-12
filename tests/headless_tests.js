@@ -44,7 +44,13 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       const observers = [];
       win.__intersectionObservers = observers;
       win.IntersectionObserver = function (cb) {
-        const obs = { cb, els: [], observe(el) { this.els.push(el); }, unobserve(el) { this.els = this.els.filter(e => e !== el); }, disconnect() { this.els = []; } };
+        const obs = {
+          cb,
+          els: [],
+          observe(el) { this.els.push(el); },
+          unobserve(el) { this.els = this.els.filter(e => e !== el); },
+          disconnect() { this.els = []; }
+        };
         observers.push(obs);
         return obs;
       };
