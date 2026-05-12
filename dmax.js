@@ -66,20 +66,20 @@
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
     const SIGNAL = 's', EV_PR = DOT, SP = '_'
 
-    const MOD_WITH_SHAPE = 'with_shape', MOD_SHAPE_ONLY = 'shape_only'
-    const MOD_IMMEDIATE = 'immediate', MOD_NOTIMMEDIATE = 'notimmediate'
-    const MOD_ONCE = 'once', MOD_ALWAYS = 'always', MOD_DEBOUNCE = 'debounce', MOD_THROTTLE = 'throttle', MOD_PREVENT = 'prevent'
-    const MOD_AND = 'and', MOD_EQ = 'eq', MOD_NE = 'ne', MOD_LT = 'lt', MOD_GT = 'gt', MOD_LE = 'le', MOD_GE = 'ge', MOD_VAL = 'val', MOD_RW = 'rw'
-    const MOD_JSON = 'json', MOD_TEXT = 'text', MOD_HTML = 'html', MOD_FORM = 'form', MOD_SSE = 'sse'
-    const MOD_BUSY = 'busy', MOD_COMPLETE = 'complete', MOD_ERR = 'err', MOD_CODE = 'code'
-    const MOD_NO_CACHE = 'noCache', MOD_HS = 'hs', MOD_HS_NO_KEBAB = 'hsNoKebab', MOD_AUTH = 'auth'
-    const MOD_BROTLI = 'brotli', MOD_BR = 'br', MOD_GZIP = 'gzip', MOD_DEFLATE = 'deflate', MOD_COMPRESS = 'compress'
-    const MOD_REPLACE = 'replace', MOD_MERGE = 'merge', MOD_APPEND = 'append', MOD_PREPEND = 'prepend'
-    const MOD_BEFORE = 'before', MOD_AFTER = 'after', MOD_INNER = 'inner', MOD_REMOVE = 'remove', MOD_OUTER = 'outer'
-    const MOD_SSE_OPEN = 'open', MOD_SSE_CLOSE = 'close', MOD_RETRY = 'retry', MOD_ABORT = 'abort'
-    const MOD_URL = 'url', MOD_BODY = 'body', MOD_HDR = 'header'
-    const MOD_SPREAD = 'spread', MOD_SEND_ALL = 'sendAll', MOD_PATCH_ALL = 'patchAll', MOD_SYNC_ALL = 'syncAll'
-    const MOD_DEBOUNCE_MS = 500, MOD_THROTTLE_MS = 500, MOD_RETRY_MS = 1000
+    const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
+    const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
+    const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_PREVENT = 'prevent'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_VAL = 'val', M_RW = 'rw'
+    const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
+    const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code'
+    const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
+    const M_BROTLI = 'brotli', M_BR = 'br', M_GZIP = 'gzip', M_DEFLATE = 'deflate', M_COMPRESS = 'compress'
+    const M_REPLACE = 'replace', M_MERGE = 'merge', M_APPEND = 'append', M_PREPEND = 'prepend'
+    const M_BEFORE = 'before', M_AFTER = 'after', M_INNER = 'inner', M_REMOVE = 'remove', M_OUTER = 'outer'
+    const M_SSE_OPEN = 'open', M_SSE_CLOSE = 'close', M_RETRY = 'retry', M_ABORT = 'abort'
+    const M_URL = 'url', M_BODY = 'body', M_HDR = 'header'
+    const M_SPREAD = 'spread', M_SEND_ALL = 'sendAll', M_PATCH_ALL = 'patchAll', M_SYNC_ALL = 'syncAll'
+    const M_DEBOUNCE_MS = 500, M_THROTTLE_MS = 500, M_RETRY_MS = 1000
     const H_ACCEPT = 'accept', H_ACCEPT_ENCODING = 'accept-encoding', H_AUTHORIZATION = 'authorization'
     const H_CACHE_CONTROL = 'cache-control', H_CONTENT_TYPE = 'content-type', H_PRAGMA = 'pragma'
     const ACT_HS_EMPTY = Object.freeze(Object.create(null))
@@ -96,9 +96,9 @@
     const SP_INTERVAL_MS = 500
     const SP_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const E_RW_REQ = `dSub ${MOD}${MOD_RW} requires an element/property trigger in:`
-    const E_RW_EL = `dSub ${MOD}${MOD_RW} source element is not found in trigger:`
-    const E_RW_EV = `dSub ${MOD}${MOD_RW} event is not found in trigger:`
+    const E_RW_REQ = `dSub ${MOD}${M_RW} requires an element/property trigger in:`
+    const E_RW_EL = `dSub ${MOD}${M_RW} source element is not found in trigger:`
+    const E_RW_EV = `dSub ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const DEFAULT_PR_TA = Object.freeze({ kind: EV_PR, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
@@ -398,16 +398,16 @@
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
     const getSiChangeShape = (mods) => {
       for (const m of mods) {
-        if (m.root === MOD_WITH_SHAPE) return SIG_CHANGED_WITH_SHAPE
-        if (m.root === MOD_SHAPE_ONLY) return SIG_CHANGED_SHAPE_ONLY
+        if (m.root === M_WITH_SHAPE) return SIG_CHANGED_WITH_SHAPE
+        if (m.root === M_SHAPE_ONLY) return SIG_CHANGED_SHAPE_ONLY
       }
       return SIG_CHANGED_ANY
     }
 
     const isImmediateMod = (mods, defaultVal) => {
       for (const m of mods) {
-        if (m.root === MOD_IMMEDIATE) return true
-        if (m.root === MOD_NOTIMMEDIATE) return false;
+        if (m.root === M_IMMEDIATE) return true
+        if (m.root === M_NOTIMMEDIATE) return false;
       }
       return defaultVal;
     }
@@ -415,7 +415,7 @@
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
 
     const getMValPath = (mods) => {
-      for (const m of mods) if (m.root === MOD_VAL) {
+      for (const m of mods) if (m.root === M_VAL) {
         const p = m.path
         if (p === null || p === undefined) return NIL
         if (typeof p === 'string') return [p]
@@ -461,7 +461,7 @@
     }
 
     const PERMIT_MODS = Object.assign(Object.create(null), {
-      [MOD_AND]: 1, [MOD_EQ]: 1, [MOD_NE]: 1, [MOD_LT]: 1, [MOD_GT]: 1, [MOD_LE]: 1, [MOD_GE]: 1
+      [M_AND]: 1, [M_EQ]: 1, [M_NE]: 1, [M_LT]: 1, [M_GT]: 1, [M_LE]: 1, [M_GE]: 1
     })
 
     const getSiVal = (it) => {
@@ -660,13 +660,13 @@
     }
 
     const combineActionResult = (prev, next, mode) => {
-      if (mode === MOD_MERGE) return mergeActionVals(prev, next)
-      if (mode === MOD_APPEND) {
+      if (mode === M_MERGE) return mergeActionVals(prev, next)
+      if (mode === M_APPEND) {
         if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
         if (typeof prev === 'string' || typeof next === 'string') return String(prev ?? '') + String(next ?? '')
         return next
       }
-      if (mode === MOD_PREPEND) {
+      if (mode === M_PREPEND) {
         if (Array.isArray(prev) && Array.isArray(next)) return next.concat(prev)
         if (typeof prev === 'string' || typeof next === 'string') return String(next ?? '') + String(prev ?? '')
         return next
@@ -695,20 +695,20 @@
     const modsPermitVal = (mods, val) => {
       for (const m of mods) {
         const mName = m.root, mVal = resolveMPathVal(m.path)
-        if (mName === MOD_AND) {
+        if (mName === M_AND) {
           const ok = !!mVal
           if (m.not ? ok : !ok) return false
-        } else if (mName == MOD_EQ) {
+        } else if (mName == M_EQ) {
           if (val != mVal) return false
-        } else if (mName == MOD_NE) {
+        } else if (mName == M_NE) {
           if (val == mVal) return false
-        } else if (mName == MOD_GT) {
+        } else if (mName == M_GT) {
           if (+val <= +mVal) return false
-        } else if (mName == MOD_LT) {
+        } else if (mName == M_LT) {
           if (+val >= +mVal) return false
-        } else if (mName == MOD_GE) {
+        } else if (mName == M_GE) {
           if (+val < +mVal) return false
-        } else if (mName == MOD_LE) {
+        } else if (mName == M_LE) {
           if (+val > +mVal) return false
         }
       }
@@ -748,7 +748,7 @@
     const invokeSub = (fn, detail, trigVal, el, trig) => fn(DM, el, trig, trig.kind === SIGNAL ? getSiVal(trig) : trigVal, detail)
     const invokeBoundSub = (sub, detail) => sub.fn(DM, sub.el, sub.trig, sub.trig.kind === SIGNAL ? getSiVal(sub.trig) : null, detail)
     const getListenerOpts = (mods) => {
-      for (let i = 0; i < mods.length; ++i) if (mods[i].root === MOD_PREVENT) return false
+      for (let i = 0; i < mods.length; ++i) if (mods[i].root === M_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
     }
     const onIntervalSub = (state) => {
@@ -953,11 +953,11 @@
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
-        if (m.root === MOD_ONCE) hasOnce = true
-        else if (m.root === MOD_ALWAYS) hasAlways = true
-        else if (m.root === MOD_PREVENT) hasPrevent = true
-        else if (!isTimer && m.root === MOD_DEBOUNCE) deb = +(resolveMPathVal(m.path) ?? MOD_DEBOUNCE_MS) || MOD_DEBOUNCE_MS
-        else if (!isTimer && m.root === MOD_THROTTLE) thr = +(resolveMPathVal(m.path) ?? MOD_THROTTLE_MS) || MOD_THROTTLE_MS
+        if (m.root === M_ONCE) hasOnce = true
+        else if (m.root === M_ALWAYS) hasAlways = true
+        else if (m.root === M_PREVENT) hasPrevent = true
+        else if (!isTimer && m.root === M_DEBOUNCE) deb = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
+        else if (!isTimer && m.root === M_THROTTLE) thr = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (m.root in PERMIT_MODS) {
           if (!permitMods) permitMods = []
           permitMods.push(m)
@@ -1011,7 +1011,7 @@
         const readTrs = [], writePrTrs = [], writeSiTrs = []
         for (const trig of trigs) {
           const mods = pickMods(trig.mods, globMods); let hasRw = false
-          for (let i=0;i<mods.length;i++) if (mods[i].root===MOD_RW) { hasRw = true; break }
+          for (let i=0;i<mods.length;i++) if (mods[i].root===M_RW) { hasRw = true; break }
           if (hasRw) {
             if (trig.kind !== EV_PR) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
             const prTa = getTrPrTa(el, dKey, trig, mods, E_RW_EL, E_RW_EV)
@@ -1214,67 +1214,67 @@
       let hdrsMod = null, authMod = null
       let hsNoKebab = false
       let sendAll = false, patchAll = false
-      let resultMode = MOD_REPLACE
+      let resultMode = M_REPLACE
       let htmlMode = null, htmlDomMod = null
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
         const mr = m.root
-        if (mr === MOD_JSON) isJson = true
-        else if (mr === MOD_TEXT) isText = true
-        else if (mr === MOD_HTML) isHtml = true
-        else if (mr === MOD_FORM) isForm = true
-        else if (mr === MOD_SSE) noCache = isSse = true
-        else if (mr === MOD_NO_CACHE) noCache = true
-        else if (mr === MOD_BROTLI || mr === MOD_BR) encBr = true
-        else if (mr === MOD_GZIP) encGzip = true
-        else if (mr === MOD_DEFLATE) encDeflate = true
-        else if (mr === MOD_COMPRESS) encCompress = true
-        else if (mr === MOD_HS && !hdrsMod) hdrsMod = m
-        else if (mr === MOD_HS_NO_KEBAB) hsNoKebab = true
-        else if (mr === MOD_AUTH && !authMod) authMod = m
-        else if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND
-               || mr === MOD_BEFORE || mr === MOD_AFTER || mr === MOD_INNER || mr === MOD_REMOVE) {
+        if (mr === M_JSON) isJson = true
+        else if (mr === M_TEXT) isText = true
+        else if (mr === M_HTML) isHtml = true
+        else if (mr === M_FORM) isForm = true
+        else if (mr === M_SSE) noCache = isSse = true
+        else if (mr === M_NO_CACHE) noCache = true
+        else if (mr === M_BROTLI || mr === M_BR) encBr = true
+        else if (mr === M_GZIP) encGzip = true
+        else if (mr === M_DEFLATE) encDeflate = true
+        else if (mr === M_COMPRESS) encCompress = true
+        else if (mr === M_HS && !hdrsMod) hdrsMod = m
+        else if (mr === M_HS_NO_KEBAB) hsNoKebab = true
+        else if (mr === M_AUTH && !authMod) authMod = m
+        else if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND
+               || mr === M_BEFORE || mr === M_AFTER || mr === M_INNER || mr === M_REMOVE) {
           resultMode = mr
-          if (mr !== MOD_MERGE) { htmlMode = mr; htmlDomMod = m }
+          if (mr !== M_MERGE) { htmlMode = mr; htmlDomMod = m }
         }
-        else if (mr === MOD_BUSY && !busyMod) busyMod = m
-        else if (mr === MOD_COMPLETE && !completeMod) completeMod = m
-        else if (mr === MOD_ERR && !errMod) errMod = m
-        else if (mr === MOD_CODE && !codeMod) codeMod = m
-        else if (mr === MOD_SSE_OPEN && !openMod) openMod = m
-        else if (mr === MOD_SSE_CLOSE && !closeMod) closeMod = m
-        else if (mr === MOD_RETRY && !retryMod) retryMod = m
-        else if (mr === MOD_ABORT && !abortMod) abortMod = m
-        else if (mr === MOD_URL) urlMods.push(m)
-        else if (mr === MOD_BODY) bodyMods.push(m)
-        else if (mr === MOD_HDR) hdrMods.push(m)
-        else if (mr === MOD_SYNC_ALL) {
+        else if (mr === M_BUSY && !busyMod) busyMod = m
+        else if (mr === M_COMPLETE && !completeMod) completeMod = m
+        else if (mr === M_ERR && !errMod) errMod = m
+        else if (mr === M_CODE && !codeMod) codeMod = m
+        else if (mr === M_SSE_OPEN && !openMod) openMod = m
+        else if (mr === M_SSE_CLOSE && !closeMod) closeMod = m
+        else if (mr === M_RETRY && !retryMod) retryMod = m
+        else if (mr === M_ABORT && !abortMod) abortMod = m
+        else if (mr === M_URL) urlMods.push(m)
+        else if (mr === M_BODY) bodyMods.push(m)
+        else if (mr === M_HDR) hdrMods.push(m)
+        else if (mr === M_SYNC_ALL) {
           sendAll = true
           patchAll = true
         }
-        else if (!sendAll && mr === MOD_SEND_ALL) sendAll = true
-        else if (!patchAll && mr === MOD_PATCH_ALL) patchAll = true
+        else if (!sendAll && mr === M_SEND_ALL) sendAll = true
+        else if (!patchAll && mr === M_PATCH_ALL) patchAll = true
       }
       if (resultTa && resultTa.mods) {
         for (const m of resultTa.mods) {
           const mr = m.root
-          if (mr === MOD_REPLACE || mr === MOD_MERGE || mr === MOD_APPEND || mr === MOD_PREPEND) {
+          if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND) {
             resultMode = mr
             break
           }
         }
       }
 
-      const busyStat = resolveStatusSig(busyMod, MOD_BUSY)
-      const completeStat = resolveStatusSig(completeMod, MOD_COMPLETE)
-      const errStat = resolveStatusSig(errMod, MOD_ERR)
-      const codeStat = resolveStatusSig(codeMod, MOD_CODE)
-      const openStat = resolveStatusSig(openMod, MOD_SSE_OPEN)
-      const closeStat = resolveStatusSig(closeMod, MOD_SSE_CLOSE)
-      const abortStat = resolveStatusSig(abortMod, MOD_ABORT)
+      const busyStat = resolveStatusSig(busyMod, M_BUSY)
+      const completeStat = resolveStatusSig(completeMod, M_COMPLETE)
+      const errStat = resolveStatusSig(errMod, M_ERR)
+      const codeStat = resolveStatusSig(codeMod, M_CODE)
+      const openStat = resolveStatusSig(openMod, M_SSE_OPEN)
+      const closeStat = resolveStatusSig(closeMod, M_SSE_CLOSE)
+      const abortStat = resolveStatusSig(abortMod, M_ABORT)
       // ^retry.N sets the reconnect delay in ms after an unexpected SSE close.
-      const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? MOD_RETRY_MS) || MOD_RETRY_MS) : 0
+      const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
       defSig(busyStat, false), defSig(completeStat, false), defSig(errStat, null), defSig(codeStat, null), defSig(openStat, false), defSig(closeStat, false), defSig(abortStat, null)
       let enc = ''
       if (encBr) enc = 'br'
@@ -1309,7 +1309,7 @@
               key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
             let shouldSpread = false
-            for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === MOD_SPREAD) { shouldSpread = true; break }
+            for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { shouldSpread = true; break }
             if (shouldSpread) {
               if (val && typeof val === 'object') {
                 for (const k in val) {
@@ -1435,11 +1435,11 @@
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
             const hm = htmlMode
-            const mode = hm || MOD_OUTER
+            const mode = hm || M_OUTER
             const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EV_PR)?.root ?? '')
             const selector = hp ? resolveHtmlSelector(hp)
-              : (mode === MOD_BEFORE || mode === MOD_AFTER) ? (el.id ? '#' + el.id : '')
-              : (mode === MOD_APPEND || mode === MOD_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '')
+              : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '')
+              : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '')
               : ''
             applyPatchEls({ [SSE_ELS]: payload, selector, mode })
             htmlApplied = true
@@ -1735,15 +1735,15 @@
       if (!taEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
       for (const src of srcEls) frag.appendChild(src.cloneNode(true))
-      if (mode === MOD_APPEND) { taEl.appendChild(frag); return }
-      const par = mode === MOD_PREPEND ? taEl : taEl.parentNode
-      if (par) par.insertBefore(frag, mode === MOD_PREPEND ? taEl.firstChild || null : mode === MOD_BEFORE ? taEl : taEl.nextSibling)
+      if (mode === M_APPEND) { taEl.appendChild(frag); return }
+      const par = mode === M_PREPEND ? taEl : taEl.parentNode
+      if (par) par.insertBefore(frag, mode === M_PREPEND ? taEl.firstChild || null : mode === M_BEFORE ? taEl : taEl.nextSibling)
     }
 
     const applyPatchPair = (taEl, srcEl, mode) => {
       if (!taEl || !srcEl) return
-      if (mode === MOD_REPLACE) taEl.replaceWith(srcEl.cloneNode(true))
-      else if (mode === MOD_INNER) {
+      if (mode === M_REPLACE) taEl.replaceWith(srcEl.cloneNode(true))
+      else if (mode === M_INNER) {
         const to = taEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
         morphChildren(taEl, to)
@@ -1756,12 +1756,12 @@
     }
 
     const applyPatchEls = (args) => {
-      const mode = String(args.mode || MOD_OUTER).toLowerCase()
+      const mode = String(args.mode || M_OUTER).toLowerCase()
       const sel = args.selector ? String(args.selector) : ''
       const ns = args.namespace ? String(args.namespace) : 'html'
       const srcEls = parseSseEls(args[SSE_ELS] || '', ns)
 
-      if (mode === MOD_REMOVE) {
+      if (mode === M_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
@@ -1770,7 +1770,7 @@
         return
       }
 
-      if (mode === MOD_APPEND || mode === MOD_PREPEND || mode === MOD_BEFORE || mode === MOD_AFTER) {
+      if (mode === M_APPEND || mode === M_PREPEND || mode === M_BEFORE || mode === M_AFTER) {
         if (!sel || !srcEls.length) return
         for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
         return

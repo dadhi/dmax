@@ -23,7 +23,7 @@ const disallowed = [
   { re: /\bisSpec\b/, msg: 'isSpec should be abbreviated as isSp' },
   { re: /\bEV_PROP\b/, msg: 'EV_PROP should be abbreviated as EV_PR' },
   { re: /\bACT_HEADERS\b/, msg: 'ACT_HEADERS should be abbreviated as ACT_HS' },
-  { re: /\bMOD_HEADERS\b/, msg: 'MOD_HEADERS should be abbreviated as MOD_HS' },
+  { re: /\bMOD_[A-Z]/, msg: 'MOD_* constants should use the M_ prefix' },
   { re: /\bmergeActionHeaders\b|\bbuildActionBaseHeaders\b/, msg: 'Headers function names should use the hs abbreviation' },
   { re: /\bgetSigVal\b|\bgetSigValOrIt\b|\bsetSigAndNotify\b|\bpatchMatchingSigs\b|\bremoveSigSub\b|\bhasSigMods\b|\bwriteSigTrigs\b|\baddNonSigTrig\b|\bgetSigChange\b/, msg: 'Sig identifiers should use the si abbreviation' },
   { re: /\bgetModValPath\b|\bresolveModPathVal\b|\bapplyTrigMods\b|\bsigChangeMod\b/, msg: 'Mod identifiers should use the m abbreviation' },

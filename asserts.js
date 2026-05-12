@@ -374,7 +374,7 @@
       _dm.set('a', 5)
       let c = 0
       const trig = { kind: SIGNAL, root: 'a', path: null, not: null }
-      const h = applyTrMs(() => ++c, trig, [{ root: MOD_EQ, path: '5' }, { root: MOD_NE, path: '6' }])
+      const h = applyTrMs(() => ++c, trig, [{ root: M_EQ, path: '5' }, { root: M_NE, path: '6' }])
       h()
       _dm.set('a', 6)
       h()
@@ -386,7 +386,7 @@
       _dm.set('gate', false)
       let c = 0
       const trig = { kind: EV_PR, root: '', path: null, not: null }
-      const h = applyTrMs(() => ++c, trig, [{ root: MOD_AND, path: 'gate' }])
+      const h = applyTrMs(() => ++c, trig, [{ root: M_AND, path: 'gate' }])
       h(DM, null, trig, null, 1)
       _dm.set('gate', true)
       h(DM, null, trig, null, 2)
@@ -398,7 +398,7 @@
       const ev = { preventDefault: () => ++p }
       const trig = { kind: EV_PR, root: '', path: null, not: null }
       const sub = { trig, fn: null, ev: { taEl: { removeEventListener: () => ++r }, evName: 'click', opts: false }, clearId: null }
-      const h = applyTrMs(() => ++c, trig, [{ root: MOD_PREVENT, path: null }, { root: MOD_ONCE, path: null }], sub)
+      const h = applyTrMs(() => ++c, trig, [{ root: M_PREVENT, path: null }, { root: M_ONCE, path: null }], sub)
       sub.fn = h
       h(DM, null, trig, null, ev)
       return { p, r, c }
@@ -425,7 +425,7 @@
       try {
         const out = []
         const trig = { kind: EV_PR, root: '', path: null, not: null }
-        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_DEBOUNCE, path: 8 }])
+        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_DEBOUNCE, path: 8 }])
         h(DM, null, trig, null, 1)
         h(DM, null, trig, null, 2)
         for (const [k, v] of q) {
@@ -446,7 +446,7 @@
       try {
         const out = []
         const trig = { kind: EV_PR, root: '', path: null, not: null }
-        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: MOD_THROTTLE, path: 10 }])
+        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_THROTTLE, path: 10 }])
         h(DM, null, trig, null, 1)
         now = 105
         h(DM, null, trig, null, 2)
@@ -463,7 +463,7 @@
       _dm.set('gateA', true)
       _dm.set('gateB', false)
       let c = 0
-      const mods = [{ root: MOD_AND, path: 'gateA' }, { root: MOD_AND, path: 'gateB' }, { root: MOD_GE, path: '5' }, { root: MOD_LT, path: '9' }, { root: MOD_NE, path: '7' }]
+      const mods = [{ root: M_AND, path: 'gateA' }, { root: M_AND, path: 'gateB' }, { root: M_GE, path: '5' }, { root: M_LT, path: '9' }, { root: M_NE, path: '7' }]
       const trig = { kind: EV_PR, root: '', path: null, not: null }
       const h = applyTrMs(() => ++c, trig, mods)
       h(DM, null, trig, 6, null)
