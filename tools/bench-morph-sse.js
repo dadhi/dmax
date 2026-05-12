@@ -284,10 +284,10 @@ function renderOobFragments(cells, row, col) {
   const { rowSums, colSums, total } = summarizeGrid(cells)
   const val = cells[row][col]
   return [
-    `<td id="cell-${row}-${col}" data-oob="morph" data-row="${row}" data-col="${col}">${val == null ? '' : escapeHtml(val)}</td>`,
-    `<th id="sum-row-${row}" data-oob="morph">${rowSums[row]}</th>`,
-    `<th id="sum-col-${col}" data-oob="morph">${colSums[col]}</th>`,
-    `<th id="sum-total" data-oob="morph">${total}</th>`
+    `<td id="cell-${row}-${col}" data-row="${row}" data-col="${col}">${val == null ? '' : escapeHtml(val)}</td>`,
+    `<th id="sum-row-${row}">${rowSums[row]}</th>`,
+    `<th id="sum-col-${col}">${colSums[col]}</th>`,
+    `<th id="sum-total">${total}</th>`
   ]
 }
 
@@ -433,8 +433,6 @@ function makePayloads() {
   const smallPointed = renderPointedPatch(smallDiffCells, focusRow, focusCol)
   const baseOob = renderOobPatch(baseCells, focusRow, focusCol)
   const smallOob = renderOobPatch(smallDiffCells, focusRow, focusCol)
-  const baseOobFragments = renderOobFragments(baseCells, focusRow, focusCol)
-  const smallOobFragments = renderOobFragments(smallDiffCells, focusRow, focusCol)
 
   return {
     focusRow,
@@ -446,8 +444,6 @@ function makePayloads() {
     smallPointed,
     baseOob,
     smallOob,
-    baseOobFragments,
-    smallOobFragments,
     expectedBase: expectedGridSnapshot(baseCells, focusRow, focusCol),
     expectedSmall: expectedGridSnapshot(smallDiffCells, focusRow, focusCol),
     expectedLarge: expectedGridSnapshot(largeDiffCells, focusRow, focusCol),
@@ -460,14 +456,6 @@ function makePayloads() {
     baseSse: makeSseOuter(basePointed),
     smallSse: makeSseOuter(smallPointed)
   }
-}
-
-function stripOobAttributes(html) {
-  return html.replace(/ data-oob="morph"/g, '')
-}
-
-function applyDmaxOobFragments(applyOobHtml, fragments) {
-  for (const html of fragments) applyOobHtml(html)
 }
 
 function makeValidators(host, activeElementFn, payloads, prefix) {
@@ -488,8 +476,8 @@ function makeValidators(host, activeElementFn, payloads, prefix) {
 }
 
 function runDmaxScenarios(window, payloads) {
-  const { document, applyDmaxPatchElements, applyDmaxSse, applyDmaxOobHtml } = window
-  if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function' || typeof applyDmaxOobHtml !== 'function')
+  const { document, applyDmaxPatchElements, applyDmaxSse } = window
+  if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function')
     throw new Error('dmax benchmark helpers are not available on window')
 
   const host = document.createElement('div')
@@ -521,8 +509,8 @@ function runDmaxScenarios(window, payloads) {
       'oob-morph-small-diff',
       500,
       mountBase,
-      () => applyDmaxOobFragments(applyDmaxOobHtml, payloads.smallOobFragments),
-      () => applyDmaxOobFragments(applyDmaxOobHtml, payloads.baseOobFragments),
+      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }),
+      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }),
       v.cellText,
       validateSmallUnchangedControls,
       validateBase
@@ -600,8 +588,8 @@ function runDatastarScenarios(window, payloads) {
       'oob-morph-small-diff',
       500,
       mountBase,
-      () => mergeFragments(stripOobAttributes(payloads.smallOob), 'morph'),
-      () => mergeFragments(stripOobAttributes(payloads.baseOob), 'morph'),
+      () => mergeFragments(payloads.smallOob, 'morph'),
+      () => mergeFragments(payloads.baseOob, 'morph'),
       v.cellText,
       validateSmallGrid,
       validateBaseGrid
@@ -783,9 +771,8 @@ function formatParityProbe(probe) {
 //       `const first = ...; if (!first) return NIL; if (!first.nextElementSibling) return [first]`
 //       Saves the `out = []` alloc + push call for every single-element full-page patch.
 //
-//   E3 ✓ applyOobHtml: use firstElementChild instead of querySelector('[data-oob]').
-//       OOB HTML is always a single root element with the attribute; firstElementChild is O(1)
-//       vs a full subtree querySelector walk. Also added hasAttribute guard for safety.
+//   E3 ✓ firstElementChild for pointed-patch lookup in parseSseEls / applyPatchSource.
+//       Uses O(1) firstElementChild instead of a full subtree querySelector walk.
 //
 // Combined effect (measured): full-page replace ~5–6% faster; dmax morph heap delta
 // ~210KB vs ~253KB before (17% less GC pressure per full-page cycle).

@@ -1700,20 +1700,6 @@
       }
     }
 
-    const applyOobHtml = (html) => {
-      if (!html) return ''
-      _HTML_PARSE_TEMPLATE.innerHTML = html
-      const src = _HTML_PARSE_TEMPLATE.content.firstElementChild
-      if (!src || !src.hasAttribute('data-oob')) return ''
-      const mode = src.getAttribute('data-oob')
-      const id = src.getAttribute('id')
-      const tar = id ? document.getElementById(id) : null
-      if (!tar) return ''
-      if (mode === 'morph') morph(tar, src)
-      else tar.replaceWith(src.cloneNode(true))
-      return 'applied:' + mode
-    }
-
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
     const SSE_EV_PATCH_ELS = 'dmax-patch-elements', SSE_EV_PATCH_SIGS = 'dmax-patch-signals'
     const SSE_ELS = 'dmaxElements', SSE_SIGS = 'dmaxSignals'
@@ -1959,7 +1945,7 @@
       return applied
     }
 
-    var applyDmaxPatchElements = applyPatchEls, applyDmaxOobHtml = applyOobHtml
+    var applyDmaxPatchElements = applyPatchEls
     var applyDmaxPatchSigs = applyPatchSigs
     var applyDmaxSse = applySse
     var consumeDmaxSseStream = consumeSseStream
