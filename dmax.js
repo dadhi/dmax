@@ -1437,13 +1437,13 @@
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
             const hm = htmlMode
-            const domMode = hm || MOD_OUTER
+            const mode = hm || MOD_OUTER
             const hp = htmlDomMod && htmlDomMod.path, elTarRoot = hp ? '' : (findFirstKind(tars, EV_PROP)?.root ?? '')
-            const domSel = hp ? resolveHtmlSelector(hp)
-                         : (domMode === MOD_BEFORE || domMode === MOD_AFTER) ? (el.id ? '#' + el.id : '')
-                         : (domMode === MOD_APPEND || domMode === MOD_PREPEND) ? (elTarRoot ? '#' + elTarRoot : '')
-                         : ''
-            applyPatchEls({ [SSE_ELS]: payload, selector: domSel, mode: domMode })
+            const selector = hp ? resolveHtmlSelector(hp)
+              : (mode === MOD_BEFORE || mode === MOD_AFTER) ? (el.id ? '#' + el.id : '')
+              : (mode === MOD_APPEND || mode === MOD_PREPEND) ? (elTarRoot ? '#' + elTarRoot : '')
+              : ''
+            applyPatchEls({ [SSE_ELS]: payload, selector, mode })
             htmlApplied = true
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
@@ -1743,10 +1743,9 @@
       if (!tarEl || !srcEls || !srcEls.length) return
       const frag = document.createDocumentFragment()
       for (const src of srcEls) frag.appendChild(src.cloneNode(true))
-      if (mode === MOD_APPEND) tarEl.appendChild(frag)
-      else if (mode === MOD_PREPEND) tarEl.insertBefore(frag, tarEl.firstChild || null)
-      else if (mode === MOD_BEFORE && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl)
-      else if (mode === MOD_AFTER && tarEl.parentNode) tarEl.parentNode.insertBefore(frag, tarEl.nextSibling)
+      if (mode === MOD_APPEND) { tarEl.appendChild(frag); return }
+      const par = mode === MOD_PREPEND ? tarEl : tarEl.parentNode
+      if (par) par.insertBefore(frag, mode === MOD_PREPEND ? tarEl.firstChild || null : mode === MOD_BEFORE ? tarEl : tarEl.nextSibling)
     }
 
     const applyPatchPair = (tarEl, srcEl, mode) => {
