@@ -198,7 +198,7 @@
       <div class="page"><code data-attr-for="classToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-m-cl+active+!inactive@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <label><input id="classToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Toggle Active</label>
       <div id="classBox" data-m-cl+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
-      <p id="displayBox" data-m-sh:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
+      <p id="displayBox" data-m-sh:.@user.ui.is-active>Visible only when active</p>
       <p id="displayNeg" data-m-sh:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
       <h4>9. List Rendering (data-m-it)</h4>
       <div class="page"><code data-attr-for="dumpPostsPrimary" data-attr-name="data-m-it+#tpl-post@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-template="tpl-post" data-attr-selector="[data-index]" data-attr-name="data-m-cl+zebra-even+!zebra-odd@posts^immediate" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="inline-posts" data-attr-name="data-m-it@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thread-posts" data-attr-name="data-m-it+#tpl-thread@threads" data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="addPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="updateSecondPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removeFirst" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removePost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="refreshThreads" data-attr-name="data-m-ex:threads@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
@@ -282,7 +282,7 @@
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
         <div class="page"><code data-attr-for="loadPostCustomBusy" data-attr-name="data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
         <button id="loadPostCustomBusy" data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
-        <strong style="margin-left:8px" data-m-sh:.@post-loading="dm.postLoading">Loading…</strong>
+        <strong style="margin-left:8px" data-m-sh:.@post-loading>Loading…</strong>
         <div>Error: <span data-m-ex:.@post-error="dm.postError"></span> | Code: <span data-m-ex:.@post-code="dm.postCode"></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>

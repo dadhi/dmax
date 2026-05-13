@@ -872,6 +872,19 @@
       return { displayBefore, displayAfterHide, displayAfterShow }
     }
     __assert(__tDispHideShow, [], { displayBefore: 'block', displayAfterHide: 'none', displayAfterShow: 'block' }, 'dmSh show/hide cycle');
+    function __tDispWireNodeEmptyValue() {
+      __reset()
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<div style="display:block" data-m-sh:.@visible^immediate></div>'
+      const div = tpl.content.firstElementChild
+      _dm.set('visible', true)
+      wireNode(div, 'data-m-sh:.@visible^immediate', div.getAttribute('data-m-sh:.@visible^immediate'))
+      const displayBefore = div.style.display
+      setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
+      const displayAfter = div.style.display
+      return { displayBefore, displayAfter }
+    }
+    __assert(__tDispWireNodeEmptyValue, [], { displayBefore: 'block', displayAfter: 'none' }, 'dmSh valueless attr works through wireNode');
     function __tDispWithExpr() {
       __reset()
       const div = document.createElement('div')

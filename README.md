@@ -333,7 +333,7 @@ Example:
 ```html
 <!-- show spinner while busy, show checkmark once done -->
 <button data-m-get^busy.loading^complete.done:res@.click="'/api/data'">Load</button>
-<span data-m-sh:.@loading="dm.loading">⏳ loading…</span>
+<span data-m-sh:.@loading>⏳ loading…</span>
 <span data-m-sh:.@done="dm.done && !dm.loading">✅ done</span>
 ```
 
