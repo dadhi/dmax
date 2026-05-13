@@ -98,7 +98,7 @@
     const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const DEFAULT_PR_TA = Object.freeze({ kind: EV_PR, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
-    const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
+    const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const _KIND = [MOD, SIGNAL, EV_PR, SP]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
@@ -544,19 +544,19 @@
 
     const isDigitsOnly = (s) => typeof s == 'string' && RE_DIGITS.test(s)
 
-    const buildDumpItemRef = (siRoot, siPath, idx) => {
+    const buildItItemRef = (siRoot, siPath, idx) => {
       let out = siRoot
       if (siPath && siPath.length) for (const part of siPath) out += '.' + part
       return out + '.' + idx
     }
 
-    const buildDumpItemExpr = (siRoot, siPath, idx) => {
+    const buildItItemExpr = (siRoot, siPath, idx) => {
       let out = 'dm.' + siRoot
       if (siPath && siPath.length) for (const part of siPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
       return out + '[' + idx + ']'
     }
 
-    const replaceDumpTokens = (s, itemToken, indexToken) => {
+    const replaceItTokens = (s, itemToken, indexToken) => {
       if (typeof s !== 'string') return s
       let i = s.indexOf('$')
       if (i < 0) return s
@@ -573,7 +573,7 @@
       return out ? out + s.slice(p) : s
     }
 
-    const rewriteDumpBindings = (rootNode, itemRef, itemExpr, indexText) => {
+    const rewriteItBindings = (rootNode, itemRef, itemExpr, indexText) => {
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -581,8 +581,8 @@
         let nextAttrs = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
-          const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
-          const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
+          const nextName = replaceItTokens(attr.name, itemRef, indexText)
+          const nextVal = replaceItTokens(attr.value, itemExpr, indexText)
           if (nextName !== attr.name || nextVal !== attr.value) {
             if (!nextAttrs) {
               // Keep a parallel attribute list for later wiring because HTML accepts
@@ -594,19 +594,19 @@
           }
           if (nextAttrs) nextAttrs.push([nextName, nextVal])
         }
-        if (nextAttrs) DUMP_ATTRS.set(node, nextAttrs)
+        if (nextAttrs) IT_ATTRS.set(node, nextAttrs)
         const children = node.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
     }
 
-    const wireDumpClone = (node) => {
+    const wireItClone = (node) => {
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
-        const dumpAttrs = DUMP_ATTRS.get(el)
-        if (dumpAttrs && dumpAttrs.length) {
-          for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+        const itAttrs = IT_ATTRS.get(el)
+        if (itAttrs && itAttrs.length) {
+          for (let i = 0; i < itAttrs.length; ++i) globalThis.wireNode(el, itAttrs[i][0], itAttrs[i][1])
         } else {
           const attrs = el.attributes || NIL
           for (let i = 0; i < attrs.length; ++i) {
@@ -619,16 +619,16 @@
       }
     }
 
-    const renderDumpState = (el, trig, dumpState, tplFirst, siRoot, siPath) => {
+    const renderItState = (el, trig, itState, tplFirst, siRoot, siPath) => {
       const val = getSiValOrIt(trig)
       if (!Array.isArray(val)) return
-      const newLen = val.length, oldLen = dumpState.count || 0
+      const newLen = val.length, oldLen = itState.count || 0
       if (newLen < oldLen) {
         for (let i = 0; i < oldLen - newLen; i++) {
-          const node = dumpState.nodes.pop()
+            const node = itState.nodes.pop()
           if (node && node.parentNode) node.parentNode.removeChild(node)
         }
-        dumpState.count = newLen
+        itState.count = newLen
       }
       if (newLen > oldLen) {
         const frag = document.createDocumentFragment()
@@ -636,14 +636,14 @@
           try {
             const node = tplFirst.cloneNode(true)
             const idxText = String(idx)
-            rewriteDumpBindings(node, buildDumpItemRef(siRoot, siPath, idx), buildDumpItemExpr(siRoot, siPath, idx), idxText)
+            rewriteItBindings(node, buildItItemRef(siRoot, siPath, idx), buildItItemExpr(siRoot, siPath, idx), idxText)
             frag.appendChild(node)
-            dumpState.nodes.push(node)
+            itState.nodes.push(node)
           } catch { }
         }
         el.appendChild(frag)
-        for (let i = dumpState.nodes.length - (newLen - oldLen); i < dumpState.nodes.length; ++i) wireDumpClone(dumpState.nodes[i])
-        dumpState.count = newLen
+        for (let i = itState.nodes.length - (newLen - oldLen); i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
+        itState.count = newLen
       }
     }
 
@@ -1181,13 +1181,13 @@
       if (!tpl) { console.error('[dmax] Error: dmIt template not found for:', dKey); return }
       const tplFirst = tpl.content && tpl.content.firstElementChild
       if (!tplFirst) { console.error('[dmax] Error: dmIt template root not found for:', dKey); return }
-      let dumpState = DUMP_STATES.get(el)
-      if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
+      let itState = IT_STATES.get(el)
+      if (!itState) IT_STATES.set(el, itState = { nodes: [], count: 0 })
       const siRoot = trig.root
       const siPath = trig.path
 
-      addTrSub(el, trig, mods, ()=>renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath), upsert(_cleanupBoundSubs, el))
-      if (isImmediateMod(mods, true)) renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath)
+      addTrSub(el, trig, mods, ()=>renderItState(el,trig,itState,tplFirst,siRoot,siPath), upsert(_cleanupBoundSubs, el))
+      if (isImmediateMod(mods, true)) renderItState(el,trig,itState,tplFirst,siRoot,siPath)
     }
     // data-m-get^busy.busy:result@.click^immediate="url"
     // data-m-post^json^busy.busy:result@.click+#id.prop+signal="url"

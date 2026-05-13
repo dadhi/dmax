@@ -167,66 +167,66 @@
       defSig(sig, nextVal)
       return _dm.get(sig.root)
     }, [{ root: 'busy' }, false, true], false, 'defSig keeps existing signal value')
-    __assert(buildDumpItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dmIt item ref helper')
-    __assert(buildDumpItemRef, ['posts', null, 2], 'posts.2', 'dmIt item ref helper root only')
-    __assert(buildDumpItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dmIt item expr helper')
-    __assert(buildDumpItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dmIt item expr helper root only')
-    __assert(replaceDumpTokens, ['data-m-it@$item.replies+$index', 'threads.0', '0'], 'data-m-it@threads.0.replies+0', 'dmIt token rewrite helper')
-    __assert(replaceDumpTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dmIt token rewrite helper no-op')
-    function __testRewriteDumpBindings() {
+    __assert(buildItItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dmIt item ref helper')
+    __assert(buildItItemRef, ['posts', null, 2], 'posts.2', 'dmIt item ref helper root only')
+    __assert(buildItItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dmIt item expr helper')
+    __assert(buildItItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dmIt item expr helper root only')
+    __assert(replaceItTokens, ['data-m-it@$item.replies+$index', 'threads.0', '0'], 'data-m-it@threads.0.replies+0', 'dmIt token rewrite helper')
+    __assert(replaceItTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dmIt token rewrite helper no-op')
+    function __testRewriteItBindings() {
       const root = document.createElement('li')
       root.setAttribute('data-m-ex:.', '$index')
       const tpl = document.createElement('template')
       tpl.innerHTML = '<span data-m-it@$item.replies+$index="$item.title"></span>'
       const child = tpl.content.firstElementChild
       root.appendChild(child)
-      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      rewriteItBindings(root, 'threads.2', 'dm.threads[2]', '2')
       return {
         rootVal: root.getAttribute('data-m-ex:.'),
-        rootAttrs: DUMP_ATTRS.get(root),
-        childAttrs: DUMP_ATTRS.get(child)
+        rootAttrs: IT_ATTRS.get(root),
+        childAttrs: IT_ATTRS.get(child)
       }
     }
-    __assert(__testRewriteDumpBindings, [], {
+    __assert(__testRewriteItBindings, [], {
       rootVal: '2',
       rootAttrs: [['data-m-ex:.', '2']],
       childAttrs: [['data-m-it@threads.2.replies+2', 'dm.threads[2].title']]
-    }, 'dmIt rewriteDumpBindings rewrites names and values')
-    function __testRewriteDumpBindingsNoop() {
+    }, 'dmIt rewriteItBindings rewrites names and values')
+    function __testRewriteItBindingsNoop() {
       const root = document.createElement('li')
       root.setAttribute('data-m-ex:.', 'plain-text')
-      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
-      return { value: root.getAttribute('data-m-ex:.'), hasAttrs: DUMP_ATTRS.has(root) }
+      rewriteItBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      return { value: root.getAttribute('data-m-ex:.'), hasAttrs: IT_ATTRS.has(root) }
     }
-    __assert(__testRewriteDumpBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dmIt rewriteDumpBindings no-op leaves attrs untouched')
-    function __testWireDumpCloneRewrittenAttrs() {
+    __assert(__testRewriteItBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dmIt rewriteItBindings no-op leaves attrs untouched')
+    function __testWireItCloneRewrittenAttrs() {
       const root = document.createElement('li')
       root.setAttribute('data-m-ex:.', '$index')
       const tpl = document.createElement('template')
       tpl.innerHTML = '<span data-m-it@$item.replies+$index="$item.title"></span>'
       const child = tpl.content.firstElementChild
       root.appendChild(child)
-      rewriteDumpBindings(root, 'threads.2', 'dm.threads[2]', '2')
+      rewriteItBindings(root, 'threads.2', 'dm.threads[2]', '2')
       const calls = []
       const savedWireNode = globalThis.wireNode
       globalThis.wireNode = (_el, aName, value) => calls.push([aName, value])
-      try { wireDumpClone(root) } finally { globalThis.wireNode = savedWireNode }
+      try { wireItClone(root) } finally { globalThis.wireNode = savedWireNode }
       return calls
     }
-    __assert(__testWireDumpCloneRewrittenAttrs, [], [
+    __assert(__testWireItCloneRewrittenAttrs, [], [
       ['data-m-ex:.', '2'],
       ['data-m-it@threads.2.replies+2', 'dm.threads[2].title']
-    ], 'dmIt wireDumpClone uses rewritten attrs when available')
-    function __testWireDumpCloneDomAttrsFallback() {
+    ], 'dmIt wireItClone uses rewritten attrs when available')
+    function __testWireItCloneDomAttrsFallback() {
       const root = document.createElement('li')
       root.setAttribute('data-m-ex:.', 'plain-text')
       const calls = []
       const savedWireNode = globalThis.wireNode
       globalThis.wireNode = (_el, aName, value) => calls.push([aName, value])
-      try { wireDumpClone(root) } finally { globalThis.wireNode = savedWireNode }
+      try { wireItClone(root) } finally { globalThis.wireNode = savedWireNode }
       return calls
     }
-    __assert(__testWireDumpCloneDomAttrsFallback, [], [['data-m-ex:.', 'plain-text']], 'dmIt wireDumpClone falls back to DOM attrs')
+    __assert(__testWireItCloneDomAttrsFallback, [], [['data-m-ex:.', 'plain-text']], 'dmIt wireItClone falls back to DOM attrs')
     __assert(() => ({ ...buildActionBaseHs(false, false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
