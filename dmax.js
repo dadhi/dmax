@@ -1282,18 +1282,21 @@
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
       const actRouteMods = []
-      for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
-        const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
-        if (!mPath) continue
-        if (typeof mPath === 'string') actRouteMods.push([isBody, mPath, mPath, null])
-        else if (mPath.kind === SIGNAL) actRouteMods.push([isBody, mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root, null, mPath])
+      for (const m of urlMods) {
+        const p = m.path
+        const e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.kind === SIGNAL ? [false, p.path?.at(-1) ?? p.root, null, p] : null
+        if (e) actRouteMods.push(e)
+      }
+      for (const m of bodyMods) {
+        const p = m.path
+        const e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.kind === SIGNAL ? [true, p.path?.at(-1) ?? p.root, null, p] : null
+        if (e) actRouteMods.push(e)
       }
       const actHdrMods = []
       for (const m of hdrMods) {
-        const mPath = m.path
-        if (!mPath) continue
-        if (typeof mPath === 'string') actHdrMods.push([camelToKebab(mPath), mPath, null])
-        else if (mPath.kind === SIGNAL) actHdrMods.push([camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root), null, mPath])
+        const p = m.path
+        const e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.kind === SIGNAL ? [camelToKebab(p.path?.at(-1) ?? p.root), null, p] : null
+        if (e) actHdrMods.push(e)
       }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
