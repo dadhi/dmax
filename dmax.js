@@ -1154,9 +1154,7 @@
         }
       }
     }
-    // Dispatch data-m-* attributes to their setup functions via the dataM registry.
-    // dataM maps the feature suffix (after 'data-m-') to a handler (el, dKey, dVal).
-    // Users may extend dataM with custom features: dataM.myFeat = (el, dKey, dVal) => { ... }
+    // dataM: extensible feature registry — each key is the suffix after 'data-m-'; users may add custom entries.
     const dataM = {}
     const wireNode = (n, an, v) => {
       if (an.indexOf('data-m-') !== 0) return
@@ -1497,9 +1495,7 @@
       }
     }
     // Morph updates DOM in place so matched nodes keep listeners, state, focus, and scroll.
-    // Populate dataM after all handler functions are defined.
-    dataM.si = dDef; dataM.ex = dSub; dataM.it = dDump; dataM.cl = dClass; dataM.vi = dDisp; dataM.debug = dDebug
-    dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dAction
+    dataM.si = dDef; dataM.ex = dSub; dataM.it = dDump; dataM.cl = dClass; dataM.vi = dDisp; dataM.debug = dDebug; dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dAction
     // Match by id first, then by tag name, and clone only when no reusable node fits.
 
     // Return true when two nodes can be morphed in place.

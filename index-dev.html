@@ -199,9 +199,9 @@
     }
 
     // @WIP: Phase 1
-    // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
-    // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
-    // ^ instead of __ for mods: data-get^no-cache:posts^replace+user.name^query.username instead of data-get__no-cache:posts__replace+user.name__query.username
+    // data-m-it@foo-bar-signal+#tpl-id instead of data-m-it@foo-bar-signal#tpl-id
+    // data-m-cl+zebra-even+!zebra-odd instead of data-m-cl:+zebra-even:~zebra-odd
+    // ^ instead of __ for mods: data-m-get^no-cache:posts^replace+user.name^query.username instead of data-m-get__no-cache:posts__replace+user.name__query.username
     const MOD = '^', TARG = ':', TRIG = '@', STAT = '?', ADD = '+'
     const ALL = [MOD, TARG, TRIG, STAT, ADD]
     const MODS = [MOD]
@@ -311,21 +311,21 @@
       return [items, p]
     }
 
-    assert(parse, ['data-def'], [{}, 8], 'empty')
-    assert(parse, ['data-sub:'], [{}, 9], 'single empty')
-    assert(parse, ['data-sub:.'], [{ ":": [{ "kind": EV_PROP, "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
-    assert(parse, ['data-sub^mod'], [{ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
-    assert(parse, ['data-sub^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
-    assert(parse, ['data-sub^mod^@hey^foo:bar'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
-    assert(parse, ['data-sub@!xxx@!'], [{ "@": [{ "kind": SIGNAL, "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
-    assert(parse, ['data-sub:xxx:'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
-    assert(parse, ['data-sub::'], [{}, 10], '2 empties')
-    assert(parse, ['data-sub:foo^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
-    assert(parse, ['data-sub:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
-    assert(parse, ['data-sub:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
-    assert(parse, ['data-sub:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
-    assert(parse, ['data-sub^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
-    assert(parse, ['data-sub^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
+    assert(parse, ['data-m-si'], [{}, 8], 'empty')
+    assert(parse, ['data-m-ex:'], [{}, 9], 'single empty')
+    assert(parse, ['data-m-ex:.'], [{ ":": [{ "kind": EV_PROP, "mods": null, "not": null, "path": null, "root": "" }] }, 10], 'default prop')
+    assert(parse, ['data-m-ex^mod'], [{ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 12], 'global mod')
+    assert(parse, ['data-m-ex^mod.some-foo.value^!eq.3'], [{ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }, 33], '2 global mods')
+    assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }, 25], '2 global mods and item with mod with item')
+    assert(parse, ['data-m-ex@!xxx@!'], [{ "@": [{ "kind": SIGNAL, "mods": null, "not": true, "path": null, "root": "xxx" }] }, 15], 'not name and not empty')
+    assert(parse, ['data-m-ex:xxx:'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "xxx" }] }, 13], 'single name')
+    assert(parse, ['data-m-ex::'], [{}, 10], '2 empties')
+    assert(parse, ['data-m-ex:foo^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 13], 'name+empty mod')
+    assert(parse, ['data-m-ex:foo^^'], [{ ":": [{ "kind": SIGNAL, "mods": null, "not": null, "path": null, "root": "foo" }] }, 14], 'name+2 empty mods')
+    assert(parse, ['data-m-ex:foo-bar^bax.3'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }, 22], 'item^mod')
+    assert(parse, ['data-m-ex:foo-bar^bax.3@!something^nice'], [{ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }, 38], 'item^mod@item2^mod')
+    assert(parse, ['data-m-ex^ge.2^le.5@foo^le.4'], [{ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }, 27], 'combine/do not override global mods into the item')
+    assert(parse, ['data-m-ex^hey@foo:bar+bax'], [{ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }, 24], 'push all global mods to items')
 
     function isObjEmpty(o) {
       for (const _ in o) return false
@@ -357,10 +357,10 @@
         _dm.has(key) ? { value: _dm.get(key), enumerable: true, configurable: true } : undefined
     });
 
-    // - data-def='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
-    // - data-def:foo='{bar: "hey"}' // foo signal
-    // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
-    // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
+    // - data-m-si='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
+    // - data-m-si:foo='{bar: "hey"}' // foo signal
+    // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
+    // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
     function dDef(el, aName, aVal) {
       let [it, _p] = parse(aName)
       let tars = it[TARG]
@@ -386,13 +386,13 @@
     const _sign = (nam, val) => { _dm.clear(); dDef(null, nam, val); return DM };
     const _signEl = (el, nam, val) => { _dm.clear(); dDef(el, nam, val); return DM };
     const _signDmSet = (k, v, nam, val) => { _dm.clear(); DM[k] = v; dDef(null, nam, val); return DM };
-    assert(_sign, ['data-def', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
-    assert(_sign, ['data-def:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
-    assert(_sign, ['data-def:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
-    assert(_sign, ['data-def:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
+    assert(_sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
+    assert(_sign, ['data-m-si:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
+    assert(_sign, ['data-m-si:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
+    assert(_sign, ['data-m-si:foo-bar:baz', '`Mamma Mia ${42}`'], { "baz": "Mamma Mia 42", "fooBar": "Mamma Mia 42" }, 'bonkers')
 
-    assert(_signEl, [{ "name": "John" }, 'data-def:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
-    assert(_signDmSet, ['name', 'Noize', 'data-def:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
+    assert(_signEl, [{ "name": "John" }, 'data-m-si:foo', '"Hey, " + el.name'], { "foo": "Hey, John" }, 'using el')
+    assert(_signDmSet, ['name', 'Noize', 'data-m-si:greet', '"Hey, " + dm.name'], { "name": "Noize", "greet": `Hey, Noize` }, 'using dm')
 
     function getElById(id, aName) {
       if (!id) return null
@@ -403,7 +403,7 @@
 
     const _getElById = (id, aName) => getElById(id, aName)?.textContent ?? null;
 
-    assert(_getElById, ['foo', 'data-sub:#foo@bar'], 'good', 'get existing elem')
+    assert(_getElById, ['foo', 'data-m-ex:#foo@bar'], 'good', 'get existing elem')
 
     function getDefaultProp(el) {
       if (!el) return 'textContent'
@@ -900,7 +900,7 @@
       reset();
       const fooEl = getElById('foo', 'probe'); if (fooEl) fooEl.textContent = 'good';
       const before = fooEl?.textContent || '';
-      dSub(null, 'data-sub:#foo.', `'Seaman!'`);
+      dSub(null, 'data-m-ex:#foo.', `'Seaman!'`);
       const after = fooEl?.textContent || '';
       return { before, after };
     }
@@ -909,7 +909,7 @@
     function tSubEventSignal() {
       reset();
       const btn = document.createElement('button');
-      dSub(btn, 'data-sub:sg@.', `'A'`);
+      dSub(btn, 'data-m-ex:sg@.', `'A'`);
       btn.dispatchEvent(new Event('click', { bubbles: true }));
       return { sg: DM['sg'] };
     }
@@ -919,7 +919,7 @@
       reset();
       const inp = document.createElement('input');
       inp.value = 'Zed';
-      dSub(inp, 'data-sub:out@.', 'val');
+      dSub(inp, 'data-m-ex:out@.', 'val');
       inp.dispatchEvent(new Event('change', { bubbles: true }));
       return { out: DM['out'] };
     }
@@ -929,7 +929,7 @@
       reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dSub(el, 'data-sub:bar@foo', 'dm.foo');
+      dSub(el, 'data-m-ex:bar@foo', 'dm.foo');
       const im = DM['bar'];
       setSignalVal('test', { root: 'foo', path: null }, 8);
       const after = DM['bar'];
