@@ -1281,7 +1281,20 @@
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
-
+      const actRouteMods = []
+      for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
+        const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
+        if (!mPath) continue
+        if (typeof mPath === 'string') actRouteMods.push([isBody, mPath, mPath, null])
+        else if (mPath.kind === SIGNAL) actRouteMods.push([isBody, mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root, null, mPath])
+      }
+      const actHdrMods = []
+      for (const m of hdrMods) {
+        const mPath = m.path
+        if (!mPath) continue
+        if (typeof mPath === 'string') actHdrMods.push([camelToKebab(mPath), mPath, null])
+        else if (mPath.kind === SIGNAL) actHdrMods.push([camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root), null, mPath])
+      }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dmAct: URL is empty in:', dKey); return }
@@ -1319,16 +1332,9 @@
             else bodyFields[key] = val
           }
 
-          // ^url.<siPath> forces named sig into query params.
-          // ^body.<siPath> forces a sig into request body.
-          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
-            const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSiValOrIt(mPath) }
-            else continue
-            (isBody ? bodyFields : queryParams)[mKey] = mVal
+          for (const m of actRouteMods) {
+            const mVal = m[3] ? getSiValOrIt(m[3]) : _dm.get(m[2])
+            ;(m[0] ? bodyFields : queryParams)[m[1]] = mVal
           }
 
           let finalUrl = url
@@ -1365,24 +1371,14 @@
               hs[H_AUTHORIZATION] = String(authVal)
             }
           }
-          // ^header.<name> sets one request header from a named sig.
-          for (const m of hdrMods) {
-            const mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) {
-              mKey = camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
-              mVal = getSiValOrIt(mPath)
-            }
-            else continue
+          for (const m of actHdrMods) {
+            const mVal = m[2] ? getSiValOrIt(m[2]) : _dm.get(m[1])
             if (sharedHs) {
               hs = cloneOwnProps(hs)
               sharedHs = false
             }
-            hs[mKey] = String(mVal ?? '')
+            hs[m[0]] = String(mVal ?? '')
           }
-
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
             if (!hasOwn(bodyFields, bk)) continue
