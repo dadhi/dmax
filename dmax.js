@@ -92,10 +92,10 @@
     const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed'
     const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED]
     const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
-    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const E_RW_REQ = `dSub ${MOD}${M_RW} requires an element/property trigger in:`
-    const E_RW_EL = `dSub ${MOD}${M_RW} source element is not found in trigger:`
-    const E_RW_EV = `dSub ${MOD}${M_RW} event is not found in trigger:`
+    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }), DM_KEY = 'data-m-'
+    const E_RW_REQ = `dmEx ${MOD}${M_RW} requires an element/property trigger in:`
+    const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
+    const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const DEFAULT_PR_TA = Object.freeze({ kind: EV_PR, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
@@ -242,7 +242,7 @@
     // - data-m-si:foo='{bar: "hey"}' // foo signal
     // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
-    const dDef = (el, dKey, dVal) => {
+    const dmSi = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', dKey)
       let fn = compileFn(dVal, dKey)
@@ -262,7 +262,7 @@
       }
     }
 
-    const dDebug = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
+    const dmDbg = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
     const getElById = (id, dKey) => {
       const el = document.getElementById(id)
       if (!el) console.error(`[dmax] Error: element #${id} from ${dKey} is not found`)
@@ -997,7 +997,7 @@
       return h
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
-    const dSub = (el, dKey, dVal) => {
+    const dmEx = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', dKey)
       const hasExpr = dVal != null && '' + dVal
@@ -1095,13 +1095,13 @@
     // +className adds when expr is truthy and removes when falsy.
     // +!className inverts that rule.
     // Without dVal, the raw signal or trigger value is used.
-    const dClass = (el, dKey, dVal) => {
+    const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', dKey); return }
-      if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', dKey); return }
+      if (!adds.length) { console.error('[dmax] Error: dmCl requires class names via + syntax in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmCl requires at least one trigger in:', dKey); return }
       const prTa = findFirstKind(tars, EV_PR)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
-      if (!taEl) { console.error('[dmax] Error: dClass target element not found in:', dKey); return }
+      if (!taEl) { console.error('[dmax] Error: dmCl target element not found in:', dKey); return }
       const fn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
@@ -1114,22 +1114,22 @@
           if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PR) {
           const evTaEl = root ? getElById(root, dKey) : el
-          if (!evTaEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', dKey); return }
+          if (!evTaEl) { console.error('[dmax] Error: dmCl element not found in trigger:', trig, 'in:', dKey); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
-          if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', dKey); return }
+          if (!ev) { console.error('[dmax] Error: dmCl event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
         }
       }
     }
-    // data-m-vi:.@signal="expr"
+    // data-m-sh:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
-    const dDisp = (el, dKey, dVal) => {
+    const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmSh requires at least one trigger in:', dKey); return }
       const prTa = findFirstKind(tars, EV_PR)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
-      if (!taEl) { console.error('[dmax] Error: dDisp target element not found in:', dKey); return }
+      if (!taEl) { console.error('[dmax] Error: dmSh target element not found in:', dKey); return }
       const inline = (taEl.style && taEl.style.display) || ''
       const hadInline = inline !== ''
       const computed = getComputedDisplay(taEl)
@@ -1146,9 +1146,9 @@
           if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PR) {
           const evTaEl = root ? getElById(root, dKey) : el
-          if (!evTaEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', dKey); return }
+          if (!evTaEl) { console.error('[dmax] Error: dmSh element not found in trigger:', trig, 'in:', dKey); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
-          if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', dKey); return }
+          if (!ev) { console.error('[dmax] Error: dmSh event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
         }
@@ -1157,8 +1157,8 @@
     // dataM: extensible feature registry — each key is the suffix after 'data-m-'; users may add custom entries.
     const dataM = {}
     const wireNode = (n, an, v) => {
-      if (an.indexOf('data-m-') !== 0) return
-      const rest = an.slice(7), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
+      if (an.indexOf(DM_KEY) !== 0) return
+      const rest = an.slice(DM_KEY.length), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
       const fn = dataM[fe]
       if (fn) fn(n, an, v)
     }
@@ -1168,19 +1168,19 @@
     // data-m-it@items uses an inline template child and renders immediately by default.
     // data-m-it+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
-    const dDump = (el, dKey) => {
+    const dmIt = (el, dKey) => {
       const it = parseCached(dKey), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
-      if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmIt requires a signal trigger in:', dKey); return }
       const trig = trigs[0]
-      if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', dKey); return }
+      if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dmIt trigger must be a signal in:', dKey); return }
       const mods = pickMods(trig.mods, globMods)
       let tpl = null
       if (adds.length && adds[0].kind === EV_PR && adds[0].root) tpl = getElById(adds[0].root, dKey)
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
-      if (!tpl) { console.error('[dmax] Error: dDump template not found for:', dKey); return }
+      if (!tpl) { console.error('[dmax] Error: dmIt template not found for:', dKey); return }
       const tplFirst = tpl.content && tpl.content.firstElementChild
-      if (!tplFirst) { console.error('[dmax] Error: dDump template root not found for:', dKey); return }
+      if (!tplFirst) { console.error('[dmax] Error: dmIt template root not found for:', dKey); return }
       let dumpState = DUMP_STATES.get(el)
       if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
       const siRoot = trig.root
@@ -1193,13 +1193,13 @@
     // data-m-post^json^busy.busy:result@.click+#id.prop+signal="url"
     // data-m-put^json:result@.click+body="url"
     // data-m-delete^busy.busy:ok@.click="url"
-    // Method is derived from the feature suffix after 'data-m-'; dVal is compiled as a URL expression.
-    const dAction = (el, dKey, dVal) => {
-      const afterData = dKey.slice(7) // strip 'data-m-'
+    // Method is derived from the feature suffix after DM_KEY; dVal is compiled as a URL expression.
+    const dmAct = (el, dKey, dVal) => {
+      const afterData = dKey.slice(DM_KEY.length)
       const methodEnd = indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const method = ACT_METHODS[methodName]
-      if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', dKey); return }
+      if (!method) { console.error('[dmax] Error: dmAct: unrecognised method prefix in:', dKey); return }
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
@@ -1284,7 +1284,7 @@
 
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
-        if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', dKey); return }
+        if (!url) { console.error('[dmax] Error: dmAct: URL is empty in:', dKey); return }
 
         setS(dKey, busyStat, true), setS(dKey, completeStat, false), setS(dKey, errStat, null), setS(dKey, codeStat, null)
 
@@ -1460,7 +1460,7 @@
           if (!isAbort) {
             setS(dKey, errStat, err && err.message ? err.message : String(err))
             setS(dKey, codeStat, Number.isFinite(err && err.status) ? err.status : null)
-            console.error('[dmax] Error: dAction fetch failed:', err)
+            console.error('[dmax] Error: dmAct fetch failed:', err)
             // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
@@ -1472,7 +1472,7 @@
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        if (kind !== SIGNAL && kind !== EV_PR) { console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', dKey); return }
+        if (kind !== SIGNAL && kind !== EV_PR) { console.error('[dmax] Error: dmAct unsupported trigger kind', kind, 'in', dKey); return }
         const mods = pickMods(trig.mods, globMods), shouldImmediate = !ranImmediate && isImmediateMod(mods, false)
         if (kind === SIGNAL) {
           if (!expected(root)) return
@@ -1484,9 +1484,9 @@
           continue
         }
         const evTaEl = root ? getElById(root, dKey) : el
-        if (!evTaEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', dKey); return }
+        if (!evTaEl) { console.error('[dmax] Error: dmAct element not found in trigger:', trig, 'in:', dKey); return }
         const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
-        if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', dKey); return }
+        if (!ev) { console.error('[dmax] Error: dmAct event not found in trigger:', trig, 'in:', dKey); return }
         const moddedHandler = addTrSub(el, trig, mods, doRequest, elSubs, evTaEl, ev, null)
         if (shouldImmediate) {
           ranImmediate = true
@@ -1495,7 +1495,7 @@
       }
     }
     // Morph updates DOM in place so matched nodes keep listeners, state, focus, and scroll.
-    dataM.si = dDef; dataM.ex = dSub; dataM.it = dDump; dataM.cl = dClass; dataM.vi = dDisp; dataM.debug = dDebug; dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dAction
+    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dmAct
     // Match by id first, then by tag name, and clone only when no reusable node fits.
 
     // Return true when two nodes can be morphed in place.

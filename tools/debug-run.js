@@ -13,7 +13,7 @@ vcon.on('error', msg => console.error('[page error]', msg));
   const doc = window.document;
   console.log('has __getState:', typeof window.__getState);
   try{ if(typeof window.__getState === 'function') console.log('__getState keys:', Object.keys(window.__getState())); }catch(e){ console.error('getState read error', e); }
-  const debug = doc.querySelector('[data-m-debug]');
+  const debug = doc.querySelector('[data-m-dbg]');
   console.log('debug exists:', !!debug);
   if(debug) console.log('debug text length', debug.textContent.length);
   // show a few elements and attributes
