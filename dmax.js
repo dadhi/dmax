@@ -1334,7 +1334,8 @@
 
           for (const m of actRouteMods) {
             const mVal = m[3] ? getSiValOrIt(m[3]) : _dm.get(m[2])
-            ;(m[0] ? bodyFields : queryParams)[m[1]] = mVal
+            const dest = m[0] ? bodyFields : queryParams
+            dest[m[1]] = mVal
           }
 
           let finalUrl = url
@@ -1373,11 +1374,8 @@
           }
           for (const m of actHdrMods) {
             const mVal = m[2] ? getSiValOrIt(m[2]) : _dm.get(m[1])
-            if (sharedHs) {
-              hs = cloneOwnProps(hs)
-              sharedHs = false
-            }
-            hs[m[0]] = String(mVal ?? '')
+            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
+            hs[m[0]] = mVal != null ? '' + mVal : ''
           }
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
