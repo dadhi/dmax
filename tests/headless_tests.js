@@ -281,6 +281,12 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       }
     }
 
+    // Section 6.b: _init trigger
+    const initSpan = doc.getElementById('initOut');
+    if (!initSpan) { fail('Section6b initOut element missing'); } else {
+      if (initSpan.textContent.includes('Initialized') && initSpan.textContent.includes('init')) pass('Section6b _init trigger fired on load'); else fail('Section6b _init did not update initOut: ' + initSpan.textContent);
+    }
+
     // Section 7: default props + events
     const inp1 = doc.getElementById('inp1');
     const inp1Preview = findByAttr('span', 'data-sub:.@#inp1.input');

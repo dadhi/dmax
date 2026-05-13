@@ -714,6 +714,31 @@
       intOnce: 25,
       timeoutOnce: 50
     }, 'dSub interval/timeout ^once cleanup');
+    function __tSubSpecialInit() {
+      __reset();
+      const host = document.createElement('div');
+      dSub(host, 'data-sub:initMeta@_init', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+      return DM['initMeta'];
+    }
+    __assert(__tSubSpecialInit, [], { root: 'init', path: null, val: 'init', detailType: 'init' }, 'dSub _init special trigger fires immediately');
+    function __tSubSpecialInitOnceWithClick() {
+      __reset();
+      const host = document.createElement('div');
+      dSub(host, 'data-sub:initClickLog@_init@.click', `(dm.initClickLog || []).concat(detail && detail.type || 'click')`);
+      host.dispatchEvent(mkEv('click'));
+      host.dispatchEvent(mkEv('click'));
+      return DM['initClickLog'];
+    }
+    __assert(__tSubSpecialInitOnceWithClick, [], ['init', 'click', 'click'], 'dSub _init fires on init and click fires on each click');
+    function __tSubSpecialInitRanImmediateDedup() {
+      __reset();
+      _dm.set('counter', 0);
+      const host = document.createElement('div');
+      dSub(host, 'data-sub:counter@_init@counter', 'dm.counter + 1');
+      return DM['counter'];
+    }
+    __assert(__tSubSpecialInitRanImmediateDedup, [], 1, 'dSub _init with signal trigger: only one init run (ranImmediate dedup)');
+
     function __tSubRepeatedPermitGating() {
       __reset();
       _dm.set('gateA', true)

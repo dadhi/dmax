@@ -89,8 +89,8 @@
     const ACT_HS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
     const ACT_HS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
     const ACT_HS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
-    const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed'
-    const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED]
+    const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed', SP_INIT = 'init'
+    const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED, SP_INIT]
     const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
     const E_RW_REQ = `dSub ${MOD}${M_RW} requires an element/property trigger in:`
@@ -450,6 +450,10 @@
       const ev = trig.path?.[0]
       const subTaEl = isSp ? null : prTa.taEl, subEv = isSp ? ev : prTa.ev, subPrPath = isSp ? null : prTa.prPath
       const modded = addTrSub(el, trig, mods, fn, elSubs, subTaEl, subEv, subPrPath)
+      if (isSp && trig.root === SP_INIT) {
+        if (modded && !ranImmediate) invokeSub(modded, { type: SP_INIT }, SP_INIT, el, trig)
+        return true
+      }
       if (modded && !ranImmediate && isImmediateMod(mods, false) && (!isSp || trig.root === SP_FORM)) {
         ranImmediate = true
         invokeSub(modded, null, isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, trig)
@@ -788,6 +792,9 @@
         elSubs.push(sub)
         return sub.fn
       }
+      if (trig.kind === SP && trig.root === SP_INIT) {
+        return applyTrMs(fn, trig, mods)
+      }
       if (trig.kind === SP) {
         if (trig.root === SP_WIN) {
           evName ||= SP_WIN_EV
@@ -1119,6 +1126,9 @@
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
+        } else if (kind === SP) {
+          const h = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, null, trig.path?.[0], null)
+          if (h && trig.root === SP_INIT) invokeSub(h, { type: SP_INIT }, SP_INIT, el, trig)
         }
       }
     }
@@ -1151,6 +1161,9 @@
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
+        } else if (kind === SP) {
+          const h = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, null, trig.path?.[0], null)
+          if (h && trig.root === SP_INIT) invokeSub(h, { type: SP_INIT }, SP_INIT, el, trig)
         }
       }
     }
@@ -1473,7 +1486,12 @@
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        if (kind !== SIGNAL && kind !== EV_PR) { console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', dKey); return }
+        if (kind !== SIGNAL && kind !== EV_PR && kind !== SP) { console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', dKey); return }
+        if (kind === SP) {
+          if (trig.root !== SP_INIT) { console.error('[dmax] Error: dAction unsupported SP trigger', trig.root, 'in', dKey); return }
+          if (!ranImmediate) { ranImmediate = true; doRequest() }
+          continue
+        }
         const mods = pickMods(trig.mods, globMods), shouldImmediate = !ranImmediate && isImmediateMod(mods, false)
         if (kind === SIGNAL) {
           if (!expected(root)) return
