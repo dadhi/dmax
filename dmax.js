@@ -1474,7 +1474,8 @@
       if (_siSelCache.has(sel)) return _siSelCache.get(sel)
       for (let i = 1; i < sel.length; ++i)
         if (sel[i] <= ' ' || sel[i] === '#' || sel[i] === '>' || sel[i] === '+' || sel[i] === '~' || sel[i] === ':' || sel[i] === '.' || sel[i] === '[' || sel[i] === ']' || sel[i] === ',') return _siSelCache.set(sel, null), null
-      const r = sel.length > 1 ? sel.slice(1) : null; return _siSelCache.set(sel, r), r
+      const r = sel.length > 1 ? sel.slice(1) : null
+      return _siSelCache.set(sel, r), r
     }
 
     const getPatchTars = (selector) => {

@@ -779,15 +779,15 @@ function formatParityProbe(probe) {
 //
 // Additional optimizations [APPLIED in dmax.js]:
 //
-//   E4 ✓ Batch SSE line parsing via indexOf in applySse.
+//   E2 ✓ Batch SSE line parsing via indexOf in applySse.
 //       Replaced char-by-char `for (end of text)` loop with `indexOf('\n', start)` while-loop.
 //       Avoids per-character branch overhead; mirrors the efficient consumeSseStream approach.
 //
-//   E5 ✓ Avoid Map allocation in morphChildren for unkeyed lists.
+//   E3 ✓ Avoid Map allocation in morphChildren for unkeyed lists.
 //       Uses `let idMap = null` + `??=` so Map is only allocated when keyed from-children exist.
 //       Combined with optional-chaining guards (`idMap?.has`) for safe null checks.
 //
-//   E6 ✓ Cache getSimpleIdSelector results in a module-scope Map.
+//   E4 ✓ Cache getSimpleIdSelector results in a module-scope Map.
 //       Avoids re-scanning the selector string on repeated calls (common in SSE patch loops).
 //       Returns cached null for complex selectors, cached id-string for simple `#id` selectors.
 //
