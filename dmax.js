@@ -1486,13 +1486,16 @@
 
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const TEXT_NODE = 3
-    const getSimpleIdSelector = (selector) => {
-      if (!selector || selector[0] !== '#') return null
-      for (let i = 1; i < selector.length; ++i) {
-        const c = selector[i]
-        if (c <= ' ' || c === '#' || c === '>' || c === '+' || c === '~' || c === ':' || c === '.' || c === '[' || c === ']' || c === ',') return null
-      }
-      return selector.length > 1 ? selector.slice(1) : null
+    const _siSelCache = new Map()
+    const SI_BAD_SYMS = ' \t\r\n#>+~:.[],|'
+    const getSimpleIdSelector = (sel) => {
+      if (!sel || sel[0] !== '#') return null
+      const cached = _siSelCache.get(sel)
+      if (cached !== undefined) return cached
+      for (let i = 1; i < sel.length; ++i)
+        if (SI_BAD_SYMS.includes(sel[i])) return null
+      const r = sel.length > 1 ? sel.slice(1) : null
+      return _siSelCache.set(sel, r), r
     }
 
     const getPatchTars = (selector) => {
@@ -1578,21 +1581,20 @@
         return
       }
 
-      // Map remaining keyed children by id.
-      const idMap = new Map()
+      // Map remaining keyed children by id — Map is only allocated if keyed nodes exist.
+      let idMap = null
       for (let n = cur; n; n = n.nextSibling)
-        if (n.nodeType === ELEMENT_NODE && n.id) idMap.set(n.id, n)
+        if (n.nodeType === ELEMENT_NODE && n.id) (idMap ??= new Map()).set(n.id, n)
 
       for (; toChild; toChild = toChild.nextSibling) {
         let match = null
 
-        if (toChild.nodeType === ELEMENT_NODE && toChild.id && idMap.has(toChild.id)) {
+        if (toChild.nodeType === ELEMENT_NODE && toChild.id && (match = idMap?.get(toChild.id))) {
           // Reuse keyed nodes by id even if they moved.
-          match = idMap.get(toChild.id)
           idMap.delete(toChild.id)
         } else {
           // Skip keyed nodes still waiting for their own id match.
-          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap.has(cur.id))
+          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap?.get(cur.id))
             cur = cur.nextSibling
           if (cur && sameKind(cur, toChild)) {
             match = cur
@@ -1619,7 +1621,7 @@
         cur = next
       }
       // Remove keyed nodes that were never matched.
-      for (const n of idMap.values()) {
+      if (idMap) for (const n of idMap.values()) {
         if (n.parentNode === from) from.removeChild(n)
       }
     }
@@ -1834,11 +1836,10 @@
         curArgs = null
         hasData = false
       }
-      let start = 0
-      for (let end = 0; end < text.length; end++) {
-        if (text[end] !== '\n') continue
-        consumeLine(text.slice(start, end).replace(RE_TRAILING_CR, ''))
-        start = end + 1
+      let start = 0, nl
+      while ((nl = text.indexOf('\n', start)) >= 0) {
+        consumeLine(text.slice(start, nl).replace(RE_TRAILING_CR, ''))
+        start = nl + 1
       }
       if (start < text.length) consumeLine(text.slice(start).replace(RE_TRAILING_CR, ''))
       flush()
