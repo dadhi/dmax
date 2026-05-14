@@ -87,7 +87,7 @@
     <pre id="out"></pre>
     <div id='foo' hidden>good</div>
     <section id="live-dsub" style="padding:12px;border-top:1px solid #e2e8f0">
-      <h3 style="margin:0 0 8px 0">Live dSub examples</h3>
+      <h3 style="margin:0 0 8px 0">Live dmEx examples</h3>
       <form id="live-form">
         <input id="live-name" value="Ada" />
         <button id="live-btn" type="button">Emit click/value</button>
@@ -98,7 +98,7 @@
     </section>
     <section id="ported-examples" style="padding:12px;border-top:1px solid #e2e8f0">
       <h3 style="margin:0 0 8px 0">Ported examples (index.html → updated syntax)</h3>
-      <div data-def='{
+      <div data-m-si='{
         "user":{"name":"Alice","age":25,"ui":{"themeColor":"#007bff","isActive":true,"fontSize":16}},
         "count":10,"doubled":20,"posts":["First post","Second post","Third post"],
         "threads":[{"title":"Thread A","replies":["A1","A2"]},{"title":"Thread B","replies":["B1"]},{"title":"Thread C","replies":[]}],
@@ -113,198 +113,198 @@
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-sub@.^rw@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-sub@.^rw@user.age" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>User Name: <input id="exUserNameInput" type="text" data-sub@.^rw@user.name></label>
-      <p>Hello, <strong data-sub:.@user.name></strong>!</p>
-      <label>Age: <input id="exUserAgeInput" type="number" data-sub@.^rw@user.age="Number(val || 0)"></label>
-      <p>Age: <span data-sub:.@user.age></span> years old</p>
-      <h4>1.a data-sub Direction Examples</h4>
-      <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-sub:.@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-sub:user.name@.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="twoWay" data-attr-name="data-sub@.^rw@user.name" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>Signal -> Element: <input id="sigToProp" data-sub:.@user.name></label>
-      <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-sub:user.name@.input="val"></label>
-      <label>Two-way: <input id="twoWay" data-sub@.^rw@user.name></label>
-      <div>Signal preview: <span data-sub:.@user.name="dm.user.name"></span></div>
+      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-m-ex@.^rw@user.age" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name></label>
+      <p>Hello, <strong data-m-ex:.@user.name></strong>!</p>
+      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw@user.age="Number(val || 0)"></label>
+      <p>Age: <span data-m-ex:.@user.age></span> years old</p>
+      <h4>1.a data-m-ex Direction Examples</h4>
+      <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-m-ex:.@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-m-ex:user.name@.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="twoWay" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>Signal -> Element: <input id="sigToProp" data-m-ex:.@user.name></label>
+      <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-m-ex:user.name@.input="val"></label>
+      <label>Two-way: <input id="twoWay" data-m-ex@.^rw@user.name></label>
+      <div>Signal preview: <span data-m-ex:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
-      <div class="page"><code data-attr-for="themeColorInput" data-attr-name="data-sub@.^rw@user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeColorPreview" data-attr-name="data-sub:.style.color@user.ui.theme-color" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontSlider" data-attr-name="data-sub@.^rw@user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontPreview" data-attr-name="data-sub:.style.font-size@user.ui.font-size" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeActiveToggle" data-attr-name="data-sub@.^rw@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label>Theme Color: <input id="themeColorInput" type="color" data-sub@.^rw@user.ui.theme-color></label>
-      <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-sub:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
-      <label>Font Size: <span data-sub:.@user.ui.font-size></span>px</label>
-      <input id="themeFontSlider" type="range" min="12" max="32" data-sub@.^rw@user.ui.font-size>
-      <p id="themeFontPreview" data-sub:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">Resizable text</p>
-      <label><input id="themeActiveToggle" type="checkbox" data-sub@.^rw@user.ui.is-active> Active</label>
-      <p>Status: <strong data-sub:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
+      <div class="page"><code data-attr-for="themeColorInput" data-attr-name="data-m-ex@.^rw@user.ui.theme-color" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeColorPreview" data-attr-name="data-m-ex:.style.color@user.ui.theme-color" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontSlider" data-attr-name="data-m-ex@.^rw@user.ui.font-size" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontPreview" data-attr-name="data-m-ex:.style.font-size@user.ui.font-size" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeActiveToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label>Theme Color: <input id="themeColorInput" type="color" data-m-ex@.^rw@user.ui.theme-color></label>
+      <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-m-ex:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
+      <label>Font Size: <span data-m-ex:.@user.ui.font-size></span>px</label>
+      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw@user.ui.font-size>
+      <p id="themeFontPreview" data-m-ex:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">Resizable text</p>
+      <label><input id="themeActiveToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Active</label>
+      <p>Status: <strong data-m-ex:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
       <h4>3. Multiple Triggers &amp; Targets</h4>
-      <div class="page"><code data-attr-for="countPlusBtn" data-attr-name="data-sub:count@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countMinusBtn" data-attr-name="data-sub:count@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countResetBtn" data-attr-name="data-sub:count@." data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="countDisplay" data-attr-name="data-sub:.@count" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="doubledDisplay" data-attr-name="data-sub:.:doubled@count" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="probeBtn" data-attr-name="data-sub:.@." data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="gOnceBtn" data-attr-name="data-sub^once:once-test@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="gAlwaysBtn" data-attr-name="data-sub^once:always-test@.^always" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="incGuard" data-attr-name="data-sub:guard-val@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <button id="countPlusBtn" data-sub:count@.="dm.count + 1">+1</button>
-      <button id="countMinusBtn" data-sub:count@.="dm.count - 1">-1</button>
-      <button id="countResetBtn" data-sub:count@.="0">Reset</button>
-      <p>Count: <strong id="countDisplay" data-sub:.@count="dm.count"></strong></p>
-      <p>Doubled: <span id="doubledDisplay" data-sub:.:doubled@count="dm.count * 2"></span></p>
-      <button id="probeBtn" data-sub:.@.="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
-      <span id="probeOut" data-sub:.@count="trig ? trig.root : ''"></span>
+      <div class="page"><code data-attr-for="countPlusBtn" data-attr-name="data-m-ex:count@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countMinusBtn" data-attr-name="data-m-ex:count@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countResetBtn" data-attr-name="data-m-ex:count@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="countDisplay" data-attr-name="data-m-ex:.@count" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="doubledDisplay" data-attr-name="data-m-ex:.:doubled@count" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="probeBtn" data-attr-name="data-m-ex:.@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="gOnceBtn" data-attr-name="data-m-ex^once:once-test@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="gAlwaysBtn" data-attr-name="data-m-ex^once:always-test@.^always" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="incGuard" data-attr-name="data-m-ex:guard-val@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <button id="countPlusBtn" data-m-ex:count@.="dm.count + 1">+1</button>
+      <button id="countMinusBtn" data-m-ex:count@.="dm.count - 1">-1</button>
+      <button id="countResetBtn" data-m-ex:count@.="0">Reset</button>
+      <p>Count: <strong id="countDisplay" data-m-ex:.@count="dm.count"></strong></p>
+      <p>Doubled: <span id="doubledDisplay" data-m-ex:.:doubled@count="dm.count * 2"></span></p>
+      <button id="probeBtn" data-m-ex:.@.="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
+      <span id="probeOut" data-m-ex:.@count="trig ? trig.root : ''"></span>
       <div>
-        <button id="gOnceBtn" data-sub^once:once-test@.="(dm.onceTest || 0) + 1">Once +1</button>
-        <span data-sub:.@once-test="dm.onceTest"></span>
-        <button id="gAlwaysBtn" data-sub^once:always-test@.^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
-        <span data-sub:.@always-test="dm.alwaysTest"></span>
+        <button id="gOnceBtn" data-m-ex^once:once-test@.="(dm.onceTest || 0) + 1">Once +1</button>
+        <span data-m-ex:.@once-test="dm.onceTest"></span>
+        <button id="gAlwaysBtn" data-m-ex^once:always-test@.^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
+        <span data-m-ex:.@always-test="dm.alwaysTest"></span>
       </div>
       <div>
-        <button id="incGuard" data-sub:guard-val@.="dm.guardVal + 1">Inc Guard</button>
-        <span data-sub:.@guard-val="dm.guardVal"></span>
-        <span data-sub:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
-        <span data-sub:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
-        <span data-sub^!and.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
+        <button id="incGuard" data-m-ex:guard-val@.="dm.guardVal + 1">Inc Guard</button>
+        <span data-m-ex:.@guard-val="dm.guardVal"></span>
+        <span data-m-ex:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
+        <span data-m-ex:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
+        <span data-m-ex^!and.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
       </div>
       <div>
-        <span data-sub:.@_interval.1000="(detail && detail.ms) ? ('interval ' + detail.ms) : ''"></span>
-        <span id="timeoutOut" data-sub:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
+        <span data-m-ex:.@_interval.1000="(detail && detail.ms) ? ('interval ' + detail.ms) : ''"></span>
+        <span id="timeoutOut" data-m-ex:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
       </div>
       <h4>4. Side Effects &amp; Multiple Triggers</h4>
-      <div class="page"><code data-attr-for="example4ConsoleOut" data-attr-name="data-sub:.@count@#btn1@#btn2" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="example4VisibleOut" data-attr-name="data-sub:.@count@#btn1@#btn2" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="example4ConsoleOut" data-attr-name="data-m-ex:.@count@#btn1@#btn2" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="example4VisibleOut" data-attr-name="data-m-ex:.@count@#btn1@#btn2" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
-      <p><span id="example4ConsoleOut" data-sub:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
-      <p><strong id="example4VisibleOut" data-sub:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
+      <p><span id="example4ConsoleOut" data-m-ex:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
+      <p><strong id="example4VisibleOut" data-m-ex:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code data-attr-for="src" data-attr-name="data-sub@.^rw@message" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-sub:.@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-sub:.value@#src.input" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <input id="src" placeholder="Type here..." data-sub@.^rw@message>
-      <p id="srcPreview" data-sub:.@#src.input="document.getElementById('src').value"></p>
-      <input id="mirror" readonly data-sub:.value@#src.input="document.getElementById('src').value">
+      <div class="page"><code data-attr-for="src" data-attr-name="data-m-ex@.^rw@message" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-m-ex:.@#src.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-m-ex:.value@#src.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <input id="src" placeholder="Type here..." data-m-ex@.^rw@message>
+      <p id="srcPreview" data-m-ex:.@#src.input="document.getElementById('src').value"></p>
+      <input id="mirror" readonly data-m-ex:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
-      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-sub:.@_window.resize" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-sub:.@_interval.1000" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-sub:.@_timeout.1500" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-sub:.@_viewed^once" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <p>Window width: <span id="windowWidthOut" data-sub:.@_window.resize="window.innerWidth + 'px'"></span></p>
-      <p>Current time: <span id="timeOut" data-sub:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
-      <p>Scroll into view: <span id="viewedOut" data-sub:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
+      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-m-ex:.@_window.resize" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-m-ex:.@_interval.1000" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-m-ex:.@_timeout.1500" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-m-ex:.@_viewed^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <p>Window width: <span id="windowWidthOut" data-m-ex:.@_window.resize="window.innerWidth + 'px'"></span></p>
+      <p>Current time: <span id="timeOut" data-m-ex:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
+      <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
       <h4>7. Default Props &amp; Events</h4>
-      <div class="page"><code data-attr-for="inp1Preview" data-attr-name="data-sub:.@#inp1.input" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="btn3Preview" data-attr-name="data-sub:.@#btn3" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="inp1Preview" data-attr-name="data-m-ex:.@#inp1.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="btn3Preview" data-attr-name="data-m-ex:.@#btn3" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <input id="inp1" placeholder="Mirrors on input">
-      <p><span id="inp1Preview" data-sub:.@#inp1.input="document.getElementById('inp1').value"></span></p>
+      <p><span id="inp1Preview" data-m-ex:.@#inp1.input="document.getElementById('inp1').value"></span></p>
       <button id="btn3">Click me</button>
-      <p><span id="btn3Preview" data-sub:.@#btn3="'Clicked!'"></span></p>
+      <p><span id="btn3Preview" data-m-ex:.@#btn3="'Clicked!'"></span></p>
       <h4>7.a `^val` trigger picks</h4>
-      <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-sub:val-prop-picked@.input^val.data-foo-bar" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-sub:.@val-source^val.bar" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-sub:.@val-source^val.bar" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-m-ex:val-prop-picked@.input^val.data-foo-bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <label>Non-default event prop:
-          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-sub:val-prop-picked@.input^val.data-foo-bar="Number(val)">
+          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^val.data-foo-bar="Number(val)">
         </label>
-        <div>Typed text: <span id="valPickTyped" data-sub:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
-        <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-sub:.@val-prop-picked="dm.valPropPicked"></strong></div>
+        <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
+        <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked="dm.valPropPicked"></strong></div>
       </div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
-        <button id="valSignalStep" data-sub:val-source@.="({ bar: ((dm.valSource && dm.valSource.bar) || 0) + 1 })">Increment <code>valSource.bar</code></button>
-        <div>Signal child via <code>^val.bar</code>: <strong id="valSignalPicked" data-sub:.@val-source^val.bar="val"></strong></div>
-        <div>Expression on picked child: <strong id="valSignalPlusOne" data-sub:.@val-source^val.bar="val + 1"></strong></div>
+        <button id="valSignalStep" data-m-ex:val-source@.="({ bar: ((dm.valSource && dm.valSource.bar) || 0) + 1 })">Increment <code>valSource.bar</code></button>
+        <div>Signal child via <code>^val.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^val.bar="val"></strong></div>
+        <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^val.bar="val + 1"></strong></div>
       </div>
       <h4>8. Classes &amp; Display</h4>
-      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-sub@.^rw@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-class+active+!inactive@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-disp:.@user.ui.is-active" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <label><input id="classToggle" type="checkbox" data-sub@.^rw@user.ui.is-active> Toggle Active</label>
-      <div id="classBox" data-class+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
-      <p id="displayBox" data-disp:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
-      <p id="displayNeg" data-disp:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
-      <h4>9. List Rendering (data-dump)</h4>
-      <div class="page"><code data-attr-for="dumpPostsPrimary" data-attr-name="data-dump+#tpl-post@posts" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-template="tpl-post" data-attr-selector="[data-index]" data-attr-name="data-class+zebra-even+!zebra-odd@posts^immediate" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="inline-posts" data-attr-name="data-dump@posts" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thread-posts" data-attr-name="data-dump+#tpl-thread@threads" data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="addPost" data-attr-name="data-sub:posts@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="updateSecondPost" data-attr-name="data-sub:posts@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removeFirst" data-attr-name="data-sub:posts@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removePost" data-attr-name="data-sub:posts@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="refreshThreads" data-attr-name="data-sub:threads@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-m-cl+active+!inactive@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <label><input id="classToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Toggle Active</label>
+      <div id="classBox" data-m-cl+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+      <p id="displayBox" data-m-sh:.@user.ui.is-active>Visible only when active</p>
+      <p id="displayNeg" data-m-sh:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
+      <h4>9. List Rendering (data-m-it)</h4>
+      <div class="page"><code data-attr-for="dumpPostsPrimary" data-attr-name="data-m-it+#tpl-post@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-template="tpl-post" data-attr-selector="[data-index]" data-attr-name="data-m-cl+zebra-even+!zebra-odd@posts^immediate" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="inline-posts" data-attr-name="data-m-it@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thread-posts" data-attr-name="data-m-it+#tpl-thread@threads" data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="addPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="updateSecondPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removeFirst" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removePost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="refreshThreads" data-attr-name="data-m-ex:threads@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
         <template id="tpl-post">
-          <li data-index="$index" data-class+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0">
-          <span class="num" data-sub:.@posts="$index + 1"></span>
-          <span class="item" data-sub:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
+          <li data-index="$index" data-m-cl+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0">
+          <span class="num" data-m-ex:.@posts="$index + 1"></span>
+          <span class="item" data-m-ex:.@posts="(typeof dm.posts[$index] === 'object') ? JSON.stringify(dm.posts[$index], null, 2) : dm.posts[$index]" style="margin-left:8px"></span>
         </li>
       </template>
-      <ul id="dumpPostsPrimary" data-dump+#tpl-post@posts></ul>
-        <ul id="inline-posts" data-dump@posts><template><li data-index="$index" data-class+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0"><span data-sub:.@posts="$index + 1"></span> <span data-sub:.@posts="dm.posts[$index]"></span></li></template></ul>
+      <ul id="dumpPostsPrimary" data-m-it+#tpl-post@posts></ul>
+        <ul id="inline-posts" data-m-it@posts><template><li data-index="$index" data-m-cl+zebra-even+!zebra-odd@posts^immediate="$index % 2 === 0"><span data-m-ex:.@posts="$index + 1"></span> <span data-m-ex:.@posts="dm.posts[$index]"></span></li></template></ul>
       <template id="tpl-thread">
         <li class="thread">
-          <strong data-sub:.@threads="$item.title"></strong>
-          <ul class="thread-replies" data-dump@$item.replies>
-            <template><li data-sub:.="$item"></li></template>
+          <strong data-m-ex:.@threads="$item.title"></strong>
+          <ul class="thread-replies" data-m-it@$item.replies>
+            <template><li data-m-ex:.="$item"></li></template>
           </ul>
         </li>
       </template>
-      <ul id="thread-posts" data-dump+#tpl-thread@threads></ul>
-      <ul id="inline-threads" data-dump@threads>
+      <ul id="thread-posts" data-m-it+#tpl-thread@threads></ul>
+      <ul id="inline-threads" data-m-it@threads>
         <template>
           <li class="thread">
-            <strong data-sub:.@threads="$item.title"></strong>
-            <ul class="thread-replies" data-dump@$item.replies>
-              <template><li data-sub:.="$item"></li></template>
+            <strong data-m-ex:.@threads="$item.title"></strong>
+            <ul class="thread-replies" data-m-it@$item.replies>
+              <template><li data-m-ex:.="$item"></li></template>
             </ul>
           </li>
         </template>
       </ul>
       <div>
-        <button id="addPost" data-sub:posts@.="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
-        <button id="updateSecondPost" data-sub:posts@.="(dm.posts || []).map((post, idx) => idx === 1 ? 'Updated second post' : post)">Update Second</button>
-        <button id="removeFirst" data-sub:posts@.="(dm.posts || []).slice(1)">Remove First</button>
-        <button id="removePost" data-sub:posts@.="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
-        <button id="refreshThreads" data-sub:threads@.="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
+        <button id="addPost" data-m-ex:posts@.="(dm.posts || []).concat(['New post ' + ((dm.posts && dm.posts.length) || 0)])">Add Post</button>
+        <button id="updateSecondPost" data-m-ex:posts@.="(dm.posts || []).map((post, idx) => idx === 1 ? 'Updated second post' : post)">Update Second</button>
+        <button id="removeFirst" data-m-ex:posts@.="(dm.posts || []).slice(1)">Remove First</button>
+        <button id="removePost" data-m-ex:posts@.="(dm.posts || []).slice(0, Math.max(0, (dm.posts || []).length - 1))">Remove Last</button>
+        <button id="refreshThreads" data-m-ex:threads@.="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
       </div>
       <h4>10. Modifiers demo</h4>
-      <div class="page"><code data-attr-for="onceBtn" data-attr-name="data-sub:mod-once@.^once" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="debBtn" data-attr-name="data-sub:mod-deb@.^debounce.120" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thrBtn" data-attr-name="data-sub:mod-thr@.^throttle.120" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="andBtn" data-attr-name="data-sub:mod-and@.^and.gate" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <button id="onceBtn" data-sub:mod-once@.^once="(dm.modOnce || 0) + 1">Once</button>
-      <span data-sub:.@mod-once="dm.modOnce"></span>
-      <button id="debBtn" data-sub:mod-deb@.^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
-      <span data-sub:.@mod-deb="dm.modDeb"></span>
-      <button id="thrBtn" data-sub:mod-thr@.^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
-      <span data-sub:.@mod-thr="dm.modThr"></span>
-      <label><input id="gate" type="checkbox" data-sub@.^rw@gate> Gate</label>
-      <button id="andBtn" data-sub:mod-and@.^and.gate="(dm.modAnd || 0) + 1">AND</button>
-      <span data-sub:.@mod-and="dm.modAnd"></span>
+      <div class="page"><code data-attr-for="onceBtn" data-attr-name="data-m-ex:mod-once@.^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="debBtn" data-attr-name="data-m-ex:mod-deb@.^debounce.120" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thrBtn" data-attr-name="data-m-ex:mod-thr@.^throttle.120" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="andBtn" data-attr-name="data-m-ex:mod-and@.^and.gate" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <button id="onceBtn" data-m-ex:mod-once@.^once="(dm.modOnce || 0) + 1">Once</button>
+      <span data-m-ex:.@mod-once="dm.modOnce"></span>
+      <button id="debBtn" data-m-ex:mod-deb@.^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
+      <span data-m-ex:.@mod-deb="dm.modDeb"></span>
+      <button id="thrBtn" data-m-ex:mod-thr@.^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
+      <span data-m-ex:.@mod-thr="dm.modThr"></span>
+      <label><input id="gate" type="checkbox" data-m-ex@.^rw@gate> Gate</label>
+      <button id="andBtn" data-m-ex:mod-and@.^and.gate="(dm.modAnd || 0) + 1">AND</button>
+      <span data-m-ex:.@mod-and="dm.modAnd"></span>
       <h4>10.a Content vs Shape</h4>
-      <div class="page"><code data-attr-for="demoChangeChild" data-attr-name="data-sub:demo-parent@." data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="demoAddKey" data-attr-name="data-sub:demo-parent@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="demoRemoveKey" data-attr-name="data-sub:demo-parent@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="demoChangeChild" data-attr-name="data-m-ex:demo-parent@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="demoAddKey" data-attr-name="data-m-ex:demo-parent@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="demoRemoveKey" data-attr-name="data-m-ex:demo-parent@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Parent signal preview:</div>
-        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-sub:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
+        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-m-ex:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
         <div style="margin-top:6px">
-          <button id="demoChangeChild" data-sub:demo-parent@.="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
-          <button id="demoAddKey" data-sub:demo-parent@.="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
-          <button id="demoRemoveKey" data-sub:demo-parent@.="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
+          <button id="demoChangeChild" data-m-ex:demo-parent@.="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
+          <button id="demoAddKey" data-m-ex:demo-parent@.="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
+          <button id="demoRemoveKey" data-m-ex:demo-parent@.="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
-          <div>Content subscriber: <span id="demoContent" data-sub:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
-          <div>Shape subscriber: <span id="demoShape" data-sub:.@demo-parent^shape_only="detail ? window.formatShapeChange(detail) : ''"></span></div>
+          <div>Content subscriber: <span id="demoContent" data-m-ex:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
+          <div>Shape subscriber: <span id="demoShape" data-m-ex:.@demo-parent^shape_only="detail ? window.formatShapeChange(detail) : ''"></span></div>
         </div>
       </div>
       <h4>10.b Constant Index Signals</h4>
-      <div class="page"><code data-attr-for="post0Title" data-attr-name="data-sub:.@post-objs[0].title" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="post1Title" data-attr-name="data-sub:.@post-objs[1].title" data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="setPost0Title" data-attr-name="data-sub:post-objs[0].title@." data-sub:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="setPost1Title" data-attr-name="data-sub:post-objs[1].title@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="post0Title" data-attr-name="data-m-ex:.@post-objs[0].title" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="post1Title" data-attr-name="data-m-ex:.@post-objs[1].title" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="setPost0Title" data-attr-name="data-m-ex:post-objs[0].title@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="setPost1Title" data-attr-name="data-m-ex:post-objs[1].title@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
-        <div>Post 0: <strong id="post0Title" data-sub:.@post-objs[0].title="dm.postObjs[0].title"></strong></div>
-        <div>Post 1: <strong id="post1Title" data-sub:.@post-objs[1].title="dm.postObjs[1].title"></strong></div>
+        <div>Post 0: <strong id="post0Title" data-m-ex:.@post-objs[0].title="dm.postObjs[0].title"></strong></div>
+        <div>Post 1: <strong id="post1Title" data-m-ex:.@post-objs[1].title="dm.postObjs[1].title"></strong></div>
         <div style="margin-top:6px">
-          <button id="setPost0Title" data-sub:post-objs[0].title@.="'NewP0Title'">Set post 0 title</button>
-          <button id="setPost1Title" data-sub:post-objs[1].title@.="'NewP1Title'">Set post 1 title</button>
+          <button id="setPost0Title" data-m-ex:post-objs[0].title@.="'NewP0Title'">Set post 0 title</button>
+          <button id="setPost1Title" data-m-ex:post-objs[1].title@.="'NewP1Title'">Set post 1 title</button>
         </div>
       </div>
       <h4>State Tree (Live Debug)</h4>
-      <pre data-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+      <pre data-m-dbg style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <div class="page"><code data-attr-for="loadPost" data-attr-name="data-get^busy.busy^err.err^code.code:post-result@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-      <button id="loadPost" data-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
-      <div>Busy: <span data-sub:.@busy="dm.busy"></span> | Error: <span data-sub:.@err="dm.err"></span> | Code: <span data-sub:.@code="dm.code"></span></div>
-      <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
+      <div class="page"><code data-attr-for="loadPost" data-attr-name="data-m-get^busy.busy^err.err^code.code:post-result@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <button id="loadPost" data-m-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
+      <div>Busy: <span data-m-ex:.@busy="dm.busy"></span> | Error: <span data-m-ex:.@err="dm.err"></span> | Code: <span data-m-ex:.@code="dm.code"></span></div>
+      <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <div class="page"><code data-attr-for="loadPostCustomBusy" data-attr-name="data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-        <button id="loadPostCustomBusy" data-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
-        <strong style="margin-left:8px" data-disp:.@post-loading="dm.postLoading">Loading…</strong>
-        <div>Error: <span data-sub:.@post-error="dm.postError"></span> | Code: <span data-sub:.@post-code="dm.postCode"></span></div>
-        <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
+        <div class="page"><code data-attr-for="loadPostCustomBusy" data-attr-name="data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <button id="loadPostCustomBusy" data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
+        <strong style="margin-left:8px" data-m-sh:.@post-loading>Loading…</strong>
+        <div>Error: <span data-m-ex:.@post-error="dm.postError"></span> | Code: <span data-m-ex:.@post-code="dm.postCode"></span></div>
+        <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>
       <div>
-        <div class="page"><code data-attr-for="create-post" data-attr-name="data-sub:draftPost@." data-sub:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="create-post" data-attr-name="data-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread" data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
+        <div class="page"><code data-attr-for="create-post" data-attr-name="data-m-ex:draftPost@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="create-post" data-attr-name="data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-sub:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
-        <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <div class="page"><code data-attr-for="oobLoad" data-attr-name="data-get^html^busy.busy^err.err^code.code@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-        <button id="oobLoad" data-get^html^busy.busy^err.err^code.code@.="'/mock/oob'">Load OOB HTML + morph</button>
+        <div class="page"><code data-attr-for="oobLoad" data-attr-name="data-m-get^html^busy.busy^err.err^code.code@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <button id="oobLoad" data-m-get^html^busy.busy^err.err^code.code@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <div class="page"><code data-attr-for="sseLoad" data-attr-name="data-get^busy.busy^err.err:sse-status@." data-sub:.@idx="window.exampleAttrCode(el)"></code></div>
-        <button id="sseLoad" data-get^busy.busy^err.err:sse-status@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
-        <div>Message: <span data-sub:.@sse-message="dm.sseMessage"></span> | Count: <span data-sub:.@sse-count="dm.sseCount"></span></div>
+        <div class="page"><code data-attr-for="sseLoad" data-attr-name="data-m-get^busy.busy^err.err:sse-status@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <button id="sseLoad" data-m-get^busy.busy^err.err:sse-status@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
+        <div>Message: <span data-m-ex:.@sse-message="dm.sseMessage"></span> | Count: <span data-m-ex:.@sse-count="dm.sseCount"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
-        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-sub:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
       </div>
     </section>
   </main>
@@ -430,9 +430,9 @@
         const liveName = document.getElementById('live-name');
         if (!liveForm || !liveBtn || !liveName) return;
         const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500';
-        dSub(liveBtn, `data-sub:#live-raw${liveTrigList}`,
+        dmEx(liveBtn, `data-m-ex:#live-raw${liveTrigList}`,
           `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`);
-        dSub(liveBtn, `data-sub:#live-branch${liveTrigList}`,
+        dmEx(liveBtn, `data-m-ex:#live-branch${liveTrigList}`,
           `trig && trig.kind === '${SP}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`);
         liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')));
       }
@@ -454,7 +454,7 @@
             return Promise.resolve(makeJsonResponse(payload, 201));
           }
           if (u === '/mock/oob') {
-            const html = `<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`;
+            const html = `<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dmAct + morph)</span></div>`;
             return Promise.resolve({
               ok: true,
               headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
@@ -504,7 +504,7 @@
           const nodes = [root].concat(Array.from(root.querySelectorAll('*')));
           for (const n of nodes) {
             for (const a of Array.from(n.attributes || EMPTY_ARR)) {
-              if (a.name.indexOf('data-def') === 0) wireNode(n, a.name, a.value);
+              if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value);
               else deferred.push([n, a.name, a.value]);
             }
           }
@@ -519,11 +519,11 @@
     })();
   </script>
   <div id="__fg_reactivity_tests" style="display:none">
-    <span id="contentSub" data-sub:.@parent="(window.__contentCount = (window.__contentCount || 0) + 1, window.__contentCount)"></span>
-    <span id="shapeSub" data-sub:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
-    <button id="chgChild" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { child: ((dm.parent && dm.parent.child) || 0) + 1 })">Change child</button>
-    <button id="addKey" data-sub:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
-    <button id="removeKey" data-sub:parent@.click="((o) => (delete o.added, o))(Object.assign({}, dm.parent || {}))">Remove key</button>
+    <span id="contentSub" data-m-ex:.@parent="(window.__contentCount = (window.__contentCount || 0) + 1, window.__contentCount)"></span>
+    <span id="shapeSub" data-m-ex:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
+    <button id="chgChild" data-m-ex:parent@.click="Object.assign({}, dm.parent || {}, { child: ((dm.parent && dm.parent.child) || 0) + 1 })">Change child</button>
+    <button id="addKey" data-m-ex:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
+    <button id="removeKey" data-m-ex:parent@.click="((o) => (delete o.added, o))(Object.assign({}, dm.parent || {}))">Remove key</button>
   </div>
   <script src="asserts.js"></script>
 

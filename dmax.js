@@ -32,9 +32,9 @@
     }
 
     // Updated attribute-token syntax reference
-    // data-dump@foo-bar-signal+#tpl-id instead of data-dump@foo-bar-signal#tpl-id
-    // data-class+zebra-even+!zebra-odd instead of data-class:+zebra-even:~zebra-odd
-    // Use ^ for modifiers (trigger guards/timing/options): data-get^no-cache:posts^replace+user.name^query.username
+    // data-m-it@foo-bar-signal+#tpl-id  (data-m-it = iterate/dump)
+    // data-m-cl+zebra-even+!zebra-odd   (data-m-cl = class toggle)
+    // Use ^ for modifiers (trigger guards/timing/options): data-m-get^no-cache:posts^replace+user.name^query.username
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
@@ -69,13 +69,13 @@
     const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed'
     const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED]
     const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
-    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const E_RW_REQ = `dSub ${MOD}${M_RW} requires an element/property trigger in:`
-    const E_RW_EL = `dSub ${MOD}${M_RW} source element is not found in trigger:`
-    const E_RW_EV = `dSub ${MOD}${M_RW} event is not found in trigger:`
+    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }), DM_KEY = 'data-m-'
+    const E_RW_REQ = `dmEx ${MOD}${M_RW} requires an element/property trigger in:`
+    const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
+    const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const DEFAULT_PR_TA = Object.freeze({ kind: EV_PR, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
-    const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
+    const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const _KIND = [MOD, SIGNAL, EV_PR, SP]
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
@@ -215,11 +215,11 @@
         _dm.has(key) ? { value: _dm.get(key), enumerable: true, configurable: true } : undefined
     });
 
-    // - data-def='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
-    // - data-def:foo='{bar: "hey"}' // foo signal
-    // - data-def:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
-    // - data-def:foo='el.Value * dm.bar' // you may use other signals and element props
-    const dDef = (el, dKey, dVal) => {
+    // - data-m-si='{foo: {bar: "hey"}, baz: 1}' // top level fields to signals
+    // - data-m-si:foo='{bar: "hey"}' // foo signal
+    // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
+    // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
+    const dmSi = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', dKey)
       let fn = compileFn(dVal, dKey)
@@ -239,7 +239,7 @@
       }
     }
 
-    const dDebug = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
+    const dmDbg = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
     const getElById = (id, dKey) => {
       const el = document.getElementById(id)
       if (!el) console.error(`[dmax] Error: element #${id} from ${dKey} is not found`)
@@ -521,19 +521,19 @@
 
     const isDigitsOnly = (s) => typeof s == 'string' && RE_DIGITS.test(s)
 
-    const buildDumpItemRef = (siRoot, siPath, idx) => {
+    const buildItItemRef = (siRoot, siPath, idx) => {
       let out = siRoot
       if (siPath && siPath.length) for (const part of siPath) out += '.' + part
       return out + '.' + idx
     }
 
-    const buildDumpItemExpr = (siRoot, siPath, idx) => {
+    const buildItItemExpr = (siRoot, siPath, idx) => {
       let out = 'dm.' + siRoot
       if (siPath && siPath.length) for (const part of siPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
       return out + '[' + idx + ']'
     }
 
-    const replaceDumpTokens = (s, itemToken, indexToken) => {
+    const replaceItTokens = (s, itemToken, indexToken) => {
       if (typeof s !== 'string') return s
       let i = s.indexOf('$')
       if (i < 0) return s
@@ -548,7 +548,7 @@
       return parts.length ? parts.join('') + s.slice(p) : s
     }
 
-    const rewriteDumpBindings = (rootNode, itemRef, itemExpr, indexText) => {
+    const rewriteItBindings = (rootNode, itemRef, itemExpr, indexText) => {
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -556,8 +556,8 @@
         let nextAttrs = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
-          const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
-          const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
+          const nextName = replaceItTokens(attr.name, itemRef, indexText)
+          const nextVal = replaceItTokens(attr.value, itemExpr, indexText)
           if (nextName !== attr.name || nextVal !== attr.value) {
             if (!nextAttrs) {
               // Keep a parallel attribute list for later wiring because HTML accepts
@@ -569,19 +569,19 @@
           }
           if (nextAttrs) nextAttrs.push([nextName, nextVal])
         }
-        if (nextAttrs) DUMP_ATTRS.set(node, nextAttrs)
+        if (nextAttrs) IT_ATTRS.set(node, nextAttrs)
         const children = node.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
     }
 
-    const wireDumpClone = (node) => {
+    const wireItClone = (node) => {
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
-        const dumpAttrs = DUMP_ATTRS.get(el)
-        if (dumpAttrs && dumpAttrs.length) {
-          for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+        const itAttrs = IT_ATTRS.get(el)
+        if (itAttrs && itAttrs.length) {
+          for (let i = 0; i < itAttrs.length; ++i) globalThis.wireNode(el, itAttrs[i][0], itAttrs[i][1])
         } else {
           const attrs = el.attributes || NIL
           for (let i = 0; i < attrs.length; ++i) {
@@ -594,16 +594,16 @@
       }
     }
 
-    const renderDumpState = (el, trig, dumpState, tplFirst, siRoot, siPath) => {
+    const renderItState = (el, trig, itState, tplFirst, siRoot, siPath) => {
       const val = getSiValOrIt(trig)
       if (!Array.isArray(val)) return
-      const newLen = val.length, oldLen = dumpState.count || 0
+      const newLen = val.length, oldLen = itState.count || 0
       if (newLen < oldLen) {
         for (let i = 0; i < oldLen - newLen; i++) {
-          const node = dumpState.nodes.pop()
+            const node = itState.nodes.pop()
           if (node && node.parentNode) node.parentNode.removeChild(node)
         }
-        dumpState.count = newLen
+        itState.count = newLen
       }
       if (newLen > oldLen) {
         const frag = document.createDocumentFragment()
@@ -611,14 +611,14 @@
           try {
             const node = tplFirst.cloneNode(true)
             const idxText = String(idx)
-            rewriteDumpBindings(node, buildDumpItemRef(siRoot, siPath, idx), buildDumpItemExpr(siRoot, siPath, idx), idxText)
+            rewriteItBindings(node, buildItItemRef(siRoot, siPath, idx), buildItItemExpr(siRoot, siPath, idx), idxText)
             frag.appendChild(node)
-            dumpState.nodes.push(node)
+            itState.nodes.push(node)
           } catch { }
         }
         el.appendChild(frag)
-        for (let i = dumpState.nodes.length - (newLen - oldLen); i < dumpState.nodes.length; ++i) wireDumpClone(dumpState.nodes[i])
-        dumpState.count = newLen
+        for (let i = itState.nodes.length - (newLen - oldLen); i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
+        itState.count = newLen
       }
     }
 
@@ -972,7 +972,7 @@
       return h
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
-    const dSub = (el, dKey, dVal) => {
+    const dmEx = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', dKey)
       const hasExpr = dVal != null && '' + dVal
@@ -1066,17 +1066,17 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', dKey); return }
       }
     }
-    // data-class+my-class+!my-other@signal="expr"
+    // data-m-cl+my-class+!my-other@signal="expr"
     // +className adds when expr is truthy and removes when falsy.
     // +!className inverts that rule.
     // Without dVal, the raw signal or trigger value is used.
-    const dClass = (el, dKey, dVal) => {
+    const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', dKey); return }
-      if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', dKey); return }
+      if (!adds.length) { console.error('[dmax] Error: dmCl requires class names via + syntax in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmCl requires at least one trigger in:', dKey); return }
       const prTa = findFirstKind(tars, EV_PR)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
-      if (!taEl) { console.error('[dmax] Error: dClass target element not found in:', dKey); return }
+      if (!taEl) { console.error('[dmax] Error: dmCl target element not found in:', dKey); return }
       const fn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
@@ -1089,22 +1089,22 @@
           if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PR) {
           const evTaEl = root ? getElById(root, dKey) : el
-          if (!evTaEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', dKey); return }
+          if (!evTaEl) { console.error('[dmax] Error: dmCl element not found in trigger:', trig, 'in:', dKey); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
-          if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', dKey); return }
+          if (!ev) { console.error('[dmax] Error: dmCl event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
         }
       }
     }
-    // data-disp:.@signal="expr"
+    // data-m-sh:.@signal="expr"
     //   shows/hides the target element based on the truthy/falsy result of the expression
-    const dDisp = (el, dKey, dVal) => {
+    const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmSh requires at least one trigger in:', dKey); return }
       const prTa = findFirstKind(tars, EV_PR)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
-      if (!taEl) { console.error('[dmax] Error: dDisp target element not found in:', dKey); return }
+      if (!taEl) { console.error('[dmax] Error: dmSh target element not found in:', dKey); return }
       const inline = (taEl.style && taEl.style.display) || ''
       const hadInline = inline !== ''
       const computed = getComputedDisplay(taEl)
@@ -1121,61 +1121,60 @@
           if (isImmediateMod(mods, false)) invokeBoundSub(sub, null)
         } else if (kind === EV_PR) {
           const evTaEl = root ? getElById(root, dKey) : el
-          if (!evTaEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', dKey); return }
+          if (!evTaEl) { console.error('[dmax] Error: dmSh element not found in trigger:', trig, 'in:', dKey); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
-          if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', dKey); return }
+          if (!ev) { console.error('[dmax] Error: dmSh event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (isImmediateMod(mods, false)) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
         }
       }
     }
-    // Dispatch data-* attributes to their setup functions.
+    // dataM: extensible feature registry — each key is the suffix after 'data-m-'; users may add custom entries.
+    const dataM = {}
     const wireNode = (n, an, v) => {
-      if (an.indexOf('data-def') === 0) dDef(n, an, v)
-      else if (an === 'data-debug') dDebug(n)
-      else if (an.indexOf('data-sub') === 0) dSub(n, an, v)
-      else if (an.indexOf('data-class') === 0) dClass(n, an, v)
-      else if (an.indexOf('data-disp') === 0) dDisp(n, an, v)
-      else if (an.indexOf('data-dump') === 0) dDump(n, an)
-      else if (an.indexOf('data-get') === 0 || an.indexOf('data-post') === 0 || an.indexOf('data-put') === 0 || an.indexOf('data-patch') === 0 || an.indexOf('data-delete') === 0) dAction(n, an, v)
+      if (an.indexOf(DM_KEY) !== 0) return
+      const rest = an.slice(DM_KEY.length), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
+      const fn = dataM[fe]
+      if (fn) fn(n, an, v)
     }
-    globalThis.wireNode=wireNode
+    globalThis.dataM = dataM
+    globalThis.wireNode = wireNode
 
-    // data-dump@items uses an inline template child and renders immediately by default.
-    // data-dump+#tplId@items^shape_only uses an explicit template and shape-only updates.
+    // data-m-it@items uses an inline template child and renders immediately by default.
+    // data-m-it+#tplId@items^shape_only uses an explicit template and shape-only updates.
     // In templates, $item and $index expand in both attribute values and names.
-    const dDump = (el, dKey) => {
+    const dmIt = (el, dKey) => {
       const it = parseCached(dKey), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
-      if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmIt requires a signal trigger in:', dKey); return }
       const trig = trigs[0]
-      if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dDump trigger must be a signal in:', dKey); return }
+      if (trig.kind !== SIGNAL) { console.error('[dmax] Error: dmIt trigger must be a signal in:', dKey); return }
       const mods = pickMods(trig.mods, globMods)
       let tpl = null
       if (adds.length && adds[0].kind === EV_PR && adds[0].root) tpl = getElById(adds[0].root, dKey)
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
-      if (!tpl) { console.error('[dmax] Error: dDump template not found for:', dKey); return }
+      if (!tpl) { console.error('[dmax] Error: dmIt template not found for:', dKey); return }
       const tplFirst = tpl.content && tpl.content.firstElementChild
-      if (!tplFirst) { console.error('[dmax] Error: dDump template root not found for:', dKey); return }
-      let dumpState = DUMP_STATES.get(el)
-      if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
+      if (!tplFirst) { console.error('[dmax] Error: dmIt template root not found for:', dKey); return }
+      let itState = IT_STATES.get(el)
+      if (!itState) IT_STATES.set(el, itState = { nodes: [], count: 0 })
       const siRoot = trig.root
       const siPath = trig.path
 
-      addTrSub(el, trig, mods, ()=>renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath), upsert(_cleanupBoundSubs, el))
-      if (isImmediateMod(mods, true)) renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath)
+      addTrSub(el, trig, mods, ()=>renderItState(el,trig,itState,tplFirst,siRoot,siPath), upsert(_cleanupBoundSubs, el))
+      if (isImmediateMod(mods, true)) renderItState(el,trig,itState,tplFirst,siRoot,siPath)
     }
-    // data-get^busy.busy:result@.click^immediate="url"
-    // data-post^json^busy.busy:result@.click+#id.prop+signal="url"
-    // data-put^json:result@.click+body="url"
-    // data-delete^busy.busy:ok@.click="url"
-    // Method is derived from the attribute prefix; dVal is compiled as a URL expression.
-    const dAction = (el, dKey, dVal) => {
-      const afterData = dKey.slice(5) // strip 'data-'
+    // data-m-get^busy.busy:result@.click^immediate="url"
+    // data-m-post^json^busy.busy:result@.click+#id.prop+signal="url"
+    // data-m-put^json:result@.click+body="url"
+    // data-m-delete^busy.busy:ok@.click="url"
+    // Method is derived from the feature suffix after DM_KEY; dVal is compiled as a URL expression.
+    const dmAct = (el, dKey, dVal) => {
+      const afterData = dKey.slice(DM_KEY.length)
       const methodEnd = indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const method = ACT_METHODS[methodName]
-      if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', dKey); return }
+      if (!method) { console.error('[dmax] Error: dmAct: unrecognised method prefix in:', dKey); return }
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
@@ -1257,10 +1256,20 @@
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
-
+      for (const add of adds) {
+        const ap = add.path
+        add.key = (ap && ap.length ? ap[ap.length - 1] : add.root) || 'value'
+        add.spread = false
+        for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
+      }
+      const actRouteMods = []
+      for (const m of urlMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.kind === SIGNAL ? [false, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
+      for (const m of bodyMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.kind === SIGNAL ? [true, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
+      const actHdrMods = []
+      for (const m of hdrMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.kind === SIGNAL ? [camelToKebab(p.path?.at(-1) ?? p.root), null, p] : null; if (e) actHdrMods.push(e) }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
-        if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', dKey); return }
+        if (!url) { console.error('[dmax] Error: dmAct: URL is empty in:', dKey); return }
 
         setS(dKey, busyStat, true), setS(dKey, completeStat, false), setS(dKey, errStat, null), setS(dKey, codeStat, null)
 
@@ -1271,18 +1280,14 @@
           }
           for (const add of adds) {
             const addKind = add.kind, addRoot = add.root, addPath = add.path
-            let val = null, key = null
+            let val = null
             if (addKind === EV_PR) {
               const addEl = addRoot ? getElById(addRoot, dKey) : el
               val = addEl ? getElPrVal(addEl, addPath) : null
-              key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
             } else {
               val = getSiValOrIt(add)
-              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
-            let shouldSpread = false
-            for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { shouldSpread = true; break }
-            if (shouldSpread) {
+            if (add.spread) {
               if (val && typeof val === 'object') {
                 for (const k in val) {
                   if (!hasOwn(val, k)) continue
@@ -1291,31 +1296,16 @@
                 }
               } else if (isGetOrDelete) queryParams.value = val
               else bodyFields.value = val
-            } else if (isGetOrDelete) queryParams[key] = val
-            else bodyFields[key] = val
+            } else if (isGetOrDelete) queryParams[add.key] = val
+            else bodyFields[add.key] = val
           }
 
-          // ^url.<siPath> forces named sig into query params.
-          // ^body.<siPath> forces a sig into request body.
-          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
-            const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSiValOrIt(mPath) }
-            else continue
-            (isBody ? bodyFields : queryParams)[mKey] = mVal
-          }
+          for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
 
-          let finalUrl = url
-          let q = '', hasQ = false
+          let finalUrl = url, hasQ = finalUrl.indexOf('?') >= 0
           for (const k in queryParams) {
-            if (hasQ) q += '&'
-            q += encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))
+            finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))
             hasQ = true
-          }
-          if (hasQ) {
-            finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
           }
 
           let hs = ACT_HS_EMPTY, sharedHs = true
@@ -1341,24 +1331,11 @@
               hs[H_AUTHORIZATION] = String(authVal)
             }
           }
-          // ^header.<name> sets one request header from a named sig.
-          for (const m of hdrMods) {
-            const mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) {
-              mKey = camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
-              mVal = getSiValOrIt(mPath)
-            }
-            else continue
-            if (sharedHs) {
-              hs = cloneOwnProps(hs)
-              sharedHs = false
-            }
-            hs[mKey] = String(mVal ?? '')
+          for (const [kebabKey, path, ref] of actHdrMods) {
+            const mVal = ref ? getSiValOrIt(ref) : _dm.get(path)
+            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
+            hs[kebabKey] = mVal != null ? '' + mVal : ''
           }
-
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
             if (!hasOwn(bodyFields, bk)) continue
@@ -1370,13 +1347,13 @@
             // Send one input as a bare value and multiple inputs as an object.
             const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
             if (isForm && raw && typeof raw === 'object') {
-              const params = new URLSearchParams()
-              if (Array.isArray(raw)) {
-                for (let i = 0; i < raw.length; i++) params.append(String(i), String(raw[i] ?? ''))
-              } else {
-                for (const k in raw) if (hasOwn(raw, k)) params.append(k, String(raw[k] ?? ''))
+              let out = ''
+              if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) out += (i ? '&' : '') + encodeURIComponent('' + i) + '=' + encodeURIComponent(String(raw[i] ?? ''))
+              else {
+                let i = 0
+                for (const k in raw) if (hasOwn(raw, k)) out += (i++ ? '&' : '') + encodeURIComponent(k) + '=' + encodeURIComponent(String(raw[k] ?? ''))
               }
-              body = params.toString()
+              body = out
             } else if (isJson || (raw !== null && typeof raw === 'object'))
               body = JSON.stringify(raw)
             else body = String(raw)
@@ -1436,7 +1413,7 @@
           if (!isAbort) {
             setS(dKey, errStat, err && err.message ? err.message : String(err))
             setS(dKey, codeStat, Number.isFinite(err && err.status) ? err.status : null)
-            console.error('[dmax] Error: dAction fetch failed:', err)
+            console.error('[dmax] Error: dmAct fetch failed:', err)
             // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
@@ -1448,7 +1425,7 @@
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        if (kind !== SIGNAL && kind !== EV_PR) { console.error('[dmax] Error: dAction unsupported trigger kind', kind, 'in', dKey); return }
+        if (kind !== SIGNAL && kind !== EV_PR) { console.error('[dmax] Error: dmAct unsupported trigger kind', kind, 'in', dKey); return }
         const mods = pickMods(trig.mods, globMods), shouldImmediate = !ranImmediate && isImmediateMod(mods, false)
         if (kind === SIGNAL) {
           if (!expected(root)) return
@@ -1460,9 +1437,9 @@
           continue
         }
         const evTaEl = root ? getElById(root, dKey) : el
-        if (!evTaEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', dKey); return }
+        if (!evTaEl) { console.error('[dmax] Error: dmAct element not found in trigger:', trig, 'in:', dKey); return }
         const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
-        if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', dKey); return }
+        if (!ev) { console.error('[dmax] Error: dmAct event not found in trigger:', trig, 'in:', dKey); return }
         const moddedHandler = addTrSub(el, trig, mods, doRequest, elSubs, evTaEl, ev, null)
         if (shouldImmediate) {
           ranImmediate = true
@@ -1471,6 +1448,7 @@
       }
     }
     // Morph updates DOM in place so matched nodes keep listeners, state, focus, and scroll.
+    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dmAct
     // Match by id first, then by tag name, and clone only when no reusable node fits.
 
     // Return true when two nodes can be morphed in place.

@@ -71,7 +71,7 @@ const BASE_STATE = JSON.stringify({
 
 function buildTestHtml(insertEl) {
   return `<!doctype html><html><body>
-<div data-def='${BASE_STATE}'></div>
+<div data-m-si='${BASE_STATE}'></div>
 <div id="elem"></div>
 <div id="other"></div>
 <button id="btn"></button>
@@ -96,53 +96,53 @@ function* generateDataSubCombinations() {
   // 1. Single target, single trigger
   for (const sig of SIGNAL_NAMES.slice(0, 3)) {
     for (const trig of SIGNAL_NAMES.slice(0, 3)) {
-      yield { attr: `data-sub:${sig}@${trig}`, valid: true, category: 'single-target-trigger' };
+      yield { attr: `data-m-ex:${sig}@${trig}`, valid: true, category: 'single-target-trigger' };
     }
   }
   
   // 2. Single property target, single event trigger
   for (const prop of PROPERTIES.slice(0, 3)) {
     for (const ev of EVENTS.slice(0, 3)) {
-      yield { attr: `data-sub:.${prop}@.${ev}`, valid: true, category: 'prop-event' };
+      yield { attr: `data-m-ex:.${prop}@.${ev}`, valid: true, category: 'prop-event' };
     }
   }
   
   // 3. Multiple targets
-  yield { attr: 'data-sub:foo:bar@baz', valid: true, category: 'multi-target' };
-  yield { attr: 'data-sub:foo:.value@.click', valid: true, category: 'mixed-targets' };
-  yield { attr: 'data-sub:.value:.checked@.click', valid: true, category: 'multi-prop-targets' };
+  yield { attr: 'data-m-ex:foo:bar@baz', valid: true, category: 'multi-target' };
+  yield { attr: 'data-m-ex:foo:.value@.click', valid: true, category: 'mixed-targets' };
+  yield { attr: 'data-m-ex:.value:.checked@.click', valid: true, category: 'multi-prop-targets' };
   
   // 4. Multiple triggers
-  yield { attr: 'data-sub:foo@bar@baz', valid: true, category: 'multi-trigger' };
-  yield { attr: 'data-sub:foo@bar@.click@#btn.click', valid: true, category: 'mixed-triggers' };
+  yield { attr: 'data-m-ex:foo@bar@baz', valid: true, category: 'multi-trigger' };
+  yield { attr: 'data-m-ex:foo@bar@.click@#btn.click', valid: true, category: 'mixed-triggers' };
   
   // 5. With modifiers
   for (const mod of MODIFIERS.slice(0, 5)) {
-      yield { attr: `data-sub:foo@bar^${mod}`, valid: true, category: 'trigger-mod' };
+      yield { attr: `data-m-ex:foo@bar^${mod}`, valid: true, category: 'trigger-mod' };
     }
-  yield { attr: 'data-sub^once:foo@bar', valid: true, category: 'global-mod' };
-  yield { attr: 'data-sub^once:foo@bar^always', valid: true, category: 'mod-override' };
+  yield { attr: 'data-m-ex^once:foo@bar', valid: true, category: 'global-mod' };
+  yield { attr: 'data-m-ex^once:foo@bar^always', valid: true, category: 'mod-override' };
   
   // 6. Special triggers
   for (const special of SPECIAL_EVENTS) {
-    yield { attr: `data-sub:foo@${special}`, valid: true, category: 'special-trigger' };
+    yield { attr: `data-m-ex:foo@${special}`, valid: true, category: 'special-trigger' };
   }
   // IntersectionObserver-based triggers warn when IO is unavailable (e.g. JSDOM)
   for (const special of SPECIAL_EVENTS_WITH_IO) {
-    yield { attr: `data-sub:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver not available' };
+    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver not available' };
   }
   
   // 7. No target (side effect)
-  yield { attr: 'data-sub@foo', valid: true, category: 'side-effect' };
-  yield { attr: 'data-sub@.click', valid: true, category: 'side-effect-event' };
+  yield { attr: 'data-m-ex@foo', valid: true, category: 'side-effect' };
+  yield { attr: 'data-m-ex@.click', valid: true, category: 'side-effect-event' };
   
   // 8. No trigger (immediate eval)
-  yield { attr: 'data-sub:foo', valid: true, category: 'no-trigger' };
-  yield { attr: 'data-sub:.value', valid: true, category: 'no-trigger-prop' };
+  yield { attr: 'data-m-ex:foo', valid: true, category: 'no-trigger' };
+  yield { attr: 'data-m-ex:.value', valid: true, category: 'no-trigger-prop' };
   
   // 9. Cross-element references
-  yield { attr: 'data-sub:#elem.value@#other.input', valid: true, category: 'cross-element' };
-  yield { attr: 'data-sub:foo@#elem.click', valid: true, category: 'cross-element-event' };
+  yield { attr: 'data-m-ex:#elem.value@#other.input', valid: true, category: 'cross-element' };
+  yield { attr: 'data-m-ex:foo@#elem.click', valid: true, category: 'cross-element-event' };
   
   // Invalid combinations - Note: Parser is lenient, only catches syntax errors
   
@@ -152,7 +152,7 @@ function* generateDataSubCombinations() {
   // 11. Invalid properties - parser doesn't validate property names
   // Removed: invalid property tests - parser is lenient
   
-  yield { attr: 'data-sub+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'Supports only targets, triggers, mods but found more' };
+  yield { attr: 'data-m-ex+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'Supports only targets, triggers, mods but found more' };
   
   // Note: Parser doesn't validate modifier names or detect conflicts - they're just strings
   // Removed: Invalid modifier and conflicting modifier tests - parser is lenient
@@ -163,58 +163,58 @@ function* generateDataSubRwCombinations() {
   
   // 1. Signal to default property (two-way)
   for (const sig of SIGNAL_NAMES.slice(0, 3)) {
-    yield { attr: `data-sub@.^rw@${sig}`, valid: true, category: 'two-way-default' };
+    yield { attr: `data-m-ex@.^rw@${sig}`, valid: true, category: 'two-way-default' };
   }
   
   // 2. Signal to element (one-way: signal → element)
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-sub:.@${sig}`, valid: true, category: 'one-way-sig-to-el' };
+    yield { attr: `data-m-ex:.@${sig}`, valid: true, category: 'one-way-sig-to-el' };
   }
   
   // 3. Element to signal (one-way: element → signal)
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-sub:${sig}@.`, valid: true, category: 'one-way-el-to-sig' };
-    yield { attr: `data-sub:${sig}@.value`, valid: true, category: 'one-way-el-to-sig-explicit' };
+    yield { attr: `data-m-ex:${sig}@.`, valid: true, category: 'one-way-el-to-sig' };
+    yield { attr: `data-m-ex:${sig}@.value`, valid: true, category: 'one-way-el-to-sig-explicit' };
   }
   
   // 4. Two-way with explicit ^val path
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-sub@.^val.value^rw@${sig}`, valid: true, category: 'two-way-val-path' };
+    yield { attr: `data-m-ex@.^val.value^rw@${sig}`, valid: true, category: 'two-way-val-path' };
   }
   
   // 5. Signal to signal
-  yield { attr: 'data-sub:foo@bar', valid: true, category: 'signal-to-signal' };
-  yield { attr: 'data-sub:display-name@user.name', valid: true, category: 'nested-to-signal' };
+  yield { attr: 'data-m-ex:foo@bar', valid: true, category: 'signal-to-signal' };
+  yield { attr: 'data-m-ex:display-name@user.name', valid: true, category: 'nested-to-signal' };
   
   // 6. With modifiers
-  yield { attr: 'data-sub@.^notimmediate^rw@foo', valid: true, category: 'with-mod' };
+  yield { attr: 'data-m-ex@.^notimmediate^rw@foo', valid: true, category: 'with-mod' };
 }
 
 function* generateDataClassCombinations() {
   // Valid
-  yield { attr: 'data-class:+active@is-active', valid: true, category: 'single-class' };
-  yield { attr: 'data-class+active+!inactive@is-active', valid: true, category: 'inverse-class' };
-  yield { attr: 'data-class:+foo:+bar@baz', valid: true, category: 'multi-class' };
-  yield { attr: 'data-class:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dClass requires class names via + syntax' };
+  yield { attr: 'data-m-cl:+active@is-active', valid: true, category: 'single-class' };
+  yield { attr: 'data-m-cl+active+!inactive@is-active', valid: true, category: 'inverse-class' };
+  yield { attr: 'data-m-cl:+foo:+bar@baz', valid: true, category: 'multi-class' };
+  yield { attr: 'data-m-cl:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dmCl requires class names via + syntax' };
 }
 
 function* generateDataDispCombinations() {
   // Valid
-  yield { attr: 'data-disp@is-visible', valid: true, category: 'display-signal' };
-  yield { attr: 'data-disp@flag', valid: true, category: 'display-flag' };
-  yield { attr: 'data-disp:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dDisp requires at least one trigger' };
+  yield { attr: 'data-m-sh@is-visible', valid: true, category: 'display-signal' };
+  yield { attr: 'data-m-sh@flag', valid: true, category: 'display-flag' };
+  yield { attr: 'data-m-sh:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmSh requires at least one trigger' };
 }
 
 function* generateDataDumpCombinations() {
   // Valid - standard patterns
-  yield { attr: 'data-dump+#tpl-post@posts', valid: true, category: 'with-template' };
-  yield { attr: 'data-dump@posts+#tpl-post', valid: true, category: 'reversed-order' };
-  yield { attr: 'data-dump@posts', valid: true, category: 'inline-template' };
+  yield { attr: 'data-m-it+#tpl-post@posts', valid: true, category: 'with-template' };
+  yield { attr: 'data-m-it@posts+#tpl-post', valid: true, category: 'reversed-order' };
+  yield { attr: 'data-m-it@posts', valid: true, category: 'inline-template' };
   
   // Valid - dotted signal paths
-  yield { attr: 'data-dump+#tpl-post@user.posts', valid: true, category: 'dotted-signal' };
-  yield { attr: 'data-dump+#tpl-item@app.data.items', valid: true, category: 'deep-dotted' };
-  yield { attr: 'data-dump+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dDump requires a signal trigger' };
+  yield { attr: 'data-m-it+#tpl-post@user.posts', valid: true, category: 'dotted-signal' };
+  yield { attr: 'data-m-it+#tpl-item@app.data.items', valid: true, category: 'deep-dotted' };
+  yield { attr: 'data-m-it+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmIt requires a signal trigger' };
 }
 
 function* generateDataActionCombinations() {
@@ -222,23 +222,23 @@ function* generateDataActionCombinations() {
   
   // Valid
   for (const method of methods) {
-    yield { attr: `data-${method}:result@.click`, valid: true, category: `${method}-basic` };
-    yield { attr: `data-${method}^json:result@.click`, valid: true, category: `${method}-json` };
-    yield { attr: `data-${method}+#input.value:result@.click`, valid: true, category: `${method}-input` };
-    yield { attr: `data-${method}^busy.busy^err.err:result@.click`, valid: true, category: `${method}-state` };
+    yield { attr: `data-m-${method}:result@.click`, valid: true, category: `${method}-basic` };
+    yield { attr: `data-m-${method}^json:result@.click`, valid: true, category: `${method}-json` };
+    yield { attr: `data-m-${method}+#input.value:result@.click`, valid: true, category: `${method}-input` };
+    yield { attr: `data-m-${method}^busy.busy^err.err:result@.click`, valid: true, category: `${method}-state` };
     // Test hyphenated signal names (must convert to camelCase)
-    yield { attr: `data-${method}:post-result@.click`, valid: true, category: `${method}-hyphenated-target` };
+    yield { attr: `data-m-${method}:post-result@.click`, valid: true, category: `${method}-hyphenated-target` };
     // Note: Actions don't support signal triggers (only event triggers like @#.click or @_interval.1000)
     // Test state signals via modifiers
-    yield { attr: `data-${method}^busy.req-busy^err.req-err^code.req-code:result@.click`, valid: true, category: `${method}-state-modes` };
-    yield { attr: `data-${method}^busy.status:result@.click`, valid: true, category: `${method}-state-all` };
-    yield { attr: `data-${method}^hs.req-hs:result@.click`, valid: true, category: `${method}-headers-modifier` };
-    yield { attr: `data-${method}^hs.raw-hs^hs-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
-    yield { attr: `data-${method}^header.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
-    yield { attr: `data-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
-    if (method !== 'get') yield { attr: `data-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
-    yield { attr: `data-${method}^append:items@.click`, valid: true, category: `${method}-append-modifier` };
-    yield { attr: `data-${method}^prepend:items@.click`, valid: true, category: `${method}-prepend-modifier` };
+    yield { attr: `data-m-${method}^busy.req-busy^err.req-err^code.req-code:result@.click`, valid: true, category: `${method}-state-modes` };
+    yield { attr: `data-m-${method}^busy.status:result@.click`, valid: true, category: `${method}-state-all` };
+    yield { attr: `data-m-${method}^hs.req-hs:result@.click`, valid: true, category: `${method}-headers-modifier` };
+    yield { attr: `data-m-${method}^hs.raw-hs^hs-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
+    yield { attr: `data-m-${method}^header.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
+    yield { attr: `data-m-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
+    if (method !== 'get') yield { attr: `data-m-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
+    yield { attr: `data-m-${method}^append:items@.click`, valid: true, category: `${method}-append-modifier` };
+    yield { attr: `data-m-${method}^prepend:items@.click`, valid: true, category: `${method}-prepend-modifier` };
   }
 }
 
@@ -401,27 +401,27 @@ class FuzzTestRunner {
     
     await this.setup();
     
-    console.log('\n--- Testing data-sub ---');
+    console.log('\n--- Testing data-m-ex ---');
     for (const tc of generateDataSubCombinations()) {
       await this.testAttribute(tc);
     }
     
-    console.log('\n--- Testing data-sub ^rw ---');
+    console.log('\n--- Testing data-m-ex ^rw ---');
     for (const tc of generateDataSubRwCombinations()) {
       await this.testAttribute(tc);
     }
     
-    console.log('\n--- Testing data-class ---');
+    console.log('\n--- Testing data-m-cl ---');
     for (const tc of generateDataClassCombinations()) {
       await this.testAttribute(tc);
     }
     
-    console.log('\n--- Testing data-disp ---');
+    console.log('\n--- Testing data-m-sh ---');
     for (const tc of generateDataDispCombinations()) {
       await this.testAttribute(tc);
     }
     
-    console.log('\n--- Testing data-dump ---');
+    console.log('\n--- Testing data-m-it ---');
     for (const tc of generateDataDumpCombinations()) {
       await this.testAttribute(tc);
     }
@@ -474,27 +474,27 @@ async function runRegressionTests(runner) {
   
   const regressions = [
     // Bug: camelCase in attributes lowercased
-    { attr: 'data-sub:.text-content@foo', expr: '"test"', valid: true, desc: 'kebab-case property works' },
+    { attr: 'data-m-ex:.text-content@foo', expr: '"test"', valid: true, desc: 'kebab-case property works' },
     
     // Bug: constant bracket-index subscriptions
-    { attr: 'data-sub:result@posts[0]', expr: 'dm.posts[0]', valid: true, desc: 'constant bracket-index subscription' },
+    { attr: 'data-m-ex:result@posts[0]', expr: 'dm.posts[0]', valid: true, desc: 'constant bracket-index subscription' },
 
     // Bug: infinite loops
-    { attr: 'data-sub@.^rw@foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },
+    { attr: 'data-m-ex@.^rw@foo', expr: 'dm.foo', valid: true, desc: 'circular sync prevented' },
     
     // Bug: shape vs content
-    { attr: 'data-sub@parent^shape_only', expr: 'dm.parent', valid: true, desc: 'shape modifier works' },
-    { attr: 'data-sub@parent', expr: 'dm.parent', valid: true, desc: 'content-only default works' },
+    { attr: 'data-m-ex@parent^shape_only', expr: 'dm.parent', valid: true, desc: 'shape modifier works' },
+    { attr: 'data-m-ex@parent', expr: 'dm.parent', valid: true, desc: 'content-only default works' },
     
     // Bug: modifier conflicts
-    { attr: 'data-sub^once:foo@bar^always', expr: 'dm.bar', valid: true, desc: '^always overrides global ^once' },
+    { attr: 'data-m-ex^once:foo@bar^always', expr: 'dm.bar', valid: true, desc: '^always overrides global ^once' },
     
     // Bug: cross-element cleanup
-    { attr: 'data-sub:#other.value@foo', expr: 'dm.foo', valid: true, desc: 'cross-element reference' },
+    { attr: 'data-m-ex:#other.value@foo', expr: 'dm.foo', valid: true, desc: 'cross-element reference' },
 
     // Action routing and header helpers
     {
-      attr: 'data-post^json:result@.click+title',
+      attr: 'data-m-post^json:result@.click+title',
       expr: '"https://api.test/posts"',
       valid: true,
       desc: 'POST action sends named signals in request body by default',
@@ -508,7 +508,7 @@ async function runRegressionTests(runner) {
       }
     },
     {
-      attr: 'data-post^json^body.target-id:result@.click+title',
+      attr: 'data-m-post^json^body.target-id:result@.click+title',
       expr: '"https://api.test/items"',
       valid: true,
       desc: '^body routes named signals into request bodies',
@@ -522,7 +522,7 @@ async function runRegressionTests(runner) {
       }
     },
     {
-      attr: 'data-get^hs.req-hs:result@.click',
+      attr: 'data-m-get^hs.req-hs:result@.click',
       expr: '"https://api.test/headers"',
       valid: true,
       desc: '^hs kebab-cases copied object fields by default',
@@ -538,7 +538,7 @@ async function runRegressionTests(runner) {
       }
     },
     {
-      attr: 'data-get^hs.raw-hs^hs-no-kebab:result@.click',
+      attr: 'data-m-get^hs.raw-hs^hs-no-kebab:result@.click',
       expr: '"https://api.test/headers-raw"',
       valid: true,
       desc: '^hs-no-kebab preserves exact copied header keys',
@@ -552,7 +552,7 @@ async function runRegressionTests(runner) {
       }
     },
     {
-      attr: 'data-get^auth.authorization:result@.click',
+      attr: 'data-m-get^auth.authorization:result@.click',
       expr: '"https://api.test/secure"',
       valid: true,
       desc: '^auth routes authorization from a signal',

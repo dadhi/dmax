@@ -25,7 +25,7 @@ function waitFor(conditionFn, timeout = 5000, interval = 25) {
 }
 
 function readDebugState(document) {
-  const debug = document.querySelector('[data-debug]');
+  const debug = document.querySelector('[data-m-dbg]');
   if (!debug || !debug.textContent.trim()) return {};
   return JSON.parse(debug.textContent);
 }
@@ -155,7 +155,7 @@ function getPathname(url) {
           }
         },
         async text() {
-          return '<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>';
+          return '<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dmAct + morph)</span></div>';
         }
       });
     }
@@ -242,7 +242,7 @@ function getPathname(url) {
     .catch(e => { throw new Error('OOB morph did not update target: ' + e.message); });
 
   assert.strictEqual(window.__lastRequest().init.headers.accept, 'text/html', 'OOB request asks for HTML');
-  assert(/via dAction \+ morph/.test(oobTarget.textContent || ''), 'OOB target shows morphed content');
+  assert(/via dmAct \+ morph/.test(oobTarget.textContent || ''), 'OOB target shows morphed content');
   console.log('OOB test passed');
 
   const sseBtn = document.getElementById('sseLoad');
