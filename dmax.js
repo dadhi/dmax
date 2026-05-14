@@ -1469,11 +1469,13 @@
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const TEXT_NODE = 3
     const _siSelCache = new Map()
+    const SI_BAD_SYMS = ' \t\r\n#>+~:.[],|'
     const getSimpleIdSelector = (sel) => {
       if (!sel || sel[0] !== '#') return null
-      if (_siSelCache.has(sel)) return _siSelCache.get(sel)
+      const cached = _siSelCache.get(sel)
+      if (cached !== undefined) return cached
       for (let i = 1; i < sel.length; ++i)
-        if (sel[i] <= ' ' || sel[i] === '#' || sel[i] === '>' || sel[i] === '+' || sel[i] === '~' || sel[i] === ':' || sel[i] === '.' || sel[i] === '[' || sel[i] === ']' || sel[i] === ',') return _siSelCache.set(sel, null), null
+        if (SI_BAD_SYMS.includes(sel[i])) return null
       const r = sel.length > 1 ? sel.slice(1) : null
       return _siSelCache.set(sel, r), r
     }
@@ -1569,13 +1571,12 @@
       for (; toChild; toChild = toChild.nextSibling) {
         let match = null
 
-        if (toChild.nodeType === ELEMENT_NODE && toChild.id && idMap?.has(toChild.id)) {
+        if (toChild.nodeType === ELEMENT_NODE && toChild.id && (match = idMap?.get(toChild.id))) {
           // Reuse keyed nodes by id even if they moved.
-          match = idMap.get(toChild.id)
           idMap.delete(toChild.id)
         } else {
           // Skip keyed nodes still waiting for their own id match.
-          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap?.has(cur.id))
+          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap?.get(cur.id))
             cur = cur.nextSibling
           if (cur && sameKind(cur, toChild)) {
             match = cur
