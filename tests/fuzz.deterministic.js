@@ -19,7 +19,7 @@ const PROPERTIES = ['value', 'checked', 'text-content', 'style.color', 'style.fo
 const INVALID_PROPERTIES = []; // Removed: parser doesn't validate property names
 
 const EVENTS = ['click', 'input', 'change', 'mouseover', 'keydown'];
-const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500'];
+const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500', '_init'];
 const SPECIAL_EVENTS_WITH_IO = ['_viewed']; // require IntersectionObserver, warn when unavailable
 
 const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10'];
