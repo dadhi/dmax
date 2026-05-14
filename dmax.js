@@ -1281,7 +1281,17 @@
 
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
-
+      for (const add of adds) {
+        const ap = add.path
+        add.key = (ap && ap.length ? ap[ap.length - 1] : add.root) || 'value'
+        add.spread = false
+        for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
+      }
+      const actRouteMods = []
+      for (const m of urlMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.kind === SIGNAL ? [false, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
+      for (const m of bodyMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.kind === SIGNAL ? [true, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
+      const actHdrMods = []
+      for (const m of hdrMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.kind === SIGNAL ? [camelToKebab(p.path?.at(-1) ?? p.root), null, p] : null; if (e) actHdrMods.push(e) }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dmAct: URL is empty in:', dKey); return }
@@ -1295,18 +1305,14 @@
           }
           for (const add of adds) {
             const addKind = add.kind, addRoot = add.root, addPath = add.path
-            let val = null, key = null
+            let val = null
             if (addKind === EV_PR) {
               const addEl = addRoot ? getElById(addRoot, dKey) : el
               val = addEl ? getElPrVal(addEl, addPath) : null
-              key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
             } else {
               val = getSiValOrIt(add)
-              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
-            let shouldSpread = false
-            for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { shouldSpread = true; break }
-            if (shouldSpread) {
+            if (add.spread) {
               if (val && typeof val === 'object') {
                 for (const k in val) {
                   if (!hasOwn(val, k)) continue
@@ -1315,31 +1321,16 @@
                 }
               } else if (isGetOrDelete) queryParams.value = val
               else bodyFields.value = val
-            } else if (isGetOrDelete) queryParams[key] = val
-            else bodyFields[key] = val
+            } else if (isGetOrDelete) queryParams[add.key] = val
+            else bodyFields[add.key] = val
           }
 
-          // ^url.<siPath> forces named sig into query params.
-          // ^body.<siPath> forces a sig into request body.
-          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
-            const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSiValOrIt(mPath) }
-            else continue
-            (isBody ? bodyFields : queryParams)[mKey] = mVal
-          }
+          for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
 
-          let finalUrl = url
-          let q = '', hasQ = false
+          let finalUrl = url, hasQ = finalUrl.indexOf('?') >= 0
           for (const k in queryParams) {
-            if (hasQ) q += '&'
-            q += encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))
+            finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))
             hasQ = true
-          }
-          if (hasQ) {
-            finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
           }
 
           let hs = ACT_HS_EMPTY, sharedHs = true
@@ -1365,24 +1356,11 @@
               hs[H_AUTHORIZATION] = String(authVal)
             }
           }
-          // ^header.<name> sets one request header from a named sig.
-          for (const m of hdrMods) {
-            const mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.kind === SIGNAL) {
-              mKey = camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
-              mVal = getSiValOrIt(mPath)
-            }
-            else continue
-            if (sharedHs) {
-              hs = cloneOwnProps(hs)
-              sharedHs = false
-            }
-            hs[mKey] = String(mVal ?? '')
+          for (const [kebabKey, path, ref] of actHdrMods) {
+            const mVal = ref ? getSiValOrIt(ref) : _dm.get(path)
+            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
+            hs[kebabKey] = mVal != null ? '' + mVal : ''
           }
-
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) {
             if (!hasOwn(bodyFields, bk)) continue
@@ -1394,13 +1372,13 @@
             // Send one input as a bare value and multiple inputs as an object.
             const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
             if (isForm && raw && typeof raw === 'object') {
-              const params = new URLSearchParams()
-              if (Array.isArray(raw)) {
-                for (let i = 0; i < raw.length; i++) params.append(String(i), String(raw[i] ?? ''))
-              } else {
-                for (const k in raw) if (hasOwn(raw, k)) params.append(k, String(raw[k] ?? ''))
+              let out = ''
+              if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) out += (i ? '&' : '') + encodeURIComponent('' + i) + '=' + encodeURIComponent(String(raw[i] ?? ''))
+              else {
+                let i = 0
+                for (const k in raw) if (hasOwn(raw, k)) out += (i++ ? '&' : '') + encodeURIComponent(k) + '=' + encodeURIComponent(String(raw[k] ?? ''))
               }
-              body = params.toString()
+              body = out
             } else if (isJson || (raw !== null && typeof raw === 'object'))
               body = JSON.stringify(raw)
             else body = String(raw)

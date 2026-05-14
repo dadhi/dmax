@@ -1482,6 +1482,42 @@
         }
       } finally { delete window.fetch }
     })
+    __asyncAssert('^url/^body/^header resolve latest signal values on every request', async () => {
+      __reset()
+      const calls = []
+      window.fetch = (url, init) => {
+        calls.push({ url, body: init.body, hs: init.headers })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('page', '1')
+        _dm.set('cursor', 'a')
+        _dm.set('authorization', 'Bearer old')
+        dmAct(btn, 'data-m-post^url.page^body.cursor^header.authorization:res@.click', '"https://api.test/replay"')
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        _dm.set('page', '2')
+        _dm.set('cursor', 'b')
+        _dm.set('authorization', 'Bearer new')
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: {
+            first: calls[0] ? { url: calls[0].url, body: calls[0].body, auth: calls[0].hs && calls[0].hs.authorization } : null,
+            second: calls[1] ? { url: calls[1].url, body: calls[1].body, auth: calls[1].hs && calls[1].hs.authorization } : null
+          },
+          expected: {
+            first: { url: 'https://api.test/replay?page=1', body: 'a', auth: 'Bearer old' },
+            second: { url: 'https://api.test/replay?page=2', body: 'b', auth: 'Bearer new' }
+          }
+        }
+      } finally { delete window.fetch }
+    })
     __asyncAssert('^sse implies no-cache hs automatically', async () => {
       __reset()
       let capturedHs = null
