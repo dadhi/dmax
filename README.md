@@ -69,7 +69,36 @@ Signal names are not reserved or validated against runtime helper identifiers. I
 
 Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Variable bracket indices such as `@posts[idx]` are intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need runtime lookup logic.
 
-Reactive setup is immediate by default for `data-m-si`, signal-backed `data-m-ex`, `data-m-ex^rw`, `data-m-it`, and `data-m-dbg`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate`.
+Reactive setup is immediate by default for `data-m-si`, signal-backed `data-m-ex`, `data-m-ex^rw`, `data-m-it`, and `data-m-dbg`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate` or use the `_init` trigger.
+
+### Special triggers
+
+Special triggers use a `_name` prefix in the `@trigger` token:
+
+| Trigger | Description |
+| --- | --- |
+| `@_init` | Fires **once** when the attribute is first wired (page/attribute load). No ongoing subscription. |
+| `@_window.<event>` | Listens on `window` for the given event (default: `resize`) |
+| `@_document.<event>` | Listens on `document` for the given event (default: `visibilitychange`) |
+| `@_form.<event>` | Listens on the nearest ancestor `<form>` for the given event (default: `submit`) |
+| `@_interval.<ms>` | Fires repeatedly every `<ms>` milliseconds (default: 500 ms) |
+| `@_timeout.<ms>` | Fires once after `<ms>` milliseconds (default: 500 ms) |
+| `@_viewed` | Fires once when the element enters the viewport (uses `IntersectionObserver`) |
+
+**`_init` examples:**
+
+```html
+<!-- run expression once on page load -->
+<span data-m-ex:.@_init="'Loaded at ' + new Date().toLocaleTimeString()"></span>
+
+<!-- fire on init AND on each click -->
+<span data-m-ex:.@_init@.click="'Last: ' + (detail && detail.type)"></span>
+
+<!-- fire HTTP request on page load (no button click needed) -->
+<div data-m-get^busy.loading:result@_init="'/api/data'"></div>
+```
+
+The `_init` trigger fires exactly once when dmax wires the element. When combined with other triggers (e.g. `@_init@.click`), `_init` fires at wire-up and the other triggers fire on their events. If a signal trigger that fires at init (default behaviour) is listed before `@_init` in the same attribute, the `_init` run is skipped to avoid double-firing.
 
 ## Fixi feature matrix (aligned to dmax)
 

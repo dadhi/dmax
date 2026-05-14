@@ -716,6 +716,31 @@
       intOnce: 25,
       timeoutOnce: 50
     }, 'dmEx interval/timeout ^once cleanup');
+    function __tSubSpecialInit() {
+      __reset();
+      const host = document.createElement('div');
+      dmEx(host, 'data-m-ex:initMeta@_init', `({root: trig.root, path: trig.path, val, detailType: detail && detail.type})`);
+      return DM['initMeta'];
+    }
+    __assert(__tSubSpecialInit, [], { root: 'init', path: null, val: 'init', detailType: 'init' }, 'dmEx _init special trigger fires immediately');
+    function __tSubSpecialInitOnceWithClick() {
+      __reset();
+      const host = document.createElement('div');
+      dmEx(host, 'data-m-ex:initClickLog@_init@.click', `(dm.initClickLog || []).concat(detail && detail.type || 'click')`);
+      host.dispatchEvent(mkEv('click'));
+      host.dispatchEvent(mkEv('click'));
+      return DM['initClickLog'];
+    }
+    __assert(__tSubSpecialInitOnceWithClick, [], ['init', 'click', 'click'], 'dmEx _init fires on init and click fires on each click');
+    function __tSubSpecialInitRanImmediateDedup() {
+      __reset();
+      _dm.set('counter', 0);
+      const host = document.createElement('div');
+      dmEx(host, 'data-m-ex:counter@_init@counter', 'dm.counter + 1');
+      return DM['counter'];
+    }
+    __assert(__tSubSpecialInitRanImmediateDedup, [], 1, 'dmEx _init with signal trigger: only one init run (ranImmediate dedup)');
+
     function __tSubRepeatedPermitGating() {
       __reset();
       _dm.set('gateA', true)

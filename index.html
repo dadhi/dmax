@@ -170,10 +170,11 @@
       <p id="srcPreview" data-m-ex:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-m-ex:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
-      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-m-ex:.@_window.resize" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-m-ex:.@_interval.1000" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-m-ex:.@_timeout.1500" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-m-ex:.@_viewed^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-m-ex:.@_window.resize" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-m-ex:.@_interval.1000" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-m-ex:.@_timeout.1500" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-m-ex:.@_viewed^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="initOut" data-attr-name="data-m-ex:.@_init" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <p>Window width: <span id="windowWidthOut" data-m-ex:.@_window.resize="window.innerWidth + 'px'"></span></p>
       <p>Current time: <span id="timeOut" data-m-ex:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
       <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
+      <p>On init: <span id="initOut" data-m-ex:.@_init="'✓ Initialized (detail.type: ' + (detail && detail.type) + ')'"></span></p>
       <h4>7. Default Props &amp; Events</h4>
       <div class="page"><code data-attr-for="inp1Preview" data-attr-name="data-m-ex:.@#inp1.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="btn3Preview" data-attr-name="data-m-ex:.@#btn3" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <input id="inp1" placeholder="Mirrors on input">
