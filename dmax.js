@@ -12,20 +12,10 @@
     const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
     const kebabToCamel = (s) => {
       if (!s) return s
-      let p = s.indexOf('-')
-      if (p < 0) {
-        CAMEL_NAMES.set(s, s)
-        return s
-      }
+      if (s.indexOf('-') < 0) { CAMEL_NAMES.set(s, s); return s }
       let res = CAMEL_NAMES.get(s)
       if (res) return res
-      res = s.slice(0, p)
-      while (p >= 0 && ++p < s.length) {
-        if (s[p] == '-') continue;
-        res += s[p].toUpperCase()
-        if (++p < s.length)
-          res += s.slice(p, (p = s.indexOf('-', p)) == -1 ? s.length : p)
-      }
+      res=s.replace(/-+([a-zA-Z]?)/g,(_,c)=>c?c.toUpperCase():'')
       CAMEL_NAMES.set(s, res)
       KEBAB_NAMES.set(res, s)
       return res
@@ -35,20 +25,7 @@
       if (!s) return s
       let res = KEBAB_NAMES.get(s)
       if (res) return res
-      let p = 0
-      for (; p < s.length; ++p) {
-        const c = s.charCodeAt(p)
-        if (c >= 65 && c <= 90) break
-      }
-      if (p >= s.length) {
-        KEBAB_NAMES.set(s, s)
-        return s
-      }
-      res = s.slice(0, p)
-      for (; p < s.length; ++p) {
-        const c = s[p]
-        res += c >= 'A' && c <= 'Z' ? '-' + c.toLowerCase() : c
-      }
+      res = s.replace(/[A-Z]/g, c => '-' + c.toLowerCase())
       KEBAB_NAMES.set(s, res)
       CAMEL_NAMES.set(res, s)
       return res
@@ -560,17 +537,15 @@
       if (typeof s !== 'string') return s
       let i = s.indexOf('$')
       if (i < 0) return s
-      let out = '', p = 0
+      const parts = []; let p = 0
       while (i >= 0) {
         let next = null, step = 0
         if (s.startsWith('$item', i)) next = itemToken, step = 5
         else if (s.startsWith('$index', i)) next = indexToken, step = 6
         if (!step) { i = s.indexOf('$', i + 1); continue }
-        out += s.slice(p, i) + next
-        p = i + step
-        i = s.indexOf('$', p)
+        parts.push(s.slice(p, i), next); p = i + step; i = s.indexOf('$', p)
       }
-      return out ? out + s.slice(p) : s
+      return parts.length ? parts.join('') + s.slice(p) : s
     }
 
     const rewriteItBindings = (rootNode, itemRef, itemExpr, indexText) => {
