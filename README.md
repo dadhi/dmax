@@ -45,12 +45,12 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 
 ### Core directives
 
-- `data-def` — define signal state
-- `data-sub` — subscribe and update signals/props with expression results, including `^rw` two-way sync
-- `data-class` — class toggling
-- `data-disp` — show/hide elements
-- `data-dump` — render array items via templates
-- `data-get|post|put|patch|delete` — declarative HTTP actions
+- `data-m-si` — define signal state
+- `data-m-ex` — subscribe and update signals/props with expression results, including `^rw` two-way sync
+- `data-m-cl` — class toggling
+- `data-m-sh` — show/hide elements
+- `data-m-it` — render array items via templates
+- `data-m-get|post|put|patch|delete` — declarative HTTP actions
 - dmax SSE (`text/event-stream`) in actions:
   - `event: dmax-patch-elements` (`mode`: `outer|inner|replace|prepend|append|before|after|remove`, `selector`, `namespace`, `dmaxElements`)
   - `event: dmax-patch-signals` (`dmaxSignals` JSON merge patch, optional `onlyIfMissing true`)
@@ -63,13 +63,13 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
 
-For two-way sync, put `^rw` on the element/property trigger you want to write back from, e.g. `data-sub@.^rw@user.name` or `data-sub@.^val.value^rw@user.name`.
+For two-way sync, put `^rw` on the element/property trigger you want to write back from, e.g. `data-m-ex@.^rw@user.name` or `data-m-ex@.^val.value^rw@user.name`.
 
 Signal names are not reserved or validated against runtime helper identifiers. If you choose names that overlap with your own expression conventions, that is the template author's responsibility.
 
 Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Variable bracket indices such as `@posts[idx]` are intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need runtime lookup logic.
 
-Reactive setup is immediate by default for `data-def`, signal-backed `data-sub`, `data-sub^rw`, `data-dump`, and `data-debug`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate` or use the `_init` trigger.
+Reactive setup is immediate by default for `data-m-si`, signal-backed `data-m-ex`, `data-m-ex^rw`, `data-m-it`, and `data-m-dbg`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate` or use the `_init` trigger.
 
 ### Special triggers
 
@@ -89,13 +89,13 @@ Special triggers use a `_name` prefix in the `@trigger` token:
 
 ```html
 <!-- run expression once on page load -->
-<span data-sub:.@_init="'Loaded at ' + new Date().toLocaleTimeString()"></span>
+<span data-m-ex:.@_init="'Loaded at ' + new Date().toLocaleTimeString()"></span>
 
 <!-- fire on init AND on each click -->
-<span data-sub:.@_init@.click="'Last: ' + (detail && detail.type)"></span>
+<span data-m-ex:.@_init@.click="'Last: ' + (detail && detail.type)"></span>
 
 <!-- fire HTTP request on page load (no button click needed) -->
-<div data-get^busy.loading:result@_init="'/api/data'"></div>
+<div data-m-get^busy.loading:result@_init="'/api/data'"></div>
 ```
 
 The `_init` trigger fires exactly once when dmax wires the element. When combined with other triggers (e.g. `@_init@.click`), `_init` fires at wire-up and the other triggers fire on their events. If a signal trigger that fires at init (default behaviour) is listed before `@_init` in the same attribute, the `_init` run is skipped to avoid double-firing.
@@ -115,18 +115,18 @@ five very small libraries:
 
 | Fixi piece | What it does | dmax status today | Gap / takeaway |
 | --- | --- | --- | --- |
-| `fixi.js` | Declarative HTTP requests triggered from HTML, with target selection and swap strategies | **Partial overlap** via `data-get|post|put|patch|delete`, plus `^busy`, `^complete`, `^err`, `^code` result/status signals | dmax covers declarative requests. It does **not** yet expose Fixi's small HTML-targeted swap model (`fx-target`, `fx-swap`) as directly. |
-| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-def`, `data-sub`, `data-class`, `data-disp`, `data-dump` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
-| `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Strong overlap** — action responses accept `text/event-stream` and apply `dmax-patch-elements` / `dmax-patch-signals` incrementally via `ReadableStream` + `TextDecoder`; `^open`/`^close` lifecycle signals, `^retry.N` auto-reconnect, and `^abort` cancellation are all supported | Long-lived persistent SSE connections use the same `data-get` grammar; lifecycle signals are first-class. |
+| `fixi.js` | Declarative HTTP requests triggered from HTML, with target selection and swap strategies | **Partial overlap** via `data-m-get|post|put|patch|delete`, plus `^busy`, `^complete`, `^err`, `^code` result/status signals | dmax covers declarative requests. It does **not** yet expose Fixi's small HTML-targeted swap model (`fx-target`, `fx-swap`) as directly. |
+| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-m-si`, `data-m-ex`, `data-m-cl`, `data-m-sh`, `data-m-it` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
+| `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Strong overlap** — action responses accept `text/event-stream` and apply `dmax-patch-elements` / `dmax-patch-signals` incrementally via `ReadableStream` + `TextDecoder`; `^open`/`^close` lifecycle signals, `^retry.N` auto-reconnect, and `^abort` cancellation are all supported | Long-lived persistent SSE connections use the same `data-m-get` grammar; lifecycle signals are first-class. |
 | `paxi.js` | Morph-based DOM patching that preserves focus/form state better than replacement | **Strong overlap** — dmax morphs matched nodes, preserves event listeners, caret/selection for focused inputs, and scroll position; parity matrix tests cover `style`, `href`, `data-*`, `aria-*`, canvas attribute updates, keyed list reconciliation, and mixed keyed/unkeyed collection stability | Keyed-list reconciliation and stable DOM identity are covered by the id-matching algorithm and validated by inline assertions. |
 | `rexi.js` | Tiny imperative `fetch()` helper for code paths where declarative HTML is not enough | **Not planned** — the `^abort.<signal>` modifier covers the cancel use-case declaratively; uncommon imperative paths can use vanilla `fetch()` directly | dmax deliberately keeps the declarative grammar complete for the 80/20 cases; explicit imperative helpers are intentionally out-of-scope for the core runtime. |
 | Combined bundle | Composable micro-libraries that can be mixed as needed | **Different trade-off**: dmax is one integrated signal-first runtime | Fixi is more modular. dmax is more unified. |
 
 ### What dmax already has that Fixi does not
 
-- A first-class signal store (`data-def`) rather than DOM-only/local imperative state.
-- Declarative signal/property synchronization via `data-sub`, including one-way and `^rw` two-way flows.
-- Signal-driven class/visibility/list directives (`data-class`, `data-disp`, `data-dump`).
+- A first-class signal store (`data-m-si`) rather than DOM-only/local imperative state.
+- Declarative signal/property synchronization via `data-m-ex`, including one-way and `^rw` two-way flows.
+- Signal-driven class/visibility/list directives (`data-m-cl`, `data-m-sh`, `data-m-it`).
 - Shape-aware updates and signal modifiers for gating/timing.
 - A more unified attribute grammar across signals, props, events, and actions.
 
@@ -139,38 +139,38 @@ five very small libraries:
 ## Example
 
 ```html
-<div data-def='{"count":0,"active":true}'></div>
+<div data-m-si='{"count":0,"active":true}'></div>
 
-<button data-sub:count@.click="dm.count + 1">+1</button>
-<span data-sub:.@count></span>
+<button data-m-ex:count@.click="dm.count + 1">+1</button>
+<span data-m-ex:.@count></span>
 
-<input data-sub@.^rw@user.name>
-<div data-class+active+!inactive@active="dm.active"></div>
+<input data-m-ex@.^rw@user.name>
+<div data-m-cl+active+!inactive@active="dm.active"></div>
 
-<button data-get^busy.post-loading^err.post-error^code.post-code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">
+<button data-m-get^busy.post-loading^err.post-error^code.post-code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">
   Load
 </button>
-<strong data-disp@post-loading>Loading…</strong>
-<span data-sub:.@post-error></span>
-<span data-sub:.@post-code></span>
+<strong data-m-sh@post-loading>Loading…</strong>
+<span data-m-ex:.@post-error></span>
+<span data-m-ex:.@post-code></span>
 
 <!-- request spread + dynamic headers + merge result -->
 <button
-  data-post^json^merge^headers.req-headers:profile@.click+user^spread
+  data-m-post^json^merge^headers.req-headers:profile@.click+user^spread
   ="'/api/profile/update'">
 </button>
 
 <!-- patch matching existing root signals from a bootstrap payload -->
-<button data-get^patch-all@.click="'/api/bootstrap'"></button>
+<button data-m-get^patch-all@.click="'/api/bootstrap'"></button>
 
 <!-- persistent SSE with lifecycle signals and auto-reconnect -->
 <button
-  data-get^open.live-on^close.live-done^retry.2000^abort.live-stop@.click
+  data-m-get^open.live-on^close.live-done^retry.2000^abort.live-stop@.click
   ="'/api/events'">
   Subscribe
 </button>
-<span data-disp@live-on>● live</span>
-<button data-sub@.click="dm.liveStop && dm.liveStop()">Cancel</button>
+<span data-m-sh@live-on>● live</span>
+<button data-m-ex@.click="dm.liveStop && dm.liveStop()">Cancel</button>
 ```
 
 `^busy.post-loading^err.post-error^code.post-code` reuses modifier syntax for action status signals, giving each action independent loading/error/code indicators.
@@ -246,13 +246,13 @@ Examples:
 
 ```html
 <!-- POST — force page/sort into URL query string, send payload in body -->
-<button data-post^url.page^url.sort:res@.click+payload="'/api/items'">Create</button>
+<button data-m-post^url.page^url.sort:res@.click+payload="'/api/items'">Create</button>
 
 <!-- DELETE — force the ID into the request body instead of URL query string -->
-<button data-delete^body.target-id:res@.click="'/api/items'">Delete</button>
+<button data-m-delete^body.target-id:res@.click="'/api/items'">Delete</button>
 
 <!-- GET with individual auth header from a signal -->
-<button data-get^header.authorization:res@.click="'/api/secure'">Fetch</button>
+<button data-m-get^header.authorization:res@.click="'/api/secure'">Fetch</button>
 ```
 
 > **Note on `^body.X` and GET**: sending a request body on GET is non-standard and many servers/proxies ignore it. Prefer using `^body.X` with POST/PUT/PATCH/DELETE where a body is semantically appropriate.
@@ -300,21 +300,21 @@ For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[att
 
 ```html
 <!-- Morph element with id="result" in place (default) -->
-<button data-get^html@.click="'/api/fragment'">Load</button>
+<button data-m-get^html@.click="'/api/fragment'">Load</button>
 
 <!-- Insert new content before this button -->
-<button id="add-btn" data-post^html^before@.click="'/api/new-item'">Add</button>
+<button id="add-btn" data-m-post^html^before@.click="'/api/new-item'">Add</button>
 
 <!-- Insert after a signal-specified target -->
-<button data-post^html^after.insert-after@.click="'/api/new-item'">Add</button>
+<button data-m-post^html^after.insert-after@.click="'/api/new-item'">Add</button>
 <!-- dm.insertAfter = '#item-42' -->
 
 <!-- Append items into a list -->
-<button data-get^html^append.items-list@.click="'/api/more'">Load more</button>
+<button data-m-get^html^append.items-list@.click="'/api/more'">Load more</button>
 <!-- dm.itemsList = '#item-list' -->
 
 <!-- Replace element (no morph) -->
-<button data-get^html^replace@.click="'/api/fresh'">Refresh</button>
+<button data-m-get^html^replace@.click="'/api/fresh'">Refresh</button>
 ```
 
 ### SSE `dmax-patch-elements` update matrix
@@ -334,7 +334,7 @@ Sent by the server as `event: dmax-patch-elements` in an SSE stream:
 
 When a `selector` field is present, `querySelectorAll` is used; otherwise each source element is matched to the live DOM by its `id` attribute via `getElementById`. Morph (`outer`/`inner`) preserves event listeners, focus, caret position, and scroll position.
 
-### dAction full response matrix
+### dmAct full response matrix
 
 | Response `content-type` | Client mod required | Behaviour |
 | --- | --- | --- |
@@ -361,9 +361,9 @@ Example:
 
 ```html
 <!-- show spinner while busy, show checkmark once done -->
-<button data-get^busy.loading^complete.done:res@.click="'/api/data'">Load</button>
-<span data-disp:.@loading="dm.loading">⏳ loading…</span>
-<span data-disp:.@done="dm.done && !dm.loading">✅ done</span>
+<button data-m-get^busy.loading^complete.done:res@.click="'/api/data'">Load</button>
+<span data-m-sh:.@loading>⏳ loading…</span>
+<span data-m-sh:.@done="dm.done && !dm.loading">✅ done</span>
 ```
 
 ### SSE lifecycle modifiers (for `text/event-stream` responses)
