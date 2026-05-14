@@ -75,11 +75,13 @@
     __assert(kebabToCamel, ['foo-bar'], 'fooBar', 'basic case');
     __assert(kebabToCamel, ['-bar'], 'Bar', 'lead single');
     __assert(kebabToCamel, ['bar-'], 'bar', 'trail single');
+    __assert(kebabToCamel, ['bar---'], 'bar', 'trail multi');
     __assert(kebabToCamel, ['multi-part-key'], 'multiPartKey', 'multi part');
     __assert(kebabToCamel, ['-'], '', 'single dash');
     __assert(kebabToCamel, ['--'], '', 'multi dashes only');
     __assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
     __assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
+    __assert(kebabToCamel, ['trailing--dashes---'], 'trailingDashes', 'trailing multi dashes');
     __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
     __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
     __assert((s) => camelToKebab(kebabToCamel(s)), ['data-foo-bar'], 'data-foo-bar', 'camel/kebab roundtrip keeps original kebab');

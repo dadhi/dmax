@@ -15,7 +15,7 @@
       if (s.indexOf('-') < 0) { CAMEL_NAMES.set(s, s); return s }
       let res = CAMEL_NAMES.get(s)
       if (res) return res
-      res = s.replace(/-+([a-zA-Z]?)/g, (_, c) => c.toUpperCase())
+      res=s.replace(/-+([a-zA-Z]?)/g,(_,c)=>c?c.toUpperCase():'')
       CAMEL_NAMES.set(s, res)
       KEBAB_NAMES.set(res, s)
       return res
