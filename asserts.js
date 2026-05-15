@@ -85,21 +85,21 @@
     __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
     __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
     __assert((s) => camelToKebab(kebabToCamel(s)), ['data-foo-bar'], 'data-foo-bar', 'camel/kebab roundtrip keeps original kebab');
-    __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EV, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
+    __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
     __assert((dKey, type, token) => {
       const it = parseItem(dKey, type, token)
-      return it ? { isSi: it.isSi, isEv: it.isEv, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
-    }, ['XXX', TRIG, 'foo'], { isSi: true, isEv: false, isSp: false, isInterval: false, isImmediate: true }, 'parsed flags for signal trigger')
+      return it ? { isSi: it.isSi, isEp: it.isEp, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
+    }, ['XXX', TRIG, 'foo'], { isSi: true, isEp: false, isSp: false, isInterval: false, isImmediate: true }, 'parsed flags for signal trigger')
     __assert((dKey, type, token) => {
       const it = parseItem(dKey, type, token)
-      return it ? { isSi: it.isSi, isEv: it.isEv, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
-    }, ['XXX', TRIG, '#btn.click'], { isSi: false, isEv: true, isSp: false, isInterval: false, isImmediate: true }, 'parsed flags for event trigger')
+      return it ? { isSi: it.isSi, isEp: it.isEp, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
+    }, ['XXX', TRIG, '#btn.click'], { isSi: false, isEp: true, isSp: false, isInterval: false, isImmediate: true }, 'parsed flags for event trigger')
     __assert((dKey, type, token) => {
       const it = parseItem(dKey, type, token)
-      return it ? { isSi: it.isSi, isEv: it.isEv, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
-    }, ['XXX', TRIG, '_interval.100'], { isSi: false, isEv: false, isSp: true, isInterval: true, isImmediate: true }, 'parsed flags for interval special trigger')
+      return it ? { isSi: it.isSi, isEp: it.isEp, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
+    }, ['XXX', TRIG, '_interval.100'], { isSi: false, isEp: false, isSp: true, isInterval: true, isImmediate: true }, 'parsed flags for interval special trigger')
     __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SI, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
-    __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
+    __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
     __assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SI, "not": true, "path": null, "root": "foo" }, 'negated once');
     __assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SI, "not": false, "path": null, "root": "foo" }, 'double negation even');
     __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SI, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
@@ -112,11 +112,11 @@
     __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
     __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
-    __assert(parseItem, ['YYY', TARG, '.'], { "kind": EV, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
+    __assert(parseItem, ['YYY', TARG, '.'], { "kind": EP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
     __assert(parse, ['data-m-si'], [__parseIt({}), 9], 'empty')
     __assert(parse, ['data-m-ex:'], [__parseIt({}), 10], 'single empty')
-    __assert(parse, ['data-m-ex:.'], [__parseIt({ ":": [{ "kind": EV, "mods": NIL, "not": null, "path": null, "root": "" }] }), 11], 'default prop')
+    __assert(parse, ['data-m-ex:.'], [__parseIt({ ":": [{ "kind": EP, "mods": NIL, "not": null, "path": null, "root": "" }] }), 11], 'default prop')
     __assert(parse, ['data-m-ex^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 13], 'global mod')
     __assert(parse, ['data-m-ex^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 34], '2 global mods')
     __assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 26], '2 global mods and item with mod with item')
@@ -296,11 +296,11 @@
       applyDisplayValue(el, true, 'flex', true)
       return el.style.display
     }, [], 'flex', 'display helper restores inline display on true')
-    __assert(setPr, [{ value: 'Answer42' }, 'data-eval:.', { kind: EV, not: null, root: "", path: null }, 'Seaman!'],
+    __assert(setPr, [{ value: 'Answer42' }, 'data-eval:.', __epTrig(), 'Seaman!'],
       'Seaman!', 'default prop')
-    __assert(setPr, [null, 'data-eval:#foo.', { kind: EV, not: null, root: 'foo', path: null }, 'Seaman!'],
+    __assert(setPr, [null, 'data-eval:#foo.', __epTrig('foo'), 'Seaman!'],
       'Seaman!', '#foo default prop')
-    __assert(setPr, [null, 'data-eval:#foo.style.color', { kind: EV, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    __assert(setPr, [null, 'data-eval:#foo.style.color', __epTrig('foo', ['style', 'color']), 'lime'],
       'lime', '#foo nested prop')
     __assert(setPr, [null, 'data-eval:foo', { kind: SI, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
@@ -319,6 +319,7 @@
     __assert(isJsonContentType, ['application/problem+json\tcharset=utf-8'], true, 'json content-type +json with tab separator')
     __assert(isJsonContentType, ['application/problem+jsonified'], false, 'json content-type +json boundary check')
     function __sigTrig(root, path) { return { kind: SI, root, path, not: null, isSi: true } }
+    function __epTrig(root = '', path = null) { return { kind: EP, root, path, not: null, isEp: true } }
     // @TEST register sink subscriber
     function __reg(root, path, changeMod, sink) {
       let arr = _subs.get(root)
@@ -402,7 +403,7 @@
       __reset();
       _dm.set('gate', false)
       let c = 0
-      const trig = { kind: EV, root: '', path: null, not: null }
+      const trig = __epTrig()
       const h = applyTrMs(() => ++c, trig, [{ root: M_AND, path: 'gate' }])
       h(DM, null, trig, null, 1)
       _dm.set('gate', true)
@@ -413,7 +414,7 @@
     function __tTrigModsPreventOnce() {
       let p = 0, r = 0, c = 0
       const ev = { preventDefault: () => ++p }
-      const trig = { kind: EV, root: '', path: null, not: null }
+      const trig = __epTrig()
       const sub = { trig, fn: null, ev: { taEl: { removeEventListener: () => ++r }, evName: 'click', opts: false }, clearId: null }
       const h = applyTrMs(() => ++c, trig, [{ root: M_PREVENT, path: null }, { root: M_ONCE, path: null }], sub)
       sub.fn = h
@@ -423,7 +424,7 @@
     __assert(__tTrigModsPreventOnce, [], { p: 1, r: 1, c: 1 }, 'applyTrMs: prevent + once');
     function __tTrigModsValueFallback() {
       const out = []
-      const trig = { kind: EV, root: '', path: null, not: null }
+      const trig = __epTrig()
       const handler = applyTrMs((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
       handler(DM, null, trig, null, { type: 'custom-value', detail: { value: 9 } })
       handler(DM, null, trig, null, { type: 'custom-ms', detail: { ms: 12 } })
@@ -441,7 +442,7 @@
       clearTimeout = (n) => q.delete(n)
       try {
         const out = []
-        const trig = { kind: EV, root: '', path: null, not: null }
+        const trig = __epTrig()
         const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_DEBOUNCE, path: 8 }])
         h(DM, null, trig, null, 1)
         h(DM, null, trig, null, 2)
@@ -462,7 +463,7 @@
       Date.now = () => now
       try {
         const out = []
-        const trig = { kind: EV, root: '', path: null, not: null }
+        const trig = __epTrig()
         const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_THROTTLE, path: 10 }])
         h(DM, null, trig, null, 1)
         now = 105
@@ -481,7 +482,7 @@
       _dm.set('gateB', false)
       let c = 0
       const mods = [{ root: M_AND, path: 'gateA' }, { root: M_AND, path: 'gateB' }, { root: M_GE, path: '5' }, { root: M_LT, path: '9' }, { root: M_NE, path: '7' }]
-      const trig = { kind: EV, root: '', path: null, not: null }
+      const trig = __epTrig()
       const h = applyTrMs(() => ++c, trig, mods)
       h(DM, null, trig, 6, null)
       _dm.set('gateB', true)
@@ -626,7 +627,7 @@
         return DM['eventMeta'];
       } finally { btn.remove(); }
     }
-    __assert(__tSubExplicitIdEventPath, [], { kind: EV, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dmEx explicit #id event path metadata');
+    __assert(__tSubExplicitIdEventPath, [], { kind: EP, root: 'evtbtnexplicit', path: ['click'], val: 'C', detailType: 'click' }, 'dmEx explicit #id event path metadata');
     function __tSubExplicitIdEventDetail() {
       __reset();
       const id = 'evtbtndetail'
@@ -654,7 +655,7 @@
         return DM['propMeta'];
       } finally { inp.remove(); }
     }
-    __assert(__tSubExplicitIdPropPath, [], { kind: EV, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dmEx explicit #id prop trigger path');
+    __assert(__tSubExplicitIdPropPath, [], { kind: EP, root: 'evtinputprop', path: ['value'], val: 'Alpha' }, 'dmEx explicit #id prop trigger path');
     function __tSubSpecialWindowAndDocument() {
       __reset();
       const host = document.createElement('div');

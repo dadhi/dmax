@@ -31,14 +31,14 @@
       return res
     }
 
-    // Syntax ref: data-m-it@foo+#tpl, data-m-cl+on+!off, data-m-get^no-cache:posts
+    // Syntax: data-m-it@foo+#tpl, data-m-cl+on+!off, data-m-get^no-cache:posts
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
 
     const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
-    const SI = 's', EV = DOT, SP = '_'
+    const SI = 's', EP = DOT, SP = '_'
 
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
@@ -71,12 +71,12 @@
     const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
     const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
-    const DEFAULT_PR_TA = Object.freeze({ kind: EV, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
+    const DEFAULT_PR_TA = Object.freeze({ kind: EP, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
-    const _KIND = [MOD, SI, EV, SP]
+    const _KIND = [MOD, SI, EP, SP]
     const addParsedChecks = (it) => !it || it.kind === MOD ? it : (Object.defineProperties(it, {
-      isSi: { value: it.kind === SI }, isEv: { value: it.kind === EV }, isSp: { value: it.kind === SP },
+      isSi: { value: it.kind === SI }, isEp: { value: it.kind === EP }, isSp: { value: it.kind === SP },
       isInterval: { value: it.kind === SP && it.root === SP_INTERVAL }, isImmediate: { value: true, writable: true },
     }), it)
     const setItemMods = (it, mods) => {
@@ -86,7 +86,7 @@
       it.isImmediate = im, Object.defineProperty(it, 'hasIm', { value: hasIm })
       return it
     }
-    const isSiT = (tr) => tr.isSi, isEvT = (tr) => tr.isEv, isSpT = (tr) => tr.isSp, isIntT = (tr) => tr.isInterval, isToT = (tr) => tr.root === SP_TIMEOUT
+    const isSiT=tr=>tr.isSi,isEpT=tr=>tr.isEp,isSpT=tr=>tr.isSp,isIntT=tr=>tr.isInterval,isToT=tr=>tr.root===SP_TIMEOUT
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     const parseItem = (dKey, type, n, pos = 0) => {
       if (!n) return null
@@ -106,11 +106,11 @@
         return { kind: MOD, root, not, path: val }
       }
 
-      let kind = EV
+      let kind = EP
       if (root && root.length > 0) {
         const id = root[0] === ID
         if (id || isSp(root)) {
-          kind = id ? EV : SP
+          kind = id ? EP : SP
           root = root.slice(1)
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', dKey); return null }
         } else {
@@ -234,7 +234,7 @@
       let val = dVal ? fn(DM, el, null) : null
       if (tars.length) {
         for (const t of tars) {
-          if (t.kind != SI) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', dKey); continue }
+          if (!t.isSi) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', dKey); continue }
           if (t.mods.length) console.warn('[dmax] Warning: Mods are not supported:', t.mods, 'in', dKey)
           _dm.set(t.root, val)
         }
@@ -310,7 +310,7 @@
     }
 
     const setPr = (el, dKey, tar, val) => {
-      if (!expected(tar.kind === EV)) return null;
+      if (!expected(tar.isEp)) return null;
       let obj = tar.root ? getElById(tar.root, dKey) : el
       let path = tar.path, prop = null
       if (!path)
@@ -418,21 +418,21 @@
       }
       ev = ev ?? getDefaultEv(taEl)
       if (!ev) { console.error('[dmax] Error:', missEvMsg, trig ?? DEFAULT_PR_TA, 'in:', dKey); return null }
-      return { taEl, ev, prPath, tar: { kind: EV, not: null, root: trigRoot, path: prPath, mods: NIL } }
+      return { taEl, ev, prPath, tar: addParsedChecks({ kind: EP, not: null, root: trigRoot, path: prPath, mods: NIL }) }
     }
     const addNonSiTrSub = (el, trig, mods, fn, elSubs, ranImmediate, prTa = null) => {
-      const isSp = isSpT(trig), hasTa = prTa !== null
-      console.assert(isSp || hasTa);if (!isSp && !hasTa) return null
+      const hasTa = prTa !== null
+      console.assert(trig.isSp || hasTa);if (!trig.isSp && !hasTa) return null
       const ev = trig.path?.[0]
-      const subTaEl = isSp ? null : prTa.taEl, subEv = isSp ? ev : prTa.ev, subPrPath = isSp ? null : prTa.prPath
+      const subTaEl = trig.isSp ? null : prTa.taEl, subEv = trig.isSp ? ev : prTa.ev, subPrPath = trig.isSp ? null : prTa.prPath
       const modded = addTrSub(el, trig, mods, fn, elSubs, subTaEl, subEv, subPrPath)
-      if (isSp && trig.root === SP_INIT) {
+      if (trig.isSp && trig.root === SP_INIT) {
         if (modded && !ranImmediate) invokeSub(modded, { type: SP_INIT }, SP_INIT, el, trig)
         return true
       }
-      if (modded && !ranImmediate && (trig.hasIm ? trig.isImmediate : false) && (!isSp || trig.root === SP_FORM)) {
+      if (modded && !ranImmediate && (trig.hasIm ? trig.isImmediate : false) && (!trig.isSp || trig.root === SP_FORM)) {
         ranImmediate = true
-        invokeSub(modded, null, isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, trig)
+        invokeSub(modded, null, trig.isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, trig)
       }
       return ranImmediate
     }
@@ -991,7 +991,7 @@
           const mods = pickMods(trig.mods, globMods); let hasRw = false
           for (let i=0;i<mods.length;i++) if (mods[i].root===M_RW) { hasRw = true; break }
           if (hasRw) {
-            if (!isEvT(trig)) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
+            if (!isEpT(trig)) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
             const prTa = getTrPrTa(el, dKey, trig, mods, E_RW_EL, E_RW_EV)
             if (!prTa) return
             writePrTrs.push({ trig, mods, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, tar: prTa.tar })
@@ -1015,9 +1015,9 @@
                 ranImmediate = true
                 invokeBoundSub(sub, null)
               }
-            } else if (isEvT(trig) || isSpT(trig)) {
-              const prTa = isEvT(trig) ? getTrPrTa(el, dKey, trig, mods, E_RW_EL, E_RW_EV) : null
-              if (isEvT(trig) && !prTa) return
+            } else if (isEpT(trig) || isSpT(trig)) {
+              const prTa = isEpT(trig) ? getTrPrTa(el, dKey, trig, mods, E_RW_EL, E_RW_EV) : null
+              if (isEpT(trig) && !prTa) return
               const nextRanImmediate = addNonSiTrSub(el, trig, mods, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ranImmediate, prTa)
               if (nextRanImmediate == null) return
               ranImmediate = nextRanImmediate
@@ -1063,9 +1063,9 @@
             ranImmediate = true
             invokeBoundSub(sub, null)
           }
-        } else if (isEvT(trig) || isSpT(trig)) {
-          const prTa = isEvT(trig) ? getTrPrTa(el, dKey, trig, mods, E_TRIG_EL, E_TRIG_EV, false) : null
-          if (isEvT(trig) && !prTa) return
+        } else if (isEpT(trig) || isSpT(trig)) {
+          const prTa = isEpT(trig) ? getTrPrTa(el, dKey, trig, mods, E_TRIG_EL, E_TRIG_EV, false) : null
+          if (isEpT(trig) && !prTa) return
           const nextRanImmediate = addNonSiTrSub(el, trig, mods, fn, elSubs, ranImmediate, prTa)
           if (nextRanImmediate == null) return
           ranImmediate = nextRanImmediate
@@ -1077,7 +1077,7 @@
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dmCl requires class names via + syntax in:', dKey); return }
       if (!trigs.length) { console.error('[dmax] Error: dmCl requires at least one trigger in:', dKey); return }
-      const prTa = findFirstKind(tars, EV)
+      const prTa = findFirstKind(tars, EP)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
       if (!taEl) { console.error('[dmax] Error: dmCl target element not found in:', dKey); return }
       const fn = dVal ? compileFn(dVal, dKey) : null
@@ -1090,7 +1090,7 @@
           if (!expected(root)) return
           const sub = addTrSub(el, trig, mods, (dm, siEl, siTr, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (trig.hasIm && trig.isImmediate) invokeBoundSub(sub, null)
-        } else if (isEvT(trig)) {
+        } else if (isEpT(trig)) {
           const evTaEl = root ? getElById(root, dKey) : el
           if (!evTaEl) { console.error('[dmax] Error: dmCl element not found in trigger:', trig, 'in:', dKey); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
@@ -1107,7 +1107,7 @@
     const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dmSh requires at least one trigger in:', dKey); return }
-      const prTa = findFirstKind(tars, EV)
+      const prTa = findFirstKind(tars, EP)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
       if (!taEl) { console.error('[dmax] Error: dmSh target element not found in:', dKey); return }
       const inline = (taEl.style && taEl.style.display) || ''
@@ -1124,7 +1124,7 @@
           if (!expected(root)) return
           const sub = addTrSub(el, trig, mods, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (trig.hasIm && trig.isImmediate) invokeBoundSub(sub, null)
-        } else if (isEvT(trig)) {
+        } else if (isEpT(trig)) {
           const evTaEl = root ? getElById(root, dKey) : el
           if (!evTaEl) { console.error('[dmax] Error: dmSh element not found in trigger:', trig, 'in:', dKey); return }
           const ev = (path && path.length ? path[0] : null) ?? getDefaultEv(evTaEl)
@@ -1155,7 +1155,7 @@
       if (!isSiT(trig)) { console.error('[dmax] Error: dmIt trigger must be a signal in:', dKey); return }
       const mods = pickMods(trig.mods, globMods)
       let tpl = null
-      if (adds.length && adds[0].kind === EV && adds[0].root) tpl = getElById(adds[0].root, dKey)
+      if (adds.length && adds[0].kind === EP && adds[0].root) tpl = getElById(adds[0].root, dKey)
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
       if (!tpl) { console.error('[dmax] Error: dmIt template not found for:', dKey); return }
@@ -1281,7 +1281,7 @@
           for (const add of adds) {
             const addKind = add.kind, addRoot = add.root, addPath = add.path
             let val = null
-            if (addKind === EV) {
+            if (addKind === EP) {
               const addEl = addRoot ? getElById(addRoot, dKey) : el
               val = addEl ? getElPrVal(addEl, addPath) : null
             } else {
@@ -1385,7 +1385,7 @@
             payload = await res.text()
             const hm = htmlMode
             const mode = hm || M_OUTER
-            const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EV)?.root ?? '')
+            const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EP)?.root ?? '')
             const selector = hp ? resolveHtmlSelector(hp)
               : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '')
               : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '')
@@ -1425,7 +1425,7 @@
       let ranImmediate = false
       for (const trig of trigs) {
         const kind = trig.kind, root = trig.root, path = trig.path
-        if (!(isSiT(trig) || isEvT(trig) || isSpT(trig))) { console.error('[dmax] Error: dmAct unsupported trigger kind', kind, 'in', dKey); return }
+        if (!(isSiT(trig) || isEpT(trig) || isSpT(trig))) { console.error('[dmax] Error: dmAct unsupported trigger kind', kind, 'in', dKey); return }
         if (isSpT(trig)) {
           if (trig.root !== SP_INIT) { console.error('[dmax] Error: dmAct unsupported SP trigger', trig.root, 'in', dKey); return }
           if (!ranImmediate) { ranImmediate = true; doRequest() }
