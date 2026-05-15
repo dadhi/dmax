@@ -98,15 +98,15 @@
       const it = parseItem(dKey, type, token)
       return it ? { isSi: it.isSi, isEv: it.isEv, isSp: it.isSp, isInterval: it.isInterval, isImmediate: it.isImmediate } : it
     }, ['XXX', TRIG, '_interval.100'], { isSi: false, isEv: false, isSp: true, isInterval: true, isImmediate: true }, 'parsed flags for interval special trigger')
-    __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SIGNAL, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
+    __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SI, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
     __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EV, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
-    __assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SIGNAL, "not": true, "path": null, "root": "foo" }, 'negated once');
-    __assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SIGNAL, "not": false, "path": null, "root": "foo" }, 'double negation even');
-    __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SIGNAL, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
+    __assert(parseItem, ['XXX', TRIG, '!foo'], { "kind": SI, "not": true, "path": null, "root": "foo" }, 'negated once');
+    __assert(parseItem, ['XXX', TRIG, '!!foo'], { "kind": SI, "not": false, "path": null, "root": "foo" }, 'double negation even');
+    __assert(parseItem, ['XXX', TARG, 'foo.'], { "kind": SI, "not": null, "path": null, "root": "foo" }, 'trailing dot yields null path');
     __assert(parseItem, ['XXX', TARG, 'a..b'], null, 'error: empty middle segment');
-    __assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SIGNAL, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
-    __assert(parseItem, ['XXX', TARG, 'posts[0]'], { "kind": SIGNAL, "not": null, "path": ["0"], "root": "posts" }, 'constant bracket index root path');
-    __assert(parseItem, ['XXX', TARG, 'post-objs[1].title'], { "kind": SIGNAL, "not": null, "path": ["1", "title"], "root": "postObjs" }, 'constant bracket index with dotted tail');
+    __assert(parseItem, ['XXX', TARG, 'foo.bar-baz.qux-quux'], { "kind": SI, "not": null, "path": ["barBaz", "quxQuux"], "root": "foo" }, 'path segments kebab->camel');
+    __assert(parseItem, ['XXX', TARG, 'posts[0]'], { "kind": SI, "not": null, "path": ["0"], "root": "posts" }, 'constant bracket index root path');
+    __assert(parseItem, ['XXX', TARG, 'post-objs[1].title'], { "kind": SI, "not": null, "path": ["1", "title"], "root": "postObjs" }, 'constant bracket index with dotted tail');
     __assert(parseItem, ['XXX', TARG, 'posts[idx]'], null, 'error: variable bracket index rejected');
     __assert(parseItem, ['XXX', TARG, 'posts[0'], null, 'error: missing closing bracket rejected');
     __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
@@ -119,26 +119,26 @@
     __assert(parse, ['data-m-ex:.'], [__parseIt({ ":": [{ "kind": EV, "mods": NIL, "not": null, "path": null, "root": "" }] }), 11], 'default prop')
     __assert(parse, ['data-m-ex^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 13], 'global mod')
     __assert(parse, ['data-m-ex^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 34], '2 global mods')
-    __assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 26], '2 global mods and item with mod with item')
-    __assert(parse, ['data-m-ex@!xxx@!'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": NIL, "not": true, "path": null, "root": "xxx" }] }), 16], 'not name and not empty')
-    __assert(parse, ['data-m-ex:xxx:'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "xxx" }] }), 14], 'single name')
+    __assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 26], '2 global mods and item with mod with item')
+    __assert(parse, ['data-m-ex@!xxx@!'], [__parseIt({ "@": [{ "kind": SI, "mods": NIL, "not": true, "path": null, "root": "xxx" }] }), 16], 'not name and not empty')
+    __assert(parse, ['data-m-ex:xxx:'], [__parseIt({ ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "xxx" }] }), 14], 'single name')
     __assert(parse, ['data-m-ex::'], [__parseIt({}), 11], '2 empties')
-    __assert(parse, ['data-m-ex:foo^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 14], 'name+empty mod')
-    __assert(parse, ['data-m-ex:foo^^'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 15], 'name+2 empty mods')
-    __assert(parse, ['data-m-ex:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 23], 'item^mod')
-    __assert(parse, ['data-m-ex:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 39], 'item^mod@item2^mod')
-    __assert(parse, ['data-m-ex^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 28], 'combine global+local mods and keep repeats')
+    __assert(parse, ['data-m-ex:foo^'], [__parseIt({ ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 14], 'name+empty mod')
+    __assert(parse, ['data-m-ex:foo^^'], [__parseIt({ ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 15], 'name+2 empty mods')
+    __assert(parse, ['data-m-ex:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 23], 'item^mod')
+    __assert(parse, ['data-m-ex:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 39], 'item^mod@item2^mod')
+    __assert(parse, ['data-m-ex^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 28], 'combine global+local mods and keep repeats')
     __assert((dKey) => parse(dKey)[0][TRIG][0].isImmediate, ['data-m-ex@foo'], true, 'trigger immediate defaults true')
     __assert((dKey) => parse(dKey)[0][TRIG][0].isImmediate, ['data-m-ex@foo^immediate^notimmediate'], false, 'last notimmediate wins')
     __assert((dKey) => parse(dKey)[0][TRIG][0].isImmediate, ['data-m-ex@foo^notimmediate^immediate'], true, 'last immediate wins')
-    __assert(parse, ['data-m-ex^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 25], 'push all global mods to items')
-    __assert(parse, ['data-m-post+profile^spread'], [__parseIt({ "+": [{ "kind": SIGNAL, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 26], 'add item local spread mod')
+    __assert(parse, ['data-m-ex^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 25], 'push all global mods to items')
+    __assert(parse, ['data-m-post+profile^spread'], [__parseIt({ "+": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 26], 'add item local spread mod')
     __assert(parse, ['data-m-ex:result@post-objs[1].title'], [__parseIt({
-      ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }],
-      "@": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": ["1", "title"], "root": "postObjs" }]
+      ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }],
+      "@": [{ "kind": SI, "mods": NIL, "not": null, "path": ["1", "title"], "root": "postObjs" }]
     }), 35], 'parse trigger with constant bracket index')
     __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
-      ":": [{ "kind": SIGNAL, "mods": NIL, "not": null, "path": null, "root": "result" }]
+      ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
     __assert(() => getMValPath(NIL) === NIL, [], true, 'getMValPath uses NIL when no val mod exists')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
@@ -152,10 +152,10 @@
       _dm.set('user', { name: 'Alice' })
       _dm.set('gate', 0)
       return {
-        root: getSiValOrIt({ kind: SIGNAL, not: null, root: 'user', path: null }),
-        path: getSiValOrIt({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
-        missingPath: getSiValOrIt({ kind: SIGNAL, not: null, root: 'missing', path: ['name'] }),
-        negated: getSiValOrIt({ kind: SIGNAL, not: true, root: 'gate', path: null }),
+        root: getSiValOrIt({ kind: SI, not: null, root: 'user', path: null }),
+        path: getSiValOrIt({ kind: SI, not: null, root: 'user', path: ['name'] }),
+        missingPath: getSiValOrIt({ kind: SI, not: null, root: 'missing', path: ['name'] }),
+        negated: getSiValOrIt({ kind: SI, not: true, root: 'gate', path: null }),
       }
     }
     __assert(__tGetSignalValOrIt, [], { root: { name: 'Alice' }, path: 'Alice', missingPath: undefined, negated: true }, 'signal value helper')
@@ -164,7 +164,7 @@
       _dm.set('user', { name: 'Alice' })
       _dm.set('gate', true)
       return {
-        signal: resolveMPathVal({ kind: SIGNAL, not: null, root: 'user', path: ['name'] }),
+        signal: resolveMPathVal({ kind: SI, not: null, root: 'user', path: ['name'] }),
         root: resolveMPathVal('gate'),
         negated: resolveMPathVal('!gate'),
         path: resolveMPathVal('user.name'),
@@ -175,9 +175,9 @@
     }
     __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, negated: false, path: 'Alice', numeric: '3', literal: 'literal', nil: null }, 'modifier value helper')
     __assert(resolveStatusSig, [null, 'busy'], null, 'status signal null')
-    __assert(resolveStatusSig, [{ path: 'complete' }, 'busy'], { kind: SIGNAL, not: null, root: 'complete', path: null }, 'status signal root string')
-    __assert(resolveStatusSig, [{ path: { kind: SIGNAL, not: null, root: 'user', path: ['name'] } }, 'busy'], { kind: SIGNAL, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
-    __assert(resolveStatusSig, [{ path: null }, 'busy'], { kind: SIGNAL, not: null, root: 'busy', path: null }, 'status signal fallback')
+    __assert(resolveStatusSig, [{ path: 'complete' }, 'busy'], { kind: SI, not: null, root: 'complete', path: null }, 'status signal root string')
+    __assert(resolveStatusSig, [{ path: { kind: SI, not: null, root: 'user', path: ['name'], isSi: true } }, 'busy'], { kind: SI, not: null, root: 'user', path: ['name'], isSi: true }, 'status signal parsed path')
+    __assert(resolveStatusSig, [{ path: null }, 'busy'], { kind: SI, not: null, root: 'busy', path: null }, 'status signal fallback')
     __assert((sig, val, nextVal) => {
       _dm.clear()
       defSig(sig, val)
@@ -302,7 +302,7 @@
       'Seaman!', '#foo default prop')
     __assert(setPr, [null, 'data-eval:#foo.style.color', { kind: EV, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       'lime', '#foo nested prop')
-    __assert(setPr, [null, 'data-eval:foo', { kind: SIGNAL, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
+    __assert(setPr, [null, 'data-eval:foo', { kind: SI, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
     __assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
     __assert(diffShapeShallow, [[1, 2], [3, 4]], null, 'arrays same length')
@@ -318,7 +318,7 @@
     __assert(isJsonContentType, ['application/problem+json; charset=utf-8'], true, 'json content-type +json with semicolon')
     __assert(isJsonContentType, ['application/problem+json\tcharset=utf-8'], true, 'json content-type +json with tab separator')
     __assert(isJsonContentType, ['application/problem+jsonified'], false, 'json content-type +json boundary check')
-    function __sigTrig(root, path) { return { kind: SIGNAL, root, path, not: null } }
+    function __sigTrig(root, path) { return { kind: SI, root, path, not: null, isSi: true } }
     // @TEST register sink subscriber
     function __reg(root, path, changeMod, sink) {
       let arr = _subs.get(root)
@@ -390,7 +390,7 @@
       __reset();
       _dm.set('a', 5)
       let c = 0
-      const trig = { kind: SIGNAL, root: 'a', path: null, not: null }
+      const trig = { kind: SI, root: 'a', path: null, not: null, isSi: true }
       const h = applyTrMs(() => ++c, trig, [{ root: M_EQ, path: '5' }, { root: M_NE, path: '6' }])
       h()
       _dm.set('a', 6)
@@ -2063,8 +2063,8 @@
       await consumeSseStream(
         fakeBody,
         'test-lc',
-        { kind: SIGNAL, not: null, root: 'sseOpen', path: null },
-        { kind: SIGNAL, not: null, root: 'sseClose', path: null },
+        { kind: SI, not: null, root: 'sseOpen', path: null },
+        { kind: SI, not: null, root: 'sseClose', path: null },
         null
       )
       return {

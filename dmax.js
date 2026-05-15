@@ -31,13 +31,17 @@
       return res
     }
 
+    // Updated attribute-token syntax reference
+    // data-m-it@foo-bar-signal+#tpl-id  (data-m-it = iterate/dump)
+    // data-m-cl+zebra-even+!zebra-odd   (data-m-cl = class toggle)
+    // Use ^ for modifiers (trigger guards/timing/options): data-m-get^no-cache:posts^replace+user.name^query.username
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
 
     const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
-    const SIGNAL = 's', EV = DOT, SP = '_'
+    const SI = 's', EV = DOT, SP = '_'
 
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
@@ -73,10 +77,11 @@
     const DEFAULT_PR_TA = Object.freeze({ kind: EV, not: null, root: '', path: null, mods: NIL }), RE_DIGITS = /^\d+$/
     const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
-    const _KIND = [MOD, SIGNAL, EV, SP]
+    const _KIND = [MOD, SI, EV, SP]
     const addParsedChecks = (it) => !it || it.kind === MOD ? it : (Object.defineProperties(it, {
-      isSi: { value: it.kind === SIGNAL }, isEv: { value: it.kind === EV }, isSp: { value: it.kind === SP },
-      isInterval: { value: it.kind === SP && it.root === SP_INTERVAL }, isImmediate: { value: true, writable: true },
+      isSi: { value: it.kind === SI }, isEv: { value: it.kind === EV }, isSp: { value: it.kind === SP },
+      isInterval: { value: it.kind === SP && it.root === SP_INTERVAL }, isTimeout: { value: it.kind === SP && it.root === SP_TIMEOUT },
+      isTimer: { value: it.kind === SP && (it.root === SP_INTERVAL || it.root === SP_TIMEOUT) }, isImmediate: { value: true, writable: true },
     }), it)
     const setItemMods = (it, mods) => {
       it.mods = mods
@@ -85,10 +90,12 @@
       it.isImmediate = im, Object.defineProperty(it, 'hasIm', { value: hasIm })
       return it
     }
-    const isSiT = (tr) => tr.isSi ?? tr.kind === SIGNAL
-    const isEvT = (tr) => tr.isEv ?? tr.kind === EV
-    const isSpT = (tr) => tr.isSp ?? tr.kind === SP
-    const isIntT = (tr) => tr.isInterval ?? tr.root === SP_INTERVAL
+    const isSiT = (tr) => tr.isSi
+    const isEvT = (tr) => tr.isEv
+    const isSpT = (tr) => tr.isSp
+    const isIntT = (tr) => tr.isInterval
+    const isToT = (tr) => tr.isTimeout
+    const isTimT = (tr) => tr.isTimer
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     const parseItem = (dKey, type, n, pos = 0) => {
       if (!n) return null
@@ -116,7 +123,7 @@
           root = root.slice(1)
           if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', dKey); return null }
         } else {
-          kind = SIGNAL
+          kind = SI
           root = kebabToCamel(root)
         }
       }
@@ -236,7 +243,7 @@
       let val = dVal ? fn(DM, el, null) : null
       if (tars.length) {
         for (const t of tars) {
-          if (t.kind != SIGNAL) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', dKey); continue }
+          if (t.kind != SI) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', dKey); continue }
           if (t.mods.length) console.warn('[dmax] Warning: Mods are not supported:', t.mods, 'in', dKey)
           _dm.set(t.root, val)
         }
@@ -474,9 +481,9 @@
     const resolveStatusSig = (mod, fallbackRoot) => {
       if (!mod) return null
       const p = mod.path
-      if (typeof p === 'string') return addParsedChecks({ kind: SIGNAL, not: null, root: p || fallbackRoot, path: null })
+      if (typeof p === 'string') return addParsedChecks({ kind: SI, not: null, root: p || fallbackRoot, path: null })
       if (p && isSiT(p)) return p
-      return addParsedChecks({ kind: SIGNAL, not: null, root: fallbackRoot, path: null })
+      return addParsedChecks({ kind: SI, not: null, root: fallbackRoot, path: null })
     }
 
     const defSig = (sig, val) => {
@@ -659,7 +666,7 @@
         const root = kebabToCamel(key)
         if (!_dm.has(root)) continue
         const prev = _dm.get(root)
-        setSiAndNotifySubsNLevelsDeep(dKey, { kind: SIGNAL, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
+        setSiAndNotifySubsNLevelsDeep(dKey, { kind: SI, not: null, root, path: null }, combineActionResult(prev, payload[key], resultMode))
       }
     }
 
@@ -745,11 +752,11 @@
         upsert(_subs, trig.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
-      if (isSpT(trig) && (isIntT(trig) || trig.root === SP_TIMEOUT)) {
-        const ms = parseInt(evName) || (trig.root === SP_INTERVAL ? SP_INTERVAL_MS : SP_TIMEOUT_MS)
+      if (isSpT(trig) && isTimT(trig)) {
+        const ms = parseInt(evName) || (isIntT(trig) ? SP_INTERVAL_MS : SP_TIMEOUT_MS)
         const sub = { el, trig, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, trig, mods, sub)
-        if (trig.root === SP_INTERVAL) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
+        if (isIntT(trig)) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
         else sub.clearId = setTimeout(onTimeoutSub, ms, { sub, ms })
         elSubs.push(sub)
         return sub.fn
@@ -928,7 +935,7 @@
      */
     const applyTrMs = (fn, trig, mods, removeSub) => {
       const isSig = isSiT(trig)
-      const isTimer = isSpT(trig) && (isIntT(trig) || trig.root === SP_TIMEOUT)
+      const isTimer = isSpT(trig) && isTimT(trig)
       const valPath = getMValPath(mods)
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
@@ -1074,6 +1081,10 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', dKey); return }
       }
     }
+    // data-m-cl+my-class+!my-other@signal="expr"
+    // +className adds when expr is truthy and removes when falsy.
+    // +!className inverts that rule.
+    // Without dVal, the raw signal or trigger value is used.
     const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dmCl requires class names via + syntax in:', dKey); return }
@@ -1104,6 +1115,8 @@
         }
       }
     }
+    // data-m-sh:.@signal="expr"
+    //   shows/hides the target element based on the truthy/falsy result of the expression
     const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dmSh requires at least one trigger in:', dKey); return }
@@ -1178,7 +1191,7 @@
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
-      const resultTa = findFirstKind(tars, SIGNAL)
+      const resultTa = findFirstKind(tars, SI)
       let busyMod = null, completeMod = null, errMod = null, codeMod = null
       let isJson = false, isText = false, isHtml = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
@@ -1263,10 +1276,10 @@
         for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
       }
       const actRouteMods = []
-      for (const m of urlMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.kind === SIGNAL ? [false, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
-      for (const m of bodyMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.kind === SIGNAL ? [true, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
+      for (const m of urlMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.kind === SI ? [false, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
+      for (const m of bodyMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.kind === SI ? [true, p.path?.at(-1) ?? p.root, null, p] : null; if (e) actRouteMods.push(e) }
       const actHdrMods = []
-      for (const m of hdrMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.kind === SIGNAL ? [camelToKebab(p.path?.at(-1) ?? p.root), null, p] : null; if (e) actHdrMods.push(e) }
+      for (const m of hdrMods) { const p = m.path, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.kind === SI ? [camelToKebab(p.path?.at(-1) ?? p.root), null, p] : null; if (e) actHdrMods.push(e) }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) { console.error('[dmax] Error: dmAct: URL is empty in:', dKey); return }
@@ -1774,12 +1787,12 @@
         const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
         if (next === JSON_MERGE_DELETE) {
           if (_dm.has(root)) {
-            setSiAndNotifySubsNLevelsDeep(dKey, { kind: SIGNAL, not: null, root, path: null }, undefined)
+            setSiAndNotifySubsNLevelsDeep(dKey, { kind: SI, not: null, root, path: null }, undefined)
             _dm.delete(root)
             updateDebug()
           }
         } else {
-          setSiAndNotifySubsNLevelsDeep(dKey, { kind: SIGNAL, not: null, root, path: null }, next)
+          setSiAndNotifySubsNLevelsDeep(dKey, { kind: SI, not: null, root, path: null }, next)
         }
       }
     }
