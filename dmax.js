@@ -415,7 +415,7 @@
       const trigRoot = trig.root, trigPath = trig.path
       const taEl = trigRoot ? getElById(trigRoot, dKey) : el
       if (!taEl) { console.error('[dmax] Error:', missElMsg, trig ?? DEFAULT_PR_TA, 'in:', dKey); return null }
-      let ev = trigPath && trigPath.length ? trigPath[0] : null
+      let ev = trigPath ? trigPath[0] : null
       let prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = trigPath, ev = getDefaultEv(taEl)
       if (useValPath) {
@@ -445,7 +445,7 @@
     const getSiVal = (it) => {
       const sig = _dm.get(it.root)
       const path = it.path
-      return path && path.length ? getPrValAndDepth(sig, path)[0] : sig
+      return path ? getPrValAndDepth(sig, path)[0] : sig
     }
     const getSiValOrIt = (it) => {
       if (!it.kind) return it
@@ -527,13 +527,13 @@
 
     const buildDumpItemRef = (siRoot, siPath, idx) => {
       let out = siRoot
-      if (siPath && siPath.length) for (const part of siPath) out += '.' + part
+      if (siPath) for (const part of siPath) out += '.' + part
       return out + '.' + idx
     }
 
     const buildDumpItemExpr = (siRoot, siPath, idx) => {
       let out = 'dm.' + siRoot
-      if (siPath && siPath.length) for (const part of siPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
+      if (siPath) for (const part of siPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
       return out + '[' + idx + ']'
     }
 
@@ -1072,7 +1072,7 @@
         } else if (trig.isEv) {
           const evTaEl = trig.root ? getElById(trig.root, dKey) : el
           if (!evTaEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', dKey); return }
-          const ev = (trig.path && trig.path.length ? trig.path[0] : null) ?? getDefaultEv(evTaEl)
+          const ev = trig.path?.[0] ?? getDefaultEv(evTaEl)
           if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (trig.isImmediate ?? false) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
@@ -1100,7 +1100,7 @@
         } else if (trig.isEv) {
           const evTaEl = trig.root ? getElById(trig.root, dKey) : el
           if (!evTaEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', dKey); return }
-          const ev = (trig.path && trig.path.length ? trig.path[0] : null) ?? getDefaultEv(evTaEl)
+          const ev = trig.path?.[0] ?? getDefaultEv(evTaEl)
           if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', dKey); return }
           const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
           if (trig.isImmediate ?? false) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
@@ -1243,10 +1243,10 @@
             if (addKind === EP) {
               const addEl = addRoot ? getElById(addRoot, dKey) : el
               val = addEl ? getElPrVal(addEl, addPath) : null
-              key = addPath && addPath.length ? addPath[addPath.length - 1] : (addRoot || 'value')
+              key = addPath ? addPath[addPath.length - 1] : (addRoot || 'value')
             } else {
               val = getSiValOrIt(add)
-              key = (addPath && addPath.length ? addPath[addPath.length - 1] : addRoot) || 'value'
+              key = (addPath ? addPath[addPath.length - 1] : addRoot) || 'value'
             }
             let shouldSpread = false
             for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { shouldSpread = true; break }
@@ -1270,7 +1270,7 @@
             if (!mPath) continue
             let mKey, mVal
             if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.isSi) { mKey = mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSiValOrIt(mPath) }
+            else if (mPath.isSi) { mKey = mPath.path ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSiValOrIt(mPath) }
             else continue
             (isBody ? bodyFields : queryParams)[mKey] = mVal
           }
@@ -1289,7 +1289,7 @@
           let hs = ACT_HS_EMPTY, sharedHs = true
           if (hdrsMod) {
             const hdrObj = resolveMPathVal(hdrsMod.path)
-            if (hdrObj && typeof hdrObj === 'object') {
+            if (isPlainObj(hdrObj)) {
               hs = Object.create(null)
               sharedHs = false
               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = String(hdrObj[hk])
@@ -1316,7 +1316,7 @@
             let mKey, mVal
             if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
             else if (mPath.isSi) {
-              mKey = camelToKebab(mPath.path && mPath.path.length ? mPath.path[mPath.path.length - 1] : mPath.root)
+              mKey = camelToKebab(mPath.path ? mPath.path[mPath.path.length - 1] : mPath.root)
               mVal = getSiValOrIt(mPath)
             }
             else continue
@@ -1337,7 +1337,7 @@
           if (bodyCount) {
             // Send one input as a bare value and multiple inputs as an object.
             const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
-            if (isForm && raw && typeof raw === 'object') {
+            if (isForm && (isPlainObj(raw) || Array.isArray(raw))) {
               const params = new URLSearchParams()
               if (Array.isArray(raw)) {
                 for (let i = 0; i < raw.length; i++) params.append(String(i), String(raw[i] ?? ''))
@@ -1345,7 +1345,7 @@
                 for (const k in raw) if (hasOwn(raw, k)) params.append(k, String(raw[k] ?? ''))
               }
               body = params.toString()
-            } else if (isJson || (raw !== null && typeof raw === 'object'))
+            } else if (isJson || isPlainObj(raw) || Array.isArray(raw))
               body = JSON.stringify(raw)
             else body = String(raw)
           }
@@ -1424,7 +1424,7 @@
         }
         const evTaEl = trig.root ? getElById(trig.root, dKey) : el
         if (!evTaEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', dKey); return }
-        const ev = (trig.path && trig.path.length ? trig.path[0] : null) ?? getDefaultEv(evTaEl)
+        const ev = trig.path?.[0] ?? getDefaultEv(evTaEl)
         if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', dKey); return }
         const moddedHandler = addTrSub(el, trig, mods, doRequest, elSubs, evTaEl, ev, null)
         if (shouldImmediate) {
@@ -1780,7 +1780,7 @@
           const spaceIndex = val.indexOf(' ')
           if (spaceIndex < 0) return
           const key = val.slice(0, spaceIndex), value = val.slice(spaceIndex + 1)
-          if (!curArgs) curArgs = {}
+          if (!curArgs) curArgs = Object.create(null)
           hasData = true
           if (!curArgs[key]) curArgs[key] = value
           else curArgs[key] += '\n' + value
@@ -1850,7 +1850,7 @@
           const si = val.indexOf(' ')
           if (si < 0) return
           const key = val.slice(0, si), value = val.slice(si + 1)
-          if (!curArgs) curArgs = {}
+          if (!curArgs) curArgs = Object.create(null)
           hasData = true
           if (!curArgs[key]) curArgs[key] = value
           else curArgs[key] += '\n' + value
