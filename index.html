@@ -87,7 +87,7 @@
     <pre id="out"></pre>
     <div id='foo' hidden>good</div>
     <section id="live-dsub" style="padding:12px;border-top:1px solid #e2e8f0">
-      <h3 style="margin:0 0 8px 0">Live dSub examples</h3>
+      <h3 style="margin:0 0 8px 0">Live dmEx examples</h3>
       <form id="live-form">
         <input id="live-name" value="Ada" />
         <button id="live-btn" type="button">Emit click/value</button>
@@ -170,10 +170,11 @@
       <p id="srcPreview" data-m-ex:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-m-ex:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
-      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-m-ex:.@_window.resize" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-m-ex:.@_interval.1000" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-m-ex:.@_timeout.1500" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-m-ex:.@_viewed^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-m-ex:.@_window.resize" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-m-ex:.@_interval.1000" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-m-ex:.@_timeout.1500" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-m-ex:.@_viewed^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="initOut" data-attr-name="data-m-ex:.@_init" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <p>Window width: <span id="windowWidthOut" data-m-ex:.@_window.resize="window.innerWidth + 'px'"></span></p>
       <p>Current time: <span id="timeOut" data-m-ex:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
       <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
+      <p>On init: <span id="initOut" data-m-ex:.@_init="'✓ Initialized (detail.type: ' + (detail && detail.type) + ')'"></span></p>
       <h4>7. Default Props &amp; Events</h4>
       <div class="page"><code data-attr-for="inp1Preview" data-attr-name="data-m-ex:.@#inp1.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="btn3Preview" data-attr-name="data-m-ex:.@#btn3" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <input id="inp1" placeholder="Mirrors on input">
@@ -195,11 +196,11 @@
         <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^val.bar="val + 1"></strong></div>
       </div>
       <h4>8. Classes &amp; Display</h4>
-      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-m-cl+active+!inactive@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-m-vi:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-m-vi:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-m-cl+active+!inactive@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <label><input id="classToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Toggle Active</label>
       <div id="classBox" data-m-cl+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
-      <p id="displayBox" data-m-vi:.@user.ui.is-active="dm.user.ui.isActive">Visible only when active</p>
-      <p id="displayNeg" data-m-vi:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
+      <p id="displayBox" data-m-sh:.@user.ui.is-active>Visible only when active</p>
+      <p id="displayNeg" data-m-sh:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
       <h4>9. List Rendering (data-m-it)</h4>
       <div class="page"><code data-attr-for="dumpPostsPrimary" data-attr-name="data-m-it+#tpl-post@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-template="tpl-post" data-attr-selector="[data-index]" data-attr-name="data-m-cl+zebra-even+!zebra-odd@posts^immediate" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="inline-posts" data-attr-name="data-m-it@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thread-posts" data-attr-name="data-m-it+#tpl-thread@threads" data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="addPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="updateSecondPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removeFirst" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removePost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="refreshThreads" data-attr-name="data-m-ex:threads@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
         <template id="tpl-post">
@@ -273,7 +274,7 @@
         </div>
       </div>
       <h4>State Tree (Live Debug)</h4>
-      <pre data-m-debug style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+      <pre data-m-dbg style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
       <h4>11. Actions demo + OOB HTML morph</h4>
       <div class="page"><code data-attr-for="loadPost" data-attr-name="data-m-get^busy.busy^err.err^code.code:post-result@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <button id="loadPost" data-m-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
@@ -282,7 +283,7 @@
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
         <div class="page"><code data-attr-for="loadPostCustomBusy" data-attr-name="data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
         <button id="loadPostCustomBusy" data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
-        <strong style="margin-left:8px" data-m-vi:.@post-loading="dm.postLoading">Loading…</strong>
+        <strong style="margin-left:8px" data-m-sh:.@post-loading>Loading…</strong>
         <div>Error: <span data-m-ex:.@post-error="dm.postError"></span> | Code: <span data-m-ex:.@post-code="dm.postCode"></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>
@@ -430,9 +431,9 @@
         const liveName = document.getElementById('live-name');
         if (!liveForm || !liveBtn || !liveName) return;
         const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500';
-        dSub(liveBtn, `data-m-ex:#live-raw${liveTrigList}`,
+        dmEx(liveBtn, `data-m-ex:#live-raw${liveTrigList}`,
           `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`);
-        dSub(liveBtn, `data-m-ex:#live-branch${liveTrigList}`,
+        dmEx(liveBtn, `data-m-ex:#live-branch${liveTrigList}`,
           `trig && trig.kind === '${SP}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`);
         liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')));
       }
@@ -454,7 +455,7 @@
             return Promise.resolve(makeJsonResponse(payload, 201));
           }
           if (u === '/mock/oob') {
-            const html = `<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dAction + morph)</span></div>`;
+            const html = `<div id="oobTarget"><strong>OOB morphed content</strong> <span>(via dmAct + morph)</span></div>`;
             return Promise.resolve({
               ok: true,
               headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },

@@ -9,20 +9,10 @@
     const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
     const kebabToCamel = (s) => {
       if (!s) return s
-      let p = s.indexOf('-')
-      if (p < 0) {
-        CAMEL_NAMES.set(s, s)
-        return s
-      }
+      if (s.indexOf('-') < 0) { CAMEL_NAMES.set(s, s); return s }
       let res = CAMEL_NAMES.get(s)
       if (res) return res
-      res = s.slice(0, p)
-      while (p >= 0 && ++p < s.length) {
-        if (s[p] == '-') continue;
-        res += s[p].toUpperCase()
-        if (++p < s.length)
-          res += s.slice(p, (p = s.indexOf('-', p)) == -1 ? s.length : p)
-      }
+      res=s.replace(/-+([a-zA-Z]?)/g,(_,c)=>c?c.toUpperCase():'')
       CAMEL_NAMES.set(s, res)
       KEBAB_NAMES.set(res, s)
       return res
@@ -32,20 +22,7 @@
       if (!s) return s
       let res = KEBAB_NAMES.get(s)
       if (res) return res
-      let p = 0
-      for (; p < s.length; ++p) {
-        const c = s.charCodeAt(p)
-        if (c >= 65 && c <= 90) break
-      }
-      if (p >= s.length) {
-        KEBAB_NAMES.set(s, s)
-        return s
-      }
-      res = s.slice(0, p)
-      for (; p < s.length; ++p) {
-        const c = s[p]
-        res += c >= 'A' && c <= 'Z' ? '-' + c.toLowerCase() : c
-      }
+      res = s.replace(/[A-Z]/g, c => '-' + c.toLowerCase())
       KEBAB_NAMES.set(s, res)
       CAMEL_NAMES.set(res, s)
       return res
@@ -82,15 +59,15 @@
     const ACT_HS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
     const ACT_HS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
     const ACT_HS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
-    const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed'
-    const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED]
+    const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed', SP_INIT = 'init'
+    const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED, SP_INIT]
     const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
-    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' })
-    const E_RW_REQ = `dSub ${MOD}${M_RW} requires an element/property trigger in:`
-    const E_RW_EL = `dSub ${MOD}${M_RW} source element is not found in trigger:`
-    const E_RW_EV = `dSub ${MOD}${M_RW} event is not found in trigger:`
+    const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }), DM_KEY = 'data-m-'
+    const E_RW_REQ = `dmEx ${MOD}${M_RW} requires an element/property trigger in:`
+    const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
+    const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
-    const DUMP_STATES = new WeakMap(), DUMP_ATTRS = new WeakMap()
+    const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isInterval: kind === SP && root === SP_INTERVAL, isTimer: kind === SP && (root === SP_INTERVAL || root === SP_TIMEOUT), isViewed: kind === SP && root === SP_VIEWED, isForm: kind === SP && root === SP_FORM, isImmediate: null })
     const mkMod = (not, root, path) => ({ kind: MOD, not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOTIMMEDIATE ? false : null })
@@ -238,7 +215,7 @@
     // - data-m-si:foo='{bar: "hey"}' // foo signal
     // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
-    const dDef = (el, dKey, dVal) => {
+    const dmSi = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', dKey)
       let fn = compileFn(dVal, dKey)
@@ -258,7 +235,7 @@
       }
     }
 
-    const dDebug = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
+    const dmDbg = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
     const getElById = (id, dKey) => {
       const el = document.getElementById(id)
       if (!el) console.error(`[dmax] Error: element #${id} from ${dKey} is not found`)
@@ -431,6 +408,10 @@
       const ev = trig.path?.[0]
       const subTaEl = isSp ? null : prTa.taEl, subEv = isSp ? ev : prTa.ev, subPrPath = isSp ? null : prTa.prPath
       const modded = addTrSub(el, trig, mods, fn, elSubs, subTaEl, subEv, subPrPath)
+      if (isSp && trig.root === SP_INIT) {
+        if (modded && !ranImmediate) invokeSub(modded, { type: SP_INIT }, SP_INIT, el, trig)
+        return true
+      }
       if (modded && !ranImmediate && (trig.isImmediate ?? false) && (!isSp || trig.isForm)) {
         ranImmediate = true
         invokeSub(modded, null, isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, trig)
@@ -525,36 +506,34 @@
 
     const isDigitsOnly = (s) => typeof s == 'string' && RE_DIGITS.test(s)
 
-    const buildDumpItemRef = (siRoot, siPath, idx) => {
+    const buildItItemRef = (siRoot, siPath, idx) => {
       let out = siRoot
       if (siPath) for (const part of siPath) out += '.' + part
       return out + '.' + idx
     }
 
-    const buildDumpItemExpr = (siRoot, siPath, idx) => {
+    const buildItItemExpr = (siRoot, siPath, idx) => {
       let out = 'dm.' + siRoot
       if (siPath) for (const part of siPath) out += isDigitsOnly(part) ? '[' + part + ']' : '.' + part
       return out + '[' + idx + ']'
     }
 
-    const replaceDumpTokens = (s, itemToken, indexToken) => {
+    const replaceItTokens = (s, itemToken, indexToken) => {
       if (typeof s !== 'string') return s
       let i = s.indexOf('$')
       if (i < 0) return s
-      let out = '', p = 0
+      const parts = []; let p = 0
       while (i >= 0) {
         let next = null, step = 0
         if (s.startsWith('$item', i)) next = itemToken, step = 5
         else if (s.startsWith('$index', i)) next = indexToken, step = 6
         if (!step) { i = s.indexOf('$', i + 1); continue }
-        out += s.slice(p, i) + next
-        p = i + step
-        i = s.indexOf('$', p)
+        parts.push(s.slice(p, i), next); p = i + step; i = s.indexOf('$', p)
       }
-      return out ? out + s.slice(p) : s
+      return parts.length ? parts.join('') + s.slice(p) : s
     }
 
-    const rewriteDumpBindings = (rootNode, itemRef, itemExpr, indexText) => {
+    const rewriteItBindings = (rootNode, itemRef, itemExpr, indexText) => {
       const stack = [rootNode]
       while (stack.length) {
         const node = stack.pop()
@@ -562,8 +541,8 @@
         let nextAttrs = null
         for (let i = attrs.length - 1; i >= 0; --i) {
           const attr = attrs[i]
-          const nextName = replaceDumpTokens(attr.name, itemRef, indexText)
-          const nextVal = replaceDumpTokens(attr.value, itemExpr, indexText)
+          const nextName = replaceItTokens(attr.name, itemRef, indexText)
+          const nextVal = replaceItTokens(attr.value, itemExpr, indexText)
           if (nextName !== attr.name || nextVal !== attr.value) {
             if (!nextAttrs) {
               // Keep a parallel attribute list for later wiring because HTML accepts
@@ -575,19 +554,19 @@
           }
           if (nextAttrs) nextAttrs.push([nextName, nextVal])
         }
-        if (nextAttrs) DUMP_ATTRS.set(node, nextAttrs)
+        if (nextAttrs) IT_ATTRS.set(node, nextAttrs)
         const children = node.children
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
     }
 
-    const wireDumpClone = (node) => {
+    const wireItClone = (node) => {
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
-        const dumpAttrs = DUMP_ATTRS.get(el)
-        if (dumpAttrs && dumpAttrs.length) {
-          for (let i = 0; i < dumpAttrs.length; ++i) globalThis.wireNode(el, dumpAttrs[i][0], dumpAttrs[i][1])
+        const itAttrs = IT_ATTRS.get(el)
+        if (itAttrs && itAttrs.length) {
+          for (let i = 0; i < itAttrs.length; ++i) globalThis.wireNode(el, itAttrs[i][0], itAttrs[i][1])
         } else {
           const attrs = el.attributes
           for (let i = 0; i < attrs.length; ++i) {
@@ -600,16 +579,16 @@
       }
     }
 
-    const renderDumpState = (el, trig, dumpState, tplFirst, siRoot, siPath) => {
+    const renderItState = (el, trig, itState, tplFirst, siRoot, siPath) => {
       const val = getSiValOrIt(trig)
       if (!Array.isArray(val)) return
-      const newLen = val.length, oldLen = dumpState.count || 0
+      const newLen = val.length, oldLen = itState.count || 0
       if (newLen < oldLen) {
         for (let i = 0; i < oldLen - newLen; i++) {
-          const node = dumpState.nodes.pop()
+            const node = itState.nodes.pop()
           if (node && node.parentNode) node.parentNode.removeChild(node)
         }
-        dumpState.count = newLen
+        itState.count = newLen
       }
       if (newLen > oldLen) {
         const frag = document.createDocumentFragment()
@@ -617,14 +596,14 @@
           try {
             const node = tplFirst.cloneNode(true)
             const idxText = String(idx)
-            rewriteDumpBindings(node, buildDumpItemRef(siRoot, siPath, idx), buildDumpItemExpr(siRoot, siPath, idx), idxText)
+            rewriteItBindings(node, buildItItemRef(siRoot, siPath, idx), buildItItemExpr(siRoot, siPath, idx), idxText)
             frag.appendChild(node)
-            dumpState.nodes.push(node)
+            itState.nodes.push(node)
           } catch { }
         }
         el.appendChild(frag)
-        for (let i = dumpState.nodes.length - (newLen - oldLen); i < dumpState.nodes.length; ++i) wireDumpClone(dumpState.nodes[i])
-        dumpState.count = newLen
+        for (let i = itState.nodes.length - (newLen - oldLen); i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
+        itState.count = newLen
       }
     }
 
@@ -769,6 +748,7 @@
         elSubs.push(sub)
         return sub.fn
       }
+      if (trig.isSp && trig.root === SP_INIT) return applyTrMs(fn, trig, mods)
       if (trig.isSp) {
         if (trig.root === SP_WIN) evName ||= SP_WIN_EV, taEl ||= window
         else if (trig.root === SP_DOC) evName ||= SP_DOC_EV, taEl ||= document
@@ -970,7 +950,7 @@
       return h
     }
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
-    const dSub = (el, dKey, dVal) => {
+    const dmEx = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', dKey)
       const hasExpr = dVal != null && '' + dVal
@@ -1054,13 +1034,13 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', trig.kind, 'in', dKey); return }
       }
     }
-    const dClass = (el, dKey, dVal) => {
+    const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!adds.length) { console.error('[dmax] Error: dClass requires class names via + syntax in:', dKey); return }
-      if (!trigs.length) { console.error('[dmax] Error: dClass requires at least one trigger in:', dKey); return }
+      if (!adds.length) { console.error('[dmax] Error: dmCl requires class names via + syntax in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmCl requires at least one trigger in:', dKey); return }
       const prTa = findFirstKind(tars, EP)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
-      if (!taEl) { console.error('[dmax] Error: dClass target element not found in:', dKey); return }
+      if (!taEl) { console.error('[dmax] Error: dmCl target element not found in:', dKey); return }
       const fn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
@@ -1069,26 +1049,24 @@
         if (trig.isSi) {
           const sub = addTrSub(el, trig, mods, (dm, siEl, siTr, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (trig.isImmediate ?? false) invokeBoundSub(sub, null)
-        } else if (trig.isEv) {
-          const evTaEl = trig.root ? getElById(trig.root, dKey) : el
-          if (!evTaEl) { console.error('[dmax] Error: dClass element not found in trigger:', trig, 'in:', dKey); return }
-          const ev = trig.path?.[0] ?? getDefaultEv(evTaEl)
-          if (!ev) { console.error('[dmax] Error: dClass event not found in trigger:', trig, 'in:', dKey); return }
-          const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
-          if (trig.isImmediate ?? false) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
+        } else if (trig.isEv || trig.isSp) {
+          const prTa = trig.isEv ? getTrPrTa(el, dKey, trig, mods, E_TRIG_EL, E_TRIG_EV, false) : null
+          if (trig.isEv && !prTa) return
+          const nextRanImmediate = addNonSiTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, false, prTa)
+          if (nextRanImmediate == null) return
         }
       }
     }
-    const dDisp = (el, dKey, dVal) => {
+    const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!trigs.length) { console.error('[dmax] Error: dDisp requires at least one trigger in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmSh requires at least one trigger in:', dKey); return }
       const prTa = findFirstKind(tars, EP)
       const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
-      if (!taEl) { console.error('[dmax] Error: dDisp target element not found in:', dKey); return }
+      if (!taEl) { console.error('[dmax] Error: dmSh target element not found in:', dKey); return }
       const inline = (taEl.style && taEl.style.display) || ''
       const hadInline = inline !== ''
       const computed = getComputedDisplay(taEl)
-      const origDisp=hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
+      const origDisp = hadInline ? inline : (computed === 'none' || !computed ? 'block' : computed)
       const fn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
@@ -1097,53 +1075,50 @@
         if (trig.isSi) {
           const sub = addTrSub(el, trig, mods, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (trig.isImmediate ?? false) invokeBoundSub(sub, null)
-        } else if (trig.isEv) {
-          const evTaEl = trig.root ? getElById(trig.root, dKey) : el
-          if (!evTaEl) { console.error('[dmax] Error: dDisp element not found in trigger:', trig, 'in:', dKey); return }
-          const ev = trig.path?.[0] ?? getDefaultEv(evTaEl)
-          if (!ev) { console.error('[dmax] Error: dDisp event not found in trigger:', trig, 'in:', dKey); return }
-          const moddedHandler = addTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, evTaEl, ev, null)
-          if (trig.isImmediate ?? false) invokeSub(moddedHandler, null, getTrEvVal(evTaEl, null, mods), el, trig)
+        } else if (trig.isEv || trig.isSp) {
+          const prTa = trig.isEv ? getTrPrTa(el, dKey, trig, mods, E_TRIG_EL, E_TRIG_EV, false) : null
+          if (trig.isEv && !prTa) return
+          const nextRanImmediate = addNonSiTrSub(el, trig, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, trig, trigVal, detail) : true), elSubs, false, prTa)
+          if (nextRanImmediate == null) return
         }
       }
     }
     const dataM = {}
     const wireNode = (n, an, v) => {
-      if (an.indexOf('data-m-') !== 0) return
-      const rest = an.slice(7), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
+      if (an.indexOf(DM_KEY) !== 0) return
+      const rest = an.slice(DM_KEY.length), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
       const fn = dataM[fe]
       if (fn) fn(n, an, v)
     }
     globalThis.dataM = dataM
     globalThis.wireNode = wireNode
 
-    const dDump = (el, dKey) => {
+    const dmIt = (el, dKey) => {
       const it = parseCached(dKey), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
-      if (!trigs.length) { console.error('[dmax] Error: dDump requires a signal trigger in:', dKey); return }
+      if (!trigs.length) { console.error('[dmax] Error: dmIt requires a signal trigger in:', dKey); return }
       const trig = trigs[0]
-      if (!trig.isSi) { console.error('[dmax] Error: dDump trigger must be a signal in:', dKey); return }
+      if (!trig.isSi) { console.error('[dmax] Error: dmIt trigger must be a signal in:', dKey); return }
       const mods = pickMods(trig.mods, globMods)
       let tpl = null
       if (adds.length && adds[0].isEv && adds[0].root) tpl = getElById(adds[0].root, dKey)
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
-      if (!tpl) { console.error('[dmax] Error: dDump template not found for:', dKey); return }
+      if (!tpl) { console.error('[dmax] Error: dmIt template not found for:', dKey); return }
       const tplFirst = tpl.content && tpl.content.firstElementChild
-      if (!tplFirst) { console.error('[dmax] Error: dDump template root not found for:', dKey); return }
-      let dumpState = DUMP_STATES.get(el)
-      if (!dumpState) DUMP_STATES.set(el, dumpState = { nodes: [], count: 0 })
+      if (!tplFirst) { console.error('[dmax] Error: dmIt template root not found for:', dKey); return }
+      let itState = IT_STATES.get(el)
+      if (!itState) IT_STATES.set(el, itState = { nodes: [], count: 0 })
       const siRoot = trig.root
       const siPath = trig.path
-
-      addTrSub(el, trig, mods, ()=>renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath), upsert(_cleanupBoundSubs, el))
-      if (trig.isImmediate ?? true) renderDumpState(el,trig,dumpState,tplFirst,siRoot,siPath)
+      addTrSub(el, trig, mods, () => renderItState(el, trig, itState, tplFirst, siRoot, siPath), upsert(_cleanupBoundSubs, el))
+      if (trig.isImmediate ?? true) renderItState(el, trig, itState, tplFirst, siRoot, siPath)
     }
-    const dAction = (el, dKey, dVal) => {
-      const afterData = dKey.slice(7) // strip 'data-m-'
+    const dmAct = (el, dKey, dVal) => {
+      const afterData = dKey.slice(DM_KEY.length)
       const methodEnd = indexFirst(afterData, ALL, 0)
       const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
       const method = ACT_METHODS[methodName]
-      if (!method) { console.error('[dmax] Error: dAction: unrecognised method prefix in:', dKey); return }
+      if (!method) { console.error('[dmax] Error: dmAct: unrecognised method prefix in:', dKey); return }
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
@@ -1173,12 +1148,10 @@
         else if (mr === M_HS && !hdrsMod) hdrsMod = m
         else if (mr === M_HS_NO_KEBAB) hsNoKebab = true
         else if (mr === M_AUTH && !authMod) authMod = m
-        else if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND
-               || mr === M_BEFORE || mr === M_AFTER || mr === M_INNER || mr === M_REMOVE) {
+        else if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND || mr === M_BEFORE || mr === M_AFTER || mr === M_INNER || mr === M_REMOVE) {
           resultMode = mr
           if (mr !== M_MERGE) { htmlMode = mr; htmlDomMod = m }
-        }
-        else if (mr === M_BUSY && !busyMod) busyMod = m
+        } else if (mr === M_BUSY && !busyMod) busyMod = m
         else if (mr === M_COMPLETE && !completeMod) completeMod = m
         else if (mr === M_ERR && !errMod) errMod = m
         else if (mr === M_CODE && !codeMod) codeMod = m
@@ -1189,23 +1162,11 @@
         else if (mr === M_URL) urlMods.push(m)
         else if (mr === M_BODY) bodyMods.push(m)
         else if (mr === M_HDR) hdrMods.push(m)
-        else if (mr === M_SYNC_ALL) {
-          sendAll = true
-          patchAll = true
-        }
+        else if (mr === M_SYNC_ALL) sendAll = patchAll = true
         else if (!sendAll && mr === M_SEND_ALL) sendAll = true
         else if (!patchAll && mr === M_PATCH_ALL) patchAll = true
       }
-      if (resultTa && resultTa.mods) {
-        for (const m of resultTa.mods) {
-          const mr = m.root
-          if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND) {
-            resultMode = mr
-            break
-          }
-        }
-      }
-
+      if (resultTa && resultTa.mods) for (const m of resultTa.mods) if (m.root === M_REPLACE || m.root === M_MERGE || m.root === M_APPEND || m.root === M_PREPEND) { resultMode = m.root; break }
       const busyStat = resolveStatusSig(busyMod, M_BUSY)
       const completeStat = resolveStatusSig(completeMod, M_COMPLETE)
       const errStat = resolveStatusSig(errMod, M_ERR)
@@ -1213,7 +1174,6 @@
       const openStat = resolveStatusSig(openMod, M_SSE_OPEN)
       const closeStat = resolveStatusSig(closeMod, M_SSE_CLOSE)
       const abortStat = resolveStatusSig(abortMod, M_ABORT)
-      // ^retry.N sets the reconnect delay in ms after an unexpected SSE close.
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
       defSig(busyStat, false), defSig(completeStat, false), defSig(errStat, null), defSig(codeStat, null), defSig(openStat, false), defSig(closeStat, false), defSig(abortStat, null)
       let enc = ''
@@ -1222,70 +1182,50 @@
       if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
       if (encCompress) enc += (enc ? ', ' : '') + 'compress'
       const baseHs = buildActionBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
-
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
-
+      for (const add of adds) {
+        const ap = add.path
+        add.key = (ap ? ap[ap.length - 1] : add.root) || 'value'
+        add.spread = false
+        for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
+      }
+      const actRouteMods = []
+      for (const m of urlMods) {
+        const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.isSi ? [false, p.path ? p.path[p.path.length - 1] : p.root, null, p] : null
+        if (e) actRouteMods.push(e)
+      }
+      for (const m of bodyMods) {
+        const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.isSi ? [true, p.path ? p.path[p.path.length - 1] : p.root, null, p] : null
+        if (e) actRouteMods.push(e)
+      }
+      const actHdrMods = []
+      for (const m of hdrMods) {
+        const p = m.path, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.isSi ? [camelToKebab(p.path ? p.path[p.path.length - 1] : p.root), null, p] : null
+        if (e) actHdrMods.push(e)
+      }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
-        if (!url) { console.error('[dmax] Error: dAction: URL is empty in:', dKey); return }
-
+        if (!url) { console.error('[dmax] Error: dmAct: URL is empty in:', dKey); return }
         setS(dKey, busyStat, true), setS(dKey, completeStat, false), setS(dKey, errStat, null), setS(dKey, codeStat, null)
-
         try {
           const queryParams = Object.create(null), bodyFields = Object.create(null)
-          if (sendAll) {
-            for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
-          }
+          if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
           for (const add of adds) {
-            const addKind = add.kind, addRoot = add.root, addPath = add.path
-            let val = null, key = null
-            if (addKind === EP) {
-              const addEl = addRoot ? getElById(addRoot, dKey) : el
-              val = addEl ? getElPrVal(addEl, addPath) : null
-              key = addPath ? addPath[addPath.length - 1] : (addRoot || 'value')
-            } else {
-              val = getSiValOrIt(add)
-              key = (addPath ? addPath[addPath.length - 1] : addRoot) || 'value'
-            }
-            let shouldSpread = false
-            for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { shouldSpread = true; break }
-            if (shouldSpread) {
+            const addRoot = add.root, addPath = add.path
+            const addEl = add.isEv ? (addRoot ? getElById(addRoot, dKey) : el) : null
+            const val = addEl ? getElPrVal(addEl, addPath) : add.isEv ? null : getSiValOrIt(add)
+            if (add.spread) {
               if (val && typeof val === 'object') {
-                for (const k in val) {
-                  if (!hasOwn(val, k)) continue
-                  if (isGetOrDelete) queryParams[k] = val[k]
-                  else bodyFields[k] = val[k]
-                }
+                for (const k in val) if (hasOwn(val, k)) (isGetOrDelete ? queryParams : bodyFields)[k] = val[k]
               } else if (isGetOrDelete) queryParams.value = val
               else bodyFields.value = val
-            } else if (isGetOrDelete) queryParams[key] = val
-            else bodyFields[key] = val
+            } else if (isGetOrDelete) queryParams[add.key] = val
+            else bodyFields[add.key] = val
           }
-
-          // ^url.<siPath> forces named sig into query params.
-          // ^body.<siPath> forces a sig into request body.
-          for (let i = 0, n = urlMods.length + bodyMods.length; i < n; i++) {
-            const isBody = i >= urlMods.length, m = isBody ? bodyMods[i - urlMods.length] : urlMods[i], mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = mPath; mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.isSi) { mKey = mPath.path ? mPath.path[mPath.path.length - 1] : mPath.root; mVal = getSiValOrIt(mPath) }
-            else continue
-            (isBody ? bodyFields : queryParams)[mKey] = mVal
-          }
-
-          let finalUrl = url
-          let q = '', hasQ = false
-          for (const k in queryParams) {
-            if (hasQ) q += '&'
-            q += encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? ''))
-            hasQ = true
-          }
-          if (hasQ) {
-            finalUrl += (finalUrl.indexOf('?') === -1 ? '?' : '&') + q
-          }
-
+          for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
+          let finalUrl = url, hasQ = finalUrl.indexOf('?') >= 0
+          for (const k in queryParams) finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent(String(queryParams[k] ?? '')), hasQ = true
           let hs = ACT_HS_EMPTY, sharedHs = true
           if (hdrsMod) {
             const hdrObj = resolveMPathVal(hdrsMod.path)
@@ -1302,120 +1242,81 @@
           if (authMod) {
             const authVal = resolveMPathVal(authMod.path)
             if (authVal != null) {
-              if (sharedHs) {
-                hs = cloneOwnProps(hs)
-                sharedHs = false
-              }
+              if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
               hs[H_AUTHORIZATION] = String(authVal)
             }
           }
-          // ^header.<name> sets one request header from a named sig.
-          for (const m of hdrMods) {
-            const mPath = m.path
-            if (!mPath) continue
-            let mKey, mVal
-            if (typeof mPath === 'string') { mKey = camelToKebab(mPath); mVal = _dm.has(mPath) ? _dm.get(mPath) : undefined }
-            else if (mPath.isSi) {
-              mKey = camelToKebab(mPath.path ? mPath.path[mPath.path.length - 1] : mPath.root)
-              mVal = getSiValOrIt(mPath)
-            }
-            else continue
-            if (sharedHs) {
-              hs = cloneOwnProps(hs)
-              sharedHs = false
-            }
-            hs[mKey] = String(mVal ?? '')
+          for (const [kebabKey, path, ref] of actHdrMods) {
+            const mVal = ref ? getSiValOrIt(ref) : _dm.get(path)
+            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
+            hs[kebabKey] = mVal != null ? '' + mVal : ''
           }
-
           let bodyCount = 0, firstBodyKey = null
-          for (const bk in bodyFields) {
-            if (!hasOwn(bodyFields, bk)) continue
-            if (!bodyCount) firstBodyKey = bk
-            bodyCount++
-          }
+          for (const bk in bodyFields) if (hasOwn(bodyFields, bk)) { if (!bodyCount) firstBodyKey = bk; bodyCount++ }
           let body = null
           if (bodyCount) {
-            // Send one input as a bare value and multiple inputs as an object.
             const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
             if (isForm && (isPlainObj(raw) || Array.isArray(raw))) {
               const params = new URLSearchParams()
-              if (Array.isArray(raw)) {
-                for (let i = 0; i < raw.length; i++) params.append(String(i), String(raw[i] ?? ''))
-              } else {
-                for (const k in raw) if (hasOwn(raw, k)) params.append(k, String(raw[k] ?? ''))
-              }
+              if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) params.append(String(i), String(raw[i] ?? ''))
+              else for (const k in raw) if (hasOwn(raw, k)) params.append(k, String(raw[k] ?? ''))
               body = params.toString()
-            } else if (isJson || isPlainObj(raw) || Array.isArray(raw))
-              body = JSON.stringify(raw)
+            } else if (isJson || isPlainObj(raw) || Array.isArray(raw)) body = JSON.stringify(raw)
             else body = String(raw)
           }
-
-          // Wire up AbortController so ^abort.<signal> lets callers cancel the request.
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
           setS(dKey, abortStat, activeAbort)
           const init = { method, headers: hs }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
-
           const res = await window.fetch(finalUrl, init)
           const ct = (res.headers && res.headers.get('content-type')) || ''
           let payload, htmlApplied = false
           if (ct.includes('text/event-stream')) {
-            // Use incremental streaming when the browser exposes a ReadableStream body;
-            // fall back to full-buffer res.text() in environments that do not (e.g. test mocks).
-            if (res.body && typeof res.body.getReader === 'function') {
-              payload = await consumeSseStream(res.body, dKey, openStat, closeStat, errStat)
-            } else {
+            if (res.body && typeof res.body.getReader === 'function') payload = await consumeSseStream(res.body, dKey, openStat, closeStat, errStat)
+            else {
               setS(dKey, openStat, true)
-              const sseRaw = await res.text()
-              payload = applySse(sseRaw, dKey)
+              payload = applySse(await res.text(), dKey)
               setS(dKey, openStat, false), setS(dKey, closeStat, true)
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
-            const hm = htmlMode
-            const mode = hm || M_OUTER
+            const mode = htmlMode || M_OUTER
             const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EP)?.root ?? '')
-            const selector = hp ? resolveHtmlSelector(hp)
-              : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '')
-              : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '')
-              : ''
+            const selector = hp ? resolveHtmlSelector(hp) : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '') : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '') : ''
             applyPatchEls({ [SSE_ELS]: payload, selector, mode })
             htmlApplied = true
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
-
           if (!htmlApplied) applyActionPayload(dKey, resultTa, payload, resultMode)
           if (!htmlApplied && patchAll) patchMatchingSis(dKey, payload, resultMode)
           setS(dKey, busyStat, false), setS(dKey, completeStat, true), setS(dKey, errStat, null), setS(dKey, codeStat, Number.isFinite(res.status) ? res.status : null), setS(dKey, abortStat, null)
           activeAbort = null
-
-          // ^retry: auto-reconnect after clean close (stream ended without error and retry is requested)
-          if (retryDelay > 0 && ct.includes('text/event-stream') && !(ac && ac.signal.aborted)) {
-            setTimeout(doRequest, retryDelay)
-          }
+          if (retryDelay > 0 && ct.includes('text/event-stream') && !(ac && ac.signal.aborted)) setTimeout(doRequest, retryDelay)
         } catch (err) {
           activeAbort = null
           setS(dKey, abortStat, null), setS(dKey, openStat, false)
-          // Treat AbortError as a clean cancel (not an error): AbortController fires AbortError by spec.
           const isAbort = err && err.name === 'AbortError'
           setS(dKey, busyStat, false), setS(dKey, completeStat, true)
           if (!isAbort) {
             setS(dKey, errStat, err && err.message ? err.message : String(err))
             setS(dKey, codeStat, Number.isFinite(err && err.status) ? err.status : null)
-            console.error('[dmax] Error: dAction fetch failed:', err)
-            // ^retry: reconnect after error if requested (deliberate aborts skip this path via isAbort check above)
+            console.error('[dmax] Error: dmAct fetch failed:', err)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
         }
       }
-
       if (!trigs.length) { doRequest(); return }
       const elSubs = upsert(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (const trig of trigs) {
-        if (!trig.isSi && !trig.isEv) { console.error('[dmax] Error: dAction unsupported trigger kind', trig.kind, 'in', dKey); return }
+        if (!trig.isSi && !trig.isEv && !trig.isSp) { console.error('[dmax] Error: dmAct unsupported trigger kind', trig.kind, 'in', dKey); return }
+        if (trig.isSp) {
+          if (trig.root !== SP_INIT) { console.error('[dmax] Error: dmAct unsupported SP trigger', trig.root, 'in', dKey); return }
+          if (!ranImmediate) ranImmediate = true, doRequest()
+          continue
+        }
         const mods = pickMods(trig.mods, globMods), shouldImmediate = !ranImmediate && (trig.isImmediate ?? false)
         if (trig.isSi) {
           addTrSub(el, trig, mods, doRequest, elSubs)
@@ -1423,9 +1324,9 @@
           continue
         }
         const evTaEl = trig.root ? getElById(trig.root, dKey) : el
-        if (!evTaEl) { console.error('[dmax] Error: dAction element not found in trigger:', trig, 'in:', dKey); return }
+        if (!evTaEl) { console.error('[dmax] Error: dmAct element not found in trigger:', trig, 'in:', dKey); return }
         const ev = trig.path?.[0] ?? getDefaultEv(evTaEl)
-        if (!ev) { console.error('[dmax] Error: dAction event not found in trigger:', trig, 'in:', dKey); return }
+        if (!ev) { console.error('[dmax] Error: dmAct event not found in trigger:', trig, 'in:', dKey); return }
         const moddedHandler = addTrSub(el, trig, mods, doRequest, elSubs, evTaEl, ev, null)
         if (shouldImmediate) {
           ranImmediate = true
@@ -1433,8 +1334,8 @@
         }
       }
     }
-    dataM.si = dDef; dataM.ex = dSub; dataM.it = dDump; dataM.cl = dClass; dataM.vi = dDisp; dataM.debug = dDebug
-    dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dAction
+    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg
+    dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dmAct
     const sameKind = (a, b) => {
       if (a.nodeType !== b.nodeType) return false
       if (a.nodeType !== ELEMENT_NODE) return true
@@ -1451,13 +1352,16 @@
 
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
     const TEXT_NODE = 3
-    const getSimpleIdSelector = (selector) => {
-      if (!selector || selector[0] !== '#') return null
-      for (let i = 1; i < selector.length; ++i) {
-        const c = selector[i]
-        if (c <= ' ' || c === '#' || c === '>' || c === '+' || c === '~' || c === ':' || c === '.' || c === '[' || c === ']' || c === ',') return null
-      }
-      return selector.length > 1 ? selector.slice(1) : null
+    const _siSelCache = new Map()
+    const SI_BAD_SYMS = ' \t\r\n#>+~:.[],|'
+    const getSimpleIdSelector = (sel) => {
+      if (!sel || sel[0] !== '#') return null
+      const cached = _siSelCache.get(sel)
+      if (cached !== undefined) return cached
+      for (let i = 1; i < sel.length; ++i)
+        if (SI_BAD_SYMS.includes(sel[i])) return null
+      const r = sel.length > 1 ? sel.slice(1) : null
+      return _siSelCache.set(sel, r), r
     }
 
     const getPatchTars = (selector) => {
@@ -1543,21 +1447,20 @@
         return
       }
 
-      // Map remaining keyed children by id.
-      const idMap = new Map()
+      // Map remaining keyed children by id — Map is only allocated if keyed nodes exist.
+      let idMap = null
       for (let n = cur; n; n = n.nextSibling)
-        if (n.nodeType === ELEMENT_NODE && n.id) idMap.set(n.id, n)
+        if (n.nodeType === ELEMENT_NODE && n.id) (idMap ??= new Map()).set(n.id, n)
 
       for (; toChild; toChild = toChild.nextSibling) {
         let match = null
 
-        if (toChild.nodeType === ELEMENT_NODE && toChild.id && idMap.has(toChild.id)) {
+        if (toChild.nodeType === ELEMENT_NODE && toChild.id && (match = idMap?.get(toChild.id))) {
           // Reuse keyed nodes by id even if they moved.
-          match = idMap.get(toChild.id)
           idMap.delete(toChild.id)
         } else {
           // Skip keyed nodes still waiting for their own id match.
-          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap.has(cur.id))
+          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap?.get(cur.id))
             cur = cur.nextSibling
           if (cur && sameKind(cur, toChild)) {
             match = cur
@@ -1584,7 +1487,7 @@
         cur = next
       }
       // Remove keyed nodes that were never matched.
-      for (const n of idMap.values()) {
+      if (idMap) for (const n of idMap.values()) {
         if (n.parentNode === from) from.removeChild(n)
       }
     }
@@ -1799,11 +1702,10 @@
         curArgs = null
         hasData = false
       }
-      let start = 0
-      for (let end = 0; end < text.length; end++) {
-        if (text[end] !== '\n') continue
-        consumeLine(text.slice(start, end).replace(RE_TRAILING_CR, ''))
-        start = end + 1
+      let start = 0, nl
+      while ((nl = text.indexOf('\n', start)) >= 0) {
+        consumeLine(text.slice(start, nl).replace(RE_TRAILING_CR, ''))
+        start = nl + 1
       }
       if (start < text.length) consumeLine(text.slice(start).replace(RE_TRAILING_CR, ''))
       flush()

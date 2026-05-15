@@ -31,7 +31,7 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
 }
 
 const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
-const FETCH_FAILURE_RE = /dAction fetch failed/;
+const FETCH_FAILURE_RE = /dmAct fetch failed/;
 
 (async () => {
   const dom = new JSDOM(html, {
@@ -64,7 +64,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
   });
 
   const doc = window.document;
-  const debug = doc.querySelector('[data-m-debug]');
+  const debug = doc.querySelector('[data-m-dbg]');
   let passCount = 0, failCount = 0;
   const fail = (m) => { console.error('FAIL:', m); failCount++; process.exitCode = 2; };
   const pass = (m) => { console.log('PASS:', m); passCount++; };
@@ -276,6 +276,12 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
       }
     }
 
+    // Section 6.b: _init trigger
+    const initSpan = doc.getElementById('initOut');
+    if (!initSpan) { fail('Section6b initOut element missing'); } else {
+      if (initSpan.textContent.includes('Initialized') && initSpan.textContent.includes('init')) pass('Section6b _init trigger fired on load'); else fail('Section6b _init did not update initOut: ' + initSpan.textContent);
+    }
+
     // Section 7: default props + events
     const inp1 = doc.getElementById('inp1');
     const inp1Preview = findByAttr('span', 'data-m-ex:.@#inp1.input');
@@ -351,7 +357,7 @@ const FETCH_FAILURE_RE = /dAction fetch failed/;
     const initialInlineCount = Array.from(inlineUl.children).length;
     if (initialDumpCount === 3) pass('Section9 data-m-it renders existing items immediately by default'); else fail('Section9 data-m-it rendered wrong number');
     if (initialInlineCount === initialDumpCount) pass('Section9 inline data-m-it matches primary list'); else fail('Section9 inline data-m-it wrong');
-    if (!pageLogs.some((l) => /dClass requires at least one trigger in: data-m-cl\+zebra-even\+!zebra-odd/.test(l))) pass('Section9 zebra classes wire without dClass errors'); else fail('Section9 zebra classes still log missing-trigger errors');
+    if (!pageLogs.some((l) => /dmCl requires at least one trigger in: data-m-cl\+zebra-even\+!zebra-odd/.test(l))) pass('Section9 zebra classes wire without dmCl errors'); else fail('Section9 zebra classes still log missing-trigger errors');
     if (hasZebraClasses(Array.from(iterUl.children)) && hasZebraClasses(Array.from(inlineUl.children))) pass('Section9 zebra classes render immediately'); else fail('Section9 zebra classes missing on initial render');
     fire(doc.getElementById('addPost'), 'click');
     await sleep(80);

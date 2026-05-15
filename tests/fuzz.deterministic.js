@@ -19,7 +19,7 @@ const PROPERTIES = ['value', 'checked', 'text-content', 'style.color', 'style.fo
 const INVALID_PROPERTIES = []; // Removed: parser doesn't validate property names
 
 const EVENTS = ['click', 'input', 'change', 'mouseover', 'keydown'];
-const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500'];
+const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500', '_init'];
 const SPECIAL_EVENTS_WITH_IO = ['_viewed']; // require IntersectionObserver, warn when unavailable
 
 const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10'];
@@ -195,14 +195,14 @@ function* generateDataClassCombinations() {
   yield { attr: 'data-m-cl:+active@is-active', valid: true, category: 'single-class' };
   yield { attr: 'data-m-cl+active+!inactive@is-active', valid: true, category: 'inverse-class' };
   yield { attr: 'data-m-cl:+foo:+bar@baz', valid: true, category: 'multi-class' };
-  yield { attr: 'data-m-cl:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dClass requires class names via + syntax' };
+  yield { attr: 'data-m-cl:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dmCl requires class names via + syntax' };
 }
 
 function* generateDataDispCombinations() {
   // Valid
-  yield { attr: 'data-m-vi@is-visible', valid: true, category: 'display-signal' };
-  yield { attr: 'data-m-vi@flag', valid: true, category: 'display-flag' };
-  yield { attr: 'data-m-vi:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dDisp requires at least one trigger' };
+  yield { attr: 'data-m-sh@is-visible', valid: true, category: 'display-signal' };
+  yield { attr: 'data-m-sh@flag', valid: true, category: 'display-flag' };
+  yield { attr: 'data-m-sh:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmSh requires at least one trigger' };
 }
 
 function* generateDataDumpCombinations() {
@@ -214,7 +214,7 @@ function* generateDataDumpCombinations() {
   // Valid - dotted signal paths
   yield { attr: 'data-m-it+#tpl-post@user.posts', valid: true, category: 'dotted-signal' };
   yield { attr: 'data-m-it+#tpl-item@app.data.items', valid: true, category: 'deep-dotted' };
-  yield { attr: 'data-m-it+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dDump requires a signal trigger' };
+  yield { attr: 'data-m-it+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmIt requires a signal trigger' };
 }
 
 function* generateDataActionCombinations() {
@@ -416,7 +416,7 @@ class FuzzTestRunner {
       await this.testAttribute(tc);
     }
     
-    console.log('\n--- Testing data-m-vi ---');
+    console.log('\n--- Testing data-m-sh ---');
     for (const tc of generateDataDispCombinations()) {
       await this.testAttribute(tc);
     }

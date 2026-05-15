@@ -48,7 +48,7 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `data-m-si` — define signal state
 - `data-m-ex` — subscribe and update signals/props with expression results, including `^rw` two-way sync
 - `data-m-cl` — class toggling
-- `data-m-vi` — show/hide elements
+- `data-m-sh` — show/hide elements
 - `data-m-it` — render array items via templates
 - `data-m-get|post|put|patch|delete` — declarative HTTP actions
 - dmax SSE (`text/event-stream`) in actions:
@@ -69,7 +69,36 @@ Signal names are not reserved or validated against runtime helper identifiers. I
 
 Bracket-index signal paths support **constant numeric indices only** in directive names, e.g. `@posts[0]` or `:post-objs[1].title`. Variable bracket indices such as `@posts[idx]` are intentionally unsupported; use a plain expression like `dm.posts[dm.idx]` in the attribute value when you need runtime lookup logic.
 
-Reactive setup is immediate by default for `data-m-si`, signal-backed `data-m-ex`, `data-m-ex^rw`, `data-m-it`, and `data-m-debug`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate`.
+Reactive setup is immediate by default for `data-m-si`, signal-backed `data-m-ex`, `data-m-ex^rw`, `data-m-it`, and `data-m-dbg`. Use `^notimmediate` when you want to defer the initial run; actions stay non-immediate unless you opt into `^immediate` or use the `_init` trigger.
+
+### Special triggers
+
+Special triggers use a `_name` prefix in the `@trigger` token:
+
+| Trigger | Description |
+| --- | --- |
+| `@_init` | Fires **once** when the attribute is first wired (page/attribute load). No ongoing subscription. |
+| `@_window.<event>` | Listens on `window` for the given event (default: `resize`) |
+| `@_document.<event>` | Listens on `document` for the given event (default: `visibilitychange`) |
+| `@_form.<event>` | Listens on the nearest ancestor `<form>` for the given event (default: `submit`) |
+| `@_interval.<ms>` | Fires repeatedly every `<ms>` milliseconds (default: 500 ms) |
+| `@_timeout.<ms>` | Fires once after `<ms>` milliseconds (default: 500 ms) |
+| `@_viewed` | Fires once when the element enters the viewport (uses `IntersectionObserver`) |
+
+**`_init` examples:**
+
+```html
+<!-- run expression once on page load -->
+<span data-m-ex:.@_init="'Loaded at ' + new Date().toLocaleTimeString()"></span>
+
+<!-- fire on init AND on each click -->
+<span data-m-ex:.@_init@.click="'Last: ' + (detail && detail.type)"></span>
+
+<!-- fire HTTP request on page load (no button click needed) -->
+<div data-m-get^busy.loading:result@_init="'/api/data'"></div>
+```
+
+The `_init` trigger fires exactly once when dmax wires the element. When combined with other triggers (e.g. `@_init@.click`), `_init` fires at wire-up and the other triggers fire on their events. If a signal trigger that fires at init (default behaviour) is listed before `@_init` in the same attribute, the `_init` run is skipped to avoid double-firing.
 
 ## Fixi feature matrix (aligned to dmax)
 
@@ -87,7 +116,7 @@ five very small libraries:
 | Fixi piece | What it does | dmax status today | Gap / takeaway |
 | --- | --- | --- | --- |
 | `fixi.js` | Declarative HTTP requests triggered from HTML, with target selection and swap strategies | **Partial overlap** via `data-m-get|post|put|patch|delete`, plus `^busy`, `^complete`, `^err`, `^code` result/status signals | dmax covers declarative requests. It does **not** yet expose Fixi's small HTML-targeted swap model (`fx-target`, `fx-swap`) as directly. |
-| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-m-si`, `data-m-ex`, `data-m-cl`, `data-m-vi`, `data-m-it` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
+| `moxi.js` | `on-*` inline handlers, `live` expressions, `q()` DOM query helper, event modifiers | **Strong overlap, different design** via `data-m-si`, `data-m-ex`, `data-m-cl`, `data-m-sh`, `data-m-it` | dmax is stronger on explicit signals and list/state directives. moxi is stronger on imperative DOM scripting and query ergonomics. |
 | `ssexi.js` | Streams `text/event-stream` responses into the DOM and emits SSE lifecycle events | **Strong overlap** — action responses accept `text/event-stream` and apply `dmax-patch-elements` / `dmax-patch-signals` incrementally via `ReadableStream` + `TextDecoder`; `^open`/`^close` lifecycle signals, `^retry.N` auto-reconnect, and `^abort` cancellation are all supported | Long-lived persistent SSE connections use the same `data-m-get` grammar; lifecycle signals are first-class. |
 | `paxi.js` | Morph-based DOM patching that preserves focus/form state better than replacement | **Strong overlap** — dmax morphs matched nodes, preserves event listeners, caret/selection for focused inputs, and scroll position; parity matrix tests cover `style`, `href`, `data-*`, `aria-*`, canvas attribute updates, keyed list reconciliation, and mixed keyed/unkeyed collection stability | Keyed-list reconciliation and stable DOM identity are covered by the id-matching algorithm and validated by inline assertions. |
 | `rexi.js` | Tiny imperative `fetch()` helper for code paths where declarative HTML is not enough | **Not planned** — the `^abort.<signal>` modifier covers the cancel use-case declaratively; uncommon imperative paths can use vanilla `fetch()` directly | dmax deliberately keeps the declarative grammar complete for the 80/20 cases; explicit imperative helpers are intentionally out-of-scope for the core runtime. |
@@ -97,7 +126,7 @@ five very small libraries:
 
 - A first-class signal store (`data-m-si`) rather than DOM-only/local imperative state.
 - Declarative signal/property synchronization via `data-m-ex`, including one-way and `^rw` two-way flows.
-- Signal-driven class/visibility/list directives (`data-m-cl`, `data-m-vi`, `data-m-it`).
+- Signal-driven class/visibility/list directives (`data-m-cl`, `data-m-sh`, `data-m-it`).
 - Shape-aware updates and signal modifiers for gating/timing.
 - A more unified attribute grammar across signals, props, events, and actions.
 
@@ -121,7 +150,7 @@ five very small libraries:
 <button data-m-get^busy.post-loading^err.post-error^code.post-code:post-result@.click="'https://jsonplaceholder.typicode.com/posts/1'">
   Load
 </button>
-<strong data-m-vi@post-loading>Loading…</strong>
+<strong data-m-sh@post-loading>Loading…</strong>
 <span data-m-ex:.@post-error></span>
 <span data-m-ex:.@post-code></span>
 
@@ -140,7 +169,7 @@ five very small libraries:
   ="'/api/events'">
   Subscribe
 </button>
-<span data-m-vi@live-on>● live</span>
+<span data-m-sh@live-on>● live</span>
 <button data-m-ex@.click="dm.liveStop && dm.liveStop()">Cancel</button>
 ```
 
@@ -305,7 +334,7 @@ Sent by the server as `event: dmax-patch-elements` in an SSE stream:
 
 When a `selector` field is present, `querySelectorAll` is used; otherwise each source element is matched to the live DOM by its `id` attribute via `getElementById`. Morph (`outer`/`inner`) preserves event listeners, focus, caret position, and scroll position.
 
-### dAction full response matrix
+### dmAct full response matrix
 
 | Response `content-type` | Client mod required | Behaviour |
 | --- | --- | --- |
@@ -333,8 +362,8 @@ Example:
 ```html
 <!-- show spinner while busy, show checkmark once done -->
 <button data-m-get^busy.loading^complete.done:res@.click="'/api/data'">Load</button>
-<span data-m-vi:.@loading="dm.loading">⏳ loading…</span>
-<span data-m-vi:.@done="dm.done && !dm.loading">✅ done</span>
+<span data-m-sh:.@loading>⏳ loading…</span>
+<span data-m-sh:.@done="dm.done && !dm.loading">✅ done</span>
 ```
 
 ### SSE lifecycle modifiers (for `text/event-stream` responses)
