@@ -957,7 +957,6 @@
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     // - data-m-ex:.@user.name
     // - data-m-ex:user.name@.input="val"
-    // - data-m-ex:.value@.^rw@user.name
     const dmEx = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', dKey)
