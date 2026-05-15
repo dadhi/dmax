@@ -25,7 +25,7 @@ function waitFor(conditionFn, timeout = 5000, interval = 25) {
 }
 
 function readDebugState(document) {
-  const debug = document.querySelector('[data-debug]');
+  const debug = document.querySelector('[data-m-debug]');
   if (!debug || !debug.textContent.trim()) return {};
   return JSON.parse(debug.textContent);
 }
