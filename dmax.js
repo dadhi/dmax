@@ -31,10 +31,7 @@
       return res
     }
 
-    // Updated attribute-token syntax reference
-    // data-m-it@foo-bar-signal+#tpl-id  (data-m-it = iterate/dump)
-    // data-m-cl+zebra-even+!zebra-odd   (data-m-cl = class toggle)
-    // Use ^ for modifiers (trigger guards/timing/options): data-m-get^no-cache:posts^replace+user.name^query.username
+    // Syntax ref: data-m-it@foo+#tpl, data-m-cl+on+!off, data-m-get^no-cache:posts
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
     const ALL = [MOD, TARG, TRIG, ADD]
     const MODS = [MOD]
@@ -80,8 +77,7 @@
     const _KIND = [MOD, SI, EV, SP]
     const addParsedChecks = (it) => !it || it.kind === MOD ? it : (Object.defineProperties(it, {
       isSi: { value: it.kind === SI }, isEv: { value: it.kind === EV }, isSp: { value: it.kind === SP },
-      isInterval: { value: it.kind === SP && it.root === SP_INTERVAL }, isTimeout: { value: it.kind === SP && it.root === SP_TIMEOUT },
-      isTimer: { value: it.kind === SP && (it.root === SP_INTERVAL || it.root === SP_TIMEOUT) }, isImmediate: { value: true, writable: true },
+      isInterval: { value: it.kind === SP && it.root === SP_INTERVAL }, isImmediate: { value: true, writable: true },
     }), it)
     const setItemMods = (it, mods) => {
       it.mods = mods
@@ -90,12 +86,7 @@
       it.isImmediate = im, Object.defineProperty(it, 'hasIm', { value: hasIm })
       return it
     }
-    const isSiT = (tr) => tr.isSi
-    const isEvT = (tr) => tr.isEv
-    const isSpT = (tr) => tr.isSp
-    const isIntT = (tr) => tr.isInterval
-    const isToT = (tr) => tr.isTimeout
-    const isTimT = (tr) => tr.isTimer
+    const isSiT = (tr) => tr.isSi, isEvT = (tr) => tr.isEv, isSpT = (tr) => tr.isSp, isIntT = (tr) => tr.isInterval, isToT = (tr) => tr.root === SP_TIMEOUT
     // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
     const parseItem = (dKey, type, n, pos = 0) => {
       if (!n) return null
@@ -752,7 +743,7 @@
         upsert(_subs, trig.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
-      if (isSpT(trig) && isTimT(trig)) {
+      if (isSpT(trig) && (isIntT(trig) || isToT(trig))) {
         const ms = parseInt(evName) || (isIntT(trig) ? SP_INTERVAL_MS : SP_TIMEOUT_MS)
         const sub = { el, trig, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, trig, mods, sub)
@@ -935,7 +926,7 @@
      */
     const applyTrMs = (fn, trig, mods, removeSub) => {
       const isSig = isSiT(trig)
-      const isTimer = isSpT(trig) && isTimT(trig)
+      const isTimer = isSpT(trig) && (isIntT(trig) || isToT(trig))
       const valPath = getMValPath(mods)
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
@@ -1081,10 +1072,7 @@
         } else { console.error('[dmax] Error: unsupported trigger kind', kind, 'in', dKey); return }
       }
     }
-    // data-m-cl+my-class+!my-other@signal="expr"
-    // +className adds when expr is truthy and removes when falsy.
-    // +!className inverts that rule.
-    // Without dVal, the raw signal or trigger value is used.
+    // data-m-cl class toggle
     const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) { console.error('[dmax] Error: dmCl requires class names via + syntax in:', dKey); return }
@@ -1115,8 +1103,7 @@
         }
       }
     }
-    // data-m-sh:.@signal="expr"
-    //   shows/hides the target element based on the truthy/falsy result of the expression
+    // data-m-sh visibility toggle
     const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) { console.error('[dmax] Error: dmSh requires at least one trigger in:', dKey); return }
