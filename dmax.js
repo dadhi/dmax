@@ -63,6 +63,16 @@
     const SP_WIN = 'window', SP_DOC = 'document', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed', SP_INIT = 'init'
     const SPS = [SP_WIN, SP_DOC, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED, SP_INIT]
     const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
+    const SP_TA_WIN = 1, SP_TA_DOC = 2, SP_TA_FORM = 3
+    const SP_DEFS = Object.assign(noProto(), {
+      [SP_WIN]: { ta: SP_TA_WIN, ev: SP_WIN_EV },
+      [SP_DOC]: { ta: SP_TA_DOC, ev: SP_DOC_EV },
+      [SP_FORM]: { ta: SP_TA_FORM, ev: 'submit', immediate: 1 },
+      [SP_INTERVAL]: { ms: SP_INTERVAL_MS, repeat: 1 },
+      [SP_TIMEOUT]: { ms: SP_TIMEOUT_MS },
+      [SP_VIEWED]: { io: 1 },
+      [SP_INIT]: { init: 1, act: 1 }
+    })
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }), DM_KEY = 'data-m-'
     const E_RW_REQ = `dmEx ${MOD}${M_RW} requires an element/property trigger in:`
     const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
@@ -70,7 +80,7 @@
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
-    const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isInterval: kind === SP && root === SP_INTERVAL, isTimer: kind === SP && (root === SP_INTERVAL || root === SP_TIMEOUT), isViewed: kind === SP && root === SP_VIEWED, isForm: kind === SP && root === SP_FORM, isImmediate: null })
+    const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, sp: kind === SP ? SP_DEFS[root] || null : null, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isImmediate: null })
     const mkMod = (not, root, path) => ({ kind: MOD, not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOTIMMEDIATE ? false : null })
     const DEFAULT_PR_TA = Object.freeze(mkIt(EP, null, '', null)), RE_DIGITS = /^\d+$/
     const _KIND = [MOD, SI, EP, SP]
@@ -406,16 +416,14 @@
       return { taEl, ev, prPath, tar: mkIt(EP, null, trRoot, prPath, NIL) }
     }
     const addNonSiTrSub = (el, tr, mods, fn, elSubs, ranImmediate, prTa = null) => {
-      const isSp = tr.isSp
+      const sp = tr.sp, isSp = !!sp
       if (!isSp && !expected(prTa, 'Expected non-SP trigger target in addNonSiTrSub:', tr, 'on:', el)) return null
-      const ev = tr.path?.[0]
-      const subTaEl = isSp ? null : prTa.taEl, subEv = isSp ? ev : prTa.ev, subPrPath = isSp ? null : prTa.prPath
-      const modded = addTrSub(el, tr, mods, fn, elSubs, subTaEl, subEv, subPrPath)
-      if (isSp && tr.root === SP_INIT) {
+      const modded = addTrSub(el, tr, mods, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath)
+      if (sp?.init) {
         if (modded && !ranImmediate) invokeSub(modded, { type: SP_INIT }, SP_INIT, el, tr)
         return true
       }
-      if (modded && !ranImmediate && (tr.isImmediate ?? false) && (!isSp || tr.isForm)) {
+      if (modded && !ranImmediate && (tr.isImmediate ?? false) && (!sp || sp.immediate)) {
         ranImmediate = true
         invokeSub(modded, null, isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, tr)
       }
@@ -467,7 +475,7 @@
     const setS = (dKey, stat, val) => stat && setSiAndNotifySubsNDeep(dKey, stat, val)
 
     const isJsonContentType = (ct) => {
-      const low = String(ct || '').toLowerCase()
+      const low = (ct || '').toLowerCase()
       if (low.indexOf('application/json') !== -1) return true
       const p = low.indexOf('+json')
       if (p < 0) return false
@@ -614,12 +622,12 @@
       if (mode === M_MERGE) return mergeActVals(prev, next)
       if (mode === M_APPEND) {
         if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
-        if (typeof prev === 'string' || typeof next === 'string') return String(prev ?? '') + String(next ?? '')
+        if (typeof prev === 'string' || typeof next === 'string') return '' + (prev ?? '') + (next ?? '')
         return next
       }
       if (mode === M_PREPEND) {
         if (Array.isArray(prev) && Array.isArray(next)) return next.concat(prev)
-        if (typeof prev === 'string' || typeof next === 'string') return String(next ?? '') + String(prev ?? '')
+        if (typeof prev === 'string' || typeof next === 'string') return '' + (next ?? '') + (prev ?? '')
         return next
       }
       return next
@@ -680,8 +688,9 @@
       for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
     const clearSubId = (sub) => {
-      if (sub.trig.isInterval) clearInterval(sub.clearId)
-      else if (sub.trig.isViewed) sub.clearId.disconnect()
+      const sp = sub.trig.sp
+      if (sp?.io) sub.clearId.disconnect()
+      else if (sp?.repeat) clearInterval(sub.clearId)
       else clearTimeout(sub.clearId)
       sub.clearId = null
     }
@@ -702,33 +711,26 @@
       for (let i = 0; i < mods.length; ++i) if (mods[i].root === M_PREVENT) return false
       return PASSIVE_LISTENER_OPTS
     }
-    const onIntervalSub = (state) => {
-      const detail = { tick: state.tick, ms: state.ms, type: SP_INTERVAL }
-      state.tick++
-      try { invokeSub(state.sub.fn, detail, state.ms, state.sub.el, state.sub.trig) }
-      catch (e) { console.error(`[dmax] Error: interval handler (${state.ms}ms) failed:`, e?.message ?? e) }
+    const onIntervalSub = (sub) => {
+      const detail = { tick: sub.tick++, ms: sub.ms, type: SP_INTERVAL }
+      try { invokeSub(sub.fn, detail, sub.ms, sub.el, sub.trig) }
+      catch (e) { console.error(`[dmax] Error: interval handler (${sub.ms}ms) failed:`, e?.message ?? e) }
     }
-    const onTimeoutSub = (state) => {
-      try { invokeSub(state.sub.fn, { tick: 0, ms: state.ms, type: SP_TIMEOUT }, state.ms, state.sub.el, state.sub.trig) }
-      catch (e) { console.error(`[dmax] Error: timeout handler (${state.ms}ms) failed:`, e?.message ?? e) }
+    const onTimeoutSub = (sub) => {
+      try { invokeSub(sub.fn, { tick: 0, ms: sub.ms, type: SP_TIMEOUT }, sub.ms, sub.el, sub.trig) }
+      catch (e) { console.error(`[dmax] Error: timeout handler (${sub.ms}ms) failed:`, e?.message ?? e) }
     }
-    const addTrSub = (el, tr, mods, fn, elSubs, taEl, evName, prPath) => {
-      if (tr.isSi) {
-        const sub = { el, trig: tr, fn, siChangeM: getSiChangeShape(mods), ev: null, clearId: null }
+    const addSpSub = (el, tr, sp, mods, fn, elSubs, evName) => {
+      if (sp.ms != null) {
+        const ms = +evName || sp.ms
+        const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null, ms, tick: 0 }
         sub.fn = applyTrMs(fn, tr, mods, sub)
-        upsert(_subs, tr.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
-        return sub
-      }
-      if (tr.isTimer) {
-        const ms = parseInt(evName) || (tr.isInterval ? SP_INTERVAL_MS : SP_TIMEOUT_MS)
-        const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null }
-        sub.fn = applyTrMs(fn, tr, mods, sub)
-        if (tr.isInterval) sub.clearId = setInterval(onIntervalSub, ms, { sub, ms, tick: 0 })
-        else sub.clearId = setTimeout(onTimeoutSub, ms, { sub, ms })
+        if (sp.repeat) sub.clearId = setInterval(onIntervalSub, ms, sub)
+        else sub.clearId = setTimeout(onTimeoutSub, ms, sub)
         elSubs.push(sub)
         return sub.fn
       }
-      if (tr.isViewed) {
+      if (sp.io) {
         if (typeof IntersectionObserver === 'undefined') { console.warn('[dmax] Warning: IntersectionObserver not available, _viewed trigger skipped on:', el); return null }
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, tr, mods, sub)
@@ -742,24 +744,33 @@
         elSubs.push(sub)
         return sub.fn
       }
-      if (tr.isSp && tr.root === SP_INIT) return applyTrMs(fn, tr, mods)
-      if (tr.isSp) {
-        if (tr.root === SP_WIN) evName ||= SP_WIN_EV, taEl ||= window
-        else if (tr.root === SP_DOC) evName ||= SP_DOC_EV, taEl ||= document
-        else if (tr.isForm) {
-          evName ||= 'submit'
-          taEl ||= el && el.closest ? el.closest('form') : null
-          if (!taEl) { console.error('[dmax] Error:', E_FORM_EL, tr, 'on:', el); return null }
-        }
+      if (sp.init) return applyTrMs(fn, tr, mods)
+      const taEl = sp.ta === SP_TA_WIN ? window : sp.ta === SP_TA_DOC ? document : sp.ta === SP_TA_FORM ? (el && el.closest ? el.closest('form') : null) : null
+      const ev = tr.path?.[0] || sp.ev || null
+      if (sp.ta === SP_TA_FORM && !taEl) { console.error('[dmax] Error:', E_FORM_EL, tr, 'on:', el); return null }
+      if (!expected(taEl && ev, 'Expected event target/name in addSpSub:', tr, 'on:', el)) return null
+      const opts = getListenerOpts(mods)
+      const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
+      const modded = applyTrMs(fn, tr, mods, sub)
+      sub.fn = (detail) => invokeSub(modded, detail, detail?.type ?? null, el, tr)
+      taEl.addEventListener(ev, sub.fn, opts)
+      elSubs.push(sub)
+      return modded
+    }
+    const addTrSub = (el, tr, mods, fn, elSubs, taEl, evName, prPath) => {
+      if (tr.isSi) {
+        const sub = { el, trig: tr, fn, siChangeM: getSiChangeShape(mods), ev: null, clearId: null }
+        sub.fn = applyTrMs(fn, tr, mods, sub)
+        upsert(_subs, tr.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
+        return sub
       }
+      const sp = tr.sp
+      if (sp) return addSpSub(el, tr, sp, mods, fn, elSubs, evName)
       if (!expected(taEl && evName, 'Expected event target/name in addTrSub:', tr, 'on:', el)) return null
       const opts = getListenerOpts(mods)
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mods, sub)
-      sub.fn = (detail) => {
-        const trVal = tr.isSp ? detail?.type ?? null : getTrEvVal(taEl, prPath, mods)
-        invokeSub(modded, detail, trVal, el, tr)
-      }
+      sub.fn = (detail) => invokeSub(modded, detail, getTrEvVal(taEl, prPath, mods), el, tr)
       taEl.addEventListener(evName, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -893,7 +904,7 @@
      * @returns {TriggerHandler}
      */
     const applyTrMs = (fn, tr, mods, removeSub) => {
-      const isSig = tr.isSi, isTimer = tr.isTimer
+      const isSig = tr.isSi, isTimer = tr.sp?.ms != null
       const valPath = getMValPath(mods)
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
@@ -1182,6 +1193,7 @@
       const openStat = resolveStatusSig(openMod, M_SSE_OPEN)
       const closeStat = resolveStatusSig(closeMod, M_SSE_CLOSE)
       const abortStat = resolveStatusSig(abortMod, M_ABORT)
+      const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
       defSig(busyStat, false), defSig(completeStat, false), defSig(errStat, null), defSig(codeStat, null), defSig(openStat, false), defSig(closeStat, false), defSig(abortStat, null)
       let enc = ''
@@ -1236,8 +1248,8 @@
           let finalUrl = url, hasQ = finalUrl.indexOf('?') >= 0
           for (const k in queryParams) finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent('' + (queryParams[k] ?? '')), hasQ = true
           let hs = ACT_HS_EMPTY, sharedHs = true
-          if (hdrsMod) {
-            const hdrObj = resolveMPathVal(hdrsMod.path)
+          if (hdrsPath) {
+            const hdrObj = resolveMPathVal(hdrsPath)
             if (isPlainObj(hdrObj)) {
               hs = noProto()
               sharedHs = false
@@ -1248,8 +1260,8 @@
             if (hs === ACT_HS_EMPTY) hs = baseHs
             else for (const hk in baseHs) if (hasOwn(baseHs, hk)) hs[hk] = baseHs[hk]
           }
-          if (authMod) {
-            const authVal = resolveMPathVal(authMod.path)
+          if (authPath != null) {
+            const authVal = resolveMPathVal(authPath)
             if (authVal != null) {
               if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
               hs[H_AUTHORIZATION] = '' + authVal
@@ -1309,7 +1321,7 @@
           const isAbort = err && err.name === 'AbortError'
           setS(dKey, busyStat, false), setS(dKey, completeStat, true)
           if (!isAbort) {
-            setS(dKey, errStat, err && err.message ? err.message : String(err))
+            setS(dKey, errStat, err && err.message ? err.message : '' + err)
             setS(dKey, codeStat, Number.isFinite(err && err.status) ? err.status : null)
             console.error('[dmax] Error: dmAct fetch failed:', err)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
@@ -1322,7 +1334,8 @@
       for (const tr of trigs) {
         if (!tr.isSi && !tr.isEv && !tr.isSp) { console.error('[dmax] Error: dmAct unsupported trigger kind', tr.kind, 'in', dKey); return }
         if (tr.isSp) {
-          if (tr.root !== SP_INIT) { console.error('[dmax] Error: dmAct unsupported SP trigger', tr.root, 'in', dKey); return }
+          const sp = tr.sp
+          if (!sp?.act) { console.error('[dmax] Error: dmAct unsupported SP trigger', tr.root, 'in', dKey); return }
           if (!ranImmediate) ranImmediate = true, doRequest()
           continue
         }
@@ -1582,9 +1595,9 @@
     }
 
     const applyPatchEls = (args) => {
-      const mode = String(args.mode || M_OUTER).toLowerCase()
-      const sel = args.selector ? String(args.selector) : ''
-      const ns = args.namespace ? String(args.namespace) : 'html'
+      const mode = (args.mode || M_OUTER).toLowerCase()
+      const sel = args.selector ? '' + args.selector : ''
+      const ns = args.namespace ? '' + args.namespace : 'html'
       const srcEls = parseSseEls(args[SSE_ELS] || '', ns)
 
       if (mode === M_REMOVE) {
@@ -1637,7 +1650,7 @@
       let patchObj = null
       try { patchObj = JSON.parse(raw) } catch (_) { console.error('[dmax] Error: patch sigs in', dKey, 'expect JSON but found invalid format'); return }
       if (!isPlainObj(patchObj)) return
-      const onlyIfMissing = String(args.onlyIfMissing || '').toLowerCase() === 'true'
+      const onlyIfMissing = (args.onlyIfMissing || '').toLowerCase() === 'true'
       for (const root in patchObj) if (hasOwn(patchObj, root)) {
         if (onlyIfMissing && _dm.has(root)) continue
         const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
@@ -1656,7 +1669,7 @@
     const applySse = (raw, dKey = 'dmax-sse') => {
       if (!raw) return NIL
       const applied = []
-      const text = String(raw)
+      const text = '' + raw
       const RE_TRAILING_CR = /\r$/
       let curEv = 'message'
       let curArgs = null
@@ -1777,7 +1790,7 @@
       }
       if (openStat) setSiAndNotifySubsNDeep(dKey, openStat, false)
       if (streamErr) {
-        if (errStat) setSiAndNotifySubsNDeep(dKey, errStat, streamErr.message || String(streamErr))
+        if (errStat) setSiAndNotifySubsNDeep(dKey, errStat, streamErr.message || '' + streamErr)
       } else {
         if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, true)
       }

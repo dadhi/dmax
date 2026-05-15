@@ -43,7 +43,7 @@
       if (val && typeof val === 'object' && !(val instanceof Date)) {
         const out = {};
         for (const key of Object.keys(val)) {
-          if (key === 'isEv' || key === 'isSi' || key === 'isSp' || key === 'isInterval' || key === 'isTimer' || key === 'isViewed' || key === 'isForm') continue;
+          if (key === 'isEv' || key === 'isSi' || key === 'isSp' || key === 'isInterval' || key === 'isTimer' || key === 'isViewed' || key === 'isForm' || key === 'sp') continue;
           if (key === 'isImmediate' && val[key] == null) continue;
           if (key === 'mods' && Array.isArray(val[key]) && !val[key].length) continue;
           out[key] = normAssertVal(val[key]);
