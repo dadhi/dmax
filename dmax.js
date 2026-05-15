@@ -307,7 +307,7 @@
         prop = getDefaultPr(obj);
       else if (path.length > 0) {
         [obj] = getPrValAndDepth(obj, path, path.length - 1)
-        prop = path[path.length - 1]
+        prop = path.at(-1)
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', dKey); return }
       try {
@@ -320,9 +320,9 @@
 
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
 
-    const applyClassValue = (adds, taEl, val) => {
-      for (let i=0;i<adds.length;++i) {
-        const add=adds[i], name=add.kb || (add.kb = camelToKebab(add.root))
+    const applyClVal = (adds, taEl, val) => {
+      for (const add of adds) {
+        const name = add.kb || (add.kb = camelToKebab(add.root))
         if (add.not ? !val : !!val) taEl.classList.add(name)
         else taEl.classList.remove(name)
       }
@@ -460,17 +460,15 @@
       }
       return ''
     }
-    const resolveStatusSig = (mod, fallbackRoot) => {
+    const mkOrStatSi = (mod, fallbackRoot) => {
       if (!mod) return null
       const p = mod.path
-      if (typeof p === 'string') return mkIt(SI, null, p || fallbackRoot, null)
-      if (p?.isSi) return p
-      return mkIt(SI, null, fallbackRoot, null)
+      return typeof p === 'string' ? mkIt(SI, null, p || fallbackRoot, null) : p?.isSi ? p : mkIt(SI, null, fallbackRoot, null)
     }
 
-    const defSig = (sig, val) => {
-      if (sig && !_dm.has(sig.root)) _dm.set(sig.root, val)
-      return sig
+    const defSi = (si, val) => {
+      if (si && !_dm.has(si.root)) _dm.set(si.root, val)
+      return si
     }
     const setS = (dKey, stat, val) => stat && setSiAndNotifySubsNDeep(dKey, stat, val)
 
@@ -959,7 +957,7 @@
     const _cleanupBoundSubs = new WeakMap() // Track all event boundSubs and signal handlers for cleanup
     // - data-m-ex:.@user.name
     // - data-m-ex:user.name@.input="val"
-    // - data-m-ex@.^rw@user.name
+    // - data-m-ex:.value@.^rw@user.name
     const dmEx = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', dKey)
@@ -1059,12 +1057,12 @@
       for (const tr of trigs) {
         const mods = pickMods(tr.mods, globMods)
         if (tr.isSi) {
-          const sub = addTrSub(el, tr, mods, (dm, siEl, siTr, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
+          const sub = addTrSub(el, tr, mods, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (tr.isImmediate ?? false) invokeBoundSub(sub, null)
         } else if (tr.isEv || tr.isSp) {
           const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return
-          const nextRanImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyClassValue(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa)
+          const nextRanImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa)
           if (nextRanImmediate == null) return
         }
       }
@@ -1186,16 +1184,10 @@
         else if (!patchAll && mr === M_PATCH_ALL) patchAll = true
       }
       if (resultTa && resultTa.mods) for (const m of resultTa.mods) if (m.root === M_REPLACE || m.root === M_MERGE || m.root === M_APPEND || m.root === M_PREPEND) { resultMode = m.root; break }
-      const busyStat = resolveStatusSig(busyMod, M_BUSY)
-      const completeStat = resolveStatusSig(completeMod, M_COMPLETE)
-      const errStat = resolveStatusSig(errMod, M_ERR)
-      const codeStat = resolveStatusSig(codeMod, M_CODE)
-      const openStat = resolveStatusSig(openMod, M_SSE_OPEN)
-      const closeStat = resolveStatusSig(closeMod, M_SSE_CLOSE)
-      const abortStat = resolveStatusSig(abortMod, M_ABORT)
+      const busyStat = mkOrStatSi(busyMod, M_BUSY), completeStat = mkOrStatSi(completeMod, M_COMPLETE), errStat = mkOrStatSi(errMod, M_ERR), codeStat = mkOrStatSi(codeMod, M_CODE), openStat = mkOrStatSi(openMod, M_SSE_OPEN), closeStat = mkOrStatSi(closeMod, M_SSE_CLOSE), abortStat = mkOrStatSi(abortMod, M_ABORT)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
-      defSig(busyStat, false), defSig(completeStat, false), defSig(errStat, null), defSig(codeStat, null), defSig(openStat, false), defSig(closeStat, false), defSig(abortStat, null)
+      defSi(busyStat, false), defSi(completeStat, false), defSi(errStat, null), defSi(codeStat, null), defSi(openStat, false), defSi(closeStat, false), defSi(abortStat, null)
       let enc = ''
       if (encBr) enc = 'br'
       if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
@@ -1206,23 +1198,23 @@
       let activeAbort = null
       for (const add of adds) {
         const ap = add.path
-        add.key = (ap ? ap[ap.length - 1] : add.root) || 'value'
+        add.key = (ap ? ap.at(-1) : add.root) || 'value'
         add.spread = false
         if (add.isEv && add.root) add.taEl = getElById(add.root, dKey)
         for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
       }
       const actRouteMods = []
       for (const m of urlMods) {
-        const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.isSi ? [false, p.path ? p.path[p.path.length - 1] : p.root, null, p] : null
+        const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.isSi ? [false, p.path ? p.path.at(-1) : p.root, null, p] : null
         if (e) actRouteMods.push(e)
       }
       for (const m of bodyMods) {
-        const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.isSi ? [true, p.path ? p.path[p.path.length - 1] : p.root, null, p] : null
+        const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.isSi ? [true, p.path ? p.path.at(-1) : p.root, null, p] : null
         if (e) actRouteMods.push(e)
       }
       const actHdrMods = []
       for (const m of hdrMods) {
-        const p = m.path, pLast = p && p.isSi ? (p.path ? p.path[p.path.length - 1] : p.root) : null, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : pLast ? [camelToKebab(pLast), null, p] : null
+        const p = m.path, pLast = p && p.isSi ? (p.path ? p.path.at(-1) : p.root) : null, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : pLast ? [camelToKebab(pLast), null, p] : null
         if (e) actHdrMods.push(e)
       }
       const doRequest = async () => {

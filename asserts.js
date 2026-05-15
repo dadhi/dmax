@@ -190,16 +190,16 @@
       }
     }
     __assert(__tResolveModPathVal, [], { signal: 'Alice', root: true, negated: false, path: 'Alice', numeric: '3', literal: 'literal', nil: null }, 'modifier value helper')
-    __assert(resolveStatusSig, [null, 'busy'], null, 'status signal null')
-    __assert(resolveStatusSig, [{ path: 'complete' }, 'busy'], { kind: SI, not: null, root: 'complete', path: null }, 'status signal root string')
-    __assert(resolveStatusSig, [{ path: __si('user', ['name']) }, 'busy'], { kind: SI, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
-    __assert(resolveStatusSig, [{ path: null }, 'busy'], { kind: SI, not: null, root: 'busy', path: null }, 'status signal fallback')
-    __assert((sig, val, nextVal) => {
+    __assert(mkOrStatSi, [null, 'busy'], null, 'status signal null')
+    __assert(mkOrStatSi, [{ path: 'complete' }, 'busy'], { kind: SI, not: null, root: 'complete', path: null }, 'status signal root string')
+    __assert(mkOrStatSi, [{ path: __si('user', ['name']) }, 'busy'], { kind: SI, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
+    __assert(mkOrStatSi, [{ path: null }, 'busy'], { kind: SI, not: null, root: 'busy', path: null }, 'status signal fallback')
+    __assert((si, val, nextVal) => {
       _dm.clear()
-      defSig(sig, val)
-      defSig(sig, nextVal)
-      return _dm.get(sig.root)
-    }, [{ root: 'busy' }, false, true], false, 'defSig keeps existing signal value')
+      defSi(si, val)
+      defSi(si, nextVal)
+      return _dm.get(si.root)
+    }, [{ root: 'busy' }, false, true], false, 'defSi keeps existing signal value')
     __assert(buildItItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dmIt item ref helper')
     __assert(buildItItemRef, ['posts', null, 2], 'posts.2', 'dmIt item ref helper root only')
     __assert(buildItItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dmIt item expr helper')
@@ -292,12 +292,12 @@
     __assert(valChangedDeep, [[5, 6, 7, 8], [5, 6, 7, 8]], false, 'flat equal arrays')
     __assert((val) => {
       const el = document.createElement('div')
-      applyClassValue([{ root: 'isActive', not: null }, { root: 'isInactive', not: true }], el, val)
+      applyClVal([{ root: 'isActive', not: null }, { root: 'isInactive', not: true }], el, val)
       return { active: el.classList.contains('is-active'), inactive: el.classList.contains('is-inactive') }
     }, [true], { active: true, inactive: false }, 'class helper toggles truthy state')
     __assert((val) => {
       const el = document.createElement('div')
-      applyClassValue([{ root: 'isActive', not: null }, { root: 'isInactive', not: true }], el, val)
+      applyClVal([{ root: 'isActive', not: null }, { root: 'isInactive', not: true }], el, val)
       return { active: el.classList.contains('is-active'), inactive: el.classList.contains('is-inactive') }
     }, [false], { active: false, inactive: true }, 'class helper toggles falsy state')
     __assert((val) => {
