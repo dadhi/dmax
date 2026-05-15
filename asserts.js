@@ -260,13 +260,13 @@
       return calls
     }
     __assert(__testWireItCloneDomAttrsFallback, [], [['data-m-ex:.', 'plain-text']], 'dmIt wireItClone falls back to DOM attrs')
-    __assert(() => ({ ...buildActionBaseHs(false, false, false, false, true, false, 'gzip') }), [], {
+    __assert(() => ({ ...buildActBaseHs(false, false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
       pragma: 'no-cache',
       'accept-encoding': 'gzip'
     }, 'SSE base hs imply no-cache and accept-encoding')
-    __assert(() => ({ ...buildActionBaseHs(false, false, true, false, false, false, '') }), [], {
+    __assert(() => ({ ...buildActBaseHs(false, false, true, false, false, false, '') }), [], {
       accept: 'text/html'
     }, 'HTML base hs set accept to text/html')
     __assert((id, aName) => {
@@ -2182,21 +2182,21 @@
       { a: 1, b: 2, proto: null }, 'cloneOwnProps copies own props, null prototype')
     __assert(() => { const src = Object.create({ inherited: 9 }); src.own = 7; const o = cloneOwnProps(src); return { own: o.own, hasInherited: 'inherited' in o } }, [],
       { own: 7, hasInherited: false }, 'cloneOwnProps does not copy inherited props')
-    __assert(() => ({ ...mergeActionHs(null, null) }), [], {}, 'mergeActionHs both null returns empty')
-    __assert(() => ({ ...mergeActionHs(null, { accept: 'text/plain' }) }), [], { accept: 'text/plain' }, 'mergeActionHs null base returns extra')
-    __assert(() => ({ ...mergeActionHs({ accept: 'text/html' }, null) }), [], { accept: 'text/html' }, 'mergeActionHs null extra returns base')
-    __assert(() => ({ ...mergeActionHs({ accept: 'text/html', 'content-type': 'text/html' }, { accept: 'application/json' }) }), [],
-      { accept: 'application/json', 'content-type': 'text/html' }, 'mergeActionHs extra overrides base')
-    __assert(mergeActionVals, [1, 2], 2, 'mergeActionVals scalars returns next')
-    __assert(mergeActionVals, [[1, 2], [3, 4]], [1, 2, 3, 4], 'mergeActionVals arrays concatenated')
-    __assert(mergeActionVals, [{ a: 1 }, { b: 2 }], { a: 1, b: 2 }, 'mergeActionVals plain objects merged')
-    __assert(mergeActionVals, [{ a: 1, c: { x: 1 } }, { c: { y: 2 } }], { a: 1, c: { x: 1, y: 2 } }, 'mergeActionVals deep merge nested objects')
-    __assert(mergeActionVals, [{ a: 1 }, [1, 2]], [1, 2], 'mergeActionVals object+array returns next')
-    __assert(combineActionResult, [1, 2, 'replace'], 2, 'combineActionResult replace returns next')
-    __assert(combineActionResult, [[1], [2], 'merge'], [1, 2], 'combineActionResult merge arrays')
-    __assert(combineActionResult, ['hello ', 'world', 'append'], 'hello world', 'combineActionResult append strings')
-    __assert(combineActionResult, ['world', 'hello ', 'prepend'], 'hello world', 'combineActionResult prepend strings')
-    __assert(combineActionResult, [[2, 3], [1], 'prepend'], [1, 2, 3], 'combineActionResult prepend arrays reversed')
+    __assert(() => ({ ...mergeActHs(null, null) }), [], {}, 'mergeActHs both null returns empty')
+    __assert(() => ({ ...mergeActHs(null, { accept: 'text/plain' }) }), [], { accept: 'text/plain' }, 'mergeActHs null base returns extra')
+    __assert(() => ({ ...mergeActHs({ accept: 'text/html' }, null) }), [], { accept: 'text/html' }, 'mergeActHs null extra returns base')
+    __assert(() => ({ ...mergeActHs({ accept: 'text/html', 'content-type': 'text/html' }, { accept: 'application/json' }) }), [],
+      { accept: 'application/json', 'content-type': 'text/html' }, 'mergeActHs extra overrides base')
+    __assert(mergeActVals, [1, 2], 2, 'mergeActVals scalars returns next')
+    __assert(mergeActVals, [[1, 2], [3, 4]], [1, 2, 3, 4], 'mergeActVals arrays concatenated')
+    __assert(mergeActVals, [{ a: 1 }, { b: 2 }], { a: 1, b: 2 }, 'mergeActVals plain objects merged')
+    __assert(mergeActVals, [{ a: 1, c: { x: 1 } }, { c: { y: 2 } }], { a: 1, c: { x: 1, y: 2 } }, 'mergeActVals deep merge nested objects')
+    __assert(mergeActVals, [{ a: 1 }, [1, 2]], [1, 2], 'mergeActVals object+array returns next')
+    __assert(combineActResult, [1, 2, 'replace'], 2, 'combineActResult replace returns next')
+    __assert(combineActResult, [[1], [2], 'merge'], [1, 2], 'combineActResult merge arrays')
+    __assert(combineActResult, ['hello ', 'world', 'append'], 'hello world', 'combineActResult append strings')
+    __assert(combineActResult, ['world', 'hello ', 'prepend'], 'hello world', 'combineActResult prepend strings')
+    __assert(combineActResult, [[2, 3], [1], 'prepend'], [1, 2, 3], 'combineActResult prepend arrays reversed')
     __assert(getSimpleIdSelector, [''], null, 'getSimpleIdSelector empty string is null')
     __assert(getSimpleIdSelector, ['#foo'], 'foo', 'getSimpleIdSelector plain id')
     __assert(getSimpleIdSelector, ['#foo.bar'], null, 'getSimpleIdSelector compound selector rejected')

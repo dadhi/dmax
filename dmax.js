@@ -246,10 +246,8 @@
       if (!el) return null
       const prop = prPath && prPath.length ? prPath[0] : getDefaultPr(el)
       let val = el[prop]
-      if (val === undefined && el.getAttribute) {
-        val = el.getAttribute(camelToKebab(prop))
-      }
-      return prPath && prPath.length > 1 ? getPrValAndDepth(val, prPath.slice(1))[0] : val
+      if (val === undefined && el.getAttribute) val = el.getAttribute(camelToKebab(prop))
+      return prPath && prPath.length > 1 ? getPrValAndDepth(val, prPath, -1, 1)[0] : val
     }
 
     const isDefaultPrName = (el, prop) => prop === getDefaultPr(el) || prop === 'value' || prop === 'checked' || prop === 'textContent'
@@ -265,11 +263,11 @@
 
     const isNil = (v) => v === null || v === undefined
 
-    const getPrValAndDepth = (obj, path, depth = -1) => {
+    const getPrValAndDepth = (obj, path, depth = -1, off = 0) => {
       let v = obj
       if (isNil(v) || !path) return [v, 0]
-      let n = depth == -1 || depth > path.length ? path.length : depth
-      for (let i = 0; i < n; ++i) if (isNil(v = v[path[i]])) return [v, i + 1]
+      let n = depth == -1 || depth > path.length - off ? path.length - off : depth
+      for (let i = 0; i < n; ++i) if (isNil(v = v[path[i + off]])) return [v, i + 1]
       return [v, n]
     }
 
@@ -314,7 +312,7 @@
 
     const applyClassValue = (adds, taEl, val) => {
       for (let i=0;i<adds.length;++i) {
-        const add=adds[i], name=camelToKebab(add.root)
+        const add=adds[i], name=add.kb || (add.kb = camelToKebab(add.root))
         if (add.not ? !val : !!val) taEl.classList.add(name)
         else taEl.classList.remove(name)
       }
@@ -466,7 +464,7 @@
       if (sig && !_dm.has(sig.root)) _dm.set(sig.root, val)
       return sig
     }
-    const setS = (dKey, stat, val) => stat && setSiAndNotifySubsNLevelsDeep(dKey, stat, val)
+    const setS = (dKey, stat, val) => stat && setSiAndNotifySubsNDeep(dKey, stat, val)
 
     const isJsonContentType = (ct) => {
       const low = String(ct || '').toLowerCase()
@@ -489,7 +487,7 @@
       return out
     }
 
-    const mergeActionHs = (base, extra) => {
+    const mergeActHs = (base, extra) => {
       if (!base || base === ACT_HS_EMPTY) return extra || ACT_HS_EMPTY
       if (!extra || extra === ACT_HS_EMPTY) return base
       const out = cloneOwnProps(base)
@@ -497,10 +495,10 @@
       return Object.freeze(out)
     }
 
-    const buildActionBaseHs = (isJson, isText, isHtml, isForm, isSse, noCache, enc) => {
+    const buildActBaseHs = (isJson, isText, isHtml, isForm, isSse, noCache, enc) => {
       let hs = isJson ? ACT_HS_JSON : isForm ? ACT_HS_FORM : isText ? ACT_HS_TEXT : ACT_HS_EMPTY
-      if (isHtml) hs = mergeActionHs(hs, ACT_HS_HTML)
-      hs = isSse ? mergeActionHs(hs, ACT_HS_SSE) : noCache ? mergeActionHs(hs, ACT_HS_NO_CACHE) : hs
+      if (isHtml) hs = mergeActHs(hs, ACT_HS_HTML)
+      hs = isSse ? mergeActHs(hs, ACT_HS_SSE) : noCache ? mergeActHs(hs, ACT_HS_NO_CACHE) : hs
       if (!enc) return hs
       const out = hs === ACT_HS_EMPTY ? noProto() : cloneOwnProps(hs)
       out[H_ACCEPT_ENCODING] = enc
@@ -603,17 +601,17 @@
       }
     }
 
-    const mergeActionVals = (prev, next) => {
+    const mergeActVals = (prev, next) => {
       if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
       if (!isPlainObj(prev) || !isPlainObj(next)) return next
       const out = noProto()
       for (const k in prev) if (hasOwn(prev, k)) out[k] = prev[k]
-      for (const k in next) if (hasOwn(next, k)) out[k] = hasOwn(out, k) ? mergeActionVals(out[k], next[k]) : next[k]
+      for (const k in next) if (hasOwn(next, k)) out[k] = hasOwn(out, k) ? mergeActVals(out[k], next[k]) : next[k]
       return out
     }
 
-    const combineActionResult = (prev, next, mode) => {
-      if (mode === M_MERGE) return mergeActionVals(prev, next)
+    const combineActResult = (prev, next, mode) => {
+      if (mode === M_MERGE) return mergeActVals(prev, next)
       if (mode === M_APPEND) {
         if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
         if (typeof prev === 'string' || typeof next === 'string') return String(prev ?? '') + String(next ?? '')
@@ -635,14 +633,14 @@
         const root = kebabToCamel(key)
         if (!_dm.has(root)) continue
         const prev = _dm.get(root)
-        setSiAndNotifySubsNLevelsDeep(dKey, mkIt(SI, null, root, null), combineActionResult(prev, payload[key], resultMode))
+        setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(prev, payload[key], resultMode))
       }
     }
 
-    const applyActionPayload = (dKey, resultTa, payload, resultMode) => {
+    const applyActPayload = (dKey, resultTa, payload, resultMode) => {
       if (!resultTa) return
       const prev = getSiValOrIt(resultTa)
-      setSiAndNotifySubsNLevelsDeep(dKey, resultTa, combineActionResult(prev, payload, resultMode))
+      setSiAndNotifySubsNDeep(dKey, resultTa, combineActResult(prev, payload, resultMode))
     }
 
     const modsPermitVal = (mods, val) => {
@@ -875,7 +873,7 @@
     }
 
     let syncDepth = 0, MAX_SYNC_DEPTH = 32;
-    const setSiAndNotifySubsNLevelsDeep = (dKey, tar, val) => {
+    const setSiAndNotifySubsNDeep = (dKey, tar, val) => {
       if (syncDepth++ > MAX_SYNC_DEPTH) {
         console.error(`[dmax] Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${dKey}`)
         return
@@ -900,12 +898,13 @@
       let hasOnce = false, hasAlways = false, hasPrevent = false
       let deb = 0, thr = 0, permitMods = null
       for (const m of mods) {
-        if (m.root === M_ONCE) hasOnce = true
-        else if (m.root === M_ALWAYS) hasAlways = true
-        else if (m.root === M_PREVENT) hasPrevent = true
-        else if (!isTimer && m.root === M_DEBOUNCE) deb = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
-        else if (!isTimer && m.root === M_THROTTLE) thr = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
-        else if (m.root in PERMIT_MODS) {
+        const mr = m.root
+        if (mr === M_ONCE) hasOnce = true
+        else if (mr === M_ALWAYS) hasAlways = true
+        else if (mr === M_PREVENT) hasPrevent = true
+        else if (!isTimer && mr === M_DEBOUNCE) deb = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
+        else if (!isTimer && mr === M_THROTTLE) thr = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
+        else if (mr in PERMIT_MODS) {
           if (!permitMods) permitMods = []
           permitMods.push(m)
         }
@@ -995,7 +994,7 @@
             for (const prTr of writePrTrs) {
               const writeSi = (dm, _el, syncTr, trigVal, detail) => {
                 const exprVal = fn(dm, el, syncTr, trigVal, detail)
-                for (const siTr of writeSiTrs) setSiAndNotifySubsNLevelsDeep(dKey, siTr, exprVal)
+                for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
               }
               const moddedHandler = addTrSub(el, prTr.trig, prTr.mods, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath)
               if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getTrEvVal(prTr.taEl, prTr.prPath, prTr.mods), el, prTr.trig)
@@ -1012,7 +1011,7 @@
           try {
             for (const tar of tars) {
               failedTa = tar
-              if (tar.isSi) setSiAndNotifySubsNLevelsDeep(dKey, tar, exprVal)
+              if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, exprVal)
               else setPr(el, dKey, tar, exprVal)
             }
           } catch (e) { console.error('[dmax] Error: setting target', failedTa, 'in', dKey, 'ended with ex:', e) }
@@ -1190,13 +1189,14 @@
       if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
       if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
       if (encCompress) enc += (enc ? ', ' : '') + 'compress'
-      const baseHs = buildActionBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
+      const baseHs = buildActBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
       for (const add of adds) {
         const ap = add.path
         add.key = (ap ? ap[ap.length - 1] : add.root) || 'value'
         add.spread = false
+        if (add.isEv && add.root) add.taEl = getElById(add.root, dKey)
         for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
       }
       const actRouteMods = []
@@ -1210,7 +1210,7 @@
       }
       const actHdrMods = []
       for (const m of hdrMods) {
-        const p = m.path, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : p.isSi ? [camelToKebab(p.path ? p.path[p.path.length - 1] : p.root), null, p] : null
+        const p = m.path, pLast = p && p.isSi ? (p.path ? p.path[p.path.length - 1] : p.root) : null, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : pLast ? [camelToKebab(pLast), null, p] : null
         if (e) actHdrMods.push(e)
       }
       const doRequest = async () => {
@@ -1222,7 +1222,7 @@
           if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
           for (const add of adds) {
             const addRoot = add.root, addPath = add.path
-            const addEl = add.isEv ? (addRoot ? getElById(addRoot, dKey) : el) : null
+            const addEl = add.isEv ? (add.taEl || el) : null
             const val = addEl ? getElPrVal(addEl, addPath) : add.isEv ? null : getSiValOrIt(add)
             if (add.spread) {
               if (val && typeof val === 'object') {
@@ -1298,7 +1298,7 @@
             htmlApplied = true
           } else if (isJsonContentType(ct)) payload = await res.json()
           else payload = await res.text()
-          if (!htmlApplied) applyActionPayload(dKey, resultTa, payload, resultMode)
+          if (!htmlApplied) applyActPayload(dKey, resultTa, payload, resultMode)
           if (!htmlApplied && patchAll) patchMatchingSis(dKey, payload, resultMode)
           setS(dKey, busyStat, false), setS(dKey, completeStat, true), setS(dKey, errStat, null), setS(dKey, codeStat, Number.isFinite(res.status) ? res.status : null), setS(dKey, abortStat, null)
           activeAbort = null
@@ -1643,12 +1643,12 @@
         const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
         if (next === JSON_MERGE_DELETE) {
           if (_dm.has(root)) {
-            setSiAndNotifySubsNLevelsDeep(dKey, mkIt(SI, null, root, null), undefined)
+            setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), undefined)
             _dm.delete(root)
             updateDebug()
           }
         } else {
-          setSiAndNotifySubsNLevelsDeep(dKey, mkIt(SI, null, root, null), next)
+          setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), next)
         }
       }
     }
@@ -1756,8 +1756,8 @@
           if (done) break
           if (!opened) {
             opened = true
-            if (openStat) setSiAndNotifySubsNLevelsDeep(dKey, openStat, true)
-            if (closeStat) setSiAndNotifySubsNLevelsDeep(dKey, closeStat, false)
+            if (openStat) setSiAndNotifySubsNDeep(dKey, openStat, true)
+            if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, false)
           }
           buf += decoder.decode(value, { stream: true })
           let nl
@@ -1775,11 +1775,11 @@
         streamErr = e
         console.error('[dmax] SSE stream error:', e)
       }
-      if (openStat) setSiAndNotifySubsNLevelsDeep(dKey, openStat, false)
+      if (openStat) setSiAndNotifySubsNDeep(dKey, openStat, false)
       if (streamErr) {
-        if (errStat) setSiAndNotifySubsNLevelsDeep(dKey, errStat, streamErr.message || String(streamErr))
+        if (errStat) setSiAndNotifySubsNDeep(dKey, errStat, streamErr.message || String(streamErr))
       } else {
-        if (closeStat) setSiAndNotifySubsNLevelsDeep(dKey, closeStat, true)
+        if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, true)
       }
       return applied
     }
