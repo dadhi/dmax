@@ -4,6 +4,11 @@ A tiny declarative web runtime driven by `data-*` attributes.
 
 ## Files
 
+Current size:
+
+- `dmax.js` — 85,613 bytes
+- `dist/dmax.min.js` — 44,721 bytes
+
 - `index.html` — current dev notebook (asserts + live examples)
 - `dmax.js` — extracted runtime script loaded by `index.html`
 - `asserts.js` — notebook assert suite loaded after `dmax.js`
@@ -15,6 +20,7 @@ A tiny declarative web runtime driven by `data-*` attributes.
 Run:
 
 ```bash
+npm run build:min
 npm run bench:morph-sse
 # same benchmark, explicit parity alias
 npm run bench:morph-sse:parity
@@ -73,6 +79,9 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `+input` action inputs
 - `^mod` modifiers (timing/guards/options)
 - `!name` negation in applicable places
+- `data-m-it` placeholders inside templates:
+  - `$it` — current item expression
+  - `$ix` — current zero-based index
 
 For two-way sync, put `^rw` on the element/property trigger you want to write back from, e.g. `data-m-ex@.^rw@user.name` or `data-m-ex@.^val.value^rw@user.name`.
 

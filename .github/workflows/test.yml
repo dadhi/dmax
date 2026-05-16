@@ -21,3 +21,5 @@ jobs:
         run: npm install
       - name: Run notebook, e2e, headless, and fuzz tests
         run: npm test
+      - name: Build minified dmax bundle
+        run: npm run test:min
