@@ -60,6 +60,7 @@ This gives a repeatable local parity baseline for the exact high-frequency updat
 - `data-m-cl` — class toggling
 - `data-m-sh` — show/hide elements
 - `data-m-it` — render array items via templates
+- `data-m-no` — ignore subtree scanning and/or morphing (`data-m-no`, `data-m-no^scan`, `data-m-no^morph`)
 - `data-m-get|post|put|patch|delete` — declarative HTTP actions
 - dmax SSE (`text/event-stream`) in actions:
   - `event: dmax-patch-elements` (`mode`: `outer|inner|replace|prepend|append|before|after|remove`, `selector`, `namespace`, `dmaxElements`)
@@ -166,7 +167,7 @@ five very small libraries:
 
 <!-- request spread + dynamic headers + merge result -->
 <button
-  data-m-post^json^merge^headers.req-headers:profile@.click+user^spread
+  data-m-post^json^merge^hs.req-headers:profile@.click+user^spread
   ="'/api/profile/update'">
 </button>
 
@@ -192,7 +193,7 @@ Both dmax and Datastar use `fetch` + `ReadableStream` for SSE rather than the br
 | Capability | Native `EventSource` | `fetch` + `ReadableStream` (dmax & Datastar) |
 | --- | --- | --- |
 | HTTP methods | **GET only** | Any method (POST, PUT, DELETE, …) |
-| Custom request headers | **No** | Yes — `^headers.<signal>` |
+| Custom request headers | **No** | Yes — `^hs.<signal>` |
 | Request body | **No** | Yes — `+parameter` inputs |
 | Cancellation | `.close()` on the instance only | `AbortController` via `^abort.<signal>` |
 | Reconnect hooks | Browser-managed, uninterruptable | Fully controlled — `^retry.N` |
@@ -215,7 +216,7 @@ This is a key design difference with meaningful trade-offs:
 | Send a specific signal | Always included | `+signalName` |
 | Send all signals | Always | `^send-all` |
 | Spread object fields | Not applicable | `+some.path^spread` |
-| Per-call custom headers | Configured once | `^headers.<signal>` |
+| Per-call custom headers | Configured once | `^hs.<signal>` |
 
 ## Action input and modifier reference
 
@@ -239,7 +240,7 @@ Inputs control what data is included in the request. By default, for **GET/DELET
 | `^patch-all` | Patches matching existing root signals from top-level JSON response fields |
 | `^sync-all` | Combines `^send-all` and `^patch-all` on one action |
 
-### Explicit routing modifiers: `^url`, `^body`, `^header`
+### Explicit routing modifiers: `^url`, `^body`, `^header`, `^hs`
 
 These modifiers let you override the default routing for individual signals, independent of the HTTP method. Multiple instances can be combined on one action.
 
@@ -250,7 +251,7 @@ These modifiers let you override the default routing for individual signals, ind
 | `^header.<name>` | Set a single request header from the matching signal while preserving the header name in kebab-case. | `^header.authorization` sets header `authorization` from `dm.authorization` |
 | `^auth.<signalPath>` | Shorthand for the `authorization` header using the named signal's value. | `^auth.authorization` sets header `authorization` from `dm.authorization` |
 
-Note: keep every signal path in the **data attribute name** kebab-case because HTML attribute names are case-insensitive. dmax still resolves those paths to camelCase signals internally, so `^header.x-trace-id` reads `dm.xTraceId` and sets header `x-trace-id`. Likewise `^headers.req-headers` copies `dm.reqHeaders` object fields into headers after camelCase→kebab-case normalization by default; add `^headers-no-kebab` alongside `^headers.<signal>` if you need to preserve exact object key casing.
+Note: keep every signal path in the **data attribute name** kebab-case because HTML attribute names are case-insensitive. dmax still resolves those paths to camelCase signals internally, so `^header.x-trace-id` reads `dm.xTraceId` and sets header `x-trace-id`. Likewise `^hs.req-headers` copies `dm.reqHeaders` object fields into headers after camelCase→kebab-case normalization by default; add `^hs-no-kebab` alongside `^hs.<signal>` if you need to preserve exact object key casing.
 
 Examples:
 
@@ -275,8 +276,8 @@ Examples:
 - **`^form`** — `content-type: application/x-www-form-urlencoded`
 - **`^no-cache`** — adds `cache-control: no-cache` / `pragma: no-cache`
 - **`^brotli`/`^br`, `^gzip`, `^deflate`, `^compress`** — set `accept-encoding`
-- **`^headers.<signal>`** — copies all key-value pairs from the named signal object into request headers after camelCase→kebab-case normalization (e.g. `^headers.req-headers` where `dm.reqHeaders = { xTraceId: 'req-1' }` sends `x-trace-id: req-1`)
-- **`^headers-no-kebab`** — use alongside `^headers.<signal>` to preserve the source object keys exactly as written
+- **`^hs.<signal>`** — copies all key-value pairs from the named signal object into request headers after camelCase→kebab-case normalization (e.g. `^hs.req-headers` where `dm.reqHeaders = { xTraceId: 'req-1' }` sends `x-trace-id: req-1`)
+- **`^hs-no-kebab`** — use alongside `^hs.<signal>` to preserve the source object keys exactly as written
 - **`^url.<signalPath>`** — force specific signal to URL query string (see above)
 - **`^body.<signalPath>`** — force specific signal to request body (see above)
 - **`^header.<name>`** — set a single header from a named signal (see above)
@@ -304,7 +305,7 @@ When an action with `^html` receives a `text/html` response, dmax applies the HT
 | `^html^replace.sig` | `replace` | `dm.sig` CSS selector | `replaceWith` on selector target |
 | `^html^remove.sig` | `remove` | `dm.sig` CSS selector | removes all `querySelectorAll` matches |
 
-For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[attr]'`, etc.). When the signal value is not a string starting with a recognised CSS selector character (`#`, `.`, `[`, `*`, `:`), it is treated as a bare element `id` and prefixed with `#` (e.g. `^before.myList` with no signal → `#myList`). To use a kebab-case element id, store the selector in a signal: `dm.insertAfter = '#my-list-item'`.
+For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[attr]'`, etc.). When the signal value is not a string starting with a recognised CSS selector character (`#`, `.`, `[`, `*`, `:`), it is treated as a bare element `id` and prefixed with `#` (e.g. `^before.my-list` with no signal → `#my-list`). To use a kebab-case element id, store the selector in a signal: `dm.insertAfter = '#my-list-item'`.
 
 **Examples:**
 
@@ -325,6 +326,31 @@ For `.sig` mods: `dm.sig` can hold any CSS selector (`'#id'`, `'.class'`, `'[att
 
 <!-- Replace element (no morph) -->
 <button data-m-get^html^replace@.click="'/api/fresh'">Refresh</button>
+```
+
+### `data-m-no` subtree opt-out
+
+Use `data-m-no` when a subtree should stay outside dmax control.
+
+| Attribute | Effect |
+| --- | --- |
+| `data-m-no` | Skip both directive scanning/wiring and DOM morph updates for the subtree |
+| `data-m-no^scan` | Skip directive scanning/wiring only |
+| `data-m-no^morph` | Skip DOM morph updates only |
+
+Example:
+
+```html
+<!-- third-party widget: dmax must not touch it at all -->
+<div data-m-no></div>
+
+<!-- server may replace siblings, but this widget keeps its own DOM -->
+<div data-m-no^morph id="chart-root"></div>
+
+<!-- subtree is static from dmax's point of view; do not scan directives inside -->
+<div data-m-no^scan>
+  <template id="external-template"></template>
+</div>
 ```
 
 ### SSE `dmax-patch-elements` update matrix
