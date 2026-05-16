@@ -1,0 +1,51 @@
+{
+  "datastar": {
+    "name": "datastar",
+    "pkg": "@starfederation/datastar",
+    "version": "0.21.4",
+    "tarball": "https://registry.npmjs.org/@starfederation/datastar/-/datastar-0.21.4.tgz",
+    "file": "tools/vendor/datastar.js",
+    "source": "dist/datastar.js"
+  },
+  "fixi": {
+    "name": "fixi",
+    "pkg": "fixi-js",
+    "version": "0.9.4",
+    "tarball": "https://registry.npmjs.org/fixi-js/-/fixi-js-0.9.4.tgz",
+    "file": "tools/vendor/fixi.js",
+    "source": "fixi.js"
+  },
+  "paxi": {
+    "name": "paxi",
+    "pkg": "@bigskysoftware/paxi-js",
+    "version": "0.0.1",
+    "tarball": "https://registry.npmjs.org/@bigskysoftware/paxi-js/-/paxi-js-0.0.1.tgz",
+    "file": "tools/vendor/paxi.js",
+    "source": "paxi.js"
+  },
+  "rexi": {
+    "name": "rexi",
+    "pkg": "@bigskysoftware/rexi-js",
+    "version": "0.0.1",
+    "tarball": "https://registry.npmjs.org/@bigskysoftware/rexi-js/-/rexi-js-0.0.1.tgz",
+    "file": "tools/vendor/rexi.js",
+    "source": "rexi.js"
+  },
+  "ssexi": {
+    "name": "ssexi",
+    "pkg": "@bigskysoftware/ssexi-js",
+    "version": "0.0.1",
+    "tarball": "https://registry.npmjs.org/@bigskysoftware/ssexi-js/-/ssexi-js-0.0.1.tgz",
+    "file": "tools/vendor/ssexi.js",
+    "source": "ssexi.js"
+  },
+  "moxi": {
+    "name": "moxi",
+    "pkg": "@bigskysoftware/moxi-js",
+    "version": "0.1.1",
+    "tarball": "https://registry.npmjs.org/@bigskysoftware/moxi-js/-/moxi-js-0.1.1.tgz",
+    "file": "tools/vendor/moxi.js",
+    "source": "moxi.js"
+  },
+  "updatedAt": "2026-05-16T08:18:32.119Z"
+}
