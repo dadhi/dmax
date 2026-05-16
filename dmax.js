@@ -142,48 +142,43 @@
       return mkIt(kind, not, root, path)
     }
 
-    const finishParse = (items, p, it, dKey) => {
-      items[MOD] ??= NIL
-      if (it === ALL) {
-        items[TARG] ??= NIL
-        items[TRIG] ??= NIL
-        items[ADD] ??= NIL
-      }
-      if (it !== MODS && p < dKey.length) warn('unparsed tail:', dKey.slice(p), dKey)
-      return [items, p]
-    }
-
-    const parse = (dKey, p, it = ALL) => { p ??= 'data-'.length
-      let items = noProto(), mItems = null
+    const parse = (dKey, p) => { p ??= 'data-'.length
+      const items = noProto(); items[MOD] = items[TARG] = items[TRIG] = items[ADD] = NIL
       while (p >= 0 && p < dKey.length) {
-        if ((p = indexFirst(dKey, it, p)) < 0) { p = dKey.length; break }
-        let t = dKey[p], item = null
+        if ((p = indexFirst(dKey, ALL, p)) < 0) { p = dKey.length; break }
+        const t = dKey[p]
+        let item = null
         if (++p < dKey.length) {
-          let end = indexFirst(dKey, ALL, p)
-          let name = dKey.slice(p, p = end < 0 ? dKey.length : end)
+          const end = indexFirst(dKey, ALL, p)
+          const name = dKey.slice(p, p = end < 0 ? dKey.length : end)
           if (name) item = parseItem(dKey, t, name)
         }
-
-        if (!item) continue // skip null/errors, avoid later null checks
-
-        let ts = items[t] ??= []
+        if (!item) continue
         if (t == MOD) {
-          ts.push(item)
-          if (item.isImmediate !== null) ts.isImmediate = item.isImmediate
-          if (p >= dKey.length || (it === MODS && dKey[p] != MOD)) return finishParse(items, p, it, dKey)
-        } else if (p >= dKey.length || dKey[p] != MOD) {
-          item.mods = items[MOD] ?? NIL
-          item.isImmediate = item.mods.isImmediate ?? null
-          ts.push(item)
-        } else {
-          [mItems, p] = parse(dKey, p, MODS)
-          const localMods = mItems[MOD], globalMods = items[MOD]
-          item.mods = globalMods ? localMods.length ? localMods.concat(globalMods) : globalMods : localMods
-          item.isImmediate = localMods.isImmediate ?? globalMods?.isImmediate ?? null
-          ts.push(item)
+          const ts = items[MOD]
+          if (ts === NIL) items[MOD] = [item]
+          else ts.push(item)
+          if (item.isImmediate !== null) items[MOD].isImmediate = item.isImmediate
+          continue
         }
+        let localMods = null
+        while (p < dKey.length && dKey[p] == MOD) {
+          const end = indexFirst(dKey, ALL, ++p)
+          const name = dKey.slice(p, p = end < 0 ? dKey.length : end)
+          const mod = name && parseItem(dKey, MOD, name)
+          if (!mod) continue
+          if (localMods) localMods.push(mod)
+          else localMods = [mod]
+          if (mod.isImmediate !== null) localMods.isImmediate = mod.isImmediate
+        }
+        const globalMods = items[MOD], ts = items[t]
+        item.mods = localMods ? globalMods.length ? localMods.concat(globalMods) : localMods : globalMods
+        item.isImmediate = localMods?.isImmediate ?? globalMods.isImmediate ?? null
+        if (ts === NIL) items[t] = [item]
+        else ts.push(item)
       }
-      return finishParse(items, p, it, dKey)
+      if (p < dKey.length) warn('unparsed tail:', dKey.slice(p), dKey)
+      return [items, p]
     }
 
     const _parseCache = new Map()
