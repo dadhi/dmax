@@ -84,23 +84,13 @@
     const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, sp: kind === SP ? SP_DEFS[root] || null : null, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isImmediate: null })
     const mkMod = (not, root, path) => ({ kind: MOD, not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOTIMMEDIATE ? false : null })
     const DEFAULT_PR_TA = Object.freeze(mkIt(EP, null, '', null)), RE_DIGITS = /^\d+$/
-    const _KIND = [MOD, SI, EP, SP]
-    // Returns {kind:_KIND, not:null|bool, root:null|name, path:null|[...names] } or null for invalid item
-    const parseItem = (dKey, type, n, pos = 0) => {
+    const parseRef = (dKey, n, pos = 0) => {
       if (!n) return null
-      let p = pos
+      let p = pos, l = n.length
       while (n.startsWith(NOT, p)) ++p
       let not = p == 0 ? null : p % 2 != 0
       let d = indexFirst(n, NAME_DELIMS, p)
-      let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
-      if (type === MOD) {
-        if (root) root = kebabToCamel(root)
-        if (!root) { logErr('empty mod:', n, dKey); return null }
-        if (d < 0 || d + 1 >= n.length) return mkMod(not, root, null) // accepts trailing dot in ^mod-foo.
-        let val = n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseItem(dKey, TRIG, n, p) // recurse for mod val being a signal
-        return mkMod(not, root, val)
-      }
-      let kind = EP
+      let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d), kind = EP
       if (root && root.length > 0) {
         const id = root[0] === ID
         if (id || isSp(root)) {
@@ -113,45 +103,50 @@
         }
       }
       if (d < 0 && !root && not !== null) { logErr('bare', NOT + ':', n); return null }
-      if (d < 0 || (n[d] === DOT && d + 1 == n.length)) return mkIt(kind, not, root, null)
-
-      p = d
-      let path = []
-      while (p >= 0 && p < n.length) {
+      if (d < 0 || (n[d] === DOT && d + 1 == l)) return mkIt(kind, not, root, null)
+      p = d; let path = []
+      while (p >= 0 && p < l) {
         const c = n[p]
         if (c === DOT) {
           const partStart = ++p
           d = indexFirst(n, NAME_DELIMS, p)
-          const part = n.slice(partStart, p = d < 0 ? n.length : d)
+          const part = n.slice(partStart, p = d < 0 ? l : d)
           if (!part) { logErr('empty path part:', n, dKey); return null }
           path.push(kebabToCamel(part))
-          continue
-        }
-        if (c === BRACKET_OPEN) {
+        } else if (c === BRACKET_OPEN) {
           d = n.indexOf(BRACKET_CLOSE, p + 1)
           if (d < 0) { logErr('missing ]:', n, dKey); return null }
           const part = n.slice(p + 1, d)
           if (!isDigitsOnly(part)) { logErr('non-const idx:', part, n, dKey); return null }
           path.push(part)
           p = d + 1
-          continue
+        } else {
+          logErr('bad path token:', n, dKey)
+          return null
         }
-        logErr('bad path token:', n, dKey)
-        return null
       }
       return mkIt(kind, not, root, path)
     }
-
+    const parseMod = (dKey, name) => {
+      if (!name) return null
+      let p = 0, l = name.length
+      while (name.startsWith(NOT, p)) ++p
+      let not = p == 0 ? null : p % 2 != 0
+      const d = indexFirst(name, NAME_DELIMS, p)
+      let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
+      if (root) root = kebabToCamel(root)
+      if (!root) { logErr('empty mod:', name, dKey); return null }
+      return mkMod(not, root, d < 0 || d + 1 >= l ? null : name.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(name.slice(p)) : parseRef(dKey, name, p))
+    }
     const parse = (dKey, p) => { p ??= 'data-'.length
-      const items = noProto(); items[MOD] = items[TARG] = items[TRIG] = items[ADD] = NIL
-      while (p >= 0 && p < dKey.length) {
-        if ((p = indexFirst(dKey, ALL, p)) < 0) { p = dKey.length; break }
-        const t = dKey[p]
-        let item = null
-        if (++p < dKey.length) {
+      const n = dKey.length, items = noProto(); items[MOD] = items[TARG] = items[TRIG] = items[ADD] = NIL
+      while (p >= 0 && p < n) {
+        if ((p = indexFirst(dKey, ALL, p)) < 0) { p = n; break }
+        const t=dKey[p];let item = null
+        if (++p < n) {
           const end = indexFirst(dKey, ALL, p)
-          const name = dKey.slice(p, p = end < 0 ? dKey.length : end)
-          if (name) item = parseItem(dKey, t, name)
+          const name = dKey.slice(p, p = end < 0 ? n : end)
+          if (name) item = t == MOD ? parseMod(dKey, name) : parseRef(dKey, name)
         }
         if (!item) continue
         if (t == MOD) {
@@ -162,10 +157,10 @@
           continue
         }
         let localMods = null
-        while (p < dKey.length && dKey[p] == MOD) {
+        while (p < n && dKey[p] == MOD) {
           const end = indexFirst(dKey, ALL, ++p)
-          const name = dKey.slice(p, p = end < 0 ? dKey.length : end)
-          const mod = name && parseItem(dKey, MOD, name)
+          const name = dKey.slice(p, p = end < 0 ? n : end)
+          const mod = parseMod(dKey, name)
           if (!mod) continue
           if (localMods) localMods.push(mod)
           else localMods = [mod]
@@ -177,7 +172,7 @@
         if (ts === NIL) items[t] = [item]
         else ts.push(item)
       }
-      if (p < dKey.length) warn('unparsed tail:', dKey.slice(p), dKey)
+      if (p < n) warn('unparsed tail:', dKey.slice(p), dKey)
       return [items, p]
     }
 
@@ -333,10 +328,10 @@
       if (!a || typeof a != 'object') a = NIL
 
       if (Array.isArray(b)) {
-        if (Array.isArray(a))
-          return a.length == b.length ? null : a.length > b.length
-            ? { addedRange: [b.length, a.length - b.length] }
-            : { removedRange: [a.length, b.length - a.length] }
+        if (Array.isArray(a)) {
+          const al = a.length, bl = b.length
+          return al == bl ? null : al > bl ? { addedRange: [bl, al - bl] } : { removedRange: [al, bl - al] }
+        }
         let added = []
         for (const k in a) if (hasOwn(a, k)) added.push(k)
         return { added, removedRange: [0, b.length] }
@@ -438,7 +433,7 @@
       if (v && v.kind) return getSiValOrIt(v)
       if (typeof v !== 'string') return v
       if (_dm.has(v)) return _dm.get(v)
-      const parsed = parseItem('mod', TRIG, v)
+      const parsed = parseRef('mod', v)
       if (!parsed || !parsed.kind) return v
       if (parsed.isSi && !parsed.path && !_dm.has(parsed.root)) return v
       return getSiValOrIt(parsed)
@@ -819,12 +814,12 @@
 
         // if some path value changed - filter out the handlers diverting from the path
         if (path) {
-          const notifyParent = hp.length < path.length, minLen = notifyParent ? hp.length : path.length
+          const pl = path.length, hl = hp.length, notifyParent = hl < pl, minLen = notifyParent ? hl : pl
           let i = 0
           for (; i < minLen && path[i] == hp[i]; ++i);
           if (i < minLen) continue
           if (notifyParent) { collected.push([h, null]); continue }
-          if (path.length == hp.length) {
+          if (pl == hl) {
             if (!diffed && changeMod !== SIG_CHANGED_ANY) {
               diffed = true
               diff = diffShapeShallow(curVal, val)
@@ -1364,11 +1359,11 @@
 
     // Sync attributes from to onto from.
     const updateAttrs = (from, to) => {
-      const toAttrs = to.attributes, fromAttrs = from.attributes
-      if (!fromAttrs.length && !toAttrs.length) return
-      if (fromAttrs.length === toAttrs.length) {
+      const toAttrs = to.attributes, fromAttrs = from.attributes, tl = toAttrs.length, fl = fromAttrs.length
+      if (!fl && !tl) return
+      if (fl === tl) {
         let same = true, orderChanged = false
-        for (let i = 0; i < toAttrs.length; i++) {
+        for (let i = 0; i < tl; i++) {
           const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
           if (fromAttr.name !== toAttr.name) { same = false; orderChanged = true; break }
           if (fromAttr.value !== toAttr.value) { same = false; break }
@@ -1376,22 +1371,22 @@
         if (same) return
         if (orderChanged) {
           let sameNames = true
-          for (let i = 0; i < toAttrs.length; i++) {
+          for (let i = 0; i < tl; i++) {
             const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
             if (!fromAttr || fromAttr.value !== toAttr.value) { sameNames = false; break }
           }
           if (sameNames) return
         }
       }
-      if (!toAttrs.length) {
-        for (let i = fromAttrs.length - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
+      if (!tl) {
+        for (let i = fl - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
         return
       }
-      for (let i = 0; i < toAttrs.length; i++) {
+      for (let i = 0; i < tl; i++) {
         const { name, value } = toAttrs[i], fromAttr = fromAttrs.getNamedItem(name)
         if (!fromAttr || fromAttr.value !== value) from.setAttribute(name, value)
       }
-      for (let i = fromAttrs.length - 1; i >= 0; i--) {
+      for (let i = fl - 1; i >= 0; i--) {
         const name = fromAttrs[i].name
         if (!to.hasAttribute(name)) from.removeAttribute(name)
       }

@@ -70,6 +70,17 @@
   const __parseIt = (it) => Object.assign({ "^": NIL, ":": NIL, "@": NIL, "+": NIL }, it);
   const __si = (root, path = null, not = null) => ({ kind: SI, not, root, path, mods: NIL, isSi: true, isEv: false, isSp: false, isInterval: false, isTimer: false, isViewed: false, isForm: false, isImmediate: null })
   const __ev = (root = '', path = null, not = null) => ({ kind: EP, not, root, path, mods: NIL, isSi: false, isEv: true, isSp: false, isInterval: false, isTimer: false, isViewed: false, isForm: false, isImmediate: null })
+  const parseItem = (dKey, type, n, pos = 0) => type != MOD ? parseRef(dKey, n, pos) : (() => {
+    if (!n) return null
+    let p = pos
+    while (n.startsWith(NOT, p)) ++p
+    let not = p == 0 ? null : p % 2 != 0
+    const d = indexFirst(n, NAME_DELIMS, p)
+    let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
+    if (root) root = kebabToCamel(root)
+    if (!root) return null
+    return mkMod(not, root, d < 0 || d + 1 >= n.length ? null : n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseRef(dKey, n, p))
+  })()
   const __assert = (fn, args, expected, label) => {
       const fname = fn && fn.name ? fn.name : '(anonymous)';
       const head = label ? `${fname} — ${label}` : fname;
