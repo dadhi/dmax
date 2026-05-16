@@ -26,6 +26,16 @@ node --expose-gc tools/bench-morph-sse.js
 
 The benchmark mounts the same 32×32 spreadsheet-like grid in isolated jsdom windows for dmax and Datastar. It uses the vendored `tools/vendor/datastar.js` bundle and dispatches Datastar's `datastar-merge-fragments` SSE event path directly, so the parity run does **not** require adding `@starfederation/datastar` as a package dependency.
 
+To refresh vendored browser bundles:
+
+```bash
+npm run vendor:libs
+# or include optional extras such as moxi too
+npm run vendor:libs:all
+```
+
+This pulls npm tarballs for Datastar and the Fixi stack (`fixi-js`, `@bigskysoftware/paxi-js`, `@bigskysoftware/rexi-js`, `@bigskysoftware/ssexi-js`; plus `@bigskysoftware/moxi-js` with `:all`) into `tools/vendor/` and updates `tools/vendor/manifest.json`. For Datastar it prefers the newest stable release over beta tags.
+
 `jsdom` is still required as the DOM host. Normally it is loaded from `node_modules` via `npm install`. If npm access is blocked, a complete jsdom package tree may be checked in under `tools/vendor/jsdom`; unlike Datastar, jsdom is not a single-file browser bundle and its transitive dependencies must be vendored with it.
 
 A manual GitHub Actions workflow is available at `.github/workflows/bench-morph-sse.yml` to run the parity benchmark in a clean Node 22 cloud environment.

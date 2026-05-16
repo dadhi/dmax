@@ -3,6 +3,8 @@
     "jsdom": "^27.4.0"
   },
   "scripts": {
+    "vendor:libs": "node tools/vendor-libs.js",
+    "vendor:libs:all": "node tools/vendor-libs.js --all",
     "bench:morph-sse": "node tools/bench-morph-sse.js",
     "bench:morph-sse:parity": "node tools/bench-morph-sse.js",
     "bench:morph-sse:all": "npm run bench:morph-sse:parity",

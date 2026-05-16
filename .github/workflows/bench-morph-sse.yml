@@ -2,17 +2,44 @@ name: Bench morph + SSE parity
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'dmax.js'
+      - 'tools/bench-morph-sse.js'
+      - 'tools/vendor/**'
+      - '.github/workflows/bench-morph-sse.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'dmax.js'
+      - 'tools/bench-morph-sse.js'
+      - 'tools/vendor/**'
+      - '.github/workflows/bench-morph-sse.yml'
+
+permissions:
+  contents: read
 
 jobs:
   benchmarks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
       - name: Install project dependencies
         run: npm install
       - name: Run dmax vs Datastar parity benchmark
-        run: node --expose-gc tools/bench-morph-sse.js
+        continue-on-error: true
+        env:
+          BM_SCALE: '0.2'
+        run: |
+          node --expose-gc --max-old-space-size=4096 tools/bench-morph-sse.js | tee bench-morph-sse.txt
+      - name: Upload benchmark output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-morph-sse-output
+          path: bench-morph-sse.txt
