@@ -129,7 +129,7 @@ function* generateDataSubCombinations() {
   }
   // IntersectionObserver-based triggers warn when IO is unavailable (e.g. JSDOM)
   for (const special of SPECIAL_EVENTS_WITH_IO) {
-    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver not available' };
+    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver missing, skip _viewed' };
   }
   
   // 7. No target (side effect)
@@ -152,7 +152,7 @@ function* generateDataSubCombinations() {
   // 11. Invalid properties - parser doesn't validate property names
   // Removed: invalid property tests - parser is lenient
   
-  yield { attr: 'data-m-ex+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'Supports only targets, triggers, mods but found more' };
+  yield { attr: 'data-m-ex+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'targets/triggers/mods only' };
   
   // Note: Parser doesn't validate modifier names or detect conflicts - they're just strings
   // Removed: Invalid modifier and conflicting modifier tests - parser is lenient

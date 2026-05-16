@@ -95,26 +95,24 @@
       let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
       if (type === MOD) {
         if (root) root = kebabToCamel(root)
-        if (!root) { console.error('[dmax] Error: Mod name should not be empty for:', n, 'in:', dKey); return null }
+        if (!root) { logErr('empty mod:', n, dKey); return null }
         if (d < 0 || d + 1 >= n.length) return mkMod(not, root, null) // accepts trailing dot in ^mod-foo.
         let val = n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseItem(dKey, TRIG, n, p) // recurse for mod val being a signal
         return mkMod(not, root, val)
       }
-
       let kind = EP
       if (root && root.length > 0) {
         const id = root[0] === ID
         if (id || isSp(root)) {
           kind = id ? EP : SP
           root = root.slice(1)
-          if (!root) { console.error('[dmax] Error: The', kind, 'element should have a non empty name:', n, 'in:', dKey); return null }
+          if (!root) { logErr('empty', kind + ':', n, dKey); return null }
         } else {
           kind = SI
           root = kebabToCamel(root)
         }
       }
-
-      if (d < 0 && !root && not !== null) { console.error('[dmax] Error: The', kind, 'element should not have just', NOT, 'alone in:', n); return null }
+      if (d < 0 && !root && not !== null) { logErr('bare', NOT + ':', n); return null }
       if (d < 0 || (n[d] === DOT && d + 1 == n.length)) return mkIt(kind, not, root, null)
 
       p = d
@@ -125,20 +123,20 @@
           const partStart = ++p
           d = indexFirst(n, NAME_DELIMS, p)
           const part = n.slice(partStart, p = d < 0 ? n.length : d)
-          if (!part) { console.error('[dmax] Error: Path should not have an empty part:', n, 'in:', dKey); return null }
+          if (!part) { logErr('empty path part:', n, dKey); return null }
           path.push(kebabToCamel(part))
           continue
         }
         if (c === BRACKET_OPEN) {
           d = n.indexOf(BRACKET_CLOSE, p + 1)
-          if (d < 0) { console.error('[dmax] Error: Missing closing bracket in path:', n, 'in:', dKey); return null }
+          if (d < 0) { logErr('missing ]:', n, dKey); return null }
           const part = n.slice(p + 1, d)
-          if (!isDigitsOnly(part)) { console.error('[dmax] Error: Only constant numeric bracket indices are supported, found:', part, 'in:', n, 'at:', dKey); return null }
+          if (!isDigitsOnly(part)) { logErr('non-const idx:', part, n, dKey); return null }
           path.push(part)
           p = d + 1
           continue
         }
-        console.error('[dmax] Error: Unexpected path token in:', n, 'in:', dKey)
+        logErr('bad path token:', n, dKey)
         return null
       }
       return mkIt(kind, not, root, path)
@@ -151,7 +149,7 @@
         items[TRIG] ??= NIL
         items[ADD] ??= NIL
       }
-      if (it !== MODS && p < dKey.length) console.warn('[dmax] Warning: Not everything is parsed "', dKey.slice(p), '" in', dKey)
+      if (it !== MODS && p < dKey.length) warn('unparsed tail:', dKey.slice(p), dKey)
       return [items, p]
     }
 
@@ -202,10 +200,10 @@
       let val = '' + dVal
       const returnPos=val.indexOf('return')
       let body=returnPos!=-1 && (returnPos+6 >= val.length || indexFirst(val, RETURN_THEN, returnPos+6) == returnPos+6) ? val : `return(${val})`
-      body = `try{ ${body} }catch(e){ console.error('[dmax] Error: eval ${dKey} value as function:', e.message, '>>>', ${val}); return }`
+      body = `try{ ${body} }catch(e){ console.error('[dmax]','eval ${dKey}:',e.message,${val}); return }`
       let fn;
       try { fn = Function(...args, body) }
-      catch (e) { console.error(`Error compiling ${dKey} value to function:`, e.message, '>>>', val); return }
+      catch (e) { logErr(`compile ${dKey}:`, e.message, val); return }
       if (cacheKey !== null) _compiledFnCache.set(cacheKey, fn)
       return fn;
     }
@@ -226,21 +224,21 @@
     // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
     const dmSi = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG]
-      if (it[MOD].length || it[TRIG].length || it[ADD].length) console.warn('[dmax] Warning: Supports only targets but found more:', dKey)
+      if (it[MOD].length || it[TRIG].length || it[ADD].length) warn('targets only:', dKey)
       let fn = compileFn(dVal, dKey)
       if (!fn) return
       let val = dVal ? fn(DM, el, null) : null
       if (tars.length) {
         for (const t of tars) {
-          if (t.kind != SI) { console.error('[dmax] Error: Only signal targets are supported but found:', t, 'in', dKey); continue }
-          if (t.mods.length) console.warn('[dmax] Warning: Mods are not supported:', t.mods, 'in', dKey)
+          if (t.kind != SI) { logErr('signal targets only:', t, dKey); continue }
+          if (t.mods.length) warn('mods ignored:', t.mods, dKey)
           _dm.set(t.root, val)
         }
       } else if (val && typeof val === 'object') {
         for (const t in val)
           _dm.set(kebabToCamel(t), val[t])
       } else {
-        console.error('[dmax] Error: Attribute', dKey, 'value should contain object with signal fields, but found', dVal)
+        logErr('object value expected:', dKey, dVal)
       }
     }
 
@@ -248,7 +246,7 @@
     const dmDbg = (el) => { if (el) {_debugEls.add(el); updateDebug() } }
     const getElById = (id, dKey) => {
       const el = document.getElementById(id)
-      if (!el) console.error(`[dmax] Error: element #${id} from ${dKey} is not found`)
+      if (!el) logErr(`no #${id}:`, dKey)
       return el
     }
     const getDefaultPr = (el) => { const t = el.type, n = el.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
@@ -562,6 +560,7 @@
 
     const noScan = (el) => el && el.hasAttribute && (el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_SCAN))
     const noMorph = (el) => el && el.hasAttribute && (el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_MORPH))
+    const warn = (...a) => console.warn('[dmax]', ...a), logErr = (...a) => console.error('[dmax]', ...a)
     const wireItClone = (node) => {
       const stack = [node]
       while (stack.length) {
@@ -581,7 +580,7 @@
         for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
     }
-    const expected = (v, ...msg) => v || (console.warn('[dmax] Warning:', ...msg), null)
+    const expected = (v, ...msg) => v || (warn(...msg), null)
 
     const renderItState = (el, tr, itState, tplFirst, itemRefBase, itemExprBase) => {
       const val = getSiValOrIt(tr)
@@ -720,7 +719,7 @@
     }
     const onTimeoutSub = (sub) => {
       try { invokeSub(sub.fn, { tick: 0, ms: sub.ms, type: SP_TIMEOUT }, sub.ms, sub.el, sub.trig) }
-      catch (e) { console.error(`[dmax] Error: timeout handler (${sub.ms}ms) failed:`, e?.message ?? e) }
+      catch (e) { logErr(`timeout ${sub.ms}ms:`, e?.message ?? e) }
     }
     const addSpSub = (el, tr, sp, mods, fn, elSubs, evName) => {
       if (sp.ms != null) {
@@ -733,13 +732,13 @@
         return sub.fn
       }
       if (sp.io) {
-        if (typeof IntersectionObserver === 'undefined') { console.warn('[dmax] Warning: IntersectionObserver not available, _viewed trigger skipped on:', el); return null }
+        if (typeof IntersectionObserver === 'undefined') { warn('IntersectionObserver missing, skip _viewed:', el); return null }
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, tr, mods, sub)
         const observer = new IntersectionObserver((entries) => {
           for (const entry of entries) if (entry.isIntersecting)
             try { invokeSub(sub.fn, { ratio: entry.intersectionRatio, type: SP_VIEWED }, entry.intersectionRatio, el, tr) }
-            catch (e) { console.error('[dmax] Error: viewed handler failed:', e?.message ?? e) }
+            catch (e) { logErr('viewed handler:', e?.message ?? e) }
         })
         observer.observe(el)
         sub.clearId = observer
@@ -953,7 +952,7 @@
         if (isSig && valPath.length) trVal = getPrValAndDepth(trVal, valPath)[0]
         if (trIt.not) trVal = !trVal
         if (permitMods && !modsPermitVal(permitMods, trVal)) return
-        try { fn(dm, el, trIt, trVal, detail) } catch (e) { console.error('[dmax] Error: Handler error', e) }
+        try { fn(dm, el, trIt, trVal, detail) } catch (e) { logErr('handler:', e) }
         if (hasOnce && !hasAlways && removeSub) removeSubOrClearId(removeSub)
       }
       return h
@@ -963,7 +962,7 @@
     // - data-m-ex:user.name@.input="val"
     const dmEx = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (it[ADD].length) console.warn('[dmax] Warning: Supports only targets, triggers, mods but found more:', dKey)
+      if (it[ADD].length) warn('targets/triggers/mods only:', dKey)
       const hasExpr = dVal != null && '' + dVal
       let fn = hasExpr ? compileFn(dVal, dKey) : ((a, b, c, v) => v)
       if (hasExpr && !fn) return
@@ -1319,7 +1318,7 @@
           if (!isAbort) {
             setS(dKey, errStat, err && err.message ? err.message : '' + err)
             setS(dKey, codeStat, Number.isFinite(err && err.status) ? err.status : null)
-            console.error('[dmax] Error: dmAct fetch failed:', err)
+            logErr('dmAct fail:', err)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
         }
@@ -1328,7 +1327,7 @@
       const elSubs = upsert(_cleanupBoundSubs, el)
       let ranImmediate = false
       for (const tr of trigs) {
-        if (!tr.isSi && !tr.isEv && !tr.isSp) { console.error('[dmax] Error: dmAct unsupported trigger kind', tr.kind, 'in', dKey); return }
+        if (!tr.isSi && !tr.isEv && !tr.isSp) { logErr('dmAct bad trigger:', tr.kind, dKey); return }
         if (tr.isSp) {
           const sp = tr.sp
           if (!sp?.act) { console.error('[dmax] Error: dmAct unsupported SP trigger', tr.root, 'in', dKey); return }
@@ -1568,7 +1567,7 @@
 
     const applyPatchSource = (srcEl, mode) => {
       if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode, true)
-      else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
+      else warn('patch-elements needs ids without selector')
     }
 
     const applyPatchEls = (args) => {
@@ -1582,7 +1581,7 @@
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) {
           if (src.id) document.getElementById(src.id)?.remove()
-          else console.warn('[dmax] patch-elements remove without selector requires element ids')
+          else warn('patch-elements remove needs ids without selector')
         }
         return
       }
