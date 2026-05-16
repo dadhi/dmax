@@ -358,6 +358,7 @@ async function loadDatastarWindow() {
 }
 
 async function loadFixiWindow() {
+  const hasFixi = fs.existsSync(FIXI_FILE), hasPaxi = fs.existsSync(PAXI_FILE), hasRexi = fs.existsSync(REXI_FILE), hasSsexi = fs.existsSync(SSEXI_FILE)
   const scripts = [FIXI_FILE, PAXI_FILE, REXI_FILE, SSEXI_FILE].filter(fs.existsSync).map(f => fs.readFileSync(f, 'utf8')).join('\n;')
   const vcon = new VirtualConsole()
   const dom = new JSDOM(`<!doctype html><html><head></head><body><script>${scripts}</script></body></html>`, {
@@ -367,7 +368,7 @@ async function loadFixiWindow() {
     virtualConsole: vcon
   })
   const { window } = dom
-  window.__fixiBenchHasParityStack = fs.existsSync(PAXI_FILE) && fs.existsSync(REXI_FILE) && fs.existsSync(SSEXI_FILE)
+  window.__fixiBench = { hasFixi, hasPaxi, hasRexi, hasSsexi, hasParityStack: hasPaxi && hasRexi && hasSsexi }
   await new Promise(resolve => setTimeout(resolve, 50))
   return window
 }
@@ -570,7 +571,7 @@ async function callFixi(el, fetch) {
 
 async function runFixiScenarios(window, payloads) {
   const { document } = window
-  if (!hasFixi(window, 'morph')) throw new Error('fixi benchmark requires paxi morph on window')
+  const hasMorph = hasFixi(window, 'morph'), hasSse = !!window.__fixiBench?.hasSsexi
   const host = document.createElement('div')
   host.id = 'bench-host'
   document.body.appendChild(host)
@@ -609,16 +610,26 @@ async function runFixiScenarios(window, payloads) {
     }
   }
 
-  return [
-    await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => reqSse(mkFxSse(payloads.smallFrags)), () => reqSse(mkFxSse(payloads.baseFrags)), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => reqSse(mkFxSse(payloads.smallFrags)), () => reqSse(mkFxSse(payloads.baseFrags)), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => reqSse(mkFxSse([payloads.smallHtml], null, '#bench-app'), 'morph'), () => reqSse(mkFxSse([payloads.baseHtml], null, '#bench-app'), 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => reqSse(mkFxSse([payloads.largeHtml], null, '#bench-app'), 'morph'), () => reqSse(mkFxSse([payloads.baseHtml], null, '#bench-app'), 'morph'), v.cellText, validateLargeGrid, validateBaseGrid),
+  const rows = []
+  if (hasSse) {
+    rows.push(
+      await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => reqSse(mkFxSse(payloads.smallFrags)), () => reqSse(mkFxSse(payloads.baseFrags)), v.cellText, validateSmallGrid, validateBaseGrid),
+      await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => reqSse(mkFxSse(payloads.smallFrags)), () => reqSse(mkFxSse(payloads.baseFrags)), v.cellText, validateSmallGrid, validateBaseGrid)
+    )
+    if (hasMorph) rows.push(
+      await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => reqSse(mkFxSse([payloads.smallHtml], null, '#bench-app'), 'morph'), () => reqSse(mkFxSse([payloads.baseHtml], null, '#bench-app'), 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
+      await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => reqSse(mkFxSse([payloads.largeHtml], null, '#bench-app'), 'morph'), () => reqSse(mkFxSse([payloads.baseHtml], null, '#bench-app'), 'morph'), v.cellText, validateLargeGrid, validateBaseGrid)
+    )
+  }
+  if (hasMorph) rows.push(
     await runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => reqHtml(payloads.smallHtml, 'morph'), () => reqHtml(payloads.baseHtml, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => reqHtml(payloads.largeHtml, 'morph'), () => reqHtml(payloads.baseHtml, 'morph'), v.cellText, validateLargeGrid, validateBaseGrid)
+  )
+  rows.push(
     await runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => reqHtml(payloads.smallHtml, 'outerHTML'), () => reqHtml(payloads.baseHtml, 'outerHTML'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => reqHtml(payloads.largeHtml, 'morph'), () => reqHtml(payloads.baseHtml, 'morph'), v.cellText, validateLargeGrid, validateBaseGrid),
     await runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => reqHtml(payloads.largeHtml, 'outerHTML'), () => reqHtml(payloads.baseHtml, 'outerHTML'), v.cellText, validateLargeGrid, validateBaseGrid)
-  ]
+  )
+  return rows
 }
 
 function normScenario(name) { return name }
@@ -798,7 +809,7 @@ function formatParityProbe(probe) {
   console.log('dmax vs Datastar vs fixi semi-realistic SSE/morph benchmark')
   console.log('grid: 32x32, ~66% populated, reactive row/column/total cells plus input/textarea/checkbox/select controls')
   console.log('datastar: vendored tools/vendor/datastar.js, merge-fragments CustomEvent path')
-  console.log(`fixi:     vendored fixi stack (${fixiWindow.__fixiBenchHasParityStack ? 'fixi+paxi+rexi+ssexi present; pointed/oob use targeted SSE swaps, full-page morph uses paxi' : 'fixi.js core only; current rows are outerHTML baseline'})`)
+  console.log(`fixi:     vendored fixi stack (${fixiWindow.__fixiBench?.hasParityStack ? 'fixi+paxi+rexi+ssexi present; pointed/oob use targeted SSE swaps, full-page morph uses paxi' : fixiWindow.__fixiBench?.hasPaxi ? 'fixi+paxi present; morph rows enabled, SSE rows skipped without ssexi' : 'fixi.js core only; replace rows only'})`)
   console.log('validation: sums are asserted for pointed/OOB/full-page paths; morph form-state parity is reported separately')
   for (const probe of parityProbes) console.log(`parity:${probe.framework.padEnd(9)} ${formatParityProbe(probe)}`)
   console.log(global.gc
