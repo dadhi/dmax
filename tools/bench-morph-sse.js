@@ -376,24 +376,27 @@ function formatNum(n, digits = 2) {
   return Number(n).toFixed(digits)
 }
 
-function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null) {
+const BM_SCALE = Math.max(+process.env.BM_SCALE || 1, 0.001)
+const bmIters = (n) => Math.max(1, Math.round(n * BM_SCALE))
+
+async function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null) {
   setup()
   for (let i = 0; i < 10; i++) {
     if (i % 2) {
-      applyA()
+      await applyA()
       if (validateA) validateA()
     } else {
-      applyB()
+      await applyB()
       if (validateB) validateB()
     }
   }
   if (global.gc) global.gc()
   const startMem = process.memoryUsage().heapUsed
   const t0 = process.hrtime.bigint()
-  for (let i = 0; i < iters; i++) (i % 2 ? applyA : applyB)()
+  for (let i = 0; i < iters; i++) await (i % 2 ? applyA : applyB)()
   const ms = Number(process.hrtime.bigint() - t0) / 1e6
-  if (validateA) { applyA(); validateA() }
-  if (validateB) { applyB(); validateB() }
+  if (validateA) { await applyA(); validateA() }
+  if (validateB) { await applyB(); validateB() }
   if (global.gc) global.gc()
   const endMem = process.memoryUsage().heapUsed
   const result = check()
@@ -433,8 +436,10 @@ function makePayloads() {
   const largeHtml = renderGridHtml(largeDiffCells, CONTROL_VARIANTS.large)
   const basePointed = renderPointedPatch(baseCells, focusRow, focusCol)
   const smallPointed = renderPointedPatch(smallDiffCells, focusRow, focusCol)
-  const baseOob = renderOobPatch(baseCells, focusRow, focusCol)
-  const smallOob = renderOobPatch(smallDiffCells, focusRow, focusCol)
+  const baseFrags = renderOobFragments(baseCells, focusRow, focusCol)
+  const smallFrags = renderOobFragments(smallDiffCells, focusRow, focusCol)
+  const baseOob = baseFrags.join('')
+  const smallOob = smallFrags.join('')
 
   return {
     focusRow,
@@ -444,6 +449,8 @@ function makePayloads() {
     largeHtml,
     basePointed,
     smallPointed,
+    baseFrags,
+    smallFrags,
     baseOob,
     smallOob,
     expectedBase: expectedGridSnapshot(baseCells, focusRow, focusCol),
@@ -456,7 +463,10 @@ function makePayloads() {
     expectedFormSmallReplace: expectedFormState(CONTROL_VARIANTS.small, false),
     expectedFormLargeReplace: expectedFormState(CONTROL_VARIANTS.large, false),
     baseSse: makeSseOuter(basePointed),
-    smallSse: makeSseOuter(smallPointed)
+    smallSse: makeSseOuter(smallPointed),
+    baseSseHtml: makeSseOuter(baseHtml, '#bench-app'),
+    smallSseHtml: makeSseOuter(smallHtml, '#bench-app'),
+    largeSseHtml: makeSseOuter(largeHtml, '#bench-app')
   }
 }
 
@@ -477,7 +487,7 @@ function makeValidators(host, activeElementFn, payloads, prefix) {
   }
 }
 
-function runDmaxScenarios(window, payloads) {
+async function runDmaxScenarios(window, payloads) {
   const { document, applyDmaxPatchElements, applyDmaxSse } = window
   if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function')
     throw new Error('dmax benchmark helpers are not available on window')
@@ -497,70 +507,18 @@ function runDmaxScenarios(window, payloads) {
   const validateLargeReplace = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeReplace, 'large-replace')
 
   return [
-    runScenario(
-      'pointed-sse-small-diff',
-      500,
-      mountBase,
-      () => applyDmaxSse(payloads.smallSse, 'bench'),
-      () => applyDmaxSse(payloads.baseSse, 'bench'),
-      v.cellText,
-      validateSmallUnchangedControls,
-      validateBase
-    ),
-    runScenario(
-      'oob-morph-small-diff',
-      500,
-      mountBase,
-      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }),
-      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }),
-      v.cellText,
-      validateSmallUnchangedControls,
-      validateBase
-    ),
-    runScenario(
-      'full-page-small-diff-morph',
-      120,
-      mountBase,
-      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }),
-      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }),
-      v.cellText,
-      validateSmallMorph,
-      validateBase
-    ),
-    runScenario(
-      'full-page-small-diff-replace',
-      120,
-      mountBase,
-      () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }),
-      () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }),
-      v.cellText,
-      validateSmallReplace,
-      validateBaseReplace
-    ),
-    runScenario(
-      'full-page-large-diff-morph',
-      30,
-      mountBase,
-      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }),
-      () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }),
-      v.cellText,
-      validateLargeMorph,
-      validateBase
-    ),
-    runScenario(
-      'full-page-large-diff-replace',
-      30,
-      mountBase,
-      () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.largeHtml }),
-      () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }),
-      v.cellText,
-      validateLargeReplace,
-      validateBaseReplace
-    )
-  ].map(r => ({ ...r }))
+    await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxSse(payloads.smallSse, 'bench'), () => applyDmaxSse(payloads.baseSse, 'bench'), v.cellText, validateSmallUnchangedControls, validateBase),
+    await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }), v.cellText, validateSmallUnchangedControls, validateBase),
+    await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxSse(payloads.smallSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateSmallMorph, validateBase),
+    await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxSse(payloads.largeSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateLargeMorph, validateBase),
+    await runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallMorph, validateBase),
+    await runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallReplace, validateBaseReplace),
+    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeMorph, validateBase),
+    await runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeReplace, validateBaseReplace)
+  ]
 }
 
-function runDatastarScenarios(window, payloads) {
+async function runDatastarScenarios(window, payloads) {
   const { document } = window
   const host = document.createElement('div')
   host.id = 'bench-host'
@@ -569,137 +527,114 @@ function runDatastarScenarios(window, payloads) {
   const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
   const mergeFragments = (fragments, mergeMode, selector = '') => applyDatastarFragments(window, fragments, mergeMode, selector)
   const v = makeValidators(host, () => document.activeElement, payloads, 'datastar')
-  // Datastar form-state parity is reported separately by probeMorphParity so the
-  // timed benchmark can keep running and show the measured reset behavior.
   const validateBaseGrid = () => v.assertGrid(payloads.expectedBase, 'base-grid')
   const validateSmallGrid = () => v.assertGrid(payloads.expectedSmall, 'small-grid')
   const validateLargeGrid = () => v.assertGrid(payloads.expectedLarge, 'large-grid')
 
   return [
-    runScenario(
-      'pointed-fragments-small-diff',
-      500,
-      mountBase,
-      () => mergeFragments(payloads.smallPointed, 'morph'),
-      () => mergeFragments(payloads.basePointed, 'morph'),
-      v.cellText,
-      validateSmallGrid,
-      validateBaseGrid
-    ),
-    runScenario(
-      'oob-morph-small-diff',
-      500,
-      mountBase,
-      () => mergeFragments(payloads.smallOob, 'morph'),
-      () => mergeFragments(payloads.baseOob, 'morph'),
-      v.cellText,
-      validateSmallGrid,
-      validateBaseGrid
-    ),
-    runScenario(
-      'full-page-small-diff-morph',
-      120,
-      mountBase,
-      () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'),
-      () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'),
-      v.cellText,
-      validateSmallGrid,
-      validateBaseGrid
-    ),
-    runScenario(
-      'full-page-small-diff-replace',
-      120,
-      mountBase,
-      () => mergeFragments(payloads.smallHtml, 'outer', '#bench-app'),
-      () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'),
-      v.cellText,
-      validateSmallGrid,
-      validateBaseGrid
-    ),
-    runScenario(
-      'full-page-large-diff-morph',
-      30,
-      mountBase,
-      () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'),
-      () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'),
-      v.cellText,
-      validateLargeGrid,
-      validateBaseGrid
-    ),
-    runScenario(
-      'full-page-large-diff-replace',
-      30,
-      mountBase,
-      () => mergeFragments(payloads.largeHtml, 'outer', '#bench-app'),
-      () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'),
-      v.cellText,
-      validateLargeGrid,
-      validateBaseGrid
-    )
-  ].map(r => ({ ...r }))
+    await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => mergeFragments(payloads.smallPointed, 'morph'), () => mergeFragments(payloads.basePointed, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => mergeFragments(payloads.smallOob, 'morph'), () => mergeFragments(payloads.baseOob, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'outer', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'outer', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid)
+  ]
 }
 
-function normScenario(name) {
-  return name === 'pointed-sse-small-diff' || name === 'pointed-fragments-small-diff' ? 'pointed-small-diff'
-    : name === 'full-page-small-diff-outerHTML' ? 'full-page-small-diff-replace'
-    : name === 'full-page-large-diff-outerHTML' ? 'full-page-large-diff-replace'
-    : name
+const hasFixi = (window, name) => typeof window[name] === 'function'
+const mkRes = (window, body, type) => new (window.Response || Response)(body, { status: 200, headers: { 'Content-Type': type } })
+const mkStream = (window, text) => new (window.ReadableStream || ReadableStream)({ start(c) { c.enqueue(new TextEncoder().encode(text)); c.close() } })
+const mkFxSse = (frags, swap = 'outerHTML', target = '') => frags.map(html => {
+  const id = String(html).match(/\sid="([^"]+)"/)?.[1]
+  const ta = target || (id ? `#${id}` : '')
+  if (!ta) throw new Error(`Fixi SSE fragment missing target: ${html}`)
+  const ev = swap == null ? { target: ta } : { target: ta, swap }
+  const lines = [`event: ${JSON.stringify(ev)}`]
+  for (const line of String(html).replace(/\r/g, '').split('\n')) lines.push(`data: ${line}`)
+  return lines.join('\n') + '\n\n'
+}).join('')
+async function callFixi(el, fetch) {
+  const window = el.ownerDocument.defaultView
+  el.dispatchEvent(new window.CustomEvent('fx:process', { bubbles: true }))
+  if (typeof el.__fixi !== 'function') throw new Error('fixi trigger was not initialized')
+  const prev = window.fetch
+  window.fetch = fetch
+  try {
+    await el.__fixi({ preventDefault() {}, submitter: null })
+  } finally {
+    window.fetch = prev
+  }
 }
-const CASE_ORDER = ['pointed-small-diff', 'oob-morph-small-diff', 'full-page-small-diff-morph', 'full-page-small-diff-replace', 'full-page-large-diff-morph', 'full-page-large-diff-replace']
+
+async function runFixiScenarios(window, payloads) {
+  const { document } = window
+  if (!hasFixi(window, 'morph')) throw new Error('fixi benchmark requires paxi morph on window')
+  const host = document.createElement('div')
+  host.id = 'bench-host'
+  document.body.appendChild(host)
+  const tr = document.createElement('button')
+  tr.id = 'fixi-bench-trigger'
+  tr.setAttribute('fx-action', '/bench')
+  tr.setAttribute('fx-target', '#bench-app')
+  document.body.appendChild(tr)
+
+  const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
+  const v = makeValidators(host, () => document.activeElement, payloads, 'fixi')
+  const validateBaseGrid = () => v.assertGrid(payloads.expectedBase, 'base-grid')
+  const validateSmallGrid = () => v.assertGrid(payloads.expectedSmall, 'small-grid')
+  const validateLargeGrid = () => v.assertGrid(payloads.expectedLarge, 'large-grid')
+  const reqHtml = async (html, swap) => {
+    tr.setAttribute('fx-target', '#bench-app')
+    tr.setAttribute('fx-swap', swap)
+    await callFixi(tr, async () => mkRes(window, html, 'text/html'))
+  }
+  const reqSse = async (text, swap = 'outerHTML') => {
+    tr.setAttribute('fx-target', '#bench-app')
+    tr.setAttribute('fx-swap', swap)
+    if (swap !== 'morph') return callFixi(tr, async () => mkRes(window, mkStream(window, text), 'text/event-stream'))
+    const onMsg = (ev) => {
+      const msg = ev.detail?.message, ta = msg?.event && JSON.parse(msg.event).target
+      if (!msg?.data || ta !== '#bench-app') return
+      ev.preventDefault()
+      const el = document.querySelector(ta)
+      if (el) window.morph(el, msg.data)
+    }
+    document.addEventListener('fx:sse:message', onMsg)
+    try {
+      await callFixi(tr, async () => mkRes(window, mkStream(window, text), 'text/event-stream'))
+    } finally {
+      document.removeEventListener('fx:sse:message', onMsg)
+    }
+  }
+
+  return [
+    await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => reqSse(mkFxSse(payloads.smallFrags)), () => reqSse(mkFxSse(payloads.baseFrags)), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => reqSse(mkFxSse(payloads.smallFrags)), () => reqSse(mkFxSse(payloads.baseFrags)), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => reqSse(mkFxSse([payloads.smallHtml], null, '#bench-app'), 'morph'), () => reqSse(mkFxSse([payloads.baseHtml], null, '#bench-app'), 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => reqSse(mkFxSse([payloads.largeHtml], null, '#bench-app'), 'morph'), () => reqSse(mkFxSse([payloads.baseHtml], null, '#bench-app'), 'morph'), v.cellText, validateLargeGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => reqHtml(payloads.smallHtml, 'morph'), () => reqHtml(payloads.baseHtml, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => reqHtml(payloads.smallHtml, 'outerHTML'), () => reqHtml(payloads.baseHtml, 'outerHTML'), v.cellText, validateSmallGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => reqHtml(payloads.largeHtml, 'morph'), () => reqHtml(payloads.baseHtml, 'morph'), v.cellText, validateLargeGrid, validateBaseGrid),
+    await runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => reqHtml(payloads.largeHtml, 'outerHTML'), () => reqHtml(payloads.baseHtml, 'outerHTML'), v.cellText, validateLargeGrid, validateBaseGrid)
+  ]
+}
+
+function normScenario(name) { return name }
+const CASE_ORDER = ['resp-sse-els_pointed_dom-patch_outer_small-diff', 'resp-sse-els_oob_dom-patch_outer_small-diff', 'resp-sse-html_full_dom-morph_morph_small-diff', 'resp-sse-html_full_dom-morph_morph_large-diff', 'resp-html_full_dom-morph_morph_small-diff', 'resp-html_full_dom-replace_outer_small-diff', 'resp-html_full_dom-morph_morph_large-diff', 'resp-html_full_dom-replace_outer_large-diff']
 const FW_ORDER = { dmax: 0, datastar: 1, fixi: 2 }
 const FW_SHORT = { dmax: 'dmax', datastar: 'ds', fixi: 'fix' }
-const withFw = (framework, rows) => rows.map(r => ({ framework, case: normScenario(r.name), ...r }))
+const parseCase = (s) => {
+  const [resp = '', shape = '', work = '', mode = '', diff = ''] = s.split('_')
+  return { resp: resp.slice(5), shape, work, mode, diff }
+}
+const withFw = (framework, rows) => rows.map(r => ({ framework, case: normScenario(r.name), caseParts: parseCase(r.name), ...r }))
 const addXF = (rows) => {
   const base = Object.create(null)
   for (const r of rows) if (r.framework === 'dmax' && base[r.case] == null) base[r.case] = r.avgMs
   for (const r of rows) r.x = base[r.case] ? r.avgMs / base[r.case] : 1
   return rows.sort((a, b) => (CASE_ORDER.indexOf(a.case) - CASE_ORDER.indexOf(b.case)) || (FW_ORDER[a.framework] - FW_ORDER[b.framework]))
-}
-
-// fixi core alone is still an outerHTML baseline; if paxi/rexi/ssexi are vendored later
-// this harness can be extended to run true morph/SSE/signal parity instead of swap-only.
-function runFixiScenarios(window, payloads) {
-  const { document } = window
-  const host = document.createElement('div')
-  host.id = 'bench-host'
-  document.body.appendChild(host)
-
-  const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
-  const v = makeValidators(host, () => document.activeElement, payloads, 'fixi')
-  // fixi always resets form state on outerHTML swap; only grid correctness is asserted.
-  const validateBaseGrid = () => v.assertGrid(payloads.expectedBase, 'base-grid')
-  const validateSmallGrid = () => v.assertGrid(payloads.expectedSmall, 'small-grid')
-  const validateLargeGrid = () => v.assertGrid(payloads.expectedLarge, 'large-grid')
-
-  // Simulate fixi's default swap: target.outerHTML = responseText.
-  // We find the target fresh each iteration because outerHTML removes the node.
-  const outerHTMLSwap = (html) => {
-    const el = host.querySelector('#bench-app')
-    if (el) el.outerHTML = html
-  }
-
-  return [
-    runScenario(
-      'full-page-small-diff-outerHTML',
-      120,
-      mountBase,
-      () => outerHTMLSwap(payloads.smallHtml),
-      () => outerHTMLSwap(payloads.baseHtml),
-      v.cellText,
-      validateSmallGrid,
-      validateBaseGrid
-    ),
-    runScenario(
-      'full-page-large-diff-outerHTML',
-      30,
-      mountBase,
-      () => outerHTMLSwap(payloads.largeHtml),
-      () => outerHTMLSwap(payloads.baseHtml),
-      v.cellText,
-      validateLargeGrid,
-      validateBaseGrid
-    )
-  ].map(r => ({ ...r }))
 }
 
 function probeMorphParity(window, payloads, framework, applySmallMorph, applyBaseMorph, applyLargeMorph) {
@@ -826,9 +761,9 @@ function formatParityProbe(probe) {
   const datastarWindow = await loadDatastarWindow()
   const fixiWindow = await loadFixiWindow()
   const results = addXF([
-    ...withFw('dmax', runDmaxScenarios(dmaxWindow, payloads)),
-    ...withFw('datastar', runDatastarScenarios(datastarWindow, payloads)),
-    ...withFw('fixi', runFixiScenarios(fixiWindow, payloads))
+    ...withFw('dmax', await runDmaxScenarios(dmaxWindow, payloads)),
+    ...withFw('datastar', await runDatastarScenarios(datastarWindow, payloads)),
+    ...withFw('fixi', await runFixiScenarios(fixiWindow, payloads))
   ])
   const dmaxProbeWindow = await loadDmaxWindow()
   const datastarProbeWindow = await loadDatastarWindow()
@@ -854,16 +789,16 @@ function formatParityProbe(probe) {
       fixiProbeWindow,
       payloads,
       'fixi',
-      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) el.outerHTML = payloads.smallHtml },
-      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) el.outerHTML = payloads.baseHtml },
-      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) el.outerHTML = payloads.largeHtml }
+      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) fixiProbeWindow.morph ? fixiProbeWindow.morph(el, payloads.smallHtml) : el.outerHTML = payloads.smallHtml },
+      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) fixiProbeWindow.morph ? fixiProbeWindow.morph(el, payloads.baseHtml) : el.outerHTML = payloads.baseHtml },
+      () => { const el = fixiProbeWindow.document.querySelector('#bench-app'); if (el) fixiProbeWindow.morph ? fixiProbeWindow.morph(el, payloads.largeHtml) : el.outerHTML = payloads.largeHtml }
     )
   ]
 
   console.log('dmax vs Datastar vs fixi semi-realistic SSE/morph benchmark')
   console.log('grid: 32x32, ~66% populated, reactive row/column/total cells plus input/textarea/checkbox/select controls')
   console.log('datastar: vendored tools/vendor/datastar.js, merge-fragments CustomEvent path')
-  console.log(`fixi:     vendored fixi stack (${fixiWindow.__fixiBenchHasParityStack ? 'fixi+paxi+rexi+ssexi present' : 'fixi.js core only; current rows are outerHTML baseline'})`)
+  console.log(`fixi:     vendored fixi stack (${fixiWindow.__fixiBenchHasParityStack ? 'fixi+paxi+rexi+ssexi present; pointed/oob use targeted SSE swaps, full-page morph uses paxi' : 'fixi.js core only; current rows are outerHTML baseline'})`)
   console.log('validation: sums are asserted for pointed/OOB/full-page paths; morph form-state parity is reported separately')
   for (const probe of parityProbes) console.log(`parity:${probe.framework.padEnd(9)} ${formatParityProbe(probe)}`)
   console.log(global.gc
@@ -872,11 +807,16 @@ function formatParityProbe(probe) {
   console.log('final-cell: textContent of the probed grid cell after the final validated apply in the scenario')
   console.log('x-vs-dmax: avg-ms relative to dmax for the same normalized case (1.00x means equal, 2.00x means 2x slower)')
   console.log('')
-  console.log('case                              fw     iters   total-ms   avg-ms   x-vs-dmax   ops/s     mem-delta   final-cell')
-  console.log('-----------------------------------------------------------------------------------------------------------------')
+  console.log('resp       shape        work          mode     diff         fw     iters   total-ms   avg-ms   x-vs-dmax   ops/s     mem-delta   final-cell')
+  console.log('----------------------------------------------------------------------------------------------------------------------------------------')
   for (const r of results) {
+    const p = r.caseParts
     const line = [
-      r.case.padEnd(32),
+      p.resp.padEnd(10),
+      p.shape.padEnd(12),
+      p.work.padEnd(12),
+      p.mode.padEnd(8),
+      p.diff.padEnd(12),
       FW_SHORT[r.framework].padEnd(4),
       String(r.iters).padStart(5),
       formatNum(r.ms).padStart(10),
