@@ -1418,8 +1418,7 @@
 
     // Reconcile from children to match to children with one forward pass.
     const morphChildren = (from, to) => {
-      let cur = from.firstChild
-      let toChild = to.firstChild
+      let cur = from.firstChild, toChild = to.firstChild
 
       while (cur && toChild && sameSlot(cur, toChild)) {
         const next = cur.nextSibling
@@ -1441,47 +1440,31 @@
         return
       }
 
-      // Map remaining keyed children by id — Map is only allocated if keyed nodes exist.
-      let idMap = null
+      let ids = null, keyed = 0
       for (let n = cur; n; n = n.nextSibling)
-        if (n.nodeType === ELEMENT_NODE && n.id) (idMap ??= new Map()).set(n.id, n)
+        if (n.nodeType === ELEMENT_NODE && n.id) ((ids ??= noProto())[n.id] = n, keyed = 1)
 
       for (; toChild; toChild = toChild.nextSibling) {
-        let match = null
-
-        if (toChild.nodeType === ELEMENT_NODE && toChild.id && (match = idMap?.get(toChild.id))) {
-          // Reuse keyed nodes by id even if they moved.
-          idMap.delete(toChild.id)
-        } else {
-          // Skip keyed nodes still waiting for their own id match.
-          while (cur && cur.nodeType === ELEMENT_NODE && cur.id && idMap?.get(cur.id))
-            cur = cur.nextSibling
-          if (cur && sameKind(cur, toChild)) {
-            match = cur
-          }
+        let match = null, toId = toChild.nodeType === ELEMENT_NODE ? toChild.id : ''
+        if (toId && ids && (match = ids[toId])) delete ids[toId]
+        else {
+          while (keyed && cur && cur.nodeType === ELEMENT_NODE && cur.id && ids[cur.id]) cur = cur.nextSibling
+          if (cur && sameKind(cur, toChild)) match = cur
         }
-
         if (match) {
-          if (match !== cur) {
-            from.insertBefore(match, cur || null)
-          } else {
-            cur = cur.nextSibling
-          }
+          if (match !== cur) from.insertBefore(match, cur || null)
+          else cur = cur.nextSibling
           morph(match, toChild)
-        } else {
-          // No reusable node found, so clone and insert.
-          from.insertBefore(toChild.cloneNode(true), cur || null)
-        }
+        } else from.insertBefore(toChild.cloneNode(true), cur || null)
       }
 
-      // Remove any old nodes left over.
       while (cur) {
         const next = cur.nextSibling
         from.removeChild(cur)
         cur = next
       }
-      // Remove keyed nodes that were never matched.
-      if (idMap) for (const n of idMap.values()) {
+      if (ids) for (const id in ids) {
+        const n = ids[id]
         if (n.parentNode === from) from.removeChild(n)
       }
     }
@@ -1570,9 +1553,9 @@
       if (par) par.insertBefore(frag, mode === M_PREPEND ? taEl.firstChild || null : mode === M_BEFORE ? taEl : taEl.nextSibling)
     }
 
-    const applyPatchPair = (taEl, srcEl, mode) => {
+    const applyPatchPair = (taEl, srcEl, mode, reuse = false) => {
       if (!taEl || !srcEl) return
-      if (mode === M_REPLACE) taEl.replaceWith(srcEl.cloneNode(true))
+      if (mode === M_REPLACE) taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
       else if (mode === M_INNER) {
         const to = taEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
@@ -1581,7 +1564,7 @@
     }
 
     const applyPatchSource = (srcEl, mode) => {
-      if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode)
+      if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode, true)
       else console.warn('[dmax] dmax-patch-elements without selector requires element ids')
     }
 
@@ -1609,7 +1592,10 @@
       if (sel) {
         if (!srcEls.length) return
         const tars = getPatchTars(sel)
-        // srcEls is non-empty here; fallback to first source when targets outnumber sources.
+        if (tars.length === 1 && srcEls.length === 1) {
+          applyPatchPair(tars[0], srcEls[0], mode, true)
+          return
+        }
         const defaultSrc = srcEls[0]
         for (let i = 0; i < tars.length; i++) applyPatchPair(tars[i], srcEls[i] || defaultSrc, mode)
         return
