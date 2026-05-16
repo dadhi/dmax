@@ -1,7 +1,7 @@
 // @js-check
     const indexFirst = (s, chars, pos = 0) => {
       let i, first = s.length
-      for (let c of chars) if ((i = s.indexOf(c, pos)) != -1 && i < first) first = i
+      for (let c of chars) if ((i = s.indexOf(c, pos)) >= 0 && i < first) first = i
       return first === s.length ? -1 : first
     }
 
@@ -153,14 +153,14 @@
       return [items, p]
     }
 
-    const parse = (dKey, p = 'data-'.length, it = ALL) => {
-      let items = Object.create(null), mItems = null
+    const parse = (dKey, p, it = ALL) => { p ??= 'data-'.length
+      let items = noProto(), mItems = null
       while (p >= 0 && p < dKey.length) {
-        if ((p = indexFirst(dKey, it, p)) == -1) { p = dKey.length; break }
+        if ((p = indexFirst(dKey, it, p)) < 0) { p = dKey.length; break }
         let t = dKey[p], item = null
         if (++p < dKey.length) {
           let end = indexFirst(dKey, ALL, p)
-          let name = dKey.slice(p, p = end != -1 ? end : dKey.length)
+          let name = dKey.slice(p, p = end < 0 ? dKey.length : end)
           if (name) item = parseItem(dKey, t, name)
         }
 
@@ -198,10 +198,10 @@
       const cacheKey = args === FN_ARGS ? dVal + '\x00' + dKey : null
       if (cacheKey !== null && _compiledFnCache.has(cacheKey)) return _compiledFnCache.get(cacheKey)
       let val = '' + dVal
-      const returnPos=val.indexOf('return')
-      let body=returnPos!=-1 && (returnPos+6 >= val.length || indexFirst(val, RETURN_THEN, returnPos+6) == returnPos+6) ? val : `return(${val})`
+      const returnPos = val.indexOf('return')
+      let body = returnPos >= 0 && (returnPos + 6 >= val.length || indexFirst(val, RETURN_THEN, returnPos + 6) == returnPos + 6) ? val : `return(${val})`
       body = `try{ ${body} }catch(e){ console.error('[dmax]','eval ${dKey}:',e.message,${val}); return }`
-      let fn;
+      let fn
       try { fn = Function(...args, body) }
       catch (e) { logErr(`compile ${dKey}:`, e.message, val); return }
       if (cacheKey !== null) _compiledFnCache.set(cacheKey, fn)
@@ -228,17 +228,15 @@
       let fn = compileFn(dVal, dKey)
       if (!fn) return
       let val = dVal ? fn(DM, el, null) : null
-      if (tars.length) {
-        for (const t of tars) {
-          if (t.kind != SI) { logErr('signal targets only:', t, dKey); continue }
-          if (t.mods.length) warn('mods ignored:', t.mods, dKey)
-          _dm.set(t.root, val)
-        }
-      } else if (val && typeof val === 'object') {
-        for (const t in val)
-          _dm.set(kebabToCamel(t), val[t])
-      } else {
-        logErr('object value expected:', dKey, dVal)
+      if (!tars.length) {
+        if (!(val && typeof val === 'object')) return logErr('object value expected:', dKey, dVal)
+        for (const t in val) _dm.set(kebabToCamel(t), val[t])
+        return
+      }
+      for (const t of tars) {
+        if (t.kind != SI) { logErr('signal targets only:', t, dKey); continue }
+        if (t.mods.length) warn('mods ignored:', t.mods, dKey)
+        _dm.set(t.root, val)
       }
     }
 
@@ -301,10 +299,9 @@
     const setPr = (el, dKey, tar, val) => {
       if (!tar.isEv) return null
       let obj = tar.root ? getElById(tar.root, dKey) : el
-      let path = tar.path, prop = null
-      if (!path)
-        prop = getDefaultPr(obj);
-      else if (path.length > 0) {
+      const path = tar.path
+      let prop = !path ? getDefaultPr(obj) : null
+      if (path && path.length) {
         [obj] = getPrValAndDepth(obj, path, path.length - 1)
         prop = path.at(-1)
       }
@@ -473,7 +470,7 @@
 
     const isJsonContentType = (ct) => {
       const low = (ct || '').toLowerCase()
-      if (low.indexOf('application/json') !== -1) return true
+      if (low.indexOf('application/json') >= 0) return true
       const p = low.indexOf('+json')
       if (p < 0) return false
       const end = p + 5
@@ -522,11 +519,9 @@
       if (i < 0) return s
       const parts = []; let p = 0
       while (i >= 0) {
-        let next = null, step = 0
-        if (s.startsWith('$it', i)) next = itemToken, step = 3
-        else if (s.startsWith('$ix', i)) next = indexToken, step = 3
-        if (!step) { i = s.indexOf('$', i + 1); continue }
-        parts.push(s.slice(p, i), next); p = i + step; i = s.indexOf('$', p)
+        const next = s.startsWith('$it', i) ? itemToken : s.startsWith('$ix', i) ? indexToken : null
+        if (!next) { i = s.indexOf('$', i + 1); continue }
+        parts.push(s.slice(p, i), next); p = i + 3; i = s.indexOf('$', p)
       }
       return parts.length ? parts.join('') + s.slice(p) : s
     }
@@ -656,8 +651,7 @@
       for (const m of mods) {
         const mName = m.root, mVal = resolveMPathVal(m.path)
         if (mName === M_AND) {
-          const ok = !!mVal
-          if (m.not ? ok : !ok) return false
+          if (!!mVal == !!m.not) return false
         } else if (mName == M_EQ) {
           if (val != mVal) return false
         } else if (mName == M_NE) {
@@ -831,9 +825,9 @@
         // if some path value changed - filter out the handlers diverting from the path
         if (path) {
           const notifyParent = hp.length < path.length, minLen = notifyParent ? hp.length : path.length
-          let skip = false
-          for (let i = 0; i < minLen; ++i) if (skip = (path[i] != hp[i])) break
-          if (skip) continue
+          let i = 0
+          for (; i < minLen && path[i] == hp[i]; ++i);
+          if (i < minLen) continue
           if (notifyParent) { collected.push([h, null]); continue }
           if (path.length == hp.length) {
             if (!diffed && changeMod !== SIG_CHANGED_ANY) {
@@ -971,17 +965,16 @@
         const readTrs = [], writePrTrs = [], writeSiTrs = []
         for (const tr of trigs) {
           const mods = pickMods(tr.mods, globMods); let hasRw = false
-          for (let i=0;i<mods.length;i++) if (mods[i].root===M_RW) { hasRw = true; break }
-          if (hasRw) {
-            if (!tr.isEv) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
-            const prTa = getTrPrTa(el, dKey, tr, mods, E_RW_EL, E_RW_EV)
-            if (!prTa) return
-            writePrTrs.push({ trig: tr, mods, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, tar: prTa.tar })
+          for (let i=0;i<mods.length&&!hasRw;i++) hasRw = mods[i].root===M_RW
+          if (!hasRw) {
+            readTrs.push({ tr, mods })
+            if (tr.isSi) writeSiTrs.push(tr)
             continue
           }
-          readTrs.push({ tr, mods })
-          if (tr.isSi) writeSiTrs.push(tr)
-        }
+          if (!tr.isEv) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
+          const prTa = getTrPrTa(el, dKey, tr, mods, E_RW_EL, E_RW_EV)
+          if (!prTa) return
+          writePrTrs.push({ trig: tr, mods, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, tar: prTa.tar }) }
         if (writePrTrs.length && readTrs.length) {
           let ranImmediate = false
           const syncPrTas = (dm, syncTr, trigVal, detail) => {
@@ -996,9 +989,7 @@
             } else if (tr.isEv || tr.isSp) {
               const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_RW_EL, E_RW_EV) : null
               if (tr.isEv && !prTa) return
-              const nextRanImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ranImmediate, prTa)
-              if (nextRanImmediate == null) return
-              ranImmediate = nextRanImmediate
+              if ((ranImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ranImmediate, prTa)) == null) return
             } else { console.error('[dmax] Error: unsupported trigger kind', tr.kind, 'in', dKey); return }
           }
           if (writeSiTrs.length) {
@@ -1028,20 +1019,18 @@
           } catch (e) { console.error('[dmax] Error: setting target', failedTa, 'in', dKey, 'ended with ex:', e) }
         }
       }
-      if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return }
-      let ranImmediate = false
+      if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return } let ranImmediate = false
       for (const tr of trigs) {
         const mods = pickMods(tr.mods, globMods)
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mods, fn, elSubs)
           if (!ranImmediate && (tr.isImmediate ?? true)) ranImmediate = true, invokeBoundSub(sub, null)
-        } else if (tr.isEv || tr.isSp) {
-          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false) : null
-          if (tr.isEv && !prTa) return
-          const nextRanImmediate = addNonSiTrSub(el, tr, mods, fn, elSubs, ranImmediate, prTa)
-          if (nextRanImmediate == null) return
-          ranImmediate = nextRanImmediate
-        } else { console.error('[dmax] Error: unsupported trigger kind', tr.kind, 'in', dKey); return }
+          continue
+        }
+        if (!tr.isEv && !tr.isSp) { console.error('[dmax] Error: unsupported trigger kind', tr.kind, 'in', dKey); return }
+        const prTa = tr.isEv && getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false)
+        if (tr.isEv && !prTa) return
+        if ((ranImmediate = addNonSiTrSub(el, tr, mods, fn, elSubs, ranImmediate, prTa)) == null) return
       }
     }
     // - data-m-cl+active@is-active
@@ -1061,11 +1050,10 @@
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mods, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (tr.isImmediate ?? false) invokeBoundSub(sub, null)
-        } else if (tr.isEv || tr.isSp) {
+        } else {
           const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return
-          const nextRanImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa)
-          if (nextRanImmediate == null) return
+          if (addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
         }
       }
     }
@@ -1089,11 +1077,10 @@
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mods, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (tr.isImmediate ?? false) invokeBoundSub(sub, null)
-        } else if (tr.isEv || tr.isSp) {
+        } else {
           const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return
-          const nextRanImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa)
-          if (nextRanImmediate == null) return
+          if (addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
         }
       }
     }
@@ -1134,11 +1121,9 @@
     // - data-m-post^json:result@.click+title="'/api/posts'"
     // - data-m-get^html^outer@.click="'/fragment'"
     const dmAct = (el, dKey, dVal) => {
-      const afterData = dKey.slice(DM_KEY.length)
-      const methodEnd = indexFirst(afterData, ALL, 0)
-      const methodName = methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData
-      const method = ACT_METHODS[methodName]
-      if (!method) { console.error('[dmax] Error: dmAct: unrecognised method prefix in:', dKey); return }
+      const afterData = dKey.slice(DM_KEY.length), methodEnd = indexFirst(afterData, ALL, 0)
+      const method = ACT_METHODS[methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData]
+      if (!method) return console.error('[dmax] Error: dmAct: unrecognised method prefix in:', dKey)
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
@@ -1149,8 +1134,7 @@
       let hdrsMod = null, authMod = null
       let hsNoKebab = false
       let sendAll = false, patchAll = false
-      let resultMode = M_REPLACE
-      let htmlMode = null, htmlDomMod = null
+      let resultMode = M_REPLACE, htmlDomMod = null
       let openMod = null, closeMod = null, retryMod = null, abortMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
@@ -1170,7 +1154,7 @@
         else if (mr === M_AUTH && !authMod) authMod = m
         else if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND || mr === M_BEFORE || mr === M_AFTER || mr === M_INNER || mr === M_REMOVE) {
           resultMode = mr
-          if (mr !== M_MERGE) { htmlMode = mr; htmlDomMod = m }
+          if (mr !== M_MERGE) htmlDomMod = m
         } else if (mr === M_BUSY && !busyMod) busyMod = m
         else if (mr === M_COMPLETE && !completeMod) completeMod = m
         else if (mr === M_ERR && !errMod) errMod = m
@@ -1204,21 +1188,21 @@
         add.key = (ap ? ap.at(-1) : add.root) || 'value'
         add.spread = false
         if (add.isEv && add.root) add.taEl = getElById(add.root, dKey)
-        for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
+        for (let i = 0; i < add.mods.length && !add.spread; ++i) add.spread = add.mods[i].root === M_SPREAD
       }
       const actRouteMods = []
-      for (const m of urlMods) {
-        const p = m.path, e = !p ? null : typeof p === 'string' ? [false, p, p, null] : p.isSi ? [false, p.path ? p.path.at(-1) : p.root, null, p] : null
-        if (e) actRouteMods.push(e)
+      for (const m of urlMods) { const p = m.path
+        if (typeof p === 'string') actRouteMods.push([false, p, p, null])
+        else if (p && p.isSi) actRouteMods.push([false, p.path ? p.path.at(-1) : p.root, null, p])
       }
-      for (const m of bodyMods) {
-        const p = m.path, e = !p ? null : typeof p === 'string' ? [true, p, p, null] : p.isSi ? [true, p.path ? p.path.at(-1) : p.root, null, p] : null
-        if (e) actRouteMods.push(e)
+      for (const m of bodyMods) { const p = m.path
+        if (typeof p === 'string') actRouteMods.push([true, p, p, null])
+        else if (p && p.isSi) actRouteMods.push([true, p.path ? p.path.at(-1) : p.root, null, p])
       }
       const actHdrMods = []
-      for (const m of hdrMods) {
-        const p = m.path, pLast = p && p.isSi ? (p.path ? p.path.at(-1) : p.root) : null, e = !p ? null : typeof p === 'string' ? [camelToKebab(p), p, null] : pLast ? [camelToKebab(pLast), null, p] : null
-        if (e) actHdrMods.push(e)
+      for (const m of hdrMods) { const p = m.path, pLast = p && p.isSi ? (p.path ? p.path.at(-1) : p.root) : null
+        if (typeof p === 'string') actHdrMods.push([camelToKebab(p), p, null])
+        else if (pLast) actHdrMods.push([camelToKebab(pLast), null, p])
       }
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
@@ -1298,7 +1282,7 @@
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
-            const mode = htmlMode || M_OUTER
+            const mode = htmlDomMod?.root || M_OUTER
             const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EP)?.root ?? '')
             const selector = hp ? resolveHtmlSelector(hp) : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '') : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '') : ''
             applyPatchEls({ [SSE_ELS]: payload, selector, mode })
