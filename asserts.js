@@ -204,13 +204,13 @@
     __assert(buildItItemRef, ['posts', null, 2], 'posts.2', 'dmIt item ref helper root only')
     __assert(buildItItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dmIt item expr helper')
     __assert(buildItItemExpr, ['posts', null, 2], 'dm.posts[2]', 'dmIt item expr helper root only')
-    __assert(replaceItTokens, ['data-m-it@$item.replies+$index', 'threads.0', '0'], 'data-m-it@threads.0.replies+0', 'dmIt token rewrite helper')
+    __assert(replaceItTokens, ['data-m-it@$it.replies+$ix', 'threads.0', '0'], 'data-m-it@threads.0.replies+0', 'dmIt token rewrite helper')
     __assert(replaceItTokens, ['plain-text', 'threads.0', '0'], 'plain-text', 'dmIt token rewrite helper no-op')
     function __testRewriteItBindings() {
       const root = document.createElement('li')
-      root.setAttribute('data-m-ex:.', '$index')
+      root.setAttribute('data-m-ex:.', '$ix')
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<span data-m-it@$item.replies+$index="$item.title"></span>'
+      tpl.innerHTML = '<span data-m-it@$it.replies+$ix="$it.title"></span>'
       const child = tpl.content.firstElementChild
       root.appendChild(child)
       rewriteItBindings(root, 'threads.2', 'dm.threads[2]', '2')
@@ -234,9 +234,9 @@
     __assert(__testRewriteItBindingsNoop, [], { value: 'plain-text', hasAttrs: false }, 'dmIt rewriteItBindings no-op leaves attrs untouched')
     function __testWireItCloneRewrittenAttrs() {
       const root = document.createElement('li')
-      root.setAttribute('data-m-ex:.', '$index')
+      root.setAttribute('data-m-ex:.', '$ix')
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<span data-m-it@$item.replies+$index="$item.title"></span>'
+      tpl.innerHTML = '<span data-m-it@$it.replies+$ix="$it.title"></span>'
       const child = tpl.content.firstElementChild
       root.appendChild(child)
       rewriteItBindings(root, 'threads.2', 'dm.threads[2]', '2')
@@ -1019,7 +1019,7 @@
       __reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<li data-idx="$index">item</li>'
+      tpl.innerHTML = '<li data-idx="$ix">item</li>'
       el.appendChild(tpl)
       document.body.appendChild(el)
       try {
@@ -1028,12 +1028,12 @@
         return Array.from(el.children).map(n => n.getAttribute('data-idx'))
       } finally { el.remove() }
     }
-    __assert(__tDumpIndexPlaceholder, [], ['0', '1'], 'dmIt $index placeholder rewritten in cloned attribute values')
+    __assert(__tDumpIndexPlaceholder, [], ['0', '1'], 'dmIt $ix placeholder rewritten in cloned attribute values')
     function __tDumpItemPlaceholder() {
       __reset()
       const el = document.createElement('ul')
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<li data-val="$item">item</li>'
+      tpl.innerHTML = '<li data-val="$it">item</li>'
       el.appendChild(tpl)
       document.body.appendChild(el)
       try {
@@ -1042,7 +1042,7 @@
         return Array.from(el.children).map(n => n.getAttribute('data-val'))
       } finally { el.remove() }
     }
-    __assert(__tDumpItemPlaceholder, [], ['dm.rows[0]', 'dm.rows[1]'], 'dmIt $item placeholder rewritten to dm.signal[idx] in attribute values')
+    __assert(__tDumpItemPlaceholder, [], ['dm.rows[0]', 'dm.rows[1]'], 'dmIt $it placeholder rewritten to dm.signal[idx] in attribute values')
     function __tDumpInlineTemplate() {
       __reset()
       const el = document.createElement('div')

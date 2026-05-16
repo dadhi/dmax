@@ -525,8 +525,8 @@
       const parts = []; let p = 0
       while (i >= 0) {
         let next = null, step = 0
-        if (s.startsWith('$item', i)) next = itemToken, step = 5
-        else if (s.startsWith('$index', i)) next = indexToken, step = 6
+        if (s.startsWith('$it', i)) next = itemToken, step = 3
+        else if (s.startsWith('$ix', i)) next = indexToken, step = 3
         if (!step) { i = s.indexOf('$', i + 1); continue }
         parts.push(s.slice(p, i), next); p = i + step; i = s.indexOf('$', p)
       }

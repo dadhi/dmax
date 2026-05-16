@@ -1,10 +1,13 @@
 {
   "dependencies": {
-    "jsdom": "^27.4.0"
+    "jsdom": "^27.4.0",
+    "terser": "^5.47.1"
   },
   "scripts": {
     "vendor:libs": "node tools/vendor-libs.js",
     "vendor:libs:all": "node tools/vendor-libs.js --all",
+    "build:min": "node tools/minify-dmax.js",
+    "test:min": "node tools/minify-dmax.js",
     "bench:morph-sse": "node tools/bench-morph-sse.js",
     "bench:morph-sse:parity": "node tools/bench-morph-sse.js",
     "bench:morph-sse:all": "npm run bench:morph-sse:parity",
