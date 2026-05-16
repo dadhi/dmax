@@ -905,9 +905,7 @@
           permitMods.push(m)
         }
       }
-      const hasValPath = !!valPath.length
-      const hasSiMs = hasOnce || deb > 0 || thr > 0 || !!permitMods || !!tr.not || hasValPath
-      if (isSig && !hasSiMs) return fn
+      if (!(hasOnce || hasPrevent || deb > 0 || thr > 0 || permitMods || tr.not || valPath.length) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debTr = null, debVal = null, debDetail = null
       let onDebounce = null
