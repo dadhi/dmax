@@ -1469,55 +1469,48 @@
       }
     }
 
+    let _morphActiveEl = null
     // Update from in place without disturbing matched-node listeners or cleanup state.
     // Preserve caret, selection, and scroll across streamed updates.
     const morph = (from, to) => {
+      const root = _morphActiveEl === null
+      if (root) _morphActiveEl = document.activeElement
       if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
+        if (root) _morphActiveEl = null
         return
       }
-      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE) return
+      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE) { if (root) _morphActiveEl = null; return }
       if (from.tagName !== to.tagName) {
-        // Different element type, so replace it.
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
+        if (root) _morphActiveEl = null
         return
       }
-      // Preserve caret and selection on focused text controls.
-      const tag = from.tagName
-      const isFocused = from === document.activeElement
-      let selStart = -1, selEnd = -1, selDir = 'none'
-      let selVal = null, selIdx = -1
+      const tag = from.tagName, isFocused = from === _morphActiveEl
+      let selStart = -1, selEnd = -1, selDir = 'none', selVal = null, selIdx = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
-        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {
-          // selection is not supported for some input types
-        }
+        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {}
       } else if (isFocused && tag === 'SELECT') {
         selVal = from.value
         selIdx = from.selectedIndex
       }
-      // Save scroll position so updates do not jump the viewport.
-      const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
+      const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft, keepScroll = scrollTop || scrollLeft
       updateAttrs(from, to)
       const fromFirst = from.firstChild, toFirst = to.firstChild
-      if (fromFirst && toFirst
-        && !fromFirst.nextSibling && !toFirst.nextSibling
-        && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
+      if (fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
         if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
       } else if (fromFirst || toFirst) morphChildren(from, to)
-      // Restore scroll position after child reconciliation.
-      if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
-      if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
-      // Restore caret and selection for focused text controls.
-      if (isFocused && selStart >= 0) {
-        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_) {
-          // setSelectionRange is not supported for some input types
-        }
-      } else if (isFocused && tag === 'SELECT') {
-        // Restore by value first so reordered options keep the same logical selection.
-        from.value = selVal
-        if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length)
-          from.selectedIndex = selIdx
+      if (keepScroll) {
+        if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
+        if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
       }
+      if (isFocused && selStart >= 0) {
+        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_) {}
+      } else if (isFocused && tag === 'SELECT') {
+        from.value = selVal
+        if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length) from.selectedIndex = selIdx
+      }
+      if (root) _morphActiveEl = null
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
@@ -1572,7 +1565,15 @@
       const mode = (args.mode || M_OUTER).toLowerCase()
       const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
-      const srcEls = parseSseEls(args[SSE_ELS] || '', ns)
+      const rawEls = args[SSE_ELS] || ''
+      if (ns === 'html' && mode === M_REPLACE && sel) {
+        const tars = getPatchTars(sel)
+        if (tars.length === 1) {
+          tars[0].outerHTML = rawEls
+          return
+        }
+      }
+      const srcEls = parseSseEls(rawEls, ns)
 
       if (mode === M_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
