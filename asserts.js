@@ -1842,9 +1842,9 @@
     }
     __assert(__tMorphFocusedSelectPreserved, [], { focused: true, value: 'b', hasClass: true }, 'morph: focused select preserves selection and focus')
     function __tMorphNoMorphSkipsSubtree() {
-      const from = document.createElement('div')
-      from.setAttribute('data-m-no^morph', '')
-      from.innerHTML = '<span>keep</span>'
+      const wrap = document.createElement('div')
+      wrap.innerHTML = '<div data-m-no^morph><span>keep</span></div>'
+      const from = wrap.firstElementChild
       const child = from.firstElementChild
       const to = document.createElement('div')
       to.innerHTML = '<span>change</span>'
@@ -1853,9 +1853,9 @@
     }
     __assert(__tMorphNoMorphSkipsSubtree, [], { sameChild: true, text: 'keep' }, 'data-m-no^morph skips subtree morph')
     function __tMorphNoSkipsSubtree() {
-      const from = document.createElement('div')
-      from.setAttribute('data-m-no', '')
-      from.innerHTML = '<span>keep2</span>'
+      const wrap = document.createElement('div')
+      wrap.innerHTML = '<div data-m-no><span>keep2</span></div>'
+      const from = wrap.firstElementChild
       const child = from.firstElementChild
       const to = document.createElement('div')
       to.innerHTML = '<span>change2</span>'
