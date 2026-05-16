@@ -260,6 +260,16 @@
       return calls
     }
     __assert(__testWireItCloneDomAttrsFallback, [], [['data-m-ex:.', 'plain-text']], 'dmIt wireItClone falls back to DOM attrs')
+    function __testWireItCloneNoScan() {
+      const root = document.createElement('li')
+      root.innerHTML = '<span data-m-no^scan data-m-ex:.="skip"><b data-m-ex:.="skip-child"></b></span><i data-m-ex:.="keep"></i>'
+      const calls = []
+      const savedWireNode = globalThis.wireNode
+      globalThis.wireNode = (_el, aName, value) => calls.push([aName, value])
+      try { wireItClone(root) } finally { globalThis.wireNode = savedWireNode }
+      return calls
+    }
+    __assert(__testWireItCloneNoScan, [], [['data-m-ex:.', 'keep']], 'data-m-no^scan skips wiring subtree')
     __assert(() => ({ ...buildActBaseHs(false, false, false, false, true, false, 'gzip') }), [], {
       accept: 'text/event-stream',
       'cache-control': 'no-cache',
@@ -1831,6 +1841,28 @@
       } finally { container.remove() }
     }
     __assert(__tMorphFocusedSelectPreserved, [], { focused: true, value: 'b', hasClass: true }, 'morph: focused select preserves selection and focus')
+    function __tMorphNoMorphSkipsSubtree() {
+      const from = document.createElement('div')
+      from.setAttribute('data-m-no^morph', '')
+      from.innerHTML = '<span>keep</span>'
+      const child = from.firstElementChild
+      const to = document.createElement('div')
+      to.innerHTML = '<span>change</span>'
+      morph(from, to)
+      return { sameChild: from.firstElementChild === child, text: from.textContent }
+    }
+    __assert(__tMorphNoMorphSkipsSubtree, [], { sameChild: true, text: 'keep' }, 'data-m-no^morph skips subtree morph')
+    function __tMorphNoSkipsSubtree() {
+      const from = document.createElement('div')
+      from.setAttribute('data-m-no', '')
+      from.innerHTML = '<span>keep2</span>'
+      const child = from.firstElementChild
+      const to = document.createElement('div')
+      to.innerHTML = '<span>change2</span>'
+      morph(from, to)
+      return { sameChild: from.firstElementChild === child, text: from.textContent }
+    }
+    __assert(__tMorphNoSkipsSubtree, [], { sameChild: true, text: 'keep2' }, 'data-m-no skips subtree morph')
     function __tDmaxPatchElementsReplaceDiscardsFormState() {
       const container = document.createElement('div')
       container.innerHTML = '<input id="fi-inp" type="text" value="default">'

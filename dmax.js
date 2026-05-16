@@ -74,6 +74,7 @@
       [SP_INIT]: { init: 1, act: 1 }
     })
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }), DM_KEY = 'data-m-'
+    const DM_NO = DM_KEY + 'no', DM_NO_SCAN = DM_NO + '^scan', DM_NO_MORPH = DM_NO + '^morph'
     const E_RW_REQ = `dmEx ${MOD}${M_RW} requires an element/property trigger in:`
     const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
     const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
@@ -559,10 +560,13 @@
       }
     }
 
+    const noScan = (el) => el && el.hasAttribute && (el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_SCAN))
+    const noMorph = (el) => el && el.hasAttribute && (el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_MORPH))
     const wireItClone = (node) => {
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
+        if (noScan(el)) continue
         const itAttrs = IT_ATTRS.get(el)
         if (itAttrs && itAttrs.length) {
           for (let i = 0; i < itAttrs.length; ++i) globalThis.wireNode(el, itAttrs[i][0], itAttrs[i][1])
@@ -1096,13 +1100,14 @@
     }
     const dataM = {}
     const wireNode = (n, an, v) => {
-      if (an.indexOf(DM_KEY) !== 0) return
+      if (an.indexOf(DM_KEY) !== 0 || noScan(n)) return
       const rest = an.slice(DM_KEY.length), feEnd = indexFirst(rest, ALL, 0), fe = feEnd >= 0 ? rest.slice(0, feEnd) : rest
       const fn = dataM[fe]
       if (fn) fn(n, an, v)
     }
     globalThis.dataM = dataM
     globalThis.wireNode = wireNode
+    globalThis.shouldScanNode = (n) => !noScan(n)
 
     // - data-m-it@posts
     // - data-m-it+#tpl-post@posts
@@ -1347,7 +1352,8 @@
         }
       }
     }
-    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg
+    const dmNo = () => {}
+    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.no = dmNo
     dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dmAct
     const sameKind = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id && b.id ? a.id === b.id : a.tagName === b.tagName
     const sameSlot = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id || b.id ? a.id === b.id : a.tagName === b.tagName
@@ -1478,6 +1484,7 @@
         return
       }
       if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE) { if (root) _morphActiveEl = null; return }
+      if (noMorph(from) || noMorph(to)) { if (root) _morphActiveEl = null; return }
       if (from.tagName !== to.tagName) {
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
         if (root) _morphActiveEl = null
