@@ -9,6 +9,8 @@ on:
       - 'tools/vendor/**'
       - '.github/workflows/bench-morph-sse.yml'
   push:
+    branches:
+      - main
     paths:
       - 'dmax.js'
       - 'tools/bench-morph-sse.js'

@@ -7,6 +7,9 @@ const HTML_FILE = path.join(ROOT, 'index.html')
 const DMAX_FILE = path.join(ROOT, 'dmax.js')
 const DATASTAR_FILE = path.join(ROOT, 'tools', 'vendor', 'datastar.js')
 const FIXI_FILE = path.join(ROOT, 'tools', 'vendor', 'fixi.js')
+const PAXI_FILE = path.join(ROOT, 'tools', 'vendor', 'paxi.js')
+const REXI_FILE = path.join(ROOT, 'tools', 'vendor', 'rexi.js')
+const SSEXI_FILE = path.join(ROOT, 'tools', 'vendor', 'ssexi.js')
 const VENDORED_JSDOM_DIR = path.join(ROOT, 'tools', 'vendor', 'jsdom')
 const GRID_FILL_RATIO = 0.66
 const MAX_CELL_VALUE = 100
@@ -355,17 +358,16 @@ async function loadDatastarWindow() {
 }
 
 async function loadFixiWindow() {
-  // fixi.js is a self-contained IIFE that needs DOMContentLoaded to initialize.
-  // We load it as an inline classic script; jsdom fires DOMContentLoaded when
-  // the parser finishes, so a short wait is sufficient before running scenarios.
+  const scripts = [FIXI_FILE, PAXI_FILE, REXI_FILE, SSEXI_FILE].filter(fs.existsSync).map(f => fs.readFileSync(f, 'utf8')).join('\n;')
   const vcon = new VirtualConsole()
-  const dom = new JSDOM(`<!doctype html><html><head></head><body><script>${fs.readFileSync(FIXI_FILE, 'utf8')}</script></body></html>`, {
+  const dom = new JSDOM(`<!doctype html><html><head></head><body><script>${scripts}</script></body></html>`, {
     runScripts: 'dangerously',
     resources: 'usable',
     pretendToBeVisual: true,
     virtualConsole: vcon
   })
   const { window } = dom
+  window.__fixiBenchHasParityStack = fs.existsSync(PAXI_FILE) && fs.existsSync(REXI_FILE) && fs.existsSync(SSEXI_FILE)
   await new Promise(resolve => setTimeout(resolve, 50))
   return window
 }
@@ -555,7 +557,7 @@ function runDmaxScenarios(window, payloads) {
       validateLargeReplace,
       validateBaseReplace
     )
-  ].map(r => ({ framework: 'dmax', ...r }))
+  ].map(r => ({ ...r }))
 }
 
 function runDatastarScenarios(window, payloads) {
@@ -634,15 +636,28 @@ function runDatastarScenarios(window, payloads) {
       validateLargeGrid,
       validateBaseGrid
     )
-  ].map(r => ({ framework: 'datastar', ...r }))
+  ].map(r => ({ ...r }))
 }
 
-// fixi (https://github.com/bigskysoftware/fixi) is a minimalist hypermedia library
-// from the htmx team. Its DOM manipulation model is purely HTTP request → response
-// text → target[swap] = text (outerHTML by default). There is no SSE, no morphing
-// and no signal system — the swap IS the hot path. These scenarios measure only the
-// DOM-assignment step; the HTTP fetch cost is not included (it would dominate and is
-// not relevant to rendering throughput).
+function normScenario(name) {
+  return name === 'pointed-sse-small-diff' || name === 'pointed-fragments-small-diff' ? 'pointed-small-diff'
+    : name === 'full-page-small-diff-outerHTML' ? 'full-page-small-diff-replace'
+    : name === 'full-page-large-diff-outerHTML' ? 'full-page-large-diff-replace'
+    : name
+}
+const CASE_ORDER = ['pointed-small-diff', 'oob-morph-small-diff', 'full-page-small-diff-morph', 'full-page-small-diff-replace', 'full-page-large-diff-morph', 'full-page-large-diff-replace']
+const FW_ORDER = { dmax: 0, datastar: 1, fixi: 2 }
+const FW_SHORT = { dmax: 'dmax', datastar: 'ds', fixi: 'fix' }
+const withFw = (framework, rows) => rows.map(r => ({ framework, case: normScenario(r.name), ...r }))
+const addXF = (rows) => {
+  const base = Object.create(null)
+  for (const r of rows) if (r.framework === 'dmax' && base[r.case] == null) base[r.case] = r.avgMs
+  for (const r of rows) r.x = base[r.case] ? r.avgMs / base[r.case] : 1
+  return rows.sort((a, b) => (CASE_ORDER.indexOf(a.case) - CASE_ORDER.indexOf(b.case)) || (FW_ORDER[a.framework] - FW_ORDER[b.framework]))
+}
+
+// fixi core alone is still an outerHTML baseline; if paxi/rexi/ssexi are vendored later
+// this harness can be extended to run true morph/SSE/signal parity instead of swap-only.
 function runFixiScenarios(window, payloads) {
   const { document } = window
   const host = document.createElement('div')
@@ -684,7 +699,7 @@ function runFixiScenarios(window, payloads) {
       validateLargeGrid,
       validateBaseGrid
     )
-  ].map(r => ({ framework: 'fixi', ...r }))
+  ].map(r => ({ ...r }))
 }
 
 function probeMorphParity(window, payloads, framework, applySmallMorph, applyBaseMorph, applyLargeMorph) {
@@ -810,11 +825,11 @@ function formatParityProbe(probe) {
   const dmaxWindow = await loadDmaxWindow()
   const datastarWindow = await loadDatastarWindow()
   const fixiWindow = await loadFixiWindow()
-  const results = [
-    ...runDmaxScenarios(dmaxWindow, payloads),
-    ...runDatastarScenarios(datastarWindow, payloads),
-    ...runFixiScenarios(fixiWindow, payloads)
-  ]
+  const results = addXF([
+    ...withFw('dmax', runDmaxScenarios(dmaxWindow, payloads)),
+    ...withFw('datastar', runDatastarScenarios(datastarWindow, payloads)),
+    ...withFw('fixi', runFixiScenarios(fixiWindow, payloads))
+  ])
   const dmaxProbeWindow = await loadDmaxWindow()
   const datastarProbeWindow = await loadDatastarWindow()
   const fixiProbeWindow = await loadFixiWindow()
@@ -848,22 +863,25 @@ function formatParityProbe(probe) {
   console.log('dmax vs Datastar vs fixi semi-realistic SSE/morph benchmark')
   console.log('grid: 32x32, ~66% populated, reactive row/column/total cells plus input/textarea/checkbox/select controls')
   console.log('datastar: vendored tools/vendor/datastar.js, merge-fragments CustomEvent path')
-  console.log('fixi:     vendored tools/vendor/fixi.js, outerHTML swap only (no SSE, no morph, no signals — DOM baseline)')
+  console.log(`fixi:     vendored fixi stack (${fixiWindow.__fixiBenchHasParityStack ? 'fixi+paxi+rexi+ssexi present' : 'fixi.js core only; current rows are outerHTML baseline'})`)
   console.log('validation: sums are asserted for pointed/OOB/full-page paths; morph form-state parity is reported separately')
   for (const probe of parityProbes) console.log(`parity:${probe.framework.padEnd(9)} ${formatParityProbe(probe)}`)
   console.log(global.gc
-    ? 'memory: heap delta measured with explicit GC before/after each scenario'
-    : 'memory: heap delta measured without explicit GC (run with `node --expose-gc` for cleaner numbers)')
+    ? 'memory: mem-delta is heapUsed(after forced GC) - heapUsed(before forced GC) per scenario'
+    : 'memory: mem-delta is heapUsed(after) - heapUsed(before) without explicit GC (run with `node --expose-gc` for cleaner numbers)')
+  console.log('final-cell: textContent of the probed grid cell after the final validated apply in the scenario')
+  console.log('x-vs-dmax: avg-ms relative to dmax for the same normalized case (1.00x means equal, 2.00x means 2x slower)')
   console.log('')
-  console.log('framework   scenario                         iters   total-ms   avg-ms   ops/s     mem-delta   final-cell')
-  console.log('----------------------------------------------------------------------------------------------------------')
+  console.log('case                              fw     iters   total-ms   avg-ms   x-vs-dmax   ops/s     mem-delta   final-cell')
+  console.log('-----------------------------------------------------------------------------------------------------------------')
   for (const r of results) {
     const line = [
-      r.framework.padEnd(9),
-      r.name.padEnd(32),
+      r.case.padEnd(32),
+      FW_SHORT[r.framework].padEnd(4),
       String(r.iters).padStart(5),
       formatNum(r.ms).padStart(10),
       formatNum(r.avgMs, 3).padStart(8),
+      formatNum(r.x, 2).padStart(10) + 'x',
       formatNum(r.opsPerSec, 1).padStart(8),
       String(r.memDelta).padStart(11),
       String(r.result).padStart(11)
