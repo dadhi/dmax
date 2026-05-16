@@ -1569,13 +1569,6 @@
       const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
       const rawEls = args[SSE_ELS] || ''
-      if (ns === 'html' && mode === M_REPLACE && sel) {
-        const tars = getPatchTars(sel)
-        if (tars.length === 1) {
-          tars[0].outerHTML = rawEls
-          return
-        }
-      }
       const srcEls = parseSseEls(rawEls, ns)
 
       if (mode === M_REMOVE) {
