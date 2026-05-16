@@ -1368,35 +1368,33 @@
 
     const getPatchTars = (selector, simpleId = selector && getSimpleIdSelector(selector), el = simpleId && document.getElementById(simpleId)) => !selector ? NIL : simpleId ? el ? [el] : NIL : document.querySelectorAll(selector)
 
+    const sameAttrs = (from, to) => {
+      const fromAttrs = from.attributes, toAttrs = to.attributes, len = toAttrs.length
+      if (fromAttrs.length !== len) return false
+      for (let i = 0; i < len; i++) {
+        const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
+        if (fromAttr.name !== toAttr.name || fromAttr.value !== toAttr.value) return false
+      }
+      return true
+    }
+
     // Sync attributes from to onto from.
     const updateAttrs = (from, to) => {
-      const toAttrs = to.attributes
-      const fromAttrs = from.attributes
+      const toAttrs = to.attributes, fromAttrs = from.attributes
       if (!fromAttrs.length && !toAttrs.length) return
       if (fromAttrs.length === toAttrs.length) {
-        let same = true
-        let orderChanged = false
+        let same = true, orderChanged = false
         for (let i = 0; i < toAttrs.length; i++) {
           const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
-          if (fromAttr.name !== toAttr.name) {
-            orderChanged = true
-            same = false
-            break
-          }
-          if (fromAttr.value !== toAttr.value) {
-            same = false
-            break
-          }
+          if (fromAttr.name !== toAttr.name) { same = false; orderChanged = true; break }
+          if (fromAttr.value !== toAttr.value) { same = false; break }
         }
         if (same) return
         if (orderChanged) {
           let sameNames = true
           for (let i = 0; i < toAttrs.length; i++) {
             const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
-            if (!fromAttr || fromAttr.value !== toAttr.value) {
-              sameNames = false
-              break
-            }
+            if (!fromAttr || fromAttr.value !== toAttr.value) { sameNames = false; break }
           }
           if (sameNames) return
         }
@@ -1406,10 +1404,9 @@
         return
       }
       for (let i = 0; i < toAttrs.length; i++) {
-        const { name, value } = toAttrs[i]
-        if (from.getAttribute(name) !== value) from.setAttribute(name, value)
+        const { name, value } = toAttrs[i], fromAttr = fromAttrs.getNamedItem(name)
+        if (!fromAttr || fromAttr.value !== value) from.setAttribute(name, value)
       }
-      // Iterate backwards because removing from a live NamedNodeMap shifts indices.
       for (let i = fromAttrs.length - 1; i >= 0; i--) {
         const name = fromAttrs[i].name
         if (!to.hasAttribute(name)) from.removeAttribute(name)
@@ -1486,6 +1483,13 @@
         if (root) _morphActiveEl = null
         return
       }
+      const fromFirst = from.firstChild, toFirst = to.firstChild
+      if (sameAttrs(from, to)) {
+        if (!fromFirst && !toFirst) { if (root) _morphActiveEl = null; return }
+        if (fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
+          if (fromFirst.nodeValue === toFirst.nodeValue) { if (root) _morphActiveEl = null; return }
+        }
+      }
       const tag = from.tagName, isFocused = from === _morphActiveEl
       let selStart = -1, selEnd = -1, selDir = 'none', selVal = null, selIdx = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
@@ -1496,7 +1500,6 @@
       }
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft, keepScroll = scrollTop || scrollLeft
       updateAttrs(from, to)
-      const fromFirst = from.firstChild, toFirst = to.firstChild
       if (fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
         if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
       } else if (fromFirst || toFirst) morphChildren(from, to)
