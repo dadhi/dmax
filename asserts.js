@@ -172,6 +172,7 @@
     __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: __si('style', ['color']) }]], ['style', 'color'], 'compileMods parsed val path')
     __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: null }]], NIL, 'compileMods null val path')
     __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE }, 'compileMods flags/change mode')
+    __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => {
       const el = document.createElement('input')
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), NIL), E_TRIG_EL, E_TRIG_EV, false)
