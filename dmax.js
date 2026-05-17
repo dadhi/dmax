@@ -358,46 +358,43 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    const getSiChangeShape = (mods) => {
-      for (const m of mods) {
-        if (m.root === M_WITH_SHAPE) return SIG_CHANGED_WITH_SHAPE
-        if (m.root === M_SHAPE_ONLY) return SIG_CHANGED_SHAPE_ONLY
-      }
-      return SIG_CHANGED_ANY
-    }
-
+    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
-
-    const getMValPath = (mods) => {
-      for (const m of mods) if (m.root === M_VAL) {
-        const p = m.path
-        if (p === null || p === undefined) return NIL
-        if (typeof p === 'string') return [p]
-        if (Array.isArray(p)) return p
-        if (p.kind) {
-          if (!p.root) return p.path || NIL
-          return p.path && p.path.length ? [p.root, ...p.path] : [p.root]
-        }
-        return [p]
+    const compileMods = (tr, mods) => {
+      const isTimer = tr.sp?.ms != null
+      let f = 0, d = 0, t = 0, p = null, v = NIL, c = SIG_CHANGED_ANY
+      for (const m of mods) {
+        const r = m.root
+        if (r === M_WITH_SHAPE) c = SIG_CHANGED_WITH_SHAPE
+        else if (r === M_SHAPE_ONLY) c = SIG_CHANGED_SHAPE_ONLY
+        else if (r === M_VAL) {
+          const x = m.path
+          v = x == null ? NIL : typeof x === 'string' ? [x] : Array.isArray(x) ? x : x.kind ? !x.root ? x.path || NIL : x.path && x.path.length ? [x.root, ...x.path] : [x.root] : [x]
+        } else if (r === M_ONCE) f |= MF_ONCE
+        else if (r === M_ALWAYS) f |= MF_ALWAYS
+        else if (r === M_PREVENT) f |= MF_PREVENT
+        else if (!isTimer && r === M_DEBOUNCE) d = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
+        else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
+        else if (r in PERMIT_MODS) (p || (p = [])).push(m)
       }
-      return NIL
+      return { f, d, t, p, v, c }
     }
-    const getTrPrTa = (el, dKey, tr, mods, missElMsg, missEvMsg, useValPath = true) => {
+    const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, useValPath = true) => {
       const trRoot = tr.root, trPath = tr.path
       const taEl = trRoot ? getElById(trRoot, dKey) : el
       if (!taEl) { console.error('[dmax] Error:', missElMsg, tr, 'in:', dKey); return null }
       let ev = trPath ? trPath[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = trPath, ev = getDefaultEv(taEl)
-      const valPath = getMValPath(mods), readPath = valPath.length ? valPath : prPath
-      if (useValPath && valPath.length) prPath = valPath
+      const readPath = mod.v.length ? mod.v : prPath
+      if (useValPath && mod.v.length) prPath = mod.v
       ev = ev ?? getDefaultEv(taEl)
       if (!ev) { console.error('[dmax] Error:', missEvMsg, tr, 'in:', dKey); return null }
       return { taEl, ev, prPath, readPath, tar: mkIt(EP, null, trRoot, prPath, NIL) }
     }
-    const addNonSiTrSub = (el, tr, mods, fn, elSubs, ranImmediate, prTa = null) => {
+    const addNonSiTrSub = (el, tr, mods, mod, fn, elSubs, ranImmediate, prTa = null) => {
       const sp = tr.sp, isSp = !!sp
       if (!isSp && !expected(prTa, 'Expected non-SP trigger target in addNonSiTrSub:', tr, 'on:', el)) return null
-      const modded = addTrSub(el, tr, mods, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath)
+      const modded = addTrSub(el, tr, mods, mod, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath)
       if (sp?.init) {
         if (modded && !ranImmediate) invokeSub(modded, { type: SP_INIT }, SP_INIT, el, tr)
         return true
@@ -698,11 +695,11 @@
       try { invokeSub(sub.fn, { tick: 0, ms: sub.ms, type: SP_TIMEOUT }, sub.ms, sub.el, sub.trig) }
       catch (e) { logErr(`timeout ${sub.ms}ms:`, e?.message ?? e) }
     }
-    const addSpSub = (el, tr, sp, mods, fn, elSubs, evName) => {
+    const addSpSub = (el, tr, sp, mods, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null, ms, tick: 0 }
-        sub.fn = applyTrMs(fn, tr, mods, sub)
+        sub.fn = applyTrMs(fn, tr, mod, sub)
         if (sp.repeat) sub.clearId = setInterval(onIntervalSub, ms, sub)
         else sub.clearId = setTimeout(onTimeoutSub, ms, sub)
         elSubs.push(sub)
@@ -711,7 +708,7 @@
       if (sp.io) {
         if (typeof IntersectionObserver === 'undefined') { warn('IntersectionObserver missing, skip _viewed:', el); return null }
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null }
-        sub.fn = applyTrMs(fn, tr, mods, sub)
+        sub.fn = applyTrMs(fn, tr, mod, sub)
         const observer = new IntersectionObserver((entries) => {
           for (const entry of entries) if (entry.isIntersecting)
             try { invokeSub(sub.fn, { ratio: entry.intersectionRatio, type: SP_VIEWED }, entry.intersectionRatio, el, tr) }
@@ -722,32 +719,32 @@
         elSubs.push(sub)
         return sub.fn
       }
-      if (sp.init) return applyTrMs(fn, tr, mods)
+      if (sp.init) return applyTrMs(fn, tr, mod)
       const taEl = sp.ta === SP_TA_WIN ? window : sp.ta === SP_TA_DOC ? document : sp.ta === SP_TA_FORM ? (el && el.closest ? el.closest('form') : null) : null
       const ev = tr.path?.[0] || sp.ev || null
       if (sp.ta === SP_TA_FORM && !taEl) { console.error('[dmax] Error:', E_FORM_EL, tr, 'on:', el); return null }
       if (!expected(taEl && ev, 'Expected event target/name in addSpSub:', tr, 'on:', el)) return null
       const opts = getListenerOpts(mods)
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
-      const modded = applyTrMs(fn, tr, mods, sub)
+      const modded = applyTrMs(fn, tr, mod, sub)
       sub.fn = (detail) => invokeSub(modded, detail, detail?.type ?? null, el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
       return modded
     }
-    const addTrSub = (el, tr, mods, fn, elSubs, taEl, evName, prPath, readPath = prPath) => {
+    const addTrSub = (el, tr, mods, mod, fn, elSubs, taEl, evName, prPath, readPath = prPath) => {
       if (tr.isSi) {
-        const sub = { el, trig: tr, fn, siChangeM: getSiChangeShape(mods), ev: null, clearId: null }
-        sub.fn = applyTrMs(fn, tr, mods, sub)
+        const sub = { el, trig: tr, fn, siChangeM: mod.c, ev: null, clearId: null }
+        sub.fn = applyTrMs(fn, tr, mod, sub)
         upsert(_subs, tr.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
       const sp = tr.sp
-      if (sp) return addSpSub(el, tr, sp, mods, fn, elSubs, evName)
+      if (sp) return addSpSub(el, tr, sp, mods, mod, fn, elSubs, evName)
       if (!expected(taEl && evName, 'Expected event target/name in addTrSub:', tr, 'on:', el)) return null
       const opts = getListenerOpts(mods)
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
-      const modded = applyTrMs(fn, tr, mods, sub)
+      const modded = applyTrMs(fn, tr, mod, sub)
       sub.fn = (detail) => invokeSub(modded, detail, getElPrVal(taEl, readPath), el, tr)
       taEl.addEventListener(evName, sub.fn, opts)
       elSubs.push(sub)
@@ -881,24 +878,9 @@
      * @param {{ el?: any, trig: any, fn?: any, siChangeM?: any, ev?: { taEl: EventTarget, evName: string, opts: any } | null, clearId?: any } | undefined} [removeSub]
      * @returns {TriggerHandler}
      */
-    const applyTrMs = (fn, tr, mods, removeSub) => {
-      const isSig = tr.isSi, isTimer = tr.sp?.ms != null
-      const valPath = getMValPath(mods)
-      let hasOnce = false, hasAlways = false, hasPrevent = false
-      let deb = 0, thr = 0, permitMods = null
-      for (const m of mods) {
-        const mr = m.root
-        if (mr === M_ONCE) hasOnce = true
-        else if (mr === M_ALWAYS) hasAlways = true
-        else if (mr === M_PREVENT) hasPrevent = true
-        else if (!isTimer && mr === M_DEBOUNCE) deb = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
-        else if (!isTimer && mr === M_THROTTLE) thr = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
-        else if (mr in PERMIT_MODS) {
-          if (!permitMods) permitMods = []
-          permitMods.push(m)
-        }
-      }
-      if (!(hasOnce || hasPrevent || deb > 0 || thr > 0 || permitMods || tr.not || valPath.length) && (isSig || removeSub || tr.sp?.init)) return fn
+    const applyTrMs = (fn, tr, mod, removeSub) => {
+      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f
+      if (!(f & MF_ONCE || f & MF_PREVENT || deb > 0 || thr > 0 || permitMods || tr.not || valPath.length) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debTr = null, debVal = null, debDetail = null
       let onDebounce = null
@@ -906,7 +888,7 @@
       const h = function (dm, el, trIt, providedVal, detail) {
         trIt = trIt || tr
         if (!inDebounce) {
-          if (!isSig && hasPrevent) detail?.preventDefault?.()
+          if (!isSig && f & MF_PREVENT) detail?.preventDefault?.()
           if (deb > 0) {
             onDebounce ??= function () {
               inDebounce = true
@@ -928,7 +910,7 @@
         if (trIt.not) trVal = !trVal
         if (permitMods && !modsPermitVal(permitMods, trVal)) return
         try { fn(dm, el, trIt, trVal, detail) } catch (e) { logErr('handler:', e) }
-        if (hasOnce && !hasAlways && removeSub) removeSubOrClearId(removeSub)
+        if (f & MF_ONCE && !(f & MF_ALWAYS) && removeSub) removeSubOrClearId(removeSub)
       }
       return h
     }
@@ -947,15 +929,16 @@
         for (const tr of trigs) {
           const mods = pickMods(tr.mods, globMods); let hasRw = false
           for (let i=0;i<mods.length&&!hasRw;i++) hasRw = mods[i].root===M_RW
+          const mod = compileMods(tr, mods)
           if (!hasRw) {
-            readTrs.push({ tr, mods })
+            readTrs.push({ tr, mods, mod })
             if (tr.isSi) writeSiTrs.push(tr)
             continue
           }
           if (!tr.isEv) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
-          const prTa = getTrPrTa(el, dKey, tr, mods, E_RW_EL, E_RW_EV)
+          const prTa = getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV)
           if (!prTa) return
-          writePrTrs.push({ trig: tr, mods, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
+          writePrTrs.push({ trig: tr, mods, mod, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
         if (writePrTrs.length && readTrs.length) {
           let ranImmediate = false
           const syncPrTas = (dm, syncTr, trigVal, detail) => {
@@ -963,14 +946,14 @@
             for (const prTr of writePrTrs) setPr(el, dKey, prTr.tar, exprVal)
           }
           for (const readTr of readTrs) {
-            const tr = readTr.tr, mods = readTr.mods
+            const tr = readTr.tr, mods = readTr.mods, mod = readTr.mod
             if (tr.isSi) {
-              const sub = addTrSub(el, tr, mods, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs)
+              const sub = addTrSub(el, tr, mods, mod, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs)
               if (!ranImmediate && (tr.isImmediate ?? true)) ranImmediate = true, invokeBoundSub(sub, null)
             } else if (tr.isEv || tr.isSp) {
-              const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_RW_EL, E_RW_EV) : null
+              const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV) : null
               if (tr.isEv && !prTa) return
-              if ((ranImmediate = addNonSiTrSub(el, tr, mods, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ranImmediate, prTa)) == null) return
+              if ((ranImmediate = addNonSiTrSub(el, tr, mods, mod, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ranImmediate, prTa)) == null) return
             } else { console.error('[dmax] Error: unsupported trigger kind', tr.kind, 'in', dKey); return }
           }
           if (writeSiTrs.length) {
@@ -979,7 +962,7 @@
                 const exprVal = fn(dm, el, syncTr, trigVal, detail)
                 for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
               }
-              const moddedHandler = addTrSub(el, prTr.trig, prTr.mods, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
+              const moddedHandler = addTrSub(el, prTr.trig, prTr.mods, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
               if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getElPrVal(prTr.taEl, prTr.readPath), el, prTr.trig)
             }
           }
@@ -1002,16 +985,16 @@
       }
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return } let ranImmediate = false
       for (const tr of trigs) {
-        const mods = pickMods(tr.mods, globMods)
+        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
         if (tr.isSi) {
-          const sub = addTrSub(el, tr, mods, fn, elSubs)
+          const sub = addTrSub(el, tr, mods, mod, fn, elSubs)
           if (!ranImmediate && (tr.isImmediate ?? true)) ranImmediate = true, invokeBoundSub(sub, null)
           continue
         }
         if (!tr.isEv && !tr.isSp) { console.error('[dmax] Error: unsupported trigger kind', tr.kind, 'in', dKey); return }
-        const prTa = tr.isEv && getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false)
+        const prTa = tr.isEv && getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false)
         if (tr.isEv && !prTa) return
-        if ((ranImmediate = addNonSiTrSub(el, tr, mods, fn, elSubs, ranImmediate, prTa)) == null) return
+        if ((ranImmediate = addNonSiTrSub(el, tr, mods, mod, fn, elSubs, ranImmediate, prTa)) == null) return
       }
     }
     // - data-m-cl+active@is-active
@@ -1027,14 +1010,14 @@
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
       for (const tr of trigs) {
-        const mods = pickMods(tr.mods, globMods)
+        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
         if (tr.isSi) {
-          const sub = addTrSub(el, tr, mods, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
+          const sub = addTrSub(el, tr, mods, mod, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (tr.isImmediate ?? false) invokeBoundSub(sub, null)
         } else {
-          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false) : null
+          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return
-          if (addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
+          if (addNonSiTrSub(el, tr, mods, mod, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
         }
       }
     }
@@ -1054,14 +1037,14 @@
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
       for (const tr of trigs) {
-        const mods = pickMods(tr.mods, globMods)
+        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
         if (tr.isSi) {
-          const sub = addTrSub(el, tr, mods, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
+          const sub = addTrSub(el, tr, mods, mod, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
           if (tr.isImmediate ?? false) invokeBoundSub(sub, null)
         } else {
-          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mods, E_TRIG_EL, E_TRIG_EV, false) : null
+          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return
-          if (addNonSiTrSub(el, tr, mods, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
+          if (addNonSiTrSub(el, tr, mods, mod, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, hadInline, origDisp, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
         }
       }
     }
@@ -1095,7 +1078,7 @@
       if (!itState) IT_STATES.set(el, itState = { nodes: [], count: 0 })
       const itemRefBase = buildItRefBase(tr.root, tr.path)
       const itemExprBase = buildItExprBase(tr.root, tr.path)
-      addTrSub(el, tr, mods, () => renderItState(el, tr, itState, tplFirst, itemRefBase, itemExprBase), upsert(_cleanupBoundSubs, el))
+      addTrSub(el, tr, mods, compileMods(tr, mods), () => renderItState(el, tr, itState, tplFirst, itemRefBase, itemExprBase), upsert(_cleanupBoundSubs, el))
       if (tr.isImmediate ?? true) renderItState(el, tr, itState, tplFirst, itemRefBase, itemExprBase)
     }
     // - data-m-get:result@.click="'/api/items'"
@@ -1299,9 +1282,9 @@
           if (!ranImmediate) ranImmediate = true, doRequest()
           continue
         }
-        const mods = pickMods(tr.mods, globMods), shouldImmediate = !ranImmediate && (tr.isImmediate ?? false)
+        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods), shouldImmediate = !ranImmediate && (tr.isImmediate ?? false)
         if (tr.isSi) {
-          addTrSub(el, tr, mods, doRequest, elSubs)
+          addTrSub(el, tr, mods, mod, doRequest, elSubs)
           if (shouldImmediate) ranImmediate = true, doRequest()
           continue
         }
@@ -1309,7 +1292,7 @@
         if (!evTaEl) { console.error('[dmax] Error: dmAct element not found in trigger:', tr, 'in:', dKey); return }
         const ev = tr.path?.[0] ?? getDefaultEv(evTaEl)
         if (!ev) { console.error('[dmax] Error: dmAct event not found in trigger:', tr, 'in:', dKey); return }
-        const moddedHandler = addTrSub(el, tr, mods, doRequest, elSubs, evTaEl, ev, null)
+        const moddedHandler = addTrSub(el, tr, mods, mod, doRequest, elSubs, evTaEl, ev, null)
         if (shouldImmediate) {
           ranImmediate = true
           invokeSub(moddedHandler, null, getElPrVal(evTaEl, null), el, tr)
