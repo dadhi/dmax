@@ -26,19 +26,52 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
+    header a {
+      color: #bfdbfe;
+    }
+
     #summary {
       margin-left: auto;
       font-weight: 600;
     }
 
     main {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      height: calc(100% - 0px);
+      padding-bottom: 24px;
+    }
+
+    #examples-nav,
+    #asserts-panel,
+    #live-dsub,
+    #ported-examples {
+      padding: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    #examples-nav {
+      background: #f8fafc;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #examples-nav a {
+      color: #1d4ed8;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    #examples-nav span {
+      color: #475569;
+      font-size: 12px;
+    }
+
+    #asserts-panel {
+      position: relative;
     }
 
     #out {
-      padding: 12px;
+      padding: 12px 0 0;
       white-space: pre-wrap;
       word-break: break-word;
       margin: 0;
@@ -48,7 +81,8 @@
       color: #475569;
       font-style: italic;
       padding: 8px 12px;
-      border-bottom: 1px solid #e2e8f0;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       background: #f8fafc;
     }
 
@@ -75,18 +109,53 @@
     .chk.fail {
       color: #dc2626;
     }
+
+    #dbg-wrap {
+      position: relative;
+      margin-top: 8px;
+    }
+
+    #dbg-toggle {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      font: inherit;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    #dbg-panel {
+      display: none;
+      margin-top: 8px;
+    }
+
+    #dbg-wrap:hover #dbg-panel,
+    #dbg-wrap[data-open="1"] #dbg-panel {
+      display: block;
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <div id="summary">Tests 0: Failed 0, Total 0</div>
+    <a href="https://dadhi.github.io/dmax/">dmax</a>
+    <a href="examples/m-ex-cel.html">m-ex-cel</a>
+    <div id="summary">Tests 0: Passed 0, Failed 0</div>
   </header>
   <main>
-    <div class="note">Output is mirrored from console.log/error</div>
-    <pre id="out"></pre>
+    <section id="examples-nav">
+      <strong>Examples</strong>
+      <a href="https://dadhi.github.io/dmax/">Notebook</a>
+      <a href="examples/m-ex-cel.html">Excel-like SSE grid</a>
+      <span>Live examples first, asserts at the end.</span>
+    </section>
     <div id='foo' hidden>good</div>
-    <section id="live-dsub" style="padding:12px;border-top:1px solid #e2e8f0">
+    <section id="live-dsub">
       <h3 style="margin:0 0 8px 0">Live dmEx examples</h3>
       <form id="live-form">
         <input id="live-name" value="Ada" />
@@ -96,7 +165,7 @@
       <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
       <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
     </section>
-    <section id="ported-examples" style="padding:12px;border-top:1px solid #e2e8f0">
+    <section id="ported-examples">
       <h3 style="margin:0 0 8px 0">Ported examples (index.html → updated syntax)</h3>
       <div data-m-si='{
         "user":{"name":"Alice","age":25,"ui":{"themeColor":"#007bff","isActive":true,"fontSize":16}},
@@ -274,7 +343,12 @@
         </div>
       </div>
       <h4>State Tree (Live Debug)</h4>
-      <pre data-m-dbg style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+      <div id="dbg-wrap">
+        <button id="dbg-toggle" type="button" aria-expanded="false">Debug signals</button>
+        <div id="dbg-panel">
+          <pre data-m-dbg style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+        </div>
+      </div>
       <h4>11. Actions demo + OOB HTML morph</h4>
       <div class="page"><code data-attr-for="loadPost" data-attr-name="data-m-get^busy.busy^err.err^code.code:post-result@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <button id="loadPost" data-m-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
@@ -308,6 +382,11 @@
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
       </div>
     </section>
+    <section id="asserts-panel">
+      <h3 style="margin:0 0 8px 0">Asserts</h3>
+      <div class="note">Output is mirrored from console.log/error. The sticky top summary updates live.</div>
+      <pre id="out"></pre>
+    </section>
   </main>
   <script>
     // Mirror console to <pre>, count tests
@@ -335,9 +414,7 @@
           div.appendChild(chk);
           const rest = args.slice(1).map(toText).join(' ');
           div.appendChild(document.createTextNode(' ' + rest));
-        } else {
-          div.textContent = line;
-        }
+        } else div.textContent = line;
         out.appendChild(div);
         if (isPass) { pass++; total++; }
         else if (isFail) { fail++; total++; }
@@ -516,6 +593,12 @@
 
       initLiveDSubExamples();
       initPortedExamples();
+      const dbgWrap = document.getElementById('dbg-wrap'), dbgToggle = document.getElementById('dbg-toggle');
+      if (dbgWrap && dbgToggle) dbgToggle.addEventListener('click', () => {
+        const open = dbgWrap.getAttribute('data-open') === '1';
+        dbgWrap.setAttribute('data-open', open ? '0' : '1');
+        dbgToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+      });
       window.addEventListener('dmax:tests:done', installDemoFetchMock);
     })();
   </script>

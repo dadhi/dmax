@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>dmax — m-ex-cel</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light;
+      --space-1: .25rem;
+      --space-2: .5rem;
+      --space-3: .75rem;
+      --space-4: 1rem;
+      --space-5: 1.5rem;
+      --space-6: 2rem;
+      --radius-1: .5rem;
+      --radius-2: .875rem;
+      --radius-3: 1.25rem;
+      --line-1: 1px;
+      --line-2: 2px;
+      --size-cell: 4.5rem;
+      --size-wrap: 72rem;
+      --font-ui: 16px/1.45 system-ui, sans-serif;
+      --font-mono: .95em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --tone-bg: oklch(98% .008 250);
+      --tone-ink: oklch(28% .03 255);
+      --tone-accent: oklch(62% .18 257);
+      --tone-good: oklch(68% .17 148);
+      --tone-bad: oklch(62% .19 25);
+      --bg: color-mix(in oklab, var(--tone-bg) 96%, white);
+      --panel: color-mix(in oklab, white 92%, var(--tone-bg));
+      --panel-2: color-mix(in oklab, var(--tone-bg) 82%, var(--tone-accent));
+      --ink: var(--tone-ink);
+      --muted: color-mix(in oklab, var(--tone-ink) 68%, var(--tone-bg));
+      --line: color-mix(in oklab, var(--tone-ink) 14%, var(--tone-bg));
+      --line-strong: color-mix(in oklab, var(--tone-ink) 24%, var(--tone-bg));
+      --accent: var(--tone-accent);
+      --accent-soft: color-mix(in oklab, var(--tone-accent) 18%, white);
+      --good: var(--tone-good);
+      --good-soft: color-mix(in oklab, var(--tone-good) 16%, white);
+      --bad: var(--tone-bad);
+      --bad-soft: color-mix(in oklab, var(--tone-bad) 14%, white);
+      --shadow-1: 0 1px 2px color-mix(in oklab, var(--tone-ink) 8%, transparent);
+      --shadow-2: 0 10px 30px color-mix(in oklab, var(--tone-ink) 14%, transparent);
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); color: var(--ink); font: var(--font-ui); }
+    body { margin: 0; }
+
+    #m-ex-cel {
+      min-block-size: 100dvb;
+      background: radial-gradient(circle at top, color-mix(in oklab, var(--accent) 10%, var(--bg)), var(--bg) 28rem);
+      color: var(--ink);
+
+      & a { color: inherit; }
+      & code { font: var(--font-mono); }
+      & h1,
+      & h2,
+      & p { margin: 0; }
+      & > header,
+      & > main,
+      & > footer {
+        inline-size: min(calc(100% - var(--space-6)), var(--size-wrap));
+        margin-inline: auto;
+      }
+      & > header,
+      & > main,
+      & > footer { padding: var(--space-4); }
+      & > header {
+        display: grid;
+        gap: var(--space-3);
+        padding-block-end: var(--space-2);
+        & p:first-child { color: var(--muted); }
+      }
+      & > main {
+        display: grid;
+        gap: var(--space-4);
+        padding-block: var(--space-3) var(--space-4);
+      }
+      & > footer {
+        color: var(--muted);
+        padding-block-start: 0;
+        padding-block-end: var(--space-6);
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: var(--line-1) solid var(--line);
+      border-radius: var(--radius-3);
+      padding: var(--space-4);
+      box-shadow: var(--shadow-1);
+    }
+
+    #mx-controls {
+      & > p { margin-top: var(--space-2); }
+      & .note {
+        color: var(--muted);
+        font-size: .95rem;
+        padding: var(--space-3) var(--space-4);
+        background: color-mix(in oklab, var(--panel-2) 45%, white);
+        border-inline-start: .25rem solid var(--line-strong);
+        border-radius: var(--radius-1);
+      }
+      & .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        align-items: end;
+        margin-top: var(--space-4);
+      }
+      & label { display: grid; gap: var(--space-1); }
+      & input { inline-size: 11rem; }
+      & button,
+      & input[type='range'] { accent-color: var(--accent); }
+      & button {
+        border: var(--line-1) solid var(--line-strong);
+        background: var(--panel);
+        color: inherit;
+        border-radius: var(--radius-1);
+        padding: calc(var(--space-2) + var(--space-1)) calc(var(--space-3) + var(--space-1));
+        font: inherit;
+        cursor: pointer;
+      }
+      & button:disabled { opacity: .45; cursor: default; }
+      & button:focus-visible,
+      & input:focus-visible { outline: var(--line-2) solid var(--accent); outline-offset: 2px; }
+      & dl {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+        gap: var(--space-3);
+        margin-top: var(--space-4);
+        padding: 0;
+      }
+      & dl div {
+        border: var(--line-1) solid var(--line);
+        border-radius: var(--radius-1);
+        padding: var(--space-3);
+        background: color-mix(in oklab, var(--panel) 75%, var(--tone-bg));
+      }
+      & dt { margin-bottom: var(--space-1); color: var(--muted); font-size: .9rem; }
+      & dd { margin: 0; font-weight: 600; }
+      & [data-m-sh] { margin-top: var(--space-3); }
+    }
+
+    #mx-grid {
+      & .table-wrap { overflow: auto; margin-top: var(--space-3); }
+      & table { inline-size: 100%; border-collapse: collapse; background: var(--panel); }
+      & caption {
+        caption-side: top;
+        text-align: left;
+        padding-block-end: var(--space-3);
+        color: var(--muted);
+      }
+      & th,
+      & td { border: var(--line-1) solid var(--line); padding: 0; vertical-align: middle; }
+      & thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        text-align: left;
+        padding: var(--space-3);
+        background: color-mix(in oklab, var(--accent) 10%, white);
+      }
+      & tbody th {
+        background: color-mix(in oklab, var(--tone-bg) 88%, white);
+        text-align: left;
+        white-space: nowrap;
+        padding: var(--space-3);
+        font-weight: 600;
+      }
+      & button {
+        display: grid;
+        inline-size: 100%;
+        min-block-size: var(--size-cell);
+        padding: calc(var(--space-2) + .1rem) var(--space-3);
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        text-align: left;
+        font: inherit;
+      }
+      & button:focus-visible { outline: var(--line-2) solid var(--accent); outline-offset: -2px; }
+      & strong {
+        font: 600 1rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      & small { color: var(--muted); font-size: .85rem; }
+      & td.is-up small { color: var(--good); }
+      & td.is-down small { color: var(--bad); }
+      & td.is-selected { background: var(--accent-soft); }
+      & td.is-selected button { box-shadow: inset 0 0 0 var(--line-2) var(--accent); }
+    }
+
+    #mx-meta {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: var(--space-4);
+
+      & article {
+        border: var(--line-1) solid var(--line);
+        border-radius: var(--radius-2);
+        padding: var(--space-4);
+        background: color-mix(in oklab, var(--panel) 78%, var(--tone-bg));
+      }
+      & h3,
+      & h4,
+      & p,
+      & pre { margin: 0; }
+      & h3 { margin-bottom: var(--space-2); }
+      & p { color: var(--muted); margin-bottom: var(--space-3); }
+      & table { inline-size: 100%; border-collapse: collapse; }
+      & th,
+      & td { padding: var(--space-2) 0; border-top: var(--line-1) solid var(--line); text-align: left; }
+      & td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+      & ol { margin: 0; padding-inline-start: 1.25rem; }
+      & li + li { margin-top: var(--space-2); }
+      & code,
+      & pre { font: var(--font-mono); }
+      & pre {
+        min-block-size: 10rem;
+        padding: var(--space-3);
+        border-radius: var(--radius-1);
+        background: color-mix(in oklab, var(--tone-ink) 4%, white);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    @media (max-width: 70rem) {
+      #mx-meta { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 60rem) {
+      #m-ex-cel > header,
+      #m-ex-cel > main,
+      #m-ex-cel > footer { inline-size: min(calc(100% - var(--space-4)), var(--size-wrap)); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="m-ex-cel" data-m-ex:.style.size-cell@mx.ui.cell-size="val + 'rem'" data-m-ex:.style.tone-accent@mx.ui.tone-accent>
+    <div data-m-si='{"mx":{"feedOpen":false,"feedDone":false,"feedError":"","feedStop":null,"status":"idle","updates":0,"speedMs":900,"stylePanel":{"open":false,"rootSelector":"#m-ex-cel"},"ui":{"cellSize":4.5,"toneAccent":"oklch(62% .18 257)"},"selectedId":"r0c0","selectedLabel":"Revenue / Jan","selectedValue":120,"selectedDelta":0,"sheet":{"cols":["Jan","Feb","Mar","Apr","May","Jun"],"rows":[{"label":"Revenue","cells":[{"id":"r0c0","row":"Revenue","col":"Jan","value":120,"delta":0},{"id":"r0c1","row":"Revenue","col":"Feb","value":128,"delta":0},{"id":"r0c2","row":"Revenue","col":"Mar","value":133,"delta":0},{"id":"r0c3","row":"Revenue","col":"Apr","value":129,"delta":0},{"id":"r0c4","row":"Revenue","col":"May","value":136,"delta":0},{"id":"r0c5","row":"Revenue","col":"Jun","value":142,"delta":0}]},{"label":"COGS","cells":[{"id":"r1c0","row":"COGS","col":"Jan","value":74,"delta":0},{"id":"r1c1","row":"COGS","col":"Feb","value":79,"delta":0},{"id":"r1c2","row":"COGS","col":"Mar","value":81,"delta":0},{"id":"r1c3","row":"COGS","col":"Apr","value":78,"delta":0},{"id":"r1c4","row":"COGS","col":"May","value":83,"delta":0},{"id":"r1c5","row":"COGS","col":"Jun","value":86,"delta":0}]},{"label":"Payroll","cells":[{"id":"r2c0","row":"Payroll","col":"Jan","value":31,"delta":0},{"id":"r2c1","row":"Payroll","col":"Feb","value":31,"delta":0},{"id":"r2c2","row":"Payroll","col":"Mar","value":32,"delta":0},{"id":"r2c3","row":"Payroll","col":"Apr","value":32,"delta":0},{"id":"r2c4","row":"Payroll","col":"May","value":33,"delta":0},{"id":"r2c5","row":"Payroll","col":"Jun","value":33,"delta":0}]},{"label":"Marketing","cells":[{"id":"r3c0","row":"Marketing","col":"Jan","value":12,"delta":0},{"id":"r3c1","row":"Marketing","col":"Feb","value":14,"delta":0},{"id":"r3c2","row":"Marketing","col":"Mar","value":16,"delta":0},{"id":"r3c3","row":"Marketing","col":"Apr","value":15,"delta":0},{"id":"r3c4","row":"Marketing","col":"May","value":18,"delta":0},{"id":"r3c5","row":"Marketing","col":"Jun","value":19,"delta":0}]},{"label":"Ops","cells":[{"id":"r4c0","row":"Ops","col":"Jan","value":22,"delta":0},{"id":"r4c1","row":"Ops","col":"Feb","value":21,"delta":0},{"id":"r4c2","row":"Ops","col":"Mar","value":24,"delta":0},{"id":"r4c3","row":"Ops","col":"Apr","value":23,"delta":0},{"id":"r4c4","row":"Ops","col":"May","value":24,"delta":0},{"id":"r4c5","row":"Ops","col":"Jun","value":25,"delta":0}]},{"label":"Cash","cells":[{"id":"r5c0","row":"Cash","col":"Jan","value":66,"delta":0},{"id":"r5c1","row":"Cash","col":"Feb","value":69,"delta":0},{"id":"r5c2","row":"Cash","col":"Mar","value":71,"delta":0},{"id":"r5c3","row":"Cash","col":"Apr","value":68,"delta":0},{"id":"r5c4","row":"Cash","col":"May","value":74,"delta":0},{"id":"r5c5","row":"Cash","col":"Jun","value":79,"delta":0}]}]}}}'></div>
+
+    <mx-style-panel data-m-wc@mx.style-panel data-m-ex:mx.style-panel@.toggle="Object.assign({}, dm.mx.stylePanel || {}, { open: detail && detail.open })"></mx-style-panel>
+
+    <header>
+      <p><a href="../index.html">← back to index.html</a></p>
+      <h1>m-ex-cel</h1>
+      <p>A single-file dmax example with semantic table markup, nested semantic CSS, and a spreadsheet-like live grid.</p>
+    </header>
+
+    <main>
+      <section id="mx-controls" class="panel" aria-labelledby="controls-title">
+      <h2 id="controls-title">Live stream controls</h2>
+      <p class="note">GitHub Pages cannot host the backend stream here, so this page installs a tiny in-page mock <code>text/event-stream</code> endpoint. The button still exercises dmax's real SSE action path.</p>
+      <div class="controls">
+        <button data-m-get^open.mx.feed-open^close.mx.feed-done^err.mx.feed-error^abort.mx.feed-stop@.click="'m-ex-cel.stream?ms=' + dm.mx.speedMs">Start stream</button>
+        <button data-m-ex:mx@.click="(dm.mx.feedStop && dm.mx.feedStop(), Object.assign({}, dm.mx, { status: 'stopping…' }))" data-m-ex:.disabled@mx.feed-open="!val">Stop</button>
+        <button data-m-ex:mx@.click="window.mExCelInit()">Reset</button>
+        <label class="field">Speed (ms)
+          <input type="range" min="250" max="1600" step="50" data-m-ex@.^rw@mx.speed-ms="Number(val)">
+        </label>
+        <label class="field">Cell size (rem)
+          <input type="range" min="3" max="7" step=".125" data-m-ex@.^rw@mx.ui.cell-size="Number(val)">
+        </label>
+        <label class="field">Accent (OKLCH)
+          <input value="oklch(62% .18 257)" data-m-ex@.^rw@mx.ui.tone-accent>
+        </label>
+      </div>
+      <dl class="stats">
+        <div><dt>Status</dt><dd data-m-ex:.@mx.status></dd></div>
+        <div><dt>Feed open</dt><dd data-m-ex:.@mx.feed-open="dm.mx.feedOpen ? 'yes' : 'no'"></dd></div>
+        <div><dt>Updates</dt><dd data-m-ex:.@mx.updates></dd></div>
+        <div><dt>Selected</dt><dd data-m-ex:.@mx.selected-label></dd></div>
+        <div><dt>Value</dt><dd data-m-ex:.@mx.selected-value></dd></div>
+        <div><dt>Last delta</dt><dd data-m-ex:.@mx.selected-delta="window.mExCelDelta(dm.mx.selectedDelta)"></dd></div>
+        <div><dt>Mode</dt><dd data-m-ex:.@mx.mode></dd></div>
+      </dl>
+      <p data-m-sh:.@mx.feed-done="dm.mx.feedDone && !dm.mx.feedOpen">The stream closed cleanly.</p>
+      <p data-m-sh:.@mx.feed-error="!!dm.mx.feedError">Stream error: <span data-m-ex:.@mx.feed-error></span></p>
+    </section>
+
+      <section id="mx-grid" class="panel" aria-labelledby="grid-title">
+      <h2 id="grid-title">Spreadsheet-like planning grid</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Click a cell to inspect it while the mock stream patches values over time.</caption>
+          <thead>
+            <tr data-m-it@mx.sheet.cols>
+              <th scope="col">Metric</th>
+              <template>
+                <th scope="col" data-m-ex:.="$it"></th>
+              </template>
+            </tr>
+          </thead>
+          <tbody data-m-it@mx.sheet.rows>
+            <template>
+              <tr data-m-it@$it.cells>
+                <th scope="row" data-m-ex:.="$it.label"></th>
+                <template>
+                  <td data-m-cl+is-selected@mx.selected-id="val === $it.id" data-m-cl+is-up+!is-down@mx.updates^immediate="$it.delta > 0" data-m-cl+is-down@mx.updates^immediate="$it.delta < 0">
+                    <button class="cell-btn" type="button" data-m-ex:mx@.click="window.mExCelPick(dm.mx, $it)">
+                      <span data-m-ex:.="$it.col"></span>
+                      <strong class="cell-value" data-m-ex:.="$it.value"></strong>
+                      <small class="cell-delta" data-m-ex:.="window.mExCelDelta($it.delta)"></small>
+                    </button>
+                  </td>
+                </template>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+      <section id="mx-meta" class="panel" aria-label="Derived metrics and stream details">
+        <article aria-labelledby="mx-formulas-title">
+          <h3 id="mx-formulas-title">Derived rows</h3>
+          <p>These are computed from the live rows to show spreadsheet-like dependent updates.</p>
+          <table>
+            <tbody data-m-it@mx.summary>
+              <template>
+                <tr>
+                  <th scope="row" data-m-ex:.="$it.label"></th>
+                  <td data-m-ex:.="window.mExCelCellVals($it.cells)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </article>
+        <article aria-labelledby="mx-stream-title">
+          <h3 id="mx-stream-title">Stream details</h3>
+          <h4>Recent events</h4>
+          <ol data-m-it@mx.log>
+            <template><li data-m-ex:.="$it"></li></template>
+          </ol>
+          <h4>Latest SSE frame</h4>
+          <pre data-m-ex:.@mx.latest-sse></pre>
+          <h4>Latest parsed patch</h4>
+          <pre data-m-ex:.@mx.latest-patch="JSON.stringify(dm.mx.latestPatch, null, 2)"></pre>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <p>Tip: the range control changes the interval for the next connection. The stream payloads are deterministic so the replay stays easy to inspect.</p>
+    </footer>
+  </div>
+
+  <script src="../dmax.js"></script>
+  <script>
+    (() => {
+      const EMPTY = []
+      const STYLE_TOKENS = [
+        ['--space-1', 'Space 1', 'range', '.125', '1', '.125', 'rem'],
+        ['--space-2', 'Space 2', 'range', '.25', '1.5', '.125', 'rem'],
+        ['--space-3', 'Space 3', 'range', '.375', '2', '.125', 'rem'],
+        ['--space-4', 'Space 4', 'range', '.5', '2.5', '.125', 'rem'],
+        ['--space-5', 'Space 5', 'range', '.75', '3', '.125', 'rem'],
+        ['--space-6', 'Space 6', 'range', '1', '4', '.125', 'rem'],
+        ['--radius-1', 'Radius 1', 'range', '.125', '1.5', '.125', 'rem'],
+        ['--radius-2', 'Radius 2', 'range', '.25', '2', '.125', 'rem'],
+        ['--radius-3', 'Radius 3', 'range', '.375', '2.5', '.125', 'rem'],
+        ['--line-1', 'Line 1', 'range', '1', '3', '1', 'px'],
+        ['--line-2', 'Line 2', 'range', '1', '4', '1', 'px'],
+        ['--size-cell', 'Cell size', 'range', '3', '7', '.125', 'rem'],
+        ['--size-wrap', 'Wrap size', 'range', '48', '96', '1', 'rem'],
+        ['--tone-bg', 'Tone bg', 'text'],
+        ['--tone-ink', 'Tone ink', 'text'],
+        ['--tone-accent', 'Tone accent', 'text'],
+        ['--tone-good', 'Tone good', 'text'],
+        ['--tone-bad', 'Tone bad', 'text']
+      ]
+      class MxStylePanel extends HTMLElement {
+        set open(v) { this._open = !!v; this.render() }
+        get open() { return !!this._open }
+        set rootSelector(v) { this._rootSelector = v || '#m-ex-cel'; this.renderVals() }
+        get rootSelector() { return this._rootSelector || '#m-ex-cel' }
+        set tokens(v) { this._tokens = Array.isArray(v) ? v : STYLE_TOKENS; this.fillRows() }
+        get tokens() { return this._tokens || STYLE_TOKENS }
+        get rootEl() { return document.querySelector(this.rootSelector) || document.documentElement }
+        connectedCallback() {
+          if (this.shadowRoot) return
+          const sr = this.attachShadow({ mode: 'open' })
+          sr.innerHTML = `<style>
+            :host{position:fixed;top:12px;right:12px;z-index:9;font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+            button{all:unset;box-sizing:border-box;cursor:pointer}
+            .fab{display:grid;place-items:center;inline-size:34px;block-size:34px;border-radius:999px;background:#0f172acc;color:#fff;box-shadow:0 8px 24px #0003;backdrop-filter:blur(10px)}
+            .panel{position:absolute;top:42px;right:0;inline-size:min(22rem,calc(100vw - 24px));max-block-size:min(78vh,48rem);overflow:auto;padding:8px;border:1px solid #cbd5e1;border-radius:14px;background:#fffc;color:#0f172a;box-shadow:0 16px 40px #00000026;backdrop-filter:blur(14px);display:none}
+            :host([open]) .panel{display:block}
+            h2,p{margin:0} h2{font-size:12px} p{margin-top:4px;color:#475569}
+            .tools{display:flex;gap:6px;margin-top:8px}.tools button{padding:5px 7px;border-radius:8px;background:#e2e8f0}
+            dl{display:grid;gap:6px;margin:8px 0 0}div.r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0}
+            dt{display:grid;gap:4px;margin:0}dd{margin:0;color:#475569;text-align:right}label{display:grid;gap:4px}input{inline-size:100%;font:inherit}input[type=text]{padding:6px 7px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}input[type=range]{accent-color:#2563eb}
+            @media (max-width:60rem){:host{top:8px;right:8px}.panel{inline-size:min(20rem,calc(100vw - 16px))}}
+          </style><button class="fab" type="button" aria-expanded="false" aria-controls="mx-style-panel">◐</button><section class="panel" id="mx-style-panel"><h2>Style props</h2><p>Compact live tokens for this page.</p><div class="tools"><button type="button" data-act="reset">reset</button></div><dl></dl></section>`
+          this._fab = sr.querySelector('.fab')
+          this._dl = sr.querySelector('dl')
+          this._fab.onclick = () => this.setOpen(!this.open)
+          sr.addEventListener('click', e => {
+            const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act')
+            if (act !== 'reset') return
+            const root = this.rootEl
+            for (const [name] of this.tokens) root.style.removeProperty(name)
+            this.renderVals()
+          })
+          sr.addEventListener('input', e => {
+            const el = e.target
+            if (!el || !el.dataset || !el.dataset.name) return
+            this.rootEl.style.setProperty(el.dataset.name, el.dataset.unit ? el.value + el.dataset.unit : el.value)
+            if (el.type === 'text') el.title = el.value
+          })
+          addEventListener('click', e => { if (!this.contains(e.target) && !sr.contains(e.target)) this.setOpen(false) })
+          this.fillRows(); this.render(); this.renderVals()
+        }
+        setOpen(open) {
+          this._open = !!open
+          this.render()
+          this.dispatchEvent(new CustomEvent('toggle', { detail: { open: this.open } }))
+        }
+        fillRows() {
+          if (!this._dl) return
+          this._dl.textContent = ''
+          for (const [name, label, kind, min, max, step, unit] of this.tokens) {
+            const row = document.createElement('div')
+            row.className = 'r'
+            row.innerHTML = `<dt><label><span>${label}</span>${kind === 'range' ? `<input data-name="${name}" data-unit="${unit}" type="range" min="${min}" max="${max}" step="${step}">` : `<input data-name="${name}" type="text">`}</label></dt><dd><code>${name}</code></dd>`
+            this._dl.appendChild(row)
+          }
+          this.renderVals()
+        }
+        render() {
+          if (!this.shadowRoot) return
+          this.toggleAttribute('open', this.open)
+          if (this._fab) this._fab.setAttribute('aria-expanded', this.open)
+        }
+        renderVals() {
+          if (!this.shadowRoot) return
+          const root = this.rootEl
+          for (const el of this.shadowRoot.querySelectorAll('[data-name]')) {
+            const name = el.dataset.name, raw = getComputedStyle(root).getPropertyValue(name).trim()
+            if (el.type === 'range') el.value = parseFloat(raw) || 0
+            else { el.value = raw; el.title = raw }
+          }
+        }
+      }
+      customElements.get('mx-style-panel') || customElements.define('mx-style-panel', MxStylePanel)
+      const DELTAS = [12, -6, 4, -3, 8, -5, 2, 7, -4, 5, -2, 6]
+      const INIT_MX = { feedOpen: false, feedDone: false, feedError: '', feedStop: null, status: 'idle', updates: 0, speedMs: 900, mode: 'single-cell', stylePanel: { open: false, rootSelector: '#m-ex-cel' }, ui: { cellSize: 4.5, toneAccent: 'oklch(62% .18 257)' }, selectedId: 'r0c0', selectedLabel: 'Revenue / Jan', selectedValue: 120, selectedDelta: 0, log: ['idle: ready'], latestSse: '', latestPatch: null, summary: [], sheet: { cols: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], rows: [{ label: 'Revenue', cells: [{ id: 'r0c0', row: 'Revenue', col: 'Jan', value: 120, delta: 0 }, { id: 'r0c1', row: 'Revenue', col: 'Feb', value: 128, delta: 0 }, { id: 'r0c2', row: 'Revenue', col: 'Mar', value: 133, delta: 0 }, { id: 'r0c3', row: 'Revenue', col: 'Apr', value: 129, delta: 0 }, { id: 'r0c4', row: 'Revenue', col: 'May', value: 136, delta: 0 }, { id: 'r0c5', row: 'Revenue', col: 'Jun', value: 142, delta: 0 }] }, { label: 'COGS', cells: [{ id: 'r1c0', row: 'COGS', col: 'Jan', value: 74, delta: 0 }, { id: 'r1c1', row: 'COGS', col: 'Feb', value: 79, delta: 0 }, { id: 'r1c2', row: 'COGS', col: 'Mar', value: 81, delta: 0 }, { id: 'r1c3', row: 'COGS', col: 'Apr', value: 78, delta: 0 }, { id: 'r1c4', row: 'COGS', col: 'May', value: 83, delta: 0 }, { id: 'r1c5', row: 'COGS', col: 'Jun', value: 86, delta: 0 }] }, { label: 'Payroll', cells: [{ id: 'r2c0', row: 'Payroll', col: 'Jan', value: 31, delta: 0 }, { id: 'r2c1', row: 'Payroll', col: 'Feb', value: 31, delta: 0 }, { id: 'r2c2', row: 'Payroll', col: 'Mar', value: 32, delta: 0 }, { id: 'r2c3', row: 'Payroll', col: 'Apr', value: 32, delta: 0 }, { id: 'r2c4', row: 'Payroll', col: 'May', value: 33, delta: 0 }, { id: 'r2c5', row: 'Payroll', col: 'Jun', value: 33, delta: 0 }] }, { label: 'Marketing', cells: [{ id: 'r3c0', row: 'Marketing', col: 'Jan', value: 12, delta: 0 }, { id: 'r3c1', row: 'Marketing', col: 'Feb', value: 14, delta: 0 }, { id: 'r3c2', row: 'Marketing', col: 'Mar', value: 16, delta: 0 }, { id: 'r3c3', row: 'Marketing', col: 'Apr', value: 15, delta: 0 }, { id: 'r3c4', row: 'Marketing', col: 'May', value: 18, delta: 0 }, { id: 'r3c5', row: 'Marketing', col: 'Jun', value: 19, delta: 0 }] }, { label: 'Ops', cells: [{ id: 'r4c0', row: 'Ops', col: 'Jan', value: 22, delta: 0 }, { id: 'r4c1', row: 'Ops', col: 'Feb', value: 21, delta: 0 }, { id: 'r4c2', row: 'Ops', col: 'Mar', value: 24, delta: 0 }, { id: 'r4c3', row: 'Ops', col: 'Apr', value: 23, delta: 0 }, { id: 'r4c4', row: 'Ops', col: 'May', value: 24, delta: 0 }, { id: 'r4c5', row: 'Ops', col: 'Jun', value: 25, delta: 0 }] }, { label: 'Cash', cells: [{ id: 'r5c0', row: 'Cash', col: 'Jan', value: 66, delta: 0 }, { id: 'r5c1', row: 'Cash', col: 'Feb', value: 69, delta: 0 }, { id: 'r5c2', row: 'Cash', col: 'Mar', value: 71, delta: 0 }, { id: 'r5c3', row: 'Cash', col: 'Apr', value: 68, delta: 0 }, { id: 'r5c4', row: 'Cash', col: 'May', value: 74, delta: 0 }, { id: 'r5c5', row: 'Cash', col: 'Jun', value: 79, delta: 0 }] }] } }
+      const clone = (v) => JSON.parse(JSON.stringify(v))
+      const sumCells = (a, b, k = 1) => a.map((n, i) => n + k * b[i])
+      const rowVals = (sheet, label) => (sheet.rows.find(r => r.label === label) || { cells: EMPTY }).cells.map(c => c.value)
+      const summaryRows = (sheet) => {
+        const rev = rowVals(sheet, 'Revenue'), cogs = rowVals(sheet, 'COGS'), pay = rowVals(sheet, 'Payroll'), mkt = rowVals(sheet, 'Marketing'), ops = rowVals(sheet, 'Ops'), cash = rowVals(sheet, 'Cash')
+        const gross = sumCells(rev, cogs, -1), burn = pay.map((n, i) => n + mkt[i] + ops[i]), net = gross.map((n, i) => n - burn[i])
+        return [
+          { label: 'Gross Profit', cells: gross },
+          { label: 'Burn', cells: burn },
+          { label: 'Net', cells: net },
+          { label: 'Runway', cells: cash.map((n, i) => (burn[i] ? (n / burn[i]).toFixed(1) + ' mo' : '∞')) }
+        ]
+      }
+      const logMx = (mx, line) => [line].concat(mx.log || EMPTY).slice(0, 8)
+      const enrichMx = (mx) => Object.assign({}, mx, { summary: summaryRows(mx.sheet) })
+      const initNodes = (root = document.body) => {
+        const nodes = [root].concat(Array.from(root.querySelectorAll('*')))
+        const deferred = []
+        for (const n of nodes) for (const a of Array.from(n.attributes || EMPTY)) {
+          if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value)
+          else deferred.push([n, a.name, a.value])
+        }
+        for (const [n, name, val] of deferred) wireNode(n, name, val)
+      }
+      const findCell = (mx, id) => {
+        for (const row of mx.sheet.rows) for (const cell of row.cells) if (cell.id === id) return cell
+        return null
+      }
+      const nextPatch = (mx) => {
+        const sheet = clone(mx.sheet)
+        const ri = mx.updates % sheet.rows.length
+        const ci = Math.floor(mx.updates / sheet.rows.length) % sheet.cols.length
+        const delta = DELTAS[mx.updates % DELTAS.length]
+        const cell = sheet.rows[ri].cells[ci]
+        cell.value = Math.max(0, cell.value + delta)
+        cell.delta = delta
+        let patch = { sheet, updates: mx.updates + 1, status: `live patch ${cell.row} / ${cell.col} ${delta > 0 ? '+' : ''}${delta}`, feedDone: false, feedError: '', latestPatch: { row: cell.row, col: cell.col, id: cell.id, value: cell.value, delta } }
+        if (mx.selectedId === cell.id) {
+          patch.selectedValue = cell.value
+          patch.selectedDelta = delta
+          patch.selectedLabel = `${cell.row} / ${cell.col}`
+        }
+        patch = enrichMx(patch)
+        patch.log = logMx(mx, `${patch.updates}. ${cell.row} / ${cell.col} ${delta > 0 ? '+' : ''}${delta} → ${cell.value}`)
+        return patch
+      }
+      const encoder = new TextEncoder()
+      const sseChunk = (patch) => `event: dmax-patch-signals\ndata: dmaxSignals ${JSON.stringify({ mx: patch })}\n\n`
+      const mockSseResponse = (ms, signal) => {
+        let timer = null, ctrl = null
+        const close = () => {
+          if (timer) clearInterval(timer)
+          timer = null
+          if (!ctrl) return
+          try { ctrl.close() } catch (_) {}
+          ctrl = null
+        }
+        const body = new ReadableStream({
+          start(controller) {
+            ctrl = controller
+            timer = setInterval(() => {
+              const mx = window.dm && window.dm.mx ? window.dm.mx : enrichMx(clone(INIT_MX))
+              const patch = nextPatch(mx), chunk = sseChunk(patch)
+              patch.latestSse = chunk.trim()
+              controller.enqueue(encoder.encode(sseChunk(patch)))
+            }, ms)
+            if (signal) signal.addEventListener('abort', close, { once: true })
+          },
+          cancel: close
+        })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: (n) => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+          body,
+          text: async () => ''
+        })
+      }
+      const baseFetch = window.fetch ? window.fetch.bind(window) : null
+      window.fetch = (url, init = {}) => {
+        if (String(url || '').indexOf('m-ex-cel.stream') >= 0) return mockSseResponse(+(new URL(url, location.href).searchParams.get('ms')) || 900, init.signal)
+        if (baseFetch) return baseFetch(url, init)
+        return Promise.reject(new Error('fetch not available'))
+      }
+      window.mExCelInit = () => enrichMx(clone(INIT_MX))
+      window.mExCelPick = (mx, cell) => Object.assign({}, enrichMx(mx), { selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })
+      window.mExCelDelta = (n) => !n ? '±0' : `${n > 0 ? '+' : ''}${n}`
+      window.mExCelCellVals = (cells) => Array.isArray(cells) ? cells.join(' · ') : ''
+      initNodes()
+      const current = findCell(INIT_MX, INIT_MX.selectedId)
+      window.dm.mx = enrichMx(window.dm.mx || clone(INIT_MX))
+      if (current) window.dm.mx = window.mExCelPick(window.dm.mx, current)
+    })()
+  </script>
+</body>
+
+</html>

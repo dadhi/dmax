@@ -297,7 +297,10 @@
       }
       if (!obj || !prop) { console.error('[dmax] Error setting non existing property for: ', tar, 'in', dKey); return }
       try {
-        if (valChangedDeep(obj[prop], val)) obj[prop] = val;
+        if (obj && typeof obj.setProperty === 'function' && !(prop in obj)) {
+          const cssVar = prop[0] === '-' ? prop : '--' + camelToKebab(prop)
+          if (obj.getPropertyValue(cssVar) !== '' + val) obj.setProperty(cssVar, val)
+        } else if (valChangedDeep(obj[prop], val)) obj[prop] = val
       } catch (e) {
         console.error('[dmax] Error: Failed to set property:', e.message, '>>>', tar, 'on', el);
       }
@@ -1274,8 +1277,57 @@
         }
       }
     }
+    const WC_TMPLS = new WeakSet()
+    const setWcAttr = (el, k, val, a = camelToKebab(k)) => val == null ? el.removeAttribute(a) : el.setAttribute(a, val === true ? '' : '' + val)
+    const setWcVal = (el, dKey, ta, val, attr) => attr ? setWcAttr(el, ta.root, val) : setPr(el, dKey, ta.t || (ta.t = mkIt(EP, null, '', ta.path ? [ta.root].concat(ta.path) : [ta.root])), val)
+    const renderWcVal = (el, dKey, tars, val, attr) => {
+      if (!tars.length) {
+        if (isPlainObj(val)) for (const k in val) if (hasOwn(val, k)) attr ? setWcAttr(el, k, val[k]) : el[k] = val[k]
+        else attr ? setWcAttr(el, 'value', val) : el.value = val
+      } else if (tars.length === 1 && (!isPlainObj(val) || tars[0].root in (val || {}))) {
+        const ta = tars[0]
+        setWcVal(el, dKey, ta, isPlainObj(val) && !ta.path && hasOwn(val, ta.root) ? val[ta.root] : val, attr)
+      } else if (isPlainObj(val)) for (let i = 0; i < tars.length; ++i) {
+        const ta = tars[i]
+        let next = val[ta.root]
+        if (ta.path && ta.path.length) [next] = getPrValAndDepth(next, ta.path)
+        if (next !== undefined) setWcVal(el, dKey, ta, next, attr)
+      }
+      if (typeof el.requestUpdate === 'function') el.requestUpdate()
+      else if (typeof el.render === 'function') el.render()
+    }
+    const defWc = (tpl, name) => {
+      if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
+      if (customElements.get(name) || WC_TMPLS.has(tpl)) return
+      WC_TMPLS.add(tpl)
+      customElements.define(name, class extends HTMLElement {
+        connectedCallback() {
+          if (this.__dmWcInited) return
+          this.__dmWcInited = 1
+          if (!this.firstElementChild && tpl.content) {
+            this.appendChild(tpl.content.cloneNode(true))
+            wireItClone(this)
+          }
+        }
+      })
+    }
+    // - <template data-m-wc="my-card"><article>...</article></template>
+    // - <my-style-panel data-m-wc@panel></my-style-panel>
+    // - <my-style-panel data-m-wc:open:root-selector@panel></my-style-panel>
+    // - <my-style-panel data-m-wc^attr:aria-label@panel></my-style-panel>
+    const dmWc = (el, dKey, dVal) => {
+      if (el.tagName === 'TEMPLATE') return defWc(el, dVal && dVal.trim())
+      const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
+      if (!trigs.length) return console.error('[dmax] Error: dmWc requires a signal trigger in:', dKey)
+      const tr = trigs[0]
+      if (!tr.isSi) return console.error('[dmax] Error: dmWc trigger must be a signal in:', dKey)
+      let attr = false
+      for (let i = 0; i < globMods.length; ++i) if (globMods[i].root === 'attr') { attr = true; break }
+      const sub = addTrSub(el, tr, compileMods(tr, pickMods(tr.mods, globMods)), (_dm, _el, _tr, trigVal) => renderWcVal(el, dKey, tars, trigVal, attr), upsert(_cleanupBoundSubs, el))
+      if (tr.isImmediate ?? true) invokeBoundSub(sub, null)
+    }
     const dmNo = () => {}
-    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.no = dmNo
+    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.wc = dmWc; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.no = dmNo
     dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dmAct
     const sameKind = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id && b.id ? a.id === b.id : a.tagName === b.tagName
     const sameSlot = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id || b.id ? a.id === b.id : a.tagName === b.tagName

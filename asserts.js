@@ -360,6 +360,11 @@
       'Seaman!', '#foo default prop')
     __assert(setPr, [null, 'data-eval:#foo.style.color', __ev('foo', ['style', 'color']), 'lime'],
       'lime', '#foo nested prop')
+    __assert(() => {
+      const el = document.createElement('div')
+      setPr(el, 'data-eval:.style.accent-soft', __ev('', ['style', 'accentSoft']), 'pink')
+      return el.style.getPropertyValue('--accent-soft')
+    }, [], 'pink', 'css var target via style camel path')
     __assert(setPr, [null, 'data-eval:foo', { kind: SI, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
     __assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
