@@ -168,6 +168,24 @@
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
     __assert(() => getMValPath(NIL) === NIL, [], true, 'getMValPath uses NIL when no val mod exists')
+    __assert(getMValPath, [[{ root: M_VAL, path: __si('style', ['color']) }]], ['style', 'color'], 'getMValPath parsed path')
+    __assert(getMValPath, [[{ root: M_VAL, path: null }]], NIL, 'getMValPath null path')
+    __assert(() => {
+      const el = document.createElement('input')
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), NIL, E_TRIG_EL, E_TRIG_EV, false)
+      return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
+    }, [], { ev: 'change', prPath: ['value'], readPath: ['value'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa default prop path')
+    __assert(() => {
+      const el = document.createElement('input')
+      const mods = [{ root: M_VAL, path: __si('style', ['color']) }]
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), mods, E_TRIG_EL, E_TRIG_EV, false)
+      return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
+    }, [], { ev: 'change', prPath: ['value'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa keeps prop path but changes read path')
+    __assert(() => {
+      const el = document.createElement('input')
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }], E_TRIG_EL, E_TRIG_EV)
+      return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
+    }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies val path when enabled')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-m-si:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-m-si:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')

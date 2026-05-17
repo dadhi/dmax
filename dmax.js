@@ -382,36 +382,29 @@
       }
       return NIL
     }
-    const getTrEvVal = (taEl, prPath, mods) => {
-      const valPath = getMValPath(mods)
-      return getElPrVal(taEl, valPath.length ? valPath : prPath)
-    }
     const getTrPrTa = (el, dKey, tr, mods, missElMsg, missEvMsg, useValPath = true) => {
       const trRoot = tr.root, trPath = tr.path
       const taEl = trRoot ? getElById(trRoot, dKey) : el
-      if (!taEl) { console.error('[dmax] Error:', missElMsg, tr ?? DEFAULT_PR_TA, 'in:', dKey); return null }
-      let ev = trPath ? trPath[0] : null
-      let prPath = null
+      if (!taEl) { console.error('[dmax] Error:', missElMsg, tr, 'in:', dKey); return null }
+      let ev = trPath ? trPath[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = trPath, ev = getDefaultEv(taEl)
-      if (useValPath) {
-        const valPath = getMValPath(mods)
-        if (valPath.length) prPath = valPath
-      }
+      const valPath = getMValPath(mods), readPath = valPath.length ? valPath : prPath
+      if (useValPath && valPath.length) prPath = valPath
       ev = ev ?? getDefaultEv(taEl)
-      if (!ev) { console.error('[dmax] Error:', missEvMsg, tr ?? DEFAULT_PR_TA, 'in:', dKey); return null }
-      return { taEl, ev, prPath, tar: mkIt(EP, null, trRoot, prPath, NIL) }
+      if (!ev) { console.error('[dmax] Error:', missEvMsg, tr, 'in:', dKey); return null }
+      return { taEl, ev, prPath, readPath, tar: mkIt(EP, null, trRoot, prPath, NIL) }
     }
     const addNonSiTrSub = (el, tr, mods, fn, elSubs, ranImmediate, prTa = null) => {
       const sp = tr.sp, isSp = !!sp
       if (!isSp && !expected(prTa, 'Expected non-SP trigger target in addNonSiTrSub:', tr, 'on:', el)) return null
-      const modded = addTrSub(el, tr, mods, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath)
+      const modded = addTrSub(el, tr, mods, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath)
       if (sp?.init) {
         if (modded && !ranImmediate) invokeSub(modded, { type: SP_INIT }, SP_INIT, el, tr)
         return true
       }
       if (modded && !ranImmediate && (tr.isImmediate ?? false) && (!sp || sp.immediate)) {
         ranImmediate = true
-        invokeSub(modded, null, isSp ? null : getTrEvVal(prTa.taEl, prTa.prPath, mods), el, tr)
+        invokeSub(modded, null, isSp ? null : getElPrVal(prTa.taEl, prTa.readPath), el, tr)
       }
       return ranImmediate
     }
@@ -742,7 +735,7 @@
       elSubs.push(sub)
       return modded
     }
-    const addTrSub = (el, tr, mods, fn, elSubs, taEl, evName, prPath) => {
+    const addTrSub = (el, tr, mods, fn, elSubs, taEl, evName, prPath, readPath = prPath) => {
       if (tr.isSi) {
         const sub = { el, trig: tr, fn, siChangeM: getSiChangeShape(mods), ev: null, clearId: null }
         sub.fn = applyTrMs(fn, tr, mods, sub)
@@ -755,7 +748,7 @@
       const opts = getListenerOpts(mods)
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mods, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, getTrEvVal(taEl, prPath, mods), el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, getElPrVal(taEl, readPath), el, tr)
       taEl.addEventListener(evName, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -962,7 +955,7 @@
           if (!tr.isEv) { console.error('[dmax] Error:', E_RW_REQ, dKey); return }
           const prTa = getTrPrTa(el, dKey, tr, mods, E_RW_EL, E_RW_EV)
           if (!prTa) return
-          writePrTrs.push({ trig: tr, mods, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, tar: prTa.tar }) }
+          writePrTrs.push({ trig: tr, mods, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
         if (writePrTrs.length && readTrs.length) {
           let ranImmediate = false
           const syncPrTas = (dm, syncTr, trigVal, detail) => {
@@ -986,8 +979,8 @@
                 const exprVal = fn(dm, el, syncTr, trigVal, detail)
                 for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
               }
-              const moddedHandler = addTrSub(el, prTr.trig, prTr.mods, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath)
-              if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getTrEvVal(prTr.taEl, prTr.prPath, prTr.mods), el, prTr.trig)
+              const moddedHandler = addTrSub(el, prTr.trig, prTr.mods, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
+              if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getElPrVal(prTr.taEl, prTr.readPath), el, prTr.trig)
             }
           }
           return

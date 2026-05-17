@@ -131,6 +131,15 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex:.value', valid: true, category: 'no-trigger-prop' }
   yield { attr: 'data-m-ex:#elem.value@#other.input', valid: true, category: 'cross-element' }
   yield { attr: 'data-m-ex:foo@#elem.click', valid: true, category: 'cross-element-event' }
+  yield { attr: 'data-m-ex:.style.color@user.name', valid: true, category: 'nested-signal-prop' }
+  yield { attr: 'data-m-ex:.style.font-size@posts[0]', valid: true, category: 'indexed-signal-prop' }
+  yield { attr: 'data-m-ex:#dest.style.color@#src.input', valid: true, category: 'id-prop-to-id-event' }
+  yield { attr: 'data-m-ex:result@.input^val.style.color', valid: true, category: 'val-prop-path' }
+  yield { attr: 'data-m-ex:result@.input^val.user.name', valid: true, category: 'val-signal-path' }
+  yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
+  yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
+  yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
+  yield { attr: 'data-m-ex:.style.color:.text-content:#dest.value:#elem.title:#other.class-name:.checked:foo:bar:result:count@user.name@posts[0]@items[0].title@foo@bar@#btn.click@#src.input@#dest.change@.input@.click', valid: true, category: 'many-items-10x10' }
 
   for (const special of SPECIAL_EVENTS)
     yield { attr: `data-m-ex:foo@${special}`, valid: true, category: 'special-trigger' }
