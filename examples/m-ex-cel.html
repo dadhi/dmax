@@ -388,19 +388,18 @@
           const sr = this.attachShadow({ mode: 'open' })
           sr.innerHTML = `<style>
             :host{position:fixed;top:12px;right:12px;z-index:9;font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-            button{all:unset;box-sizing:border-box;cursor:pointer}
+            details,button{all:unset;box-sizing:border-box}summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
             .fab{display:grid;place-items:center;inline-size:34px;block-size:34px;border-radius:999px;background:#0f172acc;color:#fff;box-shadow:0 8px 24px #0003;backdrop-filter:blur(10px)}
-            .panel{position:absolute;top:42px;right:0;inline-size:min(22rem,calc(100vw - 24px));max-block-size:min(78vh,48rem);overflow:auto;padding:8px;border:1px solid #cbd5e1;border-radius:14px;background:#fffc;color:#0f172a;box-shadow:0 16px 40px #00000026;backdrop-filter:blur(14px);display:none}
-            :host([open]) .panel{display:block}
+            .panel{position:absolute;top:42px;right:0;inline-size:min(22rem,calc(100vw - 24px));max-block-size:min(78vh,48rem);overflow:auto;padding:8px;border:1px solid #cbd5e1;border-radius:14px;background:#fffc;color:#0f172a;box-shadow:0 16px 40px #00000026;backdrop-filter:blur(14px)}
             h2,p{margin:0} h2{font-size:12px} p{margin-top:4px;color:#475569}
-            .tools{display:flex;gap:6px;margin-top:8px}.tools button{padding:5px 7px;border-radius:8px;background:#e2e8f0}
+            .tools{display:flex;gap:6px;margin-top:8px}.tools button{padding:5px 7px;border-radius:8px;background:#e2e8f0;cursor:pointer}
             dl{display:grid;gap:6px;margin:8px 0 0}div.r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0}
             dt{display:grid;gap:4px;margin:0}dd{margin:0;color:#475569;text-align:right}label{display:grid;gap:4px}input{inline-size:100%;font:inherit}input[type=text]{padding:6px 7px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}input[type=range]{accent-color:#2563eb}
             @media (max-width:60rem){:host{top:8px;right:8px}.panel{inline-size:min(20rem,calc(100vw - 16px))}}
-          </style><button class="fab" type="button" aria-expanded="false" aria-controls="mx-style-panel">◐</button><section class="panel" id="mx-style-panel"><h2>Style props</h2><p>Compact live tokens for this page.</p><div class="tools"><button type="button" data-act="reset">reset</button></div><dl></dl></section>`
+          </style><details><summary class="fab" aria-controls="mx-style-panel">◐</summary><section class="panel" id="mx-style-panel"><h2>Style props</h2><p>Compact live tokens for this page.</p><div class="tools"><button type="button" data-act="reset">reset</button></div><dl></dl></section></details>`
+          this._de = sr.querySelector('details')
           this._fab = sr.querySelector('.fab')
           this._dl = sr.querySelector('dl')
-          this._fab.onclick = () => this.setOpen(!this.open)
           sr.addEventListener('click', e => {
             const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act')
             if (act !== 'reset') return
@@ -414,13 +413,18 @@
             this.rootEl.style.setProperty(el.dataset.name, el.dataset.unit ? el.value + el.dataset.unit : el.value)
             if (el.type === 'text') el.title = el.value
           })
-          addEventListener('click', e => { if (!this.contains(e.target) && !sr.contains(e.target)) this.setOpen(false) })
+          this._de.addEventListener('toggle', () => {
+            const open = !!this._de.open
+            if (open === this._open) return
+            this._open = open
+            this.render()
+            this.dispatchEvent(new CustomEvent('toggle', { detail: { open } }))
+          })
           this.fillRows(); this.render(); this.renderVals()
         }
         setOpen(open) {
           this._open = !!open
           this.render()
-          this.dispatchEvent(new CustomEvent('toggle', { detail: { open: this.open } }))
         }
         fillRows() {
           if (!this._dl) return
@@ -436,6 +440,7 @@
         render() {
           if (!this.shadowRoot) return
           this.toggleAttribute('open', this.open)
+          if (this._de) this._de.open = this.open
           if (this._fab) this._fab.setAttribute('aria-expanded', this.open)
         }
         renderVals() {

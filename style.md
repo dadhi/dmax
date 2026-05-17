@@ -1,19 +1,27 @@
 # Style principles
 
-These styles should stay minimal, interactive, and user-customizable, in the spirit of Datastar Stellar CSS and Open Props.
+Keep the styling platform-first and local. Use dmax for dataflow, not as a replacement for modern HTML and CSS.
+
+## Order of attack
+1. semantic HTML
+2. native HTML state
+3. CSS tokens and selectors
+4. dmax for dataflow
+5. imperative JS only at foreign-lib boundaries
+
+If a problem is presentational, solve it in HTML/CSS first.
 
 ## Structure
-- Prefer semantic HTML first.
-- Use real document structure: `header`, `main`, `section`, `table`, `thead`, `tbody`, `th`, `td`, `footer`, etc.
-- Let classes/ids describe components or stable roots, not presentational fragments.
+- Prefer semantic tags: `header`, `main`, `section`, `table`, `thead`, `tbody`, `th`, `td`, `footer`, `form`, `label`, `details`, `summary`.
+- Let ids/classes name stable roots or real components, not visual trivia.
+- Avoid adding signal state that just duplicates native UI state.
 
 ## Selector shape
-- Root each styling area in a known component id or class.
-- Inside that root, prefer nested modern selectors.
-- Nested selectors should mostly target semantic tags that mirror the HTML structure.
-- Avoid flat global utility-style selector sprawl when a local rooted rule can express the same thing.
+- Root each styling area in one stable id or class.
+- Inside that root, prefer selectors that mirror the HTML structure.
+- Keep selectors local. Avoid utility-sprawl when one rooted rule is enough.
 
-Example shape:
+Example:
 
 ```css
 #example {
@@ -29,57 +37,87 @@ Example shape:
 }
 ```
 
-## Design system
-- All measurable styling values should come from a small design system.
-- The system should feel like a tiny reusable prop layer, not a heavy theme framework.
-- Expose key vars for:
-  - spacing
-  - sizing
-  - radii
-  - line widths
-  - shadows
-  - typography
-  - palette anchors
-- Prefer derived vars over ad-hoc literals.
-- If a value is not a key var, it should usually be derived from one.
+## Native UI first
+Prefer built-in behavior before JS:
+- `details` / `summary` for disclosure
+- `dialog` when modal behavior is real
+- `popover` when browser support and ergonomics are good enough
+- form controls for user input state
+- CSS pseudo-classes for hover/focus/checked/invalid/disabled state
 
-## Tokens
-- Keep a small set of primary tokens.
-- Build semantic tokens from those primaries.
-- Typical flow:
-  - primitive tokens: `--space-*`, `--radius-*`, palette anchors
-  - semantic tokens: `--bg`, `--panel`, `--line`, `--accent-soft`, etc.
+Use dmax only when the state must participate in app dataflow.
+
+## Token system
+All measurable values should come from a small token layer.
+
+Primitive groups:
+- `--space-*`
+- `--size-*`
+- `--radius-*`
+- `--line-*`
+- `--shadow-*`
+- `--font-*`
+- `--tone-*`
+
+Build semantic vars from those primitives:
+- `--bg`
+- `--panel`
+- `--line`
+- `--ink-soft`
+- `--accent-soft`
+
+Rules:
+- prefer derived vars over ad-hoc literals
+- if a value is used more than once, it should usually be tokenized
+- use consistent scales for spacing, radius, and sizing
 
 ## Color system
-- Define palette anchors in OKLCH/OKLab space.
-- Derive UI colors from those anchors with `color-mix()` and related modern color features.
-- Avoid unrelated hard-coded hex values when a derived semantic token can be used.
-- Keep state colors (`accent`, `good`, `bad`, etc.) in the same color system.
+- Use OKLCH/OKLab anchors for palette inputs.
+- Derive UI colors with `color-mix()` and related modern color features.
+- Keep accent/good/bad colors in the same system.
+- Avoid unrelated hard-coded hex values unless there is a clear exception.
 
-## CSS values
-- Prefer consistent scales.
-- Reuse spacing and radius tokens aggressively.
-- Derive component sizes from root vars where sensible.
-- Avoid one-off padding, margin, gap, and corner values unless there is a clear need.
+## CSS var policy
+Prefer CSS vars when the change is visual and cross-cuts multiple rules.
 
-## Visibility of the system
-- Make the design tokens inspectable in the example UI.
-- A hover/focus style drawer is a good default.
-- Users should be able to understand what to tweak and where to tweak it.
-- Show:
-  - key palette vars
-  - important semantic vars
-  - token ranges/scales
-- The panel should help users understand how the page is built, not just decorate it.
+Good uses:
+- spacing
+- sizing
+- palette
+- borders
+- shadows
+- density
 
-## Interaction and customization
-- Styling should support interaction states cleanly: hover, focus, selected, active, good/bad deltas, open/closed panels.
-- Customization should primarily happen through exposed CSS vars.
-- A user should be able to fork or restyle the example mostly by changing root tokens.
-- Prefer live token adjustment surfaces where useful for demos.
+Prefer direct DOM prop/class writes when the change is not really a style token.
 
-## Practical bias
-- Keep CSS minimal, readable, and local.
-- Prefer semantic structure + tokenized styling over many helper classes.
-- Use modern CSS when it simplifies the source and reflects the structure better.
-- Aim for a tiny “props + semantics” layer rather than a large component stylesheet.
+## Dmax policy
+Use dmax for:
+- signal to text/prop/class/show bindings
+- event to signal updates
+- action/SSE driven state
+- CSS var writes via `style.*`
+
+Do not use dmax just to recreate behavior that native HTML/CSS already gives cleanly.
+
+## Visibility and customization
+- Keep key tokens inspectable in the example UI.
+- Live token editing is useful when it teaches how the page is built.
+- The token panel should expose a small meaningful set, not every possible rule.
+- A user should be able to restyle the page mostly by changing root vars.
+
+## Foreign-lib boundary
+At chart/map/editor boundaries, imperative JS is acceptable for:
+- create
+- update
+- destroy
+- callback to DOM event translation
+
+Keep that layer thin. Do not grow dmax runtime until repeated wrapper pressure proves a real gap.
+
+## Anti-patterns
+Avoid:
+- JS computing presentation that CSS can express
+- signal state that mirrors native open/closed form state without need
+- one-off spacing/radius literals spread through the sheet
+- component-local style logic that bypasses the token system
+- adding runtime syntax before trying HTML/CSS and plain `data-m-ex`

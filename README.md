@@ -12,7 +12,13 @@ dmax aims to stay:
 - batteries-included
 - usable without a build step
 
-If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and now basic web-component hosting in one coherent attribute grammar, dmax is the pitch.
+Working order:
+1. use semantic HTML
+2. use CSS for layout and presentation
+3. use dmax for dataflow
+4. use imperative JS only at foreign-library boundaries
+
+If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
 ## Why pick dmax
 
@@ -63,6 +69,8 @@ Choose dmax when you want:
 
 <template data-m-wc="my-style-panel"><div>...</div></template>
 <my-style-panel data-m-ex:.open@panel.open></my-style-panel>
+
+<mx-uplot data-m-ex:.cfg@chart data-m-ex:chart-last@.point="detail"></mx-uplot>
 ```
 
 ## Core directives
@@ -148,7 +156,7 @@ This maps to:
 
 ## `data-m-wc`
 
-`data-m-wc` is now for **template declaration** only.
+`data-m-wc` is for **template declaration** only.
 
 ```html
 <template data-m-wc="my-card">
@@ -168,6 +176,12 @@ For host props, use normal `data-m-ex` on the custom element:
 ```
 
 That keeps WC usage smaller and clearer: define with `data-m-wc`, drive with `data-m-ex`.
+
+Event output stays on normal `data-m-ex` too:
+
+```html
+<mx-uplot data-m-ex:chart-last@.point="detail"></mx-uplot>
+```
 
 ## Actions and SSE
 

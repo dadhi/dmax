@@ -1,18 +1,18 @@
-# `data-m-wc` sketch
+# `data-m-wc`
 
-Goal: keep dmax small and declarative, but still cover web components as a built-in battery.
+Keep this narrow.
 
-## Direction
+## Scope
 
-`data-m-wc` is now just for **declaring** a web component from a `<template>`.
+`data-m-wc` is only for declaring a custom element from a `<template>`.
 
-For host props/attrs, use normal `data-m-ex` on the custom element.
+Use `data-m-ex` for host props and events.
 
-The intended default is **modern light DOM**. Shadow DOM stays opt-in for components that really need style/behavior isolation or foreign-lib encapsulation.
+This keeps the split clear:
+- `data-m-wc` defines
+- `data-m-ex` drives
 
-## Minimal shape implemented now
-
-### Template declaration
+## Template declaration
 
 ```html
 <template data-m-wc="my-card">
@@ -23,41 +23,69 @@ The intended default is **modern light DOM**. Shadow DOM stays opt-in for compon
 ```
 
 Current behavior:
-- registers `my-card` if it is not already defined
-- when a `my-card` instance connects, the template content is cloned into it once
-- cloned content is scanned/wired by dmax
+- registers `my-card` if not already defined
+- clones template content into each instance once on connect
+- scans and wires the cloned content with dmax
 
-This is intentionally minimal.
+Default stance:
+- light DOM first
+- shadow DOM only when style or library isolation is really needed
 
-### Host props / attrs
+## Host prop input
 
-Use `data-m-ex` directly on the custom element host.
+Drive public host props with `data-m-ex`.
 
 ```html
 <my-style-panel
   data-m-ex:.open@panel.open
-  data-m-ex:.root-selector@panel.root-selector
-  data-m-ex:.aria-label@panel.label>
+  data-m-ex:.root-selector@panel.root-selector>
 </my-style-panel>
 ```
 
-That keeps the model smaller and clearer:
-- `data-m-wc` defines the component
-- `data-m-ex` drives its public API
-- `data-m-ex^set-attr` can still be added later if generic attr-writing is worth it globally
+Compact object-style input also works well when the component has a stable config prop:
 
-## Why this shape
+```html
+<mx-uplot data-m-ex:.cfg@chart></mx-uplot>
+```
 
-It keeps the DX surface tiny:
-- one directive for declaration
-- normal `data-m-ex` for host wiring
-- less overlap and less “why not ex?” confusion
+Preferred rule:
+- use direct scalar props when the host API is small
+- use one config prop when the host API is larger and already object-shaped
+
+## Host event output
+
+Feed component events back into signals with `data-m-ex`.
+
+```html
+<mx-uplot data-m-ex:chart-last@.point="detail"></mx-uplot>
+<mx-style-panel data-m-ex:panel@.toggle="detail"></mx-style-panel>
+```
+
+That keeps the event path the same as normal dmax event wiring.
+
+## Why keep it this small
+
+Reasons:
+- less overlap
+- less confusion about when `data-m-ex` should be used
+- fewer battery-specific rules
+- better pressure-testing of the generic dataflow model
+
+If `data-m-ex` can drive the host cleanly, do not add new WC syntax.
+
+## Foreign widget boundary
+
+At the chart/map/editor boundary, imperative JS is acceptable for:
+- create
+- update
+- destroy
+- translating library callbacks into DOM events
+
+That wrapper layer should stay thin. It is the place to measure real pressure before adding runtime surface.
 
 ## Related style binding
 
-To support Stellar-style token editing, dmax now treats unknown `style.*` property writes as CSS custom property writes.
-
-Example:
+For visual customization, prefer CSS vars through normal dmax prop writes.
 
 ```html
 <div id="app"
@@ -70,21 +98,12 @@ This maps to:
 - `style.size-cell` -> `style.setProperty('--size-cell', ... )`
 - `style.tone-accent` -> `style.setProperty('--tone-accent', ... )`
 
-That keeps style tokens declarative and signal-driven.
+## Current dogfood targets
 
-## Near-term likely additions
+Current practical targets:
+- `mx-style-panel` in `m-ex-cel`
+- vendored `uPlot` through `mx-uplot`
 
-- prop -> signal / event -> signal patterns around WC instances
-- clearer slot/content patterns
-- optional shadow-root template mode
-- reuse more `data-m-it` internals where it shrinks code
-
-## Dogfood target
-
-The `m-ex-cel` style button/panel and the vendored uPlot demo are the first dogfood targets:
-- the component itself remains isolated
-- dmax drives its public props with `data-m-ex`
-- component events feed state back into signals
-
-That is the current intended compromise:
-**imperative inside the foreign/isolated widget, declarative at the page boundary.**
+Current compromise:
+- imperative inside the foreign or isolated widget
+- declarative at the page boundary

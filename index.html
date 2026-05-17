@@ -197,18 +197,24 @@
         "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null,
         "val-source":{"bar":7},
         "uplot":{"title":"Revenue vs Cost","points":true,"labels":["Revenue","Cost"],"data":[[1,2,3,4,5],[12,18,16,22,24],[8,11,13,15,18]],"series":[{"label":"Revenue","stroke":"#2563eb"},{"label":"Cost","stroke":"#dc2626"}],"w":420,"h":220},
+        "uplot2":null,
         "uplot-last":null,
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
-      <h4>0. WC host props via `data-m-ex` + vendored uPlot</h4>
+      <h4>0. WC host props and events via `data-m-ex` + vendored uPlot</h4>
       <div class="page"><code data-attr-for="uplotDemo" data-attr-name="data-m-ex:.cfg@uplot" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="uplotDemo" data-attr-name="data-m-ex:uplot-last@.point" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <p>Pattern: define custom elements with <code>data-m-wc</code> on <code>template</code>, then drive host props and events with normal <code>data-m-ex</code>. The second instance is optional so the example can show separate host instances, not just one wrapper.</p>
       <div class="wc-demo">
         <div>
+          <label>Title <input value="Revenue vs Cost" data-m-ex@.^rw@uplot.title></label>
+          <label>Width <input type="range" min="280" max="640" step="20" data-m-ex@.^rw@uplot.w="Number(val)"></label>
           <button id="uplotStep" data-m-ex:uplot@.="window.stepUplot(dm.uplot)">Step data</button>
           <button id="uplotPush" data-m-ex:uplot@.="window.pushUplot(dm.uplot)">Add point</button>
           <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
+          <button id="uplotDup" data-m-ex:uplot2@.="window.cloneUplot(dm.uplot)">Duplicate chart</button>
         </div>
-        <mx-uplot id="uplotDemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="detail"></mx-uplot>
+        <mx-uplot id="uplotDemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-1' }, detail)"></mx-uplot>
+        <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2="!!dm.uplot2" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-2' }, detail)"></mx-uplot>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="dm.uplotLast ? JSON.stringify(dm.uplotLast) : 'click a point' "></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
@@ -488,6 +494,7 @@
   <script>
     (function () {
       const chartClone = (cfg, data) => Object.assign({}, cfg, { data })
+      window.cloneUplot = (cfg) => cfg ? JSON.parse(JSON.stringify(cfg)) : cfg
       window.stepUplot = (cfg) => cfg ? chartClone(cfg, cfg.data.map((arr, i) => i ? arr.map((n, j) => n + ((j & 1) ? -1 : 1) * (i + 1)) : arr.slice())) : cfg
       window.pushUplot = (cfg) => {
         if (!cfg || !cfg.data || !cfg.data.length) return cfg
