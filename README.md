@@ -34,7 +34,7 @@ Choose dmax when you want:
 | Class toggling | `data-m-cl` |
 | Show/hide | `data-m-sh` |
 | List rendering | `data-m-it` |
-| Web component hosting | `data-m-wc` |
+| Web component templates | `data-m-wc` + `data-m-ex` |
 | HTTP actions | `data-m-get|post|put|patch|delete` |
 | SSE streaming | `^sse` + `dmax-patch-*` events |
 | DOM morphing | built in |
@@ -61,7 +61,8 @@ Choose dmax when you want:
 <button data-m-get^json^busy.loading:result@.click="'/api/data'">Load</button>
 <span data-m-sh@loading>Loading…</span>
 
-<my-style-panel data-m-wc@panel></my-style-panel>
+<template data-m-wc="my-style-panel"><div>...</div></template>
+<my-style-panel data-m-ex:.open@panel.open></my-style-panel>
 ```
 
 ## Core directives
@@ -73,7 +74,7 @@ Choose dmax when you want:
 | `data-m-cl` | toggle classes from signals |
 | `data-m-sh` | show/hide elements |
 | `data-m-it` | render array items from templates |
-| `data-m-wc` | declare or drive web components |
+| `data-m-wc` | declare web components from templates |
 | `data-m-no` | skip scanning and/or morphing |
 | `data-m-get|post|put|patch|delete` | declarative actions |
 | `data-m-dbg` | debug-render current signal state |
@@ -147,9 +148,7 @@ This maps to:
 
 ## `data-m-wc`
 
-dmax treats web components as another built-in battery.
-
-### Template declaration
+`data-m-wc` is now for **template declaration** only.
 
 ```html
 <template data-m-wc="my-card">
@@ -159,22 +158,16 @@ dmax treats web components as another built-in battery.
 
 This registers a light-DOM custom element and clones the template into each instance on first connect.
 
-### Signal -> WC host binding
+For host props, use normal `data-m-ex` on the custom element:
 
 ```html
-<my-style-panel data-m-wc@panel></my-style-panel>
-<my-style-panel data-m-wc:open:root-selector@panel></my-style-panel>
-<my-style-panel data-m-wc^attr:aria-label@panel></my-style-panel>
+<my-style-panel
+  data-m-ex:.open@panel.open
+  data-m-ex:.root-selector@panel.root-selector>
+</my-style-panel>
 ```
 
-Current behavior:
-- trigger must be a signal
-- default mode writes **props**
-- `^attr` writes **attributes** instead
-- object values can spread multiple public fields onto the host
-- if present, `requestUpdate()` or `render()` is called after updates
-
-This makes dmax good at **hosting** foreign widgets declaratively even when their internals are not dmax-style.
+That keeps WC usage smaller and clearer: define with `data-m-wc`, drive with `data-m-ex`.
 
 ## Actions and SSE
 
@@ -246,7 +239,7 @@ Use this as the casual selection guide.
 | Signal/property sync | strong | weaker emphasis |
 | Two-way sync | built in | less central |
 | List rendering | built in via `data-m-it` | different approach |
-| Web components | now hostable via `data-m-wc` | Rocket-style component ideas are further along conceptually |
+| Web components | template declaration via `data-m-wc`, host props via `data-m-ex` | Rocket-style component ideas are further along conceptually |
 | SSE | strong | strong |
 | DOM morphing | built in | built in |
 | Client payload control | explicit (`+x`, `^send-all`, `^url`, `^body`) | broader server-driven conventions |

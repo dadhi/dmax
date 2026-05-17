@@ -4,16 +4,15 @@ Goal: keep dmax small and declarative, but still cover web components as a built
 
 ## Direction
 
-`data-m-wc` is for two related jobs:
+`data-m-wc` is now just for **declaring** a web component from a `<template>`.
 
-1. **declare** a web component from a `<template>`
-2. **drive** a web component instance from signals
+For host props/attrs, use normal `data-m-ex` on the custom element.
 
 The intended default is **modern light DOM**. Shadow DOM stays opt-in for components that really need style/behavior isolation or foreign-lib encapsulation.
 
 ## Minimal shape implemented now
 
-### 1. Template declaration
+### Template declaration
 
 ```html
 <template data-m-wc="my-card">
@@ -30,29 +29,29 @@ Current behavior:
 
 This is intentionally minimal.
 
-### 2. Signal -> WC props
+### Host props / attrs
+
+Use `data-m-ex` directly on the custom element host.
 
 ```html
-<my-style-panel data-m-wc@panel></my-style-panel>
-<my-style-panel data-m-wc:open:root-selector@panel></my-style-panel>
-<my-style-panel data-m-wc^attr:aria-label@panel></my-style-panel>
+<my-style-panel
+  data-m-ex:.open@panel.open
+  data-m-ex:.root-selector@panel.root-selector
+  data-m-ex:.aria-label@panel.label>
+</my-style-panel>
 ```
 
-Current behavior:
-- trigger must be a signal
-- default mode is **prop** writes
-- `^attr` switches host writes to attributes instead of props
-- with no targets, if the signal value is an object, its own keys are copied onto the host
-- with one target and a scalar, the scalar is assigned to that prop/attr
-- with named targets and an object, matching keys are copied onto matching props/attrs
-- after assignment, `requestUpdate()` or `render()` is called if present
+That keeps the model smaller and clearer:
+- `data-m-wc` defines the component
+- `data-m-ex` drives its public API
+- `data-m-ex^set-attr` can still be added later if generic attr-writing is worth it globally
 
 ## Why this shape
 
 It keeps the DX surface tiny:
-- one directive
-- same parse model as other dmax attrs
-- enough to host isolated/foreign widgets declaratively
+- one directive for declaration
+- normal `data-m-ex` for host wiring
+- less overlap and less “why not ex?” confusion
 
 ## Related style binding
 
@@ -76,17 +75,15 @@ That keeps style tokens declarative and signal-driven.
 ## Near-term likely additions
 
 - prop -> signal / event -> signal patterns around WC instances
-- explicit attr-vs-prop write modes
-- better nested prop routing
 - clearer slot/content patterns
 - optional shadow-root template mode
 - reuse more `data-m-it` internals where it shrinks code
 
 ## Dogfood target
 
-The `m-ex-cel` style button/panel is the first dogfood target:
+The `m-ex-cel` style button/panel and the vendored uPlot demo are the first dogfood targets:
 - the component itself remains isolated
-- dmax drives its public props declaratively
+- dmax drives its public props with `data-m-ex`
 - component events feed state back into signals
 
 That is the current intended compromise:

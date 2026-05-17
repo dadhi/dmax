@@ -47,5 +47,19 @@
     "file": "tools/vendor/moxi.js",
     "source": "moxi.js"
   },
-  "updatedAt": "2026-05-16T08:18:32.119Z"
+  "updatedAt": "2026-05-17T18:37:01.728Z",
+  "uplot": {
+    "name": "uplot",
+    "pkg": "uplot",
+    "version": "1.6.32",
+    "tarball": "https://registry.npmjs.org/uplot/-/uplot-1.6.32.tgz",
+    "file": "tools/vendor/uplot.js",
+    "source": "dist/uPlot.iife.min.js",
+    "extras": [
+      {
+        "file": "tools/vendor/uplot.css",
+        "source": "dist/uPlot.min.css"
+      }
+    ]
+  }
 }

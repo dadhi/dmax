@@ -22,7 +22,7 @@ const EVENTS = ['click', 'input', 'change', 'mouseover', 'keydown'];
 const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500', '_init'];
 const SPECIAL_EVENTS_WITH_IO = ['_viewed']; // require IntersectionObserver, warn when unavailable
 
-const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10'];
+const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10', '!eq.3', '!!eq.3', '!!!eq.3'];
 const INVALID_MODIFIERS = ['', 'unknown'];
 
 const EXPRESSIONS = [
@@ -119,6 +119,14 @@ function* generateDataSubCombinations() {
     yield { attr: `data-m-ex:${sig}@${trig}`, valid: true, category: 'single-target-trigger' }
   for (const prop of PROPERTIES.slice(0, 2)) for (const ev of EVENTS.slice(0, 2))
     yield { attr: `data-m-ex:.${prop}@.${ev}`, valid: true, category: 'prop-event' }
+  for (const sig of SIGNAL_NAMES.slice(0, 2)) {
+    yield { attr: `data-m-ex:${sig}@!${sig}`, valid: true, category: 'negated-trigger' }
+    yield { attr: `data-m-ex:${sig}@!!${sig}`, valid: true, category: 'double-negated-trigger' }
+    yield { attr: `data-m-ex:${sig}@!!!${sig}`, valid: true, category: 'triple-negated-trigger' }
+    yield { attr: `data-m-ex:!${sig}@${sig}`, valid: true, category: 'negated-target' }
+    yield { attr: `data-m-ex:!!${sig}@${sig}`, valid: true, category: 'double-negated-target' }
+    yield { attr: `data-m-ex:!!!${sig}@${sig}`, valid: true, category: 'triple-negated-target' }
+  }
 
   for (const ta of targetSets) for (const tr of triggerSets) for (const mods of modSets) {
     if (!ta.parts.length && !tr.parts.length) continue
@@ -139,6 +147,11 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
+  yield { attr: 'data-m-ex:foo@bar^!eq.3', valid: true, category: 'negated-mod' }
+  yield { attr: 'data-m-ex:foo@bar^!!eq.3', valid: true, category: 'double-negated-mod' }
+  yield { attr: 'data-m-ex:foo@bar^!!!eq.3', valid: true, category: 'triple-negated-mod' }
+  yield { attr: 'data-m-ex^!eq.3:foo@!bar', valid: true, category: 'negated-global-mod-and-trigger' }
+  yield { attr: 'data-m-ex^!!eq.3:!!foo@!!bar', valid: true, category: 'double-negated-mixed' }
   yield { attr: 'data-m-ex:.style.color:.text-content:#dest.value:#elem.title:#other.class-name:.checked:foo:bar:result:count@user.name@posts[0]@items[0].title@foo@bar@#btn.click@#src.input@#dest.change@.input@.click', valid: true, category: 'many-items-10x10' }
 
   for (const special of SPECIAL_EVENTS)
@@ -150,7 +163,10 @@ function* generateDataSubCombinations() {
 
   for (const attr of ['data-m-ex::', 'data-m-ex@@', 'data-m-ex^^', 'data-m-ex:foo^', 'data-m-ex:foo^^'])
     yield { attr, valid: true, category: 'discard-bad-parts' }
-  yield { attr: 'data-m-ex@!xxx@!', valid: false, category: 'discard-bad-parts-log', expectedLog: 'error', logPattern: 'bare !:' }
+  for (const attr of ['data-m-ex@!xxx@!', 'data-m-ex@!!!!'])
+    yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error', logPattern: 'bare !:' }
+  for (const attr of ['data-m-ex:^!', 'data-m-ex^!'])
+    yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error' }
 }
 
 function* generateDataSubRwCombinations() {

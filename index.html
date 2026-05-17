@@ -5,6 +5,7 @@
   <meta charset="utf-8" />
   <title>dmax notebook asserts — index.html</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="tools/vendor/uplot.css" />
   <style>
     html,
     body {
@@ -138,6 +139,22 @@
     #dbg-wrap[data-open="1"] #dbg-panel {
       display: block;
     }
+
+    .wc-demo {
+      display: grid;
+      gap: 10px;
+      align-items: start;
+    }
+
+    mx-uplot {
+      display: block;
+      min-height: 220px;
+      border: 1px solid #dbeafe;
+      border-radius: 6px;
+      background: #fff;
+      padding: 8px;
+      overflow: auto;
+    }
   </style>
 </head>
 
@@ -179,8 +196,21 @@
         "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,
         "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null,
         "val-source":{"bar":7},
+        "uplot":{"title":"Revenue vs Cost","points":true,"labels":["Revenue","Cost"],"data":[[1,2,3,4,5],[12,18,16,22,24],[8,11,13,15,18]],"series":[{"label":"Revenue","stroke":"#2563eb"},{"label":"Cost","stroke":"#dc2626"}],"w":420,"h":220},
+        "uplot-last":null,
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
+      <h4>0. WC host props via `data-m-ex` + vendored uPlot</h4>
+      <div class="page"><code data-attr-for="uplotDemo" data-attr-name="data-m-ex:.cfg@uplot" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="uplotDemo" data-attr-name="data-m-ex:uplot-last@.point" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="wc-demo">
+        <div>
+          <button id="uplotStep" data-m-ex:uplot@.="window.stepUplot(dm.uplot)">Step data</button>
+          <button id="uplotPush" data-m-ex:uplot@.="window.pushUplot(dm.uplot)">Add point</button>
+          <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
+        </div>
+        <mx-uplot id="uplotDemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="detail"></mx-uplot>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="dm.uplotLast ? JSON.stringify(dm.uplotLast) : 'click a point' "></pre>
+      </div>
       <h4>1. Deep Nested Signal Sync</h4>
       <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-m-ex@.^rw@user.age" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name></label>
@@ -453,9 +483,36 @@
       return value == null || value === '' ? attrName : `${attrName}="${value}"`;
     };
   </script>
+  <script src="tools/vendor/uplot.js"></script>
   <script src="dmax.js"></script>
   <script>
     (function () {
+      const chartClone = (cfg, data) => Object.assign({}, cfg, { data })
+      window.stepUplot = (cfg) => cfg ? chartClone(cfg, cfg.data.map((arr, i) => i ? arr.map((n, j) => n + ((j & 1) ? -1 : 1) * (i + 1)) : arr.slice())) : cfg
+      window.pushUplot = (cfg) => {
+        if (!cfg || !cfg.data || !cfg.data.length) return cfg
+        const xs = cfg.data[0], nextX = (xs[xs.length - 1] || 0) + 1
+        return chartClone(cfg, cfg.data.map((arr, i) => arr.concat(i ? (arr[arr.length - 1] || 0) + (i === 1 ? 2 : 1) : nextX)))
+      }
+      window.toggleUplot = (cfg) => cfg ? Object.assign({}, cfg, { points: !cfg.points }) : cfg
+      if (window.customElements && !customElements.get('mx-uplot')) customElements.define('mx-uplot', class extends HTMLElement {
+        connectedCallback() { this._box ||= this.appendChild(document.createElement('div')); this.render() }
+        set cfg(v) { this._cfg = v; this.render() }
+        render() {
+          const cfg = this._cfg, box = this._box || (this._box = this.appendChild(document.createElement('div'))), P = window.uPlot
+          if (!cfg || !cfg.data || !cfg.data.length || !P) return box.textContent = P ? 'chart needs cfg' : 'uPlot unavailable'
+          if (this._plot) this._plot.destroy()
+          box.textContent = ''
+          const colors = ['#2563eb', '#dc2626', '#16a34a', '#a21caf']
+          const series = [{}, ...cfg.data.slice(1).map((_, i) => Object.assign({ label: cfg.labels && cfg.labels[i] || 'S' + (i + 1), stroke: colors[i] || '#334155', width: 2 }, cfg.series && cfg.series[i] || {}, cfg.points ? { points: { show: true } } : { points: { show: false } }))]
+          const plot = this._plot = new P({ width: cfg.w || 420, height: cfg.h || 220, title: cfg.title || '', series, cursor: { drag: { x: false, y: false } } }, cfg.data, box)
+          plot.over.onclick = () => {
+            const i = plot.cursor.idx
+            if (i == null) return
+            this.dispatchEvent(new CustomEvent('point', { detail: { i, x: cfg.data[0][i], ys: cfg.data.slice(1).map(arr => arr[i]) } }))
+          }
+        }
+      })
       const DUMMYJSON_POST = Object.freeze({
         id: 1,
         title: 'His mother had always taught him',
