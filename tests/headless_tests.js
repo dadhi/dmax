@@ -31,7 +31,7 @@ function waitFor(conditionFn, timeout = 15000, interval = 50) {
 }
 
 const INLINE_LIST_PREFIX_RE = /^\d+\s+/;
-const FETCH_FAILURE_RE = /dmAct fetch failed/;
+const FETCH_FAILURE_RE = /dmAct fail/;
 
 (async () => {
   const dom = new JSDOM(html, {

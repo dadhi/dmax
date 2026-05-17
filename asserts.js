@@ -70,6 +70,18 @@
   const __parseIt = (it) => Object.assign({ "^": NIL, ":": NIL, "@": NIL, "+": NIL }, it);
   const __si = (root, path = null, not = null) => ({ kind: SI, not, root, path, mods: NIL, isSi: true, isEv: false, isSp: false, isInterval: false, isTimer: false, isViewed: false, isForm: false, isImmediate: null })
   const __ev = (root = '', path = null, not = null) => ({ kind: EP, not, root, path, mods: NIL, isSi: false, isEv: true, isSp: false, isInterval: false, isTimer: false, isViewed: false, isForm: false, isImmediate: null })
+  const parseItem = (dKey, type, n, pos = 0) => type != MOD ? parseRef(dKey, n, pos) : (() => {
+    if (!n) return null
+    let p = pos
+    while (n.startsWith(NOT, p)) ++p
+    let not = p == 0 ? null : p % 2 != 0
+    const d = indexFirst(n, NAME_DELIMS, p)
+    let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
+    if (root) root = kebabToCamel(root)
+    if (!root) return null
+    return mkMod(not, root, d < 0 || d + 1 >= n.length ? null : n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseRef(dKey, n, p))
+  })()
+  const applyTrMsMods = (fn, tr, mods, removeSub) => applyTrMs(fn, tr, compileMods(tr, mods), removeSub)
   const __assert = (fn, args, expected, label) => {
       const fname = fn && fn.name ? fn.name : '(anonymous)';
       const head = label ? `${fname} — ${label}` : fname;
@@ -156,7 +168,27 @@
     __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
-    __assert(() => getMValPath(NIL) === NIL, [], true, 'getMValPath uses NIL when no val mod exists')
+    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no val mod exists')
+    __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: __si('style', ['color']) }]], ['style', 'color'], 'compileMods parsed val path')
+    __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: null }]], NIL, 'compileMods null val path')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE }, 'compileMods flags/change mode')
+    __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
+    __assert(() => {
+      const el = document.createElement('input')
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), NIL), E_TRIG_EL, E_TRIG_EV, false)
+      return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
+    }, [], { ev: 'change', prPath: ['value'], readPath: ['value'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa default prop path')
+    __assert(() => {
+      const el = document.createElement('input')
+      const mods = compileMods(__ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }])
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), mods, E_TRIG_EL, E_TRIG_EV, false)
+      return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
+    }, [], { ev: 'change', prPath: ['value'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa keeps prop path but changes read path')
+    __assert(() => {
+      const el = document.createElement('input')
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
+      return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
+    }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies val path when enabled')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-m-si:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-m-si:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -417,7 +449,7 @@
       _dm.set('a', 5)
       let c = 0
       const trig = __si('a')
-      const h = applyTrMs(() => ++c, trig, [{ root: M_EQ, path: '5' }, { root: M_NE, path: '6' }])
+      const h = applyTrMsMods(() => ++c, trig, [{ root: M_EQ, path: '5' }, { root: M_NE, path: '6' }])
       h()
       _dm.set('a', 6)
       h()
@@ -429,7 +461,7 @@
       _dm.set('gate', false)
       let c = 0
       const trig = __ev()
-      const h = applyTrMs(() => ++c, trig, [{ root: M_AND, path: 'gate' }])
+      const h = applyTrMsMods(() => ++c, trig, [{ root: M_AND, path: 'gate' }])
       h(DM, null, trig, null, 1)
       _dm.set('gate', true)
       h(DM, null, trig, null, 2)
@@ -441,7 +473,7 @@
       const ev = { preventDefault: () => ++p }
       const trig = __ev()
       const sub = { trig, fn: null, ev: { taEl: { removeEventListener: () => ++r }, evName: 'click', opts: false }, clearId: null }
-      const h = applyTrMs(() => ++c, trig, [{ root: M_PREVENT, path: null }, { root: M_ONCE, path: null }], sub)
+      const h = applyTrMsMods(() => ++c, trig, [{ root: M_PREVENT, path: null }, { root: M_ONCE, path: null }], sub)
       sub.fn = h
       h(DM, null, trig, null, ev)
       return { p, r, c }
@@ -450,7 +482,7 @@
     function __tTrigModsValueFallback() {
       const out = []
       const trig = __ev()
-      const handler = applyTrMs((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
+      const handler = applyTrMsMods((_dm, _el, _trig, trigVal, detail) => out.push({ trigVal, detail }), trig, [])
       handler(DM, null, trig, null, { type: 'custom-value', detail: { value: 9 } })
       handler(DM, null, trig, null, { type: 'custom-ms', detail: { ms: 12 } })
       return out
@@ -468,7 +500,7 @@
       try {
         const out = []
         const trig = __ev()
-        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_DEBOUNCE, path: 8 }])
+        const h = applyTrMsMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_DEBOUNCE, path: 8 }])
         h(DM, null, trig, null, 1)
         h(DM, null, trig, null, 2)
         for (const [k, v] of q) {
@@ -489,7 +521,7 @@
       try {
         const out = []
         const trig = __ev()
-        const h = applyTrMs((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_THROTTLE, path: 10 }])
+        const h = applyTrMsMods((_dm, _el, _trig, _trigVal, detail) => out.push(detail), trig, [{ root: M_THROTTLE, path: 10 }])
         h(DM, null, trig, null, 1)
         now = 105
         h(DM, null, trig, null, 2)
@@ -508,7 +540,7 @@
       let c = 0
       const mods = [{ root: M_AND, path: 'gateA' }, { root: M_AND, path: 'gateB' }, { root: M_GE, path: '5' }, { root: M_LT, path: '9' }, { root: M_NE, path: '7' }]
       const trig = __ev()
-      const h = applyTrMs(() => ++c, trig, mods)
+      const h = applyTrMsMods(() => ++c, trig, mods)
       h(DM, null, trig, 6, null)
       _dm.set('gateB', true)
       h(DM, null, trig, 4, null)

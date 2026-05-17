@@ -91,71 +91,66 @@ ${insertEl}
 // ============================================================================
 
 function* generateDataSubCombinations() {
-  // Valid combinations
-  
-  // 1. Single target, single trigger
-  for (const sig of SIGNAL_NAMES.slice(0, 3)) {
-    for (const trig of SIGNAL_NAMES.slice(0, 3)) {
-      yield { attr: `data-m-ex:${sig}@${trig}`, valid: true, category: 'single-target-trigger' };
-    }
+  const targetSets = [
+    { parts: [], category: 'default-no-target' },
+    { parts: [':foo'], category: 'single-target-trigger' },
+    { parts: [':foo', ':bar'], category: 'multi-target' },
+    { parts: [':.value'], category: 'prop-event' },
+    { parts: [':foo', ':.value'], category: 'mixed-targets' },
+    { parts: [':.value', ':.checked'], category: 'multi-prop-targets' }
+  ]
+  const triggerSets = [
+    { parts: [], category: 'no-trigger' },
+    { parts: ['@foo'], category: 'single-target-trigger' },
+    { parts: ['@foo', '@bar'], category: 'multi-trigger' },
+    { parts: ['@.click'], category: 'prop-event' },
+    { parts: ['@foo', '@.click', '@#btn.click'], category: 'mixed-triggers' }
+  ]
+  const modSets = [
+    { parts: [], category: 'default-no-mod' },
+    { parts: ['^once'], category: 'global-mod' },
+    { parts: ['^once', '^always'], category: 'many-global-mods' },
+    { parts: ['^eq.3'], category: 'mod-value-str' },
+    { parts: ['^and.gate'], category: 'mod-value-signal' },
+    { parts: ['^mod.user.name.value'], category: 'mod-value-path' }
+  ]
+
+  for (const sig of SIGNAL_NAMES.slice(0, 2)) for (const trig of SIGNAL_NAMES.slice(0, 2))
+    yield { attr: `data-m-ex:${sig}@${trig}`, valid: true, category: 'single-target-trigger' }
+  for (const prop of PROPERTIES.slice(0, 2)) for (const ev of EVENTS.slice(0, 2))
+    yield { attr: `data-m-ex:.${prop}@.${ev}`, valid: true, category: 'prop-event' }
+
+  for (const ta of targetSets) for (const tr of triggerSets) for (const mods of modSets) {
+    if (!ta.parts.length && !tr.parts.length) continue
+    const attr = 'data-m-ex' + mods.parts.join('') + ta.parts.join('') + tr.parts.join('')
+    yield { attr, valid: true, category: `${ta.category}/${tr.category}/${mods.category}` }
   }
-  
-  // 2. Single property target, single event trigger
-  for (const prop of PROPERTIES.slice(0, 3)) {
-    for (const ev of EVENTS.slice(0, 3)) {
-      yield { attr: `data-m-ex:.${prop}@.${ev}`, valid: true, category: 'prop-event' };
-    }
-  }
-  
-  // 3. Multiple targets
-  yield { attr: 'data-m-ex:foo:bar@baz', valid: true, category: 'multi-target' };
-  yield { attr: 'data-m-ex:foo:.value@.click', valid: true, category: 'mixed-targets' };
-  yield { attr: 'data-m-ex:.value:.checked@.click', valid: true, category: 'multi-prop-targets' };
-  
-  // 4. Multiple triggers
-  yield { attr: 'data-m-ex:foo@bar@baz', valid: true, category: 'multi-trigger' };
-  yield { attr: 'data-m-ex:foo@bar@.click@#btn.click', valid: true, category: 'mixed-triggers' };
-  
-  // 5. With modifiers
-  for (const mod of MODIFIERS.slice(0, 5)) {
-      yield { attr: `data-m-ex:foo@bar^${mod}`, valid: true, category: 'trigger-mod' };
-    }
-  yield { attr: 'data-m-ex^once:foo@bar', valid: true, category: 'global-mod' };
-  yield { attr: 'data-m-ex^once:foo@bar^always', valid: true, category: 'mod-override' };
-  
-  // 6. Special triggers
-  for (const special of SPECIAL_EVENTS) {
-    yield { attr: `data-m-ex:foo@${special}`, valid: true, category: 'special-trigger' };
-  }
-  // IntersectionObserver-based triggers warn when IO is unavailable (e.g. JSDOM)
-  for (const special of SPECIAL_EVENTS_WITH_IO) {
-    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver not available' };
-  }
-  
-  // 7. No target (side effect)
-  yield { attr: 'data-m-ex@foo', valid: true, category: 'side-effect' };
-  yield { attr: 'data-m-ex@.click', valid: true, category: 'side-effect-event' };
-  
-  // 8. No trigger (immediate eval)
-  yield { attr: 'data-m-ex:foo', valid: true, category: 'no-trigger' };
-  yield { attr: 'data-m-ex:.value', valid: true, category: 'no-trigger-prop' };
-  
-  // 9. Cross-element references
-  yield { attr: 'data-m-ex:#elem.value@#other.input', valid: true, category: 'cross-element' };
-  yield { attr: 'data-m-ex:foo@#elem.click', valid: true, category: 'cross-element-event' };
-  
-  // Invalid combinations - Note: Parser is lenient, only catches syntax errors
-  
-  // 10. Signal names with dots - parser accepts these (runtime will handle)
-  // Removed: foo., .foo, foo..bar tests - parser doesn't validate these
-  
-  // 11. Invalid properties - parser doesn't validate property names
-  // Removed: invalid property tests - parser is lenient
-  
-  yield { attr: 'data-m-ex+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'Supports only targets, triggers, mods but found more' };
-  
-  // Note: Parser doesn't validate modifier names or detect conflicts - they're just strings
-  // Removed: Invalid modifier and conflicting modifier tests - parser is lenient
+
+  yield { attr: 'data-m-ex@foo', valid: true, category: 'side-effect' }
+  yield { attr: 'data-m-ex@.click', valid: true, category: 'side-effect-event' }
+  yield { attr: 'data-m-ex:.value', valid: true, category: 'no-trigger-prop' }
+  yield { attr: 'data-m-ex:#elem.value@#other.input', valid: true, category: 'cross-element' }
+  yield { attr: 'data-m-ex:foo@#elem.click', valid: true, category: 'cross-element-event' }
+  yield { attr: 'data-m-ex:.style.color@user.name', valid: true, category: 'nested-signal-prop' }
+  yield { attr: 'data-m-ex:.style.font-size@posts[0]', valid: true, category: 'indexed-signal-prop' }
+  yield { attr: 'data-m-ex:#dest.style.color@#src.input', valid: true, category: 'id-prop-to-id-event' }
+  yield { attr: 'data-m-ex:result@.input^val.style.color', valid: true, category: 'val-prop-path' }
+  yield { attr: 'data-m-ex:result@.input^val.user.name', valid: true, category: 'val-signal-path' }
+  yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
+  yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
+  yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
+  yield { attr: 'data-m-ex:.style.color:.text-content:#dest.value:#elem.title:#other.class-name:.checked:foo:bar:result:count@user.name@posts[0]@items[0].title@foo@bar@#btn.click@#src.input@#dest.change@.input@.click', valid: true, category: 'many-items-10x10' }
+
+  for (const special of SPECIAL_EVENTS)
+    yield { attr: `data-m-ex:foo@${special}`, valid: true, category: 'special-trigger' }
+  for (const special of SPECIAL_EVENTS_WITH_IO)
+    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver missing, skip _viewed' }
+
+  yield { attr: 'data-m-ex+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'targets/triggers/mods only' }
+
+  for (const attr of ['data-m-ex::', 'data-m-ex@@', 'data-m-ex^^', 'data-m-ex:foo^', 'data-m-ex:foo^^'])
+    yield { attr, valid: true, category: 'discard-bad-parts' }
+  yield { attr: 'data-m-ex@!xxx@!', valid: false, category: 'discard-bad-parts-log', expectedLog: 'error', logPattern: 'bare !:' }
 }
 
 function* generateDataSubRwCombinations() {
