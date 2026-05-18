@@ -233,10 +233,71 @@
       #mx-meta { grid-template-columns: 1fr; }
     }
 
+    mx-style-panel {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 9;
+      font: 12px/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    mx-style-panel details,
+    mx-style-panel button { all: unset; box-sizing: border-box; }
+    mx-style-panel summary { list-style: none; cursor: pointer; }
+    mx-style-panel summary::-webkit-details-marker { display: none; }
+    mx-style-panel .fab {
+      display: grid;
+      place-items: center;
+      inline-size: 34px;
+      block-size: 34px;
+      border-radius: 999px;
+      background: #0f172acc;
+      color: #fff;
+      box-shadow: 0 8px 24px #0003;
+      backdrop-filter: blur(10px);
+    }
+    mx-style-panel .panel {
+      position: absolute;
+      top: 42px;
+      right: 0;
+      inline-size: min(22rem, calc(100vw - 24px));
+      max-block-size: min(78vh, 48rem);
+      overflow: auto;
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #fffc;
+      color: #0f172a;
+      box-shadow: 0 16px 40px #00000026;
+      backdrop-filter: blur(14px);
+    }
+    mx-style-panel h2,
+    mx-style-panel p { margin: 0; }
+    mx-style-panel h2 { font-size: 12px; }
+    mx-style-panel p { margin-top: 4px; color: #475569; }
+    mx-style-panel .tools { display: flex; gap: 6px; margin-top: 8px; }
+    mx-style-panel .tools button { padding: 5px 7px; border-radius: 8px; background: #e2e8f0; cursor: pointer; }
+    mx-style-panel dl { display: grid; gap: 6px; margin: 8px 0 0; }
+    mx-style-panel div.r {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+      align-items: center;
+      padding-top: 6px;
+      border-top: 1px solid #e2e8f0;
+    }
+    mx-style-panel dt { display: grid; gap: 4px; margin: 0; }
+    mx-style-panel dd { margin: 0; color: #475569; text-align: right; }
+    mx-style-panel label { display: grid; gap: 4px; }
+    mx-style-panel input { inline-size: 100%; font: inherit; }
+    mx-style-panel input[type='text'] { padding: 6px 7px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+    mx-style-panel input[type='range'] { accent-color: #2563eb; }
+
     @media (max-width: 60rem) {
       #m-ex-cel > header,
       #m-ex-cel > main,
       #m-ex-cel > footer { inline-size: min(calc(100% - var(--space-4)), var(--size-wrap)); }
+      mx-style-panel { top: 8px; right: 8px; }
+      mx-style-panel .panel { inline-size: min(20rem, calc(100vw - 16px)); }
     }
   </style>
 </head>
@@ -245,7 +306,38 @@
   <div id="m-ex-cel" data-m-ex:.style.size-cell@mx.ui.cell-size="val + 'rem'" data-m-ex:.style.tone-accent@mx.ui.tone-accent>
     <div data-m-si='{"mx":{"feedOpen":false,"feedDone":false,"feedError":"","feedStop":null,"status":"idle","updates":0,"speedMs":900,"stylePanel":{"open":false,"rootSelector":"#m-ex-cel"},"ui":{"cellSize":4.5,"toneAccent":"oklch(62% .18 257)"},"selectedId":"r0c0","selectedLabel":"Revenue / Jan","selectedValue":120,"selectedDelta":0,"sheet":{"cols":["Jan","Feb","Mar","Apr","May","Jun"],"rows":[{"label":"Revenue","cells":[{"id":"r0c0","row":"Revenue","col":"Jan","value":120,"delta":0},{"id":"r0c1","row":"Revenue","col":"Feb","value":128,"delta":0},{"id":"r0c2","row":"Revenue","col":"Mar","value":133,"delta":0},{"id":"r0c3","row":"Revenue","col":"Apr","value":129,"delta":0},{"id":"r0c4","row":"Revenue","col":"May","value":136,"delta":0},{"id":"r0c5","row":"Revenue","col":"Jun","value":142,"delta":0}]},{"label":"COGS","cells":[{"id":"r1c0","row":"COGS","col":"Jan","value":74,"delta":0},{"id":"r1c1","row":"COGS","col":"Feb","value":79,"delta":0},{"id":"r1c2","row":"COGS","col":"Mar","value":81,"delta":0},{"id":"r1c3","row":"COGS","col":"Apr","value":78,"delta":0},{"id":"r1c4","row":"COGS","col":"May","value":83,"delta":0},{"id":"r1c5","row":"COGS","col":"Jun","value":86,"delta":0}]},{"label":"Payroll","cells":[{"id":"r2c0","row":"Payroll","col":"Jan","value":31,"delta":0},{"id":"r2c1","row":"Payroll","col":"Feb","value":31,"delta":0},{"id":"r2c2","row":"Payroll","col":"Mar","value":32,"delta":0},{"id":"r2c3","row":"Payroll","col":"Apr","value":32,"delta":0},{"id":"r2c4","row":"Payroll","col":"May","value":33,"delta":0},{"id":"r2c5","row":"Payroll","col":"Jun","value":33,"delta":0}]},{"label":"Marketing","cells":[{"id":"r3c0","row":"Marketing","col":"Jan","value":12,"delta":0},{"id":"r3c1","row":"Marketing","col":"Feb","value":14,"delta":0},{"id":"r3c2","row":"Marketing","col":"Mar","value":16,"delta":0},{"id":"r3c3","row":"Marketing","col":"Apr","value":15,"delta":0},{"id":"r3c4","row":"Marketing","col":"May","value":18,"delta":0},{"id":"r3c5","row":"Marketing","col":"Jun","value":19,"delta":0}]},{"label":"Ops","cells":[{"id":"r4c0","row":"Ops","col":"Jan","value":22,"delta":0},{"id":"r4c1","row":"Ops","col":"Feb","value":21,"delta":0},{"id":"r4c2","row":"Ops","col":"Mar","value":24,"delta":0},{"id":"r4c3","row":"Ops","col":"Apr","value":23,"delta":0},{"id":"r4c4","row":"Ops","col":"May","value":24,"delta":0},{"id":"r4c5","row":"Ops","col":"Jun","value":25,"delta":0}]},{"label":"Cash","cells":[{"id":"r5c0","row":"Cash","col":"Jan","value":66,"delta":0},{"id":"r5c1","row":"Cash","col":"Feb","value":69,"delta":0},{"id":"r5c2","row":"Cash","col":"Mar","value":71,"delta":0},{"id":"r5c3","row":"Cash","col":"Apr","value":68,"delta":0},{"id":"r5c4","row":"Cash","col":"May","value":74,"delta":0},{"id":"r5c5","row":"Cash","col":"Jun","value":79,"delta":0}]}]}}}'></div>
 
-    <mx-style-panel data-m-ex:.open@mx.style-panel="dm.mx.stylePanel.open" data-m-ex:.root-selector@mx.style-panel="dm.mx.stylePanel.rootSelector" data-m-ex:mx.style-panel@.toggle="Object.assign({}, dm.mx.stylePanel || {}, { open: detail && detail.open })"></mx-style-panel>
+    <template data-m-wc="mx-style-panel">
+      <details data-m-ex:.open@mx.style-panel.open data-m-ex:mx.style-panel@.toggle="Object.assign({}, dm.mx.stylePanel || {}, { open: !!el.open })">
+        <summary class="fab" aria-controls="mx-style-panel">◐</summary>
+        <section class="panel" id="mx-style-panel">
+          <h2>Style props</h2>
+          <p>Compact live tokens for this page.</p>
+          <div class="tools"><button type="button" data-m-ex@.click="window.mxStyleReset(el)">reset</button></div>
+          <dl>
+            <div class="r"><dt><label><span>Space 1</span><input data-name="--space-1" data-unit="rem" type="range" min=".125" max="1" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--space-1</code></dd></div>
+            <div class="r"><dt><label><span>Space 2</span><input data-name="--space-2" data-unit="rem" type="range" min=".25" max="1.5" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--space-2</code></dd></div>
+            <div class="r"><dt><label><span>Space 3</span><input data-name="--space-3" data-unit="rem" type="range" min=".375" max="2" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--space-3</code></dd></div>
+            <div class="r"><dt><label><span>Space 4</span><input data-name="--space-4" data-unit="rem" type="range" min=".5" max="2.5" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--space-4</code></dd></div>
+            <div class="r"><dt><label><span>Space 5</span><input data-name="--space-5" data-unit="rem" type="range" min=".75" max="3" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--space-5</code></dd></div>
+            <div class="r"><dt><label><span>Space 6</span><input data-name="--space-6" data-unit="rem" type="range" min="1" max="4" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--space-6</code></dd></div>
+            <div class="r"><dt><label><span>Radius 1</span><input data-name="--radius-1" data-unit="rem" type="range" min=".125" max="1.5" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--radius-1</code></dd></div>
+            <div class="r"><dt><label><span>Radius 2</span><input data-name="--radius-2" data-unit="rem" type="range" min=".25" max="2" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--radius-2</code></dd></div>
+            <div class="r"><dt><label><span>Radius 3</span><input data-name="--radius-3" data-unit="rem" type="range" min=".375" max="2.5" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--radius-3</code></dd></div>
+            <div class="r"><dt><label><span>Line 1</span><input data-name="--line-1" data-unit="px" type="range" min="1" max="3" step="1" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--line-1</code></dd></div>
+            <div class="r"><dt><label><span>Line 2</span><input data-name="--line-2" data-unit="px" type="range" min="1" max="4" step="1" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--line-2</code></dd></div>
+            <div class="r"><dt><label><span>Cell size</span><input data-name="--size-cell" data-unit="rem" type="range" min="3" max="7" step=".125" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--size-cell</code></dd></div>
+            <div class="r"><dt><label><span>Wrap size</span><input data-name="--size-wrap" data-unit="rem" type="range" min="48" max="96" step="1" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--size-wrap</code></dd></div>
+            <div class="r"><dt><label><span>Tone bg</span><input data-name="--tone-bg" type="text" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--tone-bg</code></dd></div>
+            <div class="r"><dt><label><span>Tone ink</span><input data-name="--tone-ink" type="text" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--tone-ink</code></dd></div>
+            <div class="r"><dt><label><span>Tone accent</span><input data-name="--tone-accent" type="text" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--tone-accent</code></dd></div>
+            <div class="r"><dt><label><span>Tone good</span><input data-name="--tone-good" type="text" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--tone-good</code></dd></div>
+            <div class="r"><dt><label><span>Tone bad</span><input data-name="--tone-bad" type="text" data-m-ex:.value@_init="window.mxStyleRead(el)" data-m-ex:.title@_init="window.mxStyleRead(el)" data-m-ex@.input="window.mxStyleWrite(el)" data-m-ex:.title@.input="el.value"></label></dt><dd><code>--tone-bad</code></dd></div>
+          </dl>
+        </section>
+      </details>
+    </template>
+
+    <mx-style-panel data-m-ex:.dataset.root-selector@mx.style-panel="dm.mx.stylePanel.rootSelector"></mx-style-panel>
 
     <header>
       <p><a href="../index.html">← back to index.html</a></p>
@@ -355,105 +447,24 @@
   <script>
     (() => {
       const EMPTY = []
-      const STYLE_TOKENS = [
-        ['--space-1', 'Space 1', 'range', '.125', '1', '.125', 'rem'],
-        ['--space-2', 'Space 2', 'range', '.25', '1.5', '.125', 'rem'],
-        ['--space-3', 'Space 3', 'range', '.375', '2', '.125', 'rem'],
-        ['--space-4', 'Space 4', 'range', '.5', '2.5', '.125', 'rem'],
-        ['--space-5', 'Space 5', 'range', '.75', '3', '.125', 'rem'],
-        ['--space-6', 'Space 6', 'range', '1', '4', '.125', 'rem'],
-        ['--radius-1', 'Radius 1', 'range', '.125', '1.5', '.125', 'rem'],
-        ['--radius-2', 'Radius 2', 'range', '.25', '2', '.125', 'rem'],
-        ['--radius-3', 'Radius 3', 'range', '.375', '2.5', '.125', 'rem'],
-        ['--line-1', 'Line 1', 'range', '1', '3', '1', 'px'],
-        ['--line-2', 'Line 2', 'range', '1', '4', '1', 'px'],
-        ['--size-cell', 'Cell size', 'range', '3', '7', '.125', 'rem'],
-        ['--size-wrap', 'Wrap size', 'range', '48', '96', '1', 'rem'],
-        ['--tone-bg', 'Tone bg', 'text'],
-        ['--tone-ink', 'Tone ink', 'text'],
-        ['--tone-accent', 'Tone accent', 'text'],
-        ['--tone-good', 'Tone good', 'text'],
-        ['--tone-bad', 'Tone bad', 'text']
-      ]
-      class MxStylePanel extends HTMLElement {
-        set open(v) { this._open = !!v; this.render() }
-        get open() { return !!this._open }
-        set rootSelector(v) { this._rootSelector = v || '#m-ex-cel'; this.renderVals() }
-        get rootSelector() { return this._rootSelector || '#m-ex-cel' }
-        set tokens(v) { this._tokens = Array.isArray(v) ? v : STYLE_TOKENS; this.fillRows() }
-        get tokens() { return this._tokens || STYLE_TOKENS }
-        get rootEl() { return document.querySelector(this.rootSelector) || document.documentElement }
-        connectedCallback() {
-          if (this.shadowRoot) return
-          const sr = this.attachShadow({ mode: 'open' })
-          sr.innerHTML = `<style>
-            :host{position:fixed;top:12px;right:12px;z-index:9;font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-            details,button{all:unset;box-sizing:border-box}summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
-            .fab{display:grid;place-items:center;inline-size:34px;block-size:34px;border-radius:999px;background:#0f172acc;color:#fff;box-shadow:0 8px 24px #0003;backdrop-filter:blur(10px)}
-            .panel{position:absolute;top:42px;right:0;inline-size:min(22rem,calc(100vw - 24px));max-block-size:min(78vh,48rem);overflow:auto;padding:8px;border:1px solid #cbd5e1;border-radius:14px;background:#fffc;color:#0f172a;box-shadow:0 16px 40px #00000026;backdrop-filter:blur(14px)}
-            h2,p{margin:0} h2{font-size:12px} p{margin-top:4px;color:#475569}
-            .tools{display:flex;gap:6px;margin-top:8px}.tools button{padding:5px 7px;border-radius:8px;background:#e2e8f0;cursor:pointer}
-            dl{display:grid;gap:6px;margin:8px 0 0}div.r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0}
-            dt{display:grid;gap:4px;margin:0}dd{margin:0;color:#475569;text-align:right}label{display:grid;gap:4px}input{inline-size:100%;font:inherit}input[type=text]{padding:6px 7px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}input[type=range]{accent-color:#2563eb}
-            @media (max-width:60rem){:host{top:8px;right:8px}.panel{inline-size:min(20rem,calc(100vw - 16px))}}
-          </style><details><summary class="fab" aria-controls="mx-style-panel">◐</summary><section class="panel" id="mx-style-panel"><h2>Style props</h2><p>Compact live tokens for this page.</p><div class="tools"><button type="button" data-act="reset">reset</button></div><dl></dl></section></details>`
-          this._de = sr.querySelector('details')
-          this._fab = sr.querySelector('.fab')
-          this._dl = sr.querySelector('dl')
-          sr.addEventListener('click', e => {
-            const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act')
-            if (act !== 'reset') return
-            const root = this.rootEl
-            for (const [name] of this.tokens) root.style.removeProperty(name)
-            this.renderVals()
-          })
-          sr.addEventListener('input', e => {
-            const el = e.target
-            if (!el || !el.dataset || !el.dataset.name) return
-            this.rootEl.style.setProperty(el.dataset.name, el.dataset.unit ? el.value + el.dataset.unit : el.value)
-            if (el.type === 'text') el.title = el.value
-          })
-          this._de.addEventListener('toggle', () => {
-            const open = !!this._de.open
-            if (open === this._open) return
-            this._open = open
-            this.render()
-            this.dispatchEvent(new CustomEvent('toggle', { detail: { open } }))
-          })
-          this.fillRows(); this.render(); this.renderVals()
-        }
-        setOpen(open) {
-          this._open = !!open
-          this.render()
-        }
-        fillRows() {
-          if (!this._dl) return
-          this._dl.textContent = ''
-          for (const [name, label, kind, min, max, step, unit] of this.tokens) {
-            const row = document.createElement('div')
-            row.className = 'r'
-            row.innerHTML = `<dt><label><span>${label}</span>${kind === 'range' ? `<input data-name="${name}" data-unit="${unit}" type="range" min="${min}" max="${max}" step="${step}">` : `<input data-name="${name}" type="text">`}</label></dt><dd><code>${name}</code></dd>`
-            this._dl.appendChild(row)
-          }
-          this.renderVals()
-        }
-        render() {
-          if (!this.shadowRoot) return
-          this.toggleAttribute('open', this.open)
-          if (this._de) this._de.open = this.open
-          if (this._fab) this._fab.setAttribute('aria-expanded', this.open)
-        }
-        renderVals() {
-          if (!this.shadowRoot) return
-          const root = this.rootEl
-          for (const el of this.shadowRoot.querySelectorAll('[data-name]')) {
-            const name = el.dataset.name, raw = getComputedStyle(root).getPropertyValue(name).trim()
-            if (el.type === 'range') el.value = parseFloat(raw) || 0
-            else { el.value = raw; el.title = raw }
-          }
+      const mxStyleRoot = (el) => document.querySelector(el.closest('mx-style-panel')?.dataset.rootSelector || '#m-ex-cel') || document.documentElement
+      window.mxStyleRead = (el) => {
+        const raw = getComputedStyle(mxStyleRoot(el)).getPropertyValue(el.dataset.name).trim()
+        return el.type === 'range' ? parseFloat(raw) || 0 : raw
+      }
+      window.mxStyleWrite = (el) => {
+        mxStyleRoot(el).style.setProperty(el.dataset.name, el.dataset.unit ? el.value + el.dataset.unit : el.value)
+        if (el.type === 'text') el.title = el.value
+      }
+      window.mxStyleReset = (el) => {
+        const host = el.closest('mx-style-panel'), ins = host ? host.querySelectorAll('[data-name]') : EMPTY, root = mxStyleRoot(el)
+        for (const i of ins) root.style.removeProperty(i.dataset.name)
+        for (const i of ins) {
+          const val = window.mxStyleRead(i)
+          i.value = val
+          i.title = val
         }
       }
-      customElements.get('mx-style-panel') || customElements.define('mx-style-panel', MxStylePanel)
       const DELTAS = [12, -6, 4, -3, 8, -5, 2, 7, -4, 5, -2, 6]
       const INIT_MX = { feedOpen: false, feedDone: false, feedError: '', feedStop: null, status: 'idle', updates: 0, speedMs: 900, mode: 'single-cell', stylePanel: { open: false, rootSelector: '#m-ex-cel' }, ui: { cellSize: 4.5, toneAccent: 'oklch(62% .18 257)' }, selectedId: 'r0c0', selectedLabel: 'Revenue / Jan', selectedValue: 120, selectedDelta: 0, log: ['idle: ready'], latestSse: '', latestPatch: null, summary: [], sheet: { cols: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], rows: [{ label: 'Revenue', cells: [{ id: 'r0c0', row: 'Revenue', col: 'Jan', value: 120, delta: 0 }, { id: 'r0c1', row: 'Revenue', col: 'Feb', value: 128, delta: 0 }, { id: 'r0c2', row: 'Revenue', col: 'Mar', value: 133, delta: 0 }, { id: 'r0c3', row: 'Revenue', col: 'Apr', value: 129, delta: 0 }, { id: 'r0c4', row: 'Revenue', col: 'May', value: 136, delta: 0 }, { id: 'r0c5', row: 'Revenue', col: 'Jun', value: 142, delta: 0 }] }, { label: 'COGS', cells: [{ id: 'r1c0', row: 'COGS', col: 'Jan', value: 74, delta: 0 }, { id: 'r1c1', row: 'COGS', col: 'Feb', value: 79, delta: 0 }, { id: 'r1c2', row: 'COGS', col: 'Mar', value: 81, delta: 0 }, { id: 'r1c3', row: 'COGS', col: 'Apr', value: 78, delta: 0 }, { id: 'r1c4', row: 'COGS', col: 'May', value: 83, delta: 0 }, { id: 'r1c5', row: 'COGS', col: 'Jun', value: 86, delta: 0 }] }, { label: 'Payroll', cells: [{ id: 'r2c0', row: 'Payroll', col: 'Jan', value: 31, delta: 0 }, { id: 'r2c1', row: 'Payroll', col: 'Feb', value: 31, delta: 0 }, { id: 'r2c2', row: 'Payroll', col: 'Mar', value: 32, delta: 0 }, { id: 'r2c3', row: 'Payroll', col: 'Apr', value: 32, delta: 0 }, { id: 'r2c4', row: 'Payroll', col: 'May', value: 33, delta: 0 }, { id: 'r2c5', row: 'Payroll', col: 'Jun', value: 33, delta: 0 }] }, { label: 'Marketing', cells: [{ id: 'r3c0', row: 'Marketing', col: 'Jan', value: 12, delta: 0 }, { id: 'r3c1', row: 'Marketing', col: 'Feb', value: 14, delta: 0 }, { id: 'r3c2', row: 'Marketing', col: 'Mar', value: 16, delta: 0 }, { id: 'r3c3', row: 'Marketing', col: 'Apr', value: 15, delta: 0 }, { id: 'r3c4', row: 'Marketing', col: 'May', value: 18, delta: 0 }, { id: 'r3c5', row: 'Marketing', col: 'Jun', value: 19, delta: 0 }] }, { label: 'Ops', cells: [{ id: 'r4c0', row: 'Ops', col: 'Jan', value: 22, delta: 0 }, { id: 'r4c1', row: 'Ops', col: 'Feb', value: 21, delta: 0 }, { id: 'r4c2', row: 'Ops', col: 'Mar', value: 24, delta: 0 }, { id: 'r4c3', row: 'Ops', col: 'Apr', value: 23, delta: 0 }, { id: 'r4c4', row: 'Ops', col: 'May', value: 24, delta: 0 }, { id: 'r4c5', row: 'Ops', col: 'Jun', value: 25, delta: 0 }] }, { label: 'Cash', cells: [{ id: 'r5c0', row: 'Cash', col: 'Jan', value: 66, delta: 0 }, { id: 'r5c1', row: 'Cash', col: 'Feb', value: 69, delta: 0 }, { id: 'r5c2', row: 'Cash', col: 'Mar', value: 71, delta: 0 }, { id: 'r5c3', row: 'Cash', col: 'Apr', value: 68, delta: 0 }, { id: 'r5c4', row: 'Cash', col: 'May', value: 74, delta: 0 }, { id: 'r5c5', row: 'Cash', col: 'Jun', value: 79, delta: 0 }] }] } }
       const clone = (v) => JSON.parse(JSON.stringify(v))

@@ -502,24 +502,25 @@
         return chartClone(cfg, cfg.data.map((arr, i) => arr.concat(i ? (arr[arr.length - 1] || 0) + (i === 1 ? 2 : 1) : nextX)))
       }
       window.toggleUplot = (cfg) => cfg ? Object.assign({}, cfg, { points: !cfg.points }) : cfg
-      if (window.customElements && !customElements.get('mx-uplot')) customElements.define('mx-uplot', class extends HTMLElement {
-        connectedCallback() { this._box ||= this.appendChild(document.createElement('div')); this.render() }
-        set cfg(v) { this._cfg = v; this.render() }
-        render() {
-          const cfg = this._cfg, box = this._box || (this._box = this.appendChild(document.createElement('div'))), P = window.uPlot
-          if (!cfg || !cfg.data || !cfg.data.length || !P) return box.textContent = P ? 'chart needs cfg' : 'uPlot unavailable'
-          if (this._plot) this._plot.destroy()
-          box.textContent = ''
-          const colors = ['#2563eb', '#dc2626', '#16a34a', '#a21caf']
-          const series = [{}, ...cfg.data.slice(1).map((_, i) => Object.assign({ label: cfg.labels && cfg.labels[i] || 'S' + (i + 1), stroke: colors[i] || '#334155', width: 2 }, cfg.series && cfg.series[i] || {}, cfg.points ? { points: { show: true } } : { points: { show: false } }))]
-          const plot = this._plot = new P({ width: cfg.w || 420, height: cfg.h || 220, title: cfg.title || '', series, cursor: { drag: { x: false, y: false } } }, cfg.data, box)
-          plot.over.onclick = () => {
-            const i = plot.cursor.idx
-            if (i == null) return
-            this.dispatchEvent(new CustomEvent('point', { detail: { i, x: cfg.data[0][i], ys: cfg.data.slice(1).map(arr => arr[i]) } }))
-          }
+      window.mxUplotRender = (box, cfg) => {
+        const host = box && box.parentNode, P = window.uPlot
+        if (!box || !host) return
+        if (!cfg || !cfg.data || !cfg.data.length || !P) {
+          if (box._plot) box._plot.destroy(), box._plot = null
+          box.textContent = P ? 'chart needs cfg' : 'uPlot unavailable'
+          return
         }
-      })
+        if (box._plot) box._plot.destroy()
+        box.textContent = ''
+        const colors = ['#2563eb', '#dc2626', '#16a34a', '#a21caf']
+        const series = [{}, ...cfg.data.slice(1).map((_, i) => Object.assign({ label: cfg.labels && cfg.labels[i] || 'S' + (i + 1), stroke: colors[i] || '#334155', width: 2 }, cfg.series && cfg.series[i] || {}, cfg.points ? { points: { show: true } } : { points: { show: false } }))]
+        const plot = box._plot = new P({ width: cfg.w || 420, height: cfg.h || 220, title: cfg.title || '', series, cursor: { drag: { x: false, y: false } } }, cfg.data, box)
+        plot.over.onclick = () => {
+          const i = plot.cursor.idx
+          if (i == null) return
+          host.dispatchEvent(new CustomEvent('point', { detail: { i, x: cfg.data[0][i], ys: cfg.data.slice(1).map(arr => arr[i]) } }))
+        }
+      }
       const DUMMYJSON_POST = Object.freeze({
         id: 1,
         title: 'His mother had always taught him',

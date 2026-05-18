@@ -1264,16 +1264,10 @@
       if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
       if (customElements.get(name) || WC_TMPLS.has(tpl)) return
       WC_TMPLS.add(tpl)
-      customElements.define(name, class extends HTMLElement {
-        connectedCallback() {
-          if (WC_INITS.has(this)) return
-          WC_INITS.add(this)
-          if (!this.firstElementChild && tpl.content) {
-            this.appendChild(tpl.content.cloneNode(true))
-            wireItClone(this)
-          }
-        }
-      })
+      const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(/[^,\s]+/g) || NIL
+      const WC = class extends HTMLElement { connectedCallback() { if (WC_INITS.has(this)) return; WC_INITS.add(this); if (!this.firstElementChild && tpl.content) this.appendChild(tpl.content.cloneNode(true)), wireItClone(this) } }
+      for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v })) } })
+      customElements.define(name, WC)
     }
     // - <template data-m-wc="my-card"><article>...</article></template>
     const dmWc = (el, dKey, dVal) => el.tagName === 'TEMPLATE' ? defWc(el, dVal && dVal.trim()) : logErr('Error: dmWc is template-only; use data-m-ex for WC host props in:', dKey)
