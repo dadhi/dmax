@@ -616,6 +616,7 @@
       }
       return next
     }
+    const getWriteMode = (mods) => { for (const m of mods || NIL) if (m.root === M_REPLACE || m.root === M_MERGE || m.root === M_APPEND || m.root === M_PREPEND) return m.root; return M_REPLACE }
 
     const patchMatchingSis = (dKey, payload, resultMode) => {
       // Patch-all operates on top-level object fields only; arrays have no stable field names to map onto root signals.
@@ -935,7 +936,7 @@
           let ran = false
           const syncPrTas = (dm, syncTr, trigVal, detail) => {
             const exprVal = fn(dm, el, syncTr, trigVal, detail)
-            for (const prTr of writePrTrs) setPr(el, dKey, prTr.tar, exprVal)
+            for (const prTr of writePrTrs) setPr(el, dKey, prTr.tar, combineActResult(getElPrVal(prTr.taEl, prTr.prPath), exprVal, getWriteMode(prTr.trig.mods)))
           }
           for (const readTr of readTrs) {
             const tr = readTr.tr, mod = readTr.mod
@@ -952,7 +953,7 @@
             for (const prTr of writePrTrs) {
               const writeSi = (dm, _el, syncTr, trigVal, detail) => {
                 const exprVal = fn(dm, el, syncTr, trigVal, detail)
-                for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
+                for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, combineActResult(getSiVal(siTr), exprVal, getWriteMode(siTr.mods)))
               }
               const moddedHandler = addTrSub(el, prTr.trig, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
               if (prTr.trig.isImmediate != false) invokeSub(moddedHandler, null, getReadVal(prTr.readEl, prTr.mod, prTr.readPath), el, prTr.trig)
@@ -969,8 +970,9 @@
           try {
             for (const tar of tars) {
               failedTa = tar
-              if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, exprVal)
-              else setPr(el, dKey, tar, exprVal)
+              const mode = getWriteMode(tar.mods), nextVal = tar.isSi ? combineActResult(getSiVal(tar), exprVal, mode) : combineActResult(getElPrVal(tar.root ? getElById(tar.root, dKey) : el, tar.path), exprVal, mode)
+              if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, nextVal)
+              else setPr(el, dKey, tar, nextVal)
             }
           } catch (e) { logErr('Error: setting target', failedTa, 'in', dKey, 'ended with ex:', e) }
         }

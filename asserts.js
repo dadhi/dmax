@@ -684,6 +684,24 @@
       } finally { host.remove(); }
     }
     __assert(__tSubInitAttrs, [], [{ name: 'data-m-ex:.@foo', value: 'bar' }, { name: 'data-m-sh:.@bar', value: 'baz' }], 'dmEx _init ^attrs collects matching attrs');
+    function __tSubTarMerge() {
+      __reset();
+      _dm.set('foo', { a: 1, c: { x: 1 } });
+      _dm.set('bar', { b: 2, c: { y: 2 } });
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:foo^merge@bar', 'val');
+      return DM['foo'];
+    }
+    __assert(__tSubTarMerge, [], { a: 1, b: 2, c: { x: 1, y: 2 } }, 'dmEx target ^merge combines with current signal value');
+    function __tSubTarAppendFallback() {
+      __reset();
+      _dm.set('foo', 1);
+      _dm.set('bar', 3);
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:foo^append@bar', 'val');
+      return DM['foo'];
+    }
+    __assert(__tSubTarAppendFallback, [], 3, 'dmEx target ^append falls back to replace');
     function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });

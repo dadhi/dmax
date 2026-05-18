@@ -81,6 +81,7 @@ function buildTestHtml(insertEl) {
 <template id="tpl-post"><div class="post"></div></template>
 <template id="tpl-item"><div class="item"></div></template>
 <template id="tpl"><div class="generic"></div></template>
+<pre id="dbg" data-m-dbg></pre>
 ${insertEl}
 <script src="${dmaxUrl}"></script>
 </body></html>`;
@@ -152,6 +153,20 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
+  yield { attr: 'data-m-ex:user^merge@ui', valid: true, category: 'target-merge' }
+  yield {
+    attr: 'data-m-ex:.text-content^append@foo', valid: true, category: 'target-append', html: '<div id="fuzz-test" data-m-ex:.text-content^append@foo>old</div>', exercise: async ({ document }) => {
+      if (document.getElementById('fuzz-test').textContent !== 'old0') throw new Error('expected ^append string write')
+    }
+  }
+  yield {
+    attr: 'data-m-ex:.value@.input^pr.#input.value^ev.detail', valid: true, category: 'last-read-mod-wins', html: '<input id="fuzz-test" data-m-ex:.value@.input^pr.#input.value^ev.detail>', exercise: async ({ document, window }) => {
+      const el = document.getElementById('fuzz-test')
+      el.dispatchEvent(new window.CustomEvent('input', { bubbles: true, detail: 'Alice' }))
+      await new Promise(r => setTimeout(r, 0))
+      if (el.value !== 'Alice') throw new Error('expected last read mod to win')
+    }
+  }
   yield { attr: 'data-m-ex:foo@bar^!eq.3', valid: true, category: 'negated-mod' }
   yield { attr: 'data-m-ex:foo@bar^!!eq.3', valid: true, category: 'double-negated-mod' }
   yield { attr: 'data-m-ex:foo@bar^!!!eq.3', valid: true, category: 'triple-negated-mod' }
@@ -303,7 +318,7 @@ class FuzzTestRunner {
   }
   
   async testAttribute(testCase) {
-    const { attr, valid, category, expr = 'dm.foo || "test"', expectedLog = null, logPattern = '', exercise = null } = testCase;
+    const { attr, valid, category, expr = 'dm.foo || "test"', expectedLog = null, logPattern = '', exercise = null, html = null } = testCase;
     this.results.total++;
     
     if (!this.results.categories[category]) {
@@ -316,9 +331,9 @@ class FuzzTestRunner {
       
       // For inline-template tests, add a child <template>
       const needsInlineTemplate = category === 'inline-template';
-      const insertEl = needsInlineTemplate 
+      const insertEl = html || (needsInlineTemplate 
         ? `<div id="${testId}" ${attr}="${esc(expr)}"><template><div class="inline-item"></div></template></div>`
-        : `<div id="${testId}" ${attr}="${esc(expr)}"></div>`;
+        : `<div id="${testId}" ${attr}="${esc(expr)}"></div>`);
 
       const localErrors = [], localWarnings = [], requests = [];
       const vconsole = new VirtualConsole();

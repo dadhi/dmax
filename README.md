@@ -18,6 +18,12 @@ Working order:
 3. use dmax for dataflow
 4. use imperative JS only at foreign-library boundaries
 
+Design bias:
+- prefer a few small orthogonal features over many special cases
+- when modifiers repeat, use simple deterministic rules
+- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`) use last-wins
+- write modes (`^replace`, `^merge`, `^append`, `^prepend`) fall back to replace when a mode does not fit the target values
+
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
 ## Why pick dmax
