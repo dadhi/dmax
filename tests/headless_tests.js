@@ -310,17 +310,17 @@ const FETCH_FAILURE_RE = /dmAct fail/;
       ['valSignalPicked', valSignalPicked],
       ['valSignalPlusOne', valSignalPlusOne]
     ].filter(([, el]) => !el).map(([id]) => id);
-    if (missingValEls.length) fail('Section7.a ^val elements missing: ' + missingValEls.join(', '));
-    if (valSignalPicked.textContent.trim() === '7' && valSignalPlusOne.textContent.trim() === '8') pass('Section7.a signal ^val renders initial nested values'); else fail('Section7.a signal ^val initial render wrong');
+    if (missingValEls.length) fail('Section7.a ^pr/^si elements missing: ' + missingValEls.join(', '));
+    if (valSignalPicked.textContent.trim() === '7' && valSignalPlusOne.textContent.trim() === '8') pass('Section7.a signal ^si renders initial nested values'); else fail('Section7.a signal ^si initial render wrong');
     valPickInput.value = 'typed text';
     fire(valPickInput, 'input');
     await sleep(60);
     if (valPickTyped.textContent.includes('typed text')) pass('Section7.a typed preview follows the input event'); else fail('Section7.a typed preview did not update');
-    if (valPropPicked.textContent.trim() === '33') pass('Section7.a event ^val picks data-foo-bar instead of the typed value'); else fail('Section7.a event ^val did not pick data-foo-bar');
+    if (valPropPicked.textContent.trim() === '33') pass('Section7.a event ^pr picks data-foo-bar instead of the typed value'); else fail('Section7.a event ^pr did not pick data-foo-bar');
     fire(valSignalStep, 'click');
     await sleep(60);
-    if (valSignalPicked.textContent.trim() === '8') pass('Section7.a signal ^val tracks the nested child value'); else fail('Section7.a signal ^val did not track nested child value');
-    if (valSignalPlusOne.textContent.trim() === '9') pass('Section7.a signal ^val expression receives the picked child value'); else fail('Section7.a signal ^val expression did not use the picked child value');
+    if (valSignalPicked.textContent.trim() === '8') pass('Section7.a signal ^si tracks the nested child value'); else fail('Section7.a signal ^si did not track nested child value');
+    if (valSignalPlusOne.textContent.trim() === '9') pass('Section7.a signal ^si expression receives the picked child value'); else fail('Section7.a signal ^si expression did not use the picked child value');
 
     // Section 8: classes + display
     const classBox = doc.getElementById('classBox');

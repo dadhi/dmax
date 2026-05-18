@@ -39,7 +39,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_VAL = 'val', M_RW = 'rw', M_NUM = 'num'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -237,8 +237,8 @@
       if (!el) logErr(`no #${id}:`, dKey)
       return el
     }
-    const getDefaultPr = (el) => { const t = el.type, n = el.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
-    const getDefaultEv = (el) => { const n = el.tagName; return n === 'FORM' ? 'submit' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click' }
+    const getDefaultPr = (el) => { const t = el.type, n = el.tagName; return t === 'checkbox' || t === 'radio' ? 'checked' : n === 'DETAILS' ? 'open' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'value' : 'textContent' }
+    const getDefaultEv = (el) => { const n = el.tagName; return n === 'FORM' ? 'submit' : n === 'DETAILS' ? 'toggle' : n === 'INPUT' || n === 'SELECT' || n === 'TEXTAREA' ? 'change' : 'click' }
     const getElPrVal = (el, prPath) => {
       if (!el) return null
       const prop = prPath && prPath.length ? prPath[0] : getDefaultPr(el)
@@ -358,19 +358,23 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
+    const MV_PR = 1, MV_SI = 2, MV_EV = 3
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
+    const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
-      let f = 0, d = 0, t = 0, p = null, v = NIL, c = SIG_CHANGED_ANY
+      let f = 0, d = 0, t = 0, p = null, v = NIL, c = SIG_CHANGED_ANY, s = 0, r0 = ''
       for (const m of mods) {
         const r = m.root
         if (r === M_WITH_SHAPE) c = SIG_CHANGED_WITH_SHAPE
         else if (r === M_SHAPE_ONLY) c = SIG_CHANGED_SHAPE_ONLY
-        else if (r === M_VAL) {
+        else if (r === M_PR) {
           const x = m.path
-          v = x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
-        } else if (r === M_ONCE) f |= MF_ONCE
+          s = MV_PR, r0 = x?.isEv && x.root || '', v = x?.isEv ? x.path || NIL : modPath(x)
+        } else if (r === M_SI_V) s = MV_SI, v = modPath(m.path)
+        else if (r === M_EV_V) s = MV_EV, v = modPath(m.path)
+        else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
         else if (r === M_NUM) f |= MF_NUM
@@ -378,18 +382,19 @@
         else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (r in PERMIT_MODS) p = p ? p.push ? (p.push(m), p) : [p, m] : m
       }
-      return { f, d, t, p, v, c }
+      return { f, d, t, p, v, c, s, r: r0 }
     }
-    const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, useValPath = true) => {
+    const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, usePrPath = true) => {
       const taEl = tr.root ? getElById(tr.root, dKey) : el
       if (!taEl) return logErr('Error:', missElMsg, tr, 'in:', dKey), null
       let ev = tr.path ? tr.path[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = tr.path, ev = getDefaultEv(taEl)
-      const readPath = mod.v.length ? mod.v : prPath
-      if (useValPath && mod.v.length) prPath = mod.v
+      const readEl = mod.s === MV_PR && mod.r ? getElById(mod.r, dKey) : taEl
+      const readPath = mod.s === MV_PR ? mod.v.length ? mod.v : prPath : prPath
+      if (usePrPath && mod.s === MV_PR && !mod.r && mod.v.length) prPath = mod.v
       ev = ev ?? getDefaultEv(taEl)
       if (!ev) return logErr('Error:', missEvMsg, tr, 'in:', dKey), null
-      return { taEl, ev, prPath, readPath, tar: mkIt(EP, null, tr.root, prPath, NIL) }
+      return readEl ? { taEl, readEl, ev, prPath, readPath, tar: mkIt(EP, null, tr.root, prPath, NIL) } : logErr('Error:', missElMsg, tr, 'in:', dKey)
     }
     const addNonSiTrSub = (el, tr, mod, fn, elSubs, ran, prTa = null) => {
       const sp = tr.sp, isSp = !!sp
@@ -716,7 +721,7 @@
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, getElPrVal(taEl, readPath), el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, getElPrVal((mod.s === MV_PR && mod.r ? getElById(mod.r) : taEl), readPath), el, tr)
       taEl.addEventListener(evName, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -846,7 +851,7 @@
      * @returns {TriggerHandler}
      */
     const applyTrMs = (fn, tr, mod, removeSub) => {
-      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, useVal = isSig && valPath.length, useNum = f & MF_NUM
+      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, readM = mod.s, useVal = (readM === MV_SI && isSig || readM === MV_EV && !isSig) && valPath.length, useNum = f & MF_NUM
       if (!(once || prevent || deb || thr || permitMods || tr.not || useVal || useNum) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debVal = null, debDetail = null
@@ -871,7 +876,7 @@
             last = now
           }
         }
-        let trVal = isSig ? (providedVal ?? getSiVal(trIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
+        let trVal = readM === MV_EV && !isSig ? (detail?.detail?.value ?? detail?.detail?.ms ?? detail) : isSig ? (providedVal ?? getSiVal(trIt)) : providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail
         if (useVal) trVal = getPrValAndDepth(trVal, valPath)[0]
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
@@ -905,7 +910,7 @@
           if (!tr.isEv) return logErr('Error:', E_RW_REQ, dKey)
           const prTa = getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV)
           if (!prTa) return
-          writePrTrs.push({ trig: tr, mod, taEl: prTa.taEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
+          writePrTrs.push({ trig: tr, mod, taEl: prTa.taEl, readEl: prTa.readEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
         if (writePrTrs.length && readTrs.length) {
           let ran = false
           const syncPrTas = (dm, syncTr, trigVal, detail) => {
@@ -930,7 +935,7 @@
                 for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
               }
               const moddedHandler = addTrSub(el, prTr.trig, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
-              if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getElPrVal(prTr.taEl, prTr.readPath), el, prTr.trig)
+              if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getElPrVal(prTr.readEl, prTr.readPath), el, prTr.trig)
             }
           }
           return

@@ -309,7 +309,7 @@
     <div data-m-si:mx.style-defs='[{"key":"space1","si":"mx.style.space-1","css":"--space-1","label":"Space 1","type":"range","min":".125","max":"1","step":".125","val":.25},{"key":"space2","si":"mx.style.space-2","css":"--space-2","label":"Space 2","type":"range","min":".25","max":"1.5","step":".125","val":.5},{"key":"space3","si":"mx.style.space-3","css":"--space-3","label":"Space 3","type":"range","min":".375","max":"2","step":".125","val":.75},{"key":"space4","si":"mx.style.space-4","css":"--space-4","label":"Space 4","type":"range","min":".5","max":"2.5","step":".125","val":1},{"key":"space5","si":"mx.style.space-5","css":"--space-5","label":"Space 5","type":"range","min":".75","max":"3","step":".125","val":1.5},{"key":"space6","si":"mx.style.space-6","css":"--space-6","label":"Space 6","type":"range","min":"1","max":"4","step":".125","val":2},{"key":"radius1","si":"mx.style.radius-1","css":"--radius-1","label":"Radius 1","type":"range","min":".125","max":"1.5","step":".125","val":.5},{"key":"radius2","si":"mx.style.radius-2","css":"--radius-2","label":"Radius 2","type":"range","min":".25","max":"2","step":".125","val":.875},{"key":"radius3","si":"mx.style.radius-3","css":"--radius-3","label":"Radius 3","type":"range","min":".375","max":"2.5","step":".125","val":1.25},{"key":"line1","si":"mx.style.line-1","css":"--line-1","label":"Line 1","type":"range","min":"1","max":"3","step":"1","val":1},{"key":"line2","si":"mx.style.line-2","css":"--line-2","label":"Line 2","type":"range","min":"1","max":"4","step":"1","val":2},{"key":"sizeCell","si":"mx.style.size-cell","css":"--size-cell","label":"Cell size","type":"range","min":"3","max":"7","step":".125","val":4.5},{"key":"sizeWrap","si":"mx.style.size-wrap","css":"--size-wrap","label":"Wrap size","type":"range","min":"48","max":"96","step":"1","val":72},{"key":"toneBg","si":"mx.style.tone-bg","css":"--tone-bg","label":"Tone bg","type":"text","min":"","max":"","step":"","val":"oklch(98% .008 250)"},{"key":"toneInk","si":"mx.style.tone-ink","css":"--tone-ink","label":"Tone ink","type":"text","min":"","max":"","step":"","val":"oklch(28% .03 255)"},{"key":"toneAccent","si":"mx.style.tone-accent","css":"--tone-accent","label":"Tone accent","type":"text","min":"","max":"","step":"","val":"oklch(62% .18 257)"},{"key":"toneGood","si":"mx.style.tone-good","css":"--tone-good","label":"Tone good","type":"text","min":"","max":"","step":"","val":"oklch(68% .17 148)"},{"key":"toneBad","si":"mx.style.tone-bad","css":"--tone-bad","label":"Tone bad","type":"text","min":"","max":"","step":"","val":"oklch(62% .19 25)"}]'></div>
 
     <template data-m-wc="mx-style-panel">
-      <details data-m-ex:.open@mx.style-panel.open data-m-ex:mx.style-panel@.toggle="Object.assign({}, dm.mx.stylePanel || {}, { open: !!el.open })">
+      <details data-m-ex@.^rw@mx.style-panel.open>
         <summary class="fab" aria-controls="mx-style-panel">◐</summary>
         <section class="panel" id="mx-style-panel">
           <h2>Style props</h2>
@@ -318,7 +318,7 @@
           <dl data-m-it@mx.style-defs>
             <template>
               <div class="r">
-                <dt><label><span data-m-ex:.="$it.label"></span><input type="$it.type" min="$it.min" max="$it.max" step="$it.step" data-m-ex@.^rw@$it.si="$it.type === 'range' ? Number(val) : val" data-m-ex:.title@$it.si></label></dt>
+                <dt><label><span data-m-ex:.="$it.label"></span><input type="$it.type" min="$it.min" max="$it.max" step="$it.step" data-m-ex@.^rw@$it.si="$it.type === 'range' ? +val : val" data-m-ex:.title@$it.si></label></dt>
                 <dd><code data-m-ex:.="$it.css"></code></dd>
               </div>
             </template>
@@ -515,7 +515,7 @@
       }
       window.mExCelInit = () => enrichMx(clone(INIT_MX))
       window.mExCelPick = (mx, cell) => Object.assign({}, enrichMx(mx), { selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })
-      window.mExCelDelta = (n) => !n ? '±0' : `${n > 0 ? '+' : ''}${n}`
+      window.mExCelDelta = (n) => !n ? '±0' : (n > 0 ? '+' : '') + n
       window.mExCelCellVals = (cells) => Array.isArray(cells) ? cells.join(' · ') : ''
       dmScan()
       const current = findCell(INIT_MX, INIT_MX.selectedId)

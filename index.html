@@ -215,13 +215,13 @@
         </div>
         <mx-uplot id="uplotDemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-1' }, detail)"></mx-uplot>
         <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2="!!dm.uplot2" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-2' }, detail)"></mx-uplot>
-        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="dm.uplotLast ? JSON.stringify(dm.uplotLast) : 'click a point' "></pre>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="JSON.stringify(dm.uplotLast)||'click a point'"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
       <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-m-ex@.^rw@user.age" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name></label>
       <p>Hello, <strong data-m-ex:.@user.name></strong>!</p>
-      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw@user.age="Number(val || 0)"></label>
+      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw^num@user.age></label>
       <p>Age: <span data-m-ex:.@user.age></span> years old</p>
       <h4>1.a data-m-ex Direction Examples</h4>
       <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-m-ex:.@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-m-ex:user.name@.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="twoWay" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
@@ -286,19 +286,19 @@
       <p><span id="inp1Preview" data-m-ex:.@#inp1.input="document.getElementById('inp1').value"></span></p>
       <button id="btn3">Click me</button>
       <p><span id="btn3Preview" data-m-ex:.@#btn3="'Clicked!'"></span></p>
-      <h4>7.a `^val` trigger picks</h4>
-      <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-m-ex:val-prop-picked@.input^val.data-foo-bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <h4>7.a `^pr` / `^si` trigger picks</h4>
+      <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-m-ex:val-prop-picked@.input^pr.data-foo-bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-m-ex:.@val-source^si.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-m-ex:.@val-source^si.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <label>Non-default event prop:
-          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^val.data-foo-bar^num>
+          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num>
         </label>
         <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
         <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked="dm.valPropPicked"></strong></div>
       </div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <button id="valSignalStep" data-m-ex:val-source@.="({ bar: ((dm.valSource && dm.valSource.bar) || 0) + 1 })">Increment <code>valSource.bar</code></button>
-        <div>Signal child via <code>^val.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^val.bar="val"></strong></div>
-        <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^val.bar="val + 1"></strong></div>
+        <div>Signal child via <code>^si.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^si.bar="val"></strong></div>
+        <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^si.bar="val + 1"></strong></div>
       </div>
       <h4>8. Classes &amp; Display</h4>
       <div class="page"><code data-attr-for="classToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-m-cl+active+!inactive@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
@@ -364,7 +364,7 @@
           <button id="demoRemoveKey" data-m-ex:demo-parent@.="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
-          <div>Content subscriber: <span id="demoContent" data-m-ex:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
+          <div>Content subscriber: <span id="demoContent" data-m-ex:.@demo-parent="(dm.demoParent&&dm.demoParent.child)??''"></span></div>
           <div>Shape subscriber: <span id="demoShape" data-m-ex:.@demo-parent^shape_only="detail ? window.formatShapeChange(detail) : ''"></span></div>
         </div>
       </div>
@@ -402,7 +402,7 @@
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-m-ex:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: +document.getElementById('new-user-id').value||0 })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
@@ -435,8 +435,8 @@
         try {
           if (typeof v === 'string') return v;
           if (v && typeof v === 'object') return JSON.stringify(v);
-          return String(v);
-        } catch (_) { return String(v); }
+          return '' + v;
+        } catch (_) { return '' + v; }
       }
       function append(args) {
         const isPass = args && args.length && (args[0] === '✓' || args[0] === '\u2713');
@@ -593,7 +593,7 @@
             let submitted = null;
             try { submitted = init && init.body ? JSON.parse(init.body) : null; } catch (_) { }
             const payload = Object.assign({}, DUMMYJSON_CREATED_POST, submitted && typeof submitted === 'object' ? submitted : null);
-            if (payload.userId != null && payload.userId !== '') payload.userId = Number(payload.userId);
+            if (payload.userId != null && payload.userId !== '') payload.userId = +payload.userId;
             return Promise.resolve(makeJsonResponse(payload, 201));
           }
           if (u === '/mock/oob') {

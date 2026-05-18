@@ -168,10 +168,10 @@
     __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
-    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no val mod exists')
-    __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: __si('style', ['color']) }]], ['style', 'color'], 'compileMods parsed val path')
-    __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: null }]], NIL, 'compileMods null val path')
-    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE }, 'compileMods flags/change mode')
+    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods parsed pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods null pr path')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '' }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => {
       const el = document.createElement('input')
@@ -180,15 +180,15 @@
     }, [], { ev: 'change', prPath: ['value'], readPath: ['value'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa default prop path')
     __assert(() => {
       const el = document.createElement('input')
-      const mods = compileMods(__ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }])
+      const mods = compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }])
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), mods, E_TRIG_EL, E_TRIG_EV, false)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
     }, [], { ev: 'change', prPath: ['value'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa keeps prop path but changes read path')
     __assert(() => {
       const el = document.createElement('input')
-      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
-    }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies val path when enabled')
+    }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies pr path when enabled')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-m-si:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-m-si:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -612,13 +612,13 @@
       }
     }
     __assert(__tSubEventPropToSignalEmptyExpr, [], { out: 'Zed', diag: 'direct-handler' }, 'dmEx empty expr passes trigger value to signal');
-    function __tSubEventValModPropToSignal() {
+    function __tSubEventPrModPropToSignal() {
       __reset();
       try {
         const inp = document.createElement('input');
         inp.value = 'Zed';
         inp.setAttribute('data-foo-bar', '33');
-        dmEx(inp, 'data-m-ex:out@.^val.data-foo-bar', 'val');
+        dmEx(inp, 'data-m-ex:out@.^pr.data-foo-bar', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -627,7 +627,7 @@
         return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    __assert(__tSubEventValModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^val selects non-default event property');
+    __assert(__tSubEventPrModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^pr selects non-default event property');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
@@ -670,17 +670,17 @@
       return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
     }
     __assert(__tSubSignalEmptyExprNoTarget, [], { before: ['foo'], after: ['foo'], foo: 8, bar: undefined }, 'dmEx empty expr with no target is a no-op');
-    function __tSubSignalValModPathAndExpr() {
+    function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });
       const el = document.createElement('div');
-      dmEx(el, 'data-m-ex:bar@foo^val.bar', '');
-      dmEx(el, 'data-m-ex:baz@foo^val.bar', 'val + 1');
+      dmEx(el, 'data-m-ex:bar@foo^si.bar', '');
+      dmEx(el, 'data-m-ex:baz@foo^si.bar', 'val + 1');
       const initial = { bar: DM['bar'], baz: DM['baz'] };
       setSiAndNotifySubs('test', { root: 'foo', path: null }, { bar: 8 });
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
-    __assert(__tSubSignalValModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^val path feeds raw and expression values');
+    __assert(__tSubSignalSiModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^si path feeds raw and expression values');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
@@ -920,12 +920,12 @@
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
     __assert(__tSubRwCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dmEx ^rw checkbox checked/value default prop');
-    function __tSubRwValPathBothWays() {
+    function __tSubRwPrPathBothWays() {
       __reset();
       const inp = document.createElement('input')
       inp.val = { value: 'Initial' }
       _dm.set('name', 'Ada')
-      dmEx(inp, 'data-m-ex@.^val.val.value^rw@name')
+      dmEx(inp, 'data-m-ex@.^pr.val.value^rw@name')
       const before = inp.val.value
       inp.val.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -933,7 +933,20 @@
       setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, afterSignal: inp.val.value }
     }
-    __assert(__tSubRwValPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^val path both ways');
+    __assert(__tSubRwPrPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^pr path both ways');
+    function __tSubRwDetailsOpen() {
+      __reset();
+      const det = document.createElement('details')
+      _dm.set('open', true)
+      dmEx(det, 'data-m-ex@.^rw@open')
+      const before = det.open
+      det.open = false
+      det.dispatchEvent(mkEv('toggle'))
+      const sigAfterWrite = DM['open']
+      setSiAndNotifySubs('t', { root: 'open', path: null }, true)
+      return { before, sigAfterWrite, afterSignal: det.open }
+    }
+    __assert(__tSubRwDetailsOpen, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dmEx ^rw uses details open/toggle defaults');
     function __tClassSignalToggle() {
       __reset()
       const div = document.createElement('div')
