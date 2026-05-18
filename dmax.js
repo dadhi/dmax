@@ -921,7 +921,7 @@
             const tr = readTr.tr, mod = readTr.mod
             if (tr.isSi) {
               const sub = addTrSub(el, tr, mod, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs)
-              if (!ran && (tr.isImmediate ?? true)) ran = true, invokeBoundSub(sub)
+              if (!ran && tr.isImmediate != false) ran = true, invokeBoundSub(sub)
             } else if (tr.isEv || tr.isSp) {
               const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV) : null
               if (tr.isEv && !prTa) return
@@ -935,7 +935,7 @@
                 for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
               }
               const moddedHandler = addTrSub(el, prTr.trig, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
-              if (prTr.trig.isImmediate ?? true) invokeSub(moddedHandler, null, getElPrVal(prTr.readEl, prTr.readPath), el, prTr.trig)
+              if (prTr.trig.isImmediate != false) invokeSub(moddedHandler, null, getElPrVal(prTr.readEl, prTr.readPath), el, prTr.trig)
             }
           }
           return
@@ -960,7 +960,7 @@
         const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mod, fn, elSubs)
-          if (!ran && (tr.isImmediate ?? true)) ran = true, invokeBoundSub(sub)
+          if (!ran && tr.isImmediate != false) ran = true, invokeBoundSub(sub)
           continue
         }
         if (!tr.isEv && !tr.isSp) return logErr('Error: unsupported trigger kind', tr.kind, 'in', dKey)
@@ -985,7 +985,7 @@
         const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
-          if (tr.isImmediate) invokeBoundSub(sub)
+          if (tr.isImmediate != false) invokeBoundSub(sub)
         } else {
           const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return
@@ -1011,7 +1011,7 @@
         const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, inline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
-          if (tr.isImmediate) invokeBoundSub(sub)
+          if (tr.isImmediate != false) invokeBoundSub(sub)
         } else {
           const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
           if (tr.isEv && !prTa) return

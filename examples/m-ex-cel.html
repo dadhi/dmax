@@ -341,7 +341,7 @@
       <p class="note">GitHub Pages cannot host the backend stream here, so this page installs a tiny in-page mock <code>text/event-stream</code> endpoint. The button still exercises dmax's real SSE action path.</p>
       <div class="controls">
         <button data-m-get^open.mx.feed-open^close.mx.feed-done^err.mx.feed-error^abort.mx.feed-stop@.click="'m-ex-cel.stream?ms=' + dm.mx.speedMs">Start stream</button>
-        <button data-m-ex:mx@.click="(dm.mx.feedStop && dm.mx.feedStop(), Object.assign({}, dm.mx, { status: 'stopping…' }))" data-m-ex:.disabled@mx.feed-open="!val">Stop</button>
+        <button data-m-ex:mx@.click="(dm.mx.feedStop && dm.mx.feedStop(), Object.assign({}, dm.mx, { status: 'stopping…' }))" data-m-ex:.disabled@!mx.feed-open>Stop</button>
         <button data-m-ex:mx@.click="window.mExCelInit()">Reset</button>
         <label class="field">Speed (ms)
           <input type="range" min="250" max="1600" step="50" data-m-ex@.^rw^num@mx.speed-ms>
@@ -384,7 +384,7 @@
               <tr data-m-it@$it.cells>
                 <th scope="row" data-m-ex:.="$it.label"></th>
                 <template>
-                  <td data-m-cl+is-selected@mx.selected-id="val === $it.id" data-m-cl+is-up+!is-down@mx.updates^immediate="$it.delta > 0" data-m-cl+is-down@mx.updates^immediate="$it.delta < 0">
+                  <td data-m-cl+is-selected@mx.selected-id="val === $it.id" data-m-cl+is-up+!is-down@mx.updates="$it.delta > 0" data-m-cl+is-down@mx.updates="$it.delta < 0">
                     <button class="cell-btn" type="button" data-m-ex:mx@.click="window.mExCelPick(dm.mx, $it)">
                       <span data-m-ex:.="$it.col"></span>
                       <strong class="cell-value" data-m-ex:.="$it.value"></strong>

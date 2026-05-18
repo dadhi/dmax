@@ -951,7 +951,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', false)
-      dmCl(div, 'data-m-cl+active@active^immediate')
+      dmCl(div, 'data-m-cl+active@active')
       const hadBefore = div.classList.contains('active')
       setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('active')
@@ -959,12 +959,12 @@
       const hadFinal = div.classList.contains('active')
       return { hadBefore, hadAfter, hadFinal }
     }
-    __assert(__tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dmCl signal toggle with immediate');
+    __assert(__tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dmCl signal toggle defaults immediate');
     function __tClassInvertedClass() {
       __reset()
       const div = document.createElement('div')
       _dm.set('active', false)
-      dmCl(div, 'data-m-cl+!inactive@active^immediate')
+      dmCl(div, 'data-m-cl+!inactive@active')
       const hadBefore = div.classList.contains('inactive')
       setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('inactive')
@@ -975,7 +975,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', true)
-      dmCl(div, 'data-m-cl+is-active+!is-inactive@active^immediate')
+      dmCl(div, 'data-m-cl+is-active+!is-inactive@active')
       const activeBefore = div.classList.contains('is-active')
       const inactiveBefore = div.classList.contains('is-inactive')
       setSiAndNotifySubs('t', { root: 'active', path: null }, false)
@@ -988,19 +988,30 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('count', 2)
-      dmCl(div, 'data-m-cl+even@count^immediate', 'dm.count % 2 === 0')
+      dmCl(div, 'data-m-cl+even@count', 'dm.count % 2 === 0')
       const hadBefore = div.classList.contains('even')
       setSiAndNotifySubs('t', { root: 'count', path: null }, 3)
       const hadAfter = div.classList.contains('even')
       return { hadBefore, hadAfter }
     }
     __assert(__tClassWithExpr, [], { hadBefore: true, hadAfter: false }, 'dmCl compiled expression controls class');
+    function __tClassNotImmediate() {
+      __reset()
+      const div = document.createElement('div')
+      _dm.set('active', true)
+      dmCl(div, 'data-m-cl+active@active^notimmediate')
+      const hadBefore = div.classList.contains('active')
+      setSiAndNotifySubs('t', { root: 'active', path: null }, false)
+      const hadAfter = div.classList.contains('active')
+      return { hadBefore, hadAfter }
+    }
+    __assert(__tClassNotImmediate, [], { hadBefore: false, hadAfter: false }, 'dmCl ^notimmediate skips setup run');
     function __tDispHideShow() {
       __reset()
       const div = document.createElement('div')
       div.style.display = 'block'
       _dm.set('visible', true)
-      dmSh(div, 'data-m-sh:.@visible^immediate')
+      dmSh(div, 'data-m-sh:.@visible')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfterHide = div.style.display
@@ -1012,10 +1023,10 @@
     function __tDispWireNodeEmptyValue() {
       __reset()
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<div style="display:block" data-m-sh:.@visible^immediate></div>'
+      tpl.innerHTML = '<div style="display:block" data-m-sh:.@visible></div>'
       const div = tpl.content.firstElementChild
       _dm.set('visible', true)
-      wireNode(div, 'data-m-sh:.@visible^immediate', div.getAttribute('data-m-sh:.@visible^immediate'))
+      wireNode(div, 'data-m-sh:.@visible', div.getAttribute('data-m-sh:.@visible'))
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfter = div.style.display
@@ -1027,7 +1038,7 @@
       const div = document.createElement('div')
       div.style.display = 'flex'
       _dm.set('count', 0)
-      dmSh(div, 'data-m-sh:.@count^immediate', 'dm.count > 0')
+      dmSh(div, 'data-m-sh:.@count', 'dm.count > 0')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'count', path: null }, 5)
       const displayAfter = div.style.display
@@ -1042,7 +1053,7 @@
       document.body.appendChild(box)
       try {
         _dm.set('show', true)
-        dmSh(box, 'data-m-sh:.@show^immediate')
+        dmSh(box, 'data-m-sh:.@show')
         const displayBefore = box.style.display
         setSiAndNotifySubs('t', { root: 'show', path: null }, false)
         const displayAfter = box.style.display
@@ -1050,6 +1061,18 @@
       } finally { box.remove() }
     }
     __assert(__tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dmSh hides element on false signal');
+    function __tDispNotImmediate() {
+      __reset()
+      const div = document.createElement('div')
+      div.style.display = 'block'
+      _dm.set('show', false)
+      dmSh(div, 'data-m-sh:.@show^notimmediate')
+      const displayBefore = div.style.display
+      setSiAndNotifySubs('t', { root: 'show', path: null }, true)
+      const displayAfter = div.style.display
+      return { displayBefore, displayAfter }
+    }
+    __assert(__tDispNotImmediate, [], { displayBefore: 'block', displayAfter: 'block' }, 'dmSh ^notimmediate skips setup run');
     function __tDumpAppendOnly() {
       __reset()
       const el = document.createElement('ul')
