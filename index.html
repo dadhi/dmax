@@ -207,7 +207,7 @@
       <div class="wc-demo">
         <div>
           <label>Title <input value="Revenue vs Cost" data-m-ex@.^rw@uplot.title></label>
-          <label>Width <input type="range" min="280" max="640" step="20" data-m-ex@.^rw@uplot.w="Number(val)"></label>
+          <label>Width <input type="range" min="280" max="640" step="20" data-m-ex@.^rw^num@uplot.w></label>
           <button id="uplotStep" data-m-ex:uplot@.="window.stepUplot(dm.uplot)">Step data</button>
           <button id="uplotPush" data-m-ex:uplot@.="window.pushUplot(dm.uplot)">Add point</button>
           <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
@@ -290,7 +290,7 @@
       <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-m-ex:val-prop-picked@.input^val.data-foo-bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <label>Non-default event prop:
-          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^val.data-foo-bar="Number(val)">
+          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^val.data-foo-bar^num>
         </label>
         <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
         <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked="dm.valPropPicked"></strong></div>
@@ -642,17 +642,7 @@
       function initPortedExamples() {
         const roots = [document.getElementById('ported-examples'), document.getElementById('__fg_reactivity_tests')].filter(Boolean);
         if (!roots.length) return;
-        const deferred = [];
-        for (const root of roots) {
-          const nodes = [root].concat(Array.from(root.querySelectorAll('*')));
-          for (const n of nodes) {
-            for (const a of Array.from(n.attributes || EMPTY_ARR)) {
-              if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value);
-              else deferred.push([n, a.name, a.value]);
-            }
-          }
-        }
-        for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal);
+        for (const root of roots) dmScan(root);
         installDemoFetchMock();
       }
 

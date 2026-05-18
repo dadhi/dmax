@@ -365,6 +365,11 @@
       setPr(el, 'data-eval:.style.accent-soft', __ev('', ['style', 'accentSoft']), 'pink')
       return el.style.getPropertyValue('--accent-soft')
     }, [], 'pink', 'css var target via style camel path')
+    __assert(() => {
+      const el = document.createElement('div')
+      setPr(el, 'data-eval:.style', __ev('', ['style']), { color: 'lime', accentSoft: 'pink' })
+      return [el.style.color, el.style.getPropertyValue('--accent-soft')]
+    }, [], ['lime', 'pink'], 'style object target sets props and css vars')
     __assert(setPr, [null, 'data-eval:foo', { kind: SI, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
     __assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
@@ -847,6 +852,20 @@
       return { before, sigAfterWrite, elAfterSignal: inp.value }
     }
     __assert(__tSubRwTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dmEx ^rw two-way default');
+    function __tSubRwNum() {
+      __reset();
+      const inp = document.createElement('input')
+      _dm.set('n', 3)
+      dmEx(inp, 'data-m-ex@.^rw^num@n')
+      const before = inp.value
+      inp.value = '7.5'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['n']
+      inp.value = ''
+      inp.dispatchEvent(mkEv('change'))
+      return { before, sigAfterWrite, sigAfterEmpty: DM['n'] }
+    }
+    __assert(__tSubRwNum, [], { before: '3', sigAfterWrite: 7.5, sigAfterEmpty: null }, 'dmEx ^rw^num coerces input strings to numbers');
     function __tSubSignalToPropOnly() {
       __reset();
       const inp = document.createElement('input')

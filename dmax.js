@@ -39,7 +39,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_VAL = 'val', M_RW = 'rw'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_VAL = 'val', M_RW = 'rw', M_NUM = 'num'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -289,22 +289,21 @@
     const setPr = (el, dKey, tar, val) => {
       if (!tar.isEv) return null
       let obj = tar.root ? getElById(tar.root, dKey) : el
-      const path = tar.path
-      let prop = !path ? getDefaultPr(obj) : null
-      if (path && path.length) {
-        [obj] = getPrValAndDepth(obj, path, path.length - 1)
-        prop = path.at(-1)
-      }
+      const path = tar.path; let prop = !path ? getDefaultPr(obj) : null
+      if (path && path.length) ([obj] = getPrValAndDepth(obj, path, path.length - 1), prop = path.at(-1))
       if (!obj || !prop) return logErr('Error setting non existing property for:', tar, 'in', dKey)
       try {
-        if (obj && typeof obj.setProperty === 'function' && !(prop in obj)) {
+        if (prop === 'style' && isPlainObj(val) && obj[prop]) for (const k in val) {
+          const st = obj[prop], v = val[k], cssVar = k[0] === '-' ? k : '--' + camelToKebab(k)
+          if (k in st) { if (valChangedDeep(st[k], v)) st[k] = v }
+          else if (st.getPropertyValue(cssVar) !== '' + v) st.setProperty(cssVar, v)
+        } else if (obj && typeof obj.setProperty === 'function' && !(prop in obj)) {
           const cssVar = prop[0] === '-' ? prop : '--' + camelToKebab(prop)
           if (obj.getPropertyValue(cssVar) !== '' + val) obj.setProperty(cssVar, val)
         } else if (valChangedDeep(obj[prop], val)) obj[prop] = val
       } catch (e) { logErr('Error: Failed to set property:', e.message, '>>>', tar, 'on', el) }
       return obj[prop]
     }
-
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
 
     const applyClVal = (adds, taEl, val) => {
@@ -359,7 +358,7 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4
+    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
@@ -374,6 +373,7 @@
         } else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
+        else if (r === M_NUM) f |= MF_NUM
         else if (!isTimer && r === M_DEBOUNCE) d = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
         else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (r in PERMIT_MODS) p = p ? p.push ? (p.push(m), p) : [p, m] : m
@@ -846,8 +846,8 @@
      * @returns {TriggerHandler}
      */
     const applyTrMs = (fn, tr, mod, removeSub) => {
-      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, useVal = isSig && valPath.length
-      if (!(once || prevent || deb || thr || permitMods || tr.not || useVal) && (isSig || removeSub || tr.sp?.init)) return fn
+      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, useVal = isSig && valPath.length, useNum = f & MF_NUM
+      if (!(once || prevent || deb || thr || permitMods || tr.not || useVal || useNum) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debVal = null, debDetail = null
       let onDebounce = null
@@ -873,6 +873,7 @@
         }
         let trVal = isSig ? (providedVal ?? getSiVal(trIt)) : (providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail)
         if (useVal) trVal = getPrValAndDepth(trVal, valPath)[0]
+        if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
         if (permitMods && !modsPermitVal(permitMods, trVal)) return
         try { fn(dm, el, trIt, trVal, detail) } catch (e) { logErr('handler:', e) }
@@ -1020,8 +1021,25 @@
       const fn = dataM[fe]
       if (fn) fn(n, an, v)
     }
+    const dmScan = (root = document.body) => {
+      const nodes = [root], deferred = []
+      for (let i = 0; i < nodes.length; ++i) {
+        const n = nodes[i]
+        if (noScan(n)) continue
+        const attrs = n.attributes || NIL
+        for (let j = 0; j < attrs.length; ++j) {
+          const a = attrs[j]
+          if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value)
+          else deferred.push([n, a.name, a.value])
+        }
+        const kids = n.children || NIL
+        for (let j = 0; j < kids.length; ++j) nodes.push(kids[j])
+      }
+      for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
+    }
     globalThis.dataM = dataM
     globalThis.wireNode = wireNode
+    globalThis.dmScan = dmScan
     globalThis.shouldScanNode = (n) => !noScan(n)
 
     // - data-m-it@posts
