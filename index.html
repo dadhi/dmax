@@ -202,7 +202,7 @@
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>0. WC host props and events via `data-m-ex` + vendored uPlot</h4>
-      <div class="page"><code data-attr-for="uplotDemo" data-attr-name="data-m-ex:.cfg@uplot" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="uplotDemo" data-attr-name="data-m-ex:uplot-last@.point" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page" data-m-it@uplot-demo-dms><template><code data-m-ex:.@$it="$it.value ? $it.name + '=&quot;' + $it.value + '&quot;' : $it.name"></code><span data-m-sh:.@$it="$ix + 1 < dm.uplotDemoDms.length"> · </span></template></div>
       <p>Pattern: define custom elements with <code>data-m-wc</code> on <code>template</code>, then drive host props and events with normal <code>data-m-ex</code>. The second instance is optional so the example can show separate host instances, not just one wrapper.</p>
       <div class="wc-demo">
         <div>
@@ -213,8 +213,9 @@
           <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
           <button id="uplotDup" data-m-ex:uplot2@.="window.cloneUplot(dm.uplot)">Duplicate chart</button>
         </div>
-        <mx-uplot id="uplotDemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-1' }, detail)"></mx-uplot>
+        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-1' }, detail)"></mx-uplot>
         <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2="!!dm.uplot2" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-2' }, detail)"></mx-uplot>
+        <div data-m-ex:uplot-demo-dms@_init^attrs.#uplotDemo.data-m-></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="JSON.stringify(dm.uplotLast)||'click a point'"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>

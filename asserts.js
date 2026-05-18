@@ -168,9 +168,11 @@
     __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
+    __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { kind: MOD, not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
     __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods parsed pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods null pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo' }, 'compileMods attrs path')
     __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '' }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => {
@@ -670,6 +672,18 @@
       return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
     }
     __assert(__tSubSignalEmptyExprNoTarget, [], { before: ['foo'], after: ['foo'], foo: 8, bar: undefined }, 'dmEx empty expr with no target is a no-op');
+    function __tSubInitAttrs() {
+      __reset();
+      const tpl = document.createElement('template');
+      tpl.innerHTML = '<div id="attrsHost" data-m-ex:.@foo="bar" data-m-sh:.@bar="baz" aria-label="skip"></div>';
+      const host = tpl.content.firstElementChild;
+      document.body.appendChild(host);
+      try {
+        dmEx(host, 'data-m-ex:attrs@_init^attrs.#attrsHost.data-m-', 'val');
+        return DM['attrs'];
+      } finally { host.remove(); }
+    }
+    __assert(__tSubInitAttrs, [], [{ name: 'data-m-ex:.@foo', value: 'bar' }, { name: 'data-m-sh:.@bar', value: 'baz' }], 'dmEx _init ^attrs collects matching attrs');
     function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });

@@ -39,7 +39,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -136,6 +136,14 @@
       let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
       if (root) root = kebabToCamel(root)
       if (!root) { logErr('empty mod:', name, dKey); return null }
+      if (root === M_ATTRS) {
+        if (d < 0 || d + 1 >= l) return mkMod(not, root, { r: '', v: '' })
+        const rest = name.slice(d + 1)
+        if (rest[0] !== ID) return mkMod(not, root, { r: '', v: rest })
+        const d2 = rest.indexOf(DOT, 1), r = rest.slice(1, d2 < 0 ? rest.length : d2)
+        if (!r) return logErr('empty attrs mod:', name, dKey), null
+        return mkMod(not, root, { r, v: d2 < 0 ? '' : rest.slice(d2 + 1) })
+      }
       return mkMod(not, root, d < 0 || d + 1 >= l ? null : name.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(name.slice(p)) : parseRef(dKey, name, p))
     }
     const parse = (dKey, p) => { p ??= 'data-'.length
@@ -358,7 +366,7 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    const MV_PR = 1, MV_SI = 2, MV_EV = 3
+    const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
@@ -372,7 +380,8 @@
         else if (r === M_PR) {
           const x = m.path
           s = MV_PR, r0 = x?.isEv && x.root || '', v = x?.isEv ? x.path || NIL : modPath(x)
-        } else if (r === M_SI_V) s = MV_SI, v = modPath(m.path)
+        } else if (r === M_ATTRS) s = MV_ATTRS, r0 = m.path?.r || '', v = m.path?.v || ''
+        else if (r === M_SI_V) s = MV_SI, v = modPath(m.path)
         else if (r === M_EV_V) s = MV_EV, v = modPath(m.path)
         else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
@@ -389,8 +398,8 @@
       if (!taEl) return logErr('Error:', missElMsg, tr, 'in:', dKey), null
       let ev = tr.path ? tr.path[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = tr.path, ev = getDefaultEv(taEl)
-      const readEl = mod.s === MV_PR && mod.r ? getElById(mod.r, dKey) : taEl
-      const readPath = mod.s === MV_PR ? mod.v.length ? mod.v : prPath : prPath
+      const readEl = (mod.s === MV_PR || mod.s === MV_ATTRS) && mod.r ? getElById(mod.r, dKey) : taEl
+      const readPath = mod.s === MV_PR ? mod.v.length ? mod.v : prPath : mod.s === MV_ATTRS ? mod.v : prPath
       if (usePrPath && mod.s === MV_PR && !mod.r && mod.v.length) prPath = mod.v
       ev = ev ?? getDefaultEv(taEl)
       if (!ev) return logErr('Error:', missEvMsg, tr, 'in:', dKey), null
@@ -400,8 +409,8 @@
       const sp = tr.sp, isSp = !!sp
       if (!isSp && !expected(prTa, 'Expected non-SP trigger target in addNonSiTrSub:', tr, 'on:', el)) return null
       const modded = addTrSub(el, tr, mod, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath)
-      if (sp?.init) return modded && !ran && invokeSub(modded, { type: SP_INIT }, SP_INIT, el, tr), true
-      if (modded && !ran && tr.isImmediate && (!sp || sp.immediate)) return invokeSub(modded, null, isSp ? null : getElPrVal(prTa.taEl, prTa.readPath), el, tr), true
+      if (sp?.init) return modded && !ran && invokeSub(modded, { type: SP_INIT }, mod.s === MV_PR ? getReadVal(el, mod, mod.v.length ? mod.v : null) : mod.s === MV_ATTRS ? getReadVal(el, mod, mod.v) : SP_INIT, el, tr), true
+      if (modded && !ran && tr.isImmediate && (!sp || sp.immediate)) return invokeSub(modded, null, isSp ? null : getReadVal(prTa.taEl, mod, prTa.readPath), el, tr), true
       return ran
     }
 
@@ -671,6 +680,17 @@
       try { invokeSub(sub.fn, { tick: 0, ms: sub.ms, type: SP_TIMEOUT }, sub.ms, sub.el, sub.trig) }
       catch (e) { logErr(`timeout ${sub.ms}ms:`, e?.message ?? e) }
     }
+    const getAttrs = (el, pre = '') => {
+      const out = []
+      if (!el) return out
+      const attrs = el.attributes || NIL
+      for (let i = 0; i < attrs.length; ++i) {
+        const a = attrs[i]
+        if (a.name.indexOf(pre) === 0) out.push({ name: a.name, value: a.value })
+      }
+      return out
+    }
+    const getReadVal = (el, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(mod.r ? getElById(mod.r) : el, readPath) : getElPrVal(mod.s === MV_PR && mod.r ? getElById(mod.r) : el, readPath)
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
@@ -721,7 +741,7 @@
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, getElPrVal((mod.s === MV_PR && mod.r ? getElById(mod.r) : taEl), readPath), el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, getReadVal(taEl, mod, readPath), el, tr)
       taEl.addEventListener(evName, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -935,7 +955,7 @@
                 for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, exprVal)
               }
               const moddedHandler = addTrSub(el, prTr.trig, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
-              if (prTr.trig.isImmediate != false) invokeSub(moddedHandler, null, getElPrVal(prTr.readEl, prTr.readPath), el, prTr.trig)
+              if (prTr.trig.isImmediate != false) invokeSub(moddedHandler, null, getReadVal(prTr.readEl, prTr.mod, prTr.readPath), el, prTr.trig)
             }
           }
           return
