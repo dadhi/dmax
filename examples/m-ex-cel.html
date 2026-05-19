@@ -120,6 +120,24 @@
         gap: var(--space-2);
         align-items: center;
       }
+      & .field-accent small {
+        display: grid;
+        grid-template-columns: 1.5rem 1.5rem minmax(0, 1fr);
+        gap: var(--space-2);
+        align-items: center;
+        color: var(--muted);
+      }
+      & .sw {
+        display: grid;
+        place-items: center;
+        inline-size: 1.5rem;
+        block-size: 1.5rem;
+        border: var(--line-1) solid var(--line);
+        border-radius: 999px;
+        background: linear-gradient(135deg, #fff, #e2e8f0);
+        font: 700 .75rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      & .sw-fg { background: linear-gradient(135deg, #fff 0 50%, #0f172a 50%); }
       & .field-accent input[type='color'] {
         inline-size: 2.75rem;
         block-size: 2.25rem;
@@ -325,16 +343,32 @@
     mx-style-panel dl { display: grid; gap: 6px; margin: 6px 0 0; }
     mx-style-panel div.r {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 4px 8px;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 6px 8px;
       align-items: center;
       padding-top: 6px;
       border-top: 1px solid #e2e8f0;
     }
-    mx-style-panel dt { display: grid; gap: 4px; margin: 0; }
-    mx-style-panel dd { margin: 0; color: #475569; text-align: right; }
-    mx-style-panel label { display: grid; gap: 4px; color: #0f172a; }
-    mx-style-panel span { line-height: 1.3; }
+    mx-style-panel dt,
+    mx-style-panel dd { min-inline-size: 0; margin: 0; }
+    mx-style-panel code { color: #475569; }
+    mx-style-panel .tone {
+      display: grid;
+      grid-template-columns: 1.5rem 1.5rem minmax(0, 1fr);
+      gap: 6px;
+      align-items: center;
+    }
+    mx-style-panel .sw {
+      display: grid;
+      place-items: center;
+      inline-size: 1.5rem;
+      block-size: 1.5rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #fff, #e2e8f0);
+      font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    mx-style-panel .sw-fg { background: linear-gradient(135deg, #fff 0 50%, #0f172a 50%); }
     mx-style-panel input { inline-size: 100%; font: inherit; }
     mx-style-panel input[type='text'] { padding: 6px 7px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
     mx-style-panel input[type='range'] { accent-color: #2563eb; }
@@ -382,16 +416,16 @@
           <section class="group"><h3>Layout</h3><dl data-m-it@mx-style-defs>
             <template>
               <div class="r">
-                <dt><label><span data-m-ex:.="$it.label"></span><input type="$it.type" min="$it.min" max="$it.max" step="$it.step" data-m-ex:.value@mx.style="'' + (((dm.mx.style || {})[$it.key]) ?? '')" data-m-ex:mx.style@.input="{ ...(dm.mx.style || {}), [$it.key]: $it.type === 'range' ? +val : val }" data-m-ex:.title@mx.style="((dm.mx.style || {})[$it.key]) ?? ''"></label></dt>
-                <dd><code data-m-ex:.="$it.css"></code></dd>
+                <dt><code title="$it.label" data-m-ex:.="$it.css"></code></dt>
+                <dd><input type="$it.type" min="$it.min" max="$it.max" step="$it.step" data-m-ex:.value@mx.style="'' + (((dm.mx.style || {})[$it.key]) ?? '')" data-m-ex:mx.style@.input="{ ...(dm.mx.style || {}), [$it.key]: $it.type === 'range' ? +val : val }" data-m-ex:.title@mx.style="(($it.label || '') + ': ' + ((((dm.mx.style || {})[$it.key]) ?? '')))" aria-label="$it.label"></dd>
               </div>
             </template>
           </dl></section>
           <section class="group"><h3>Tones</h3><dl data-m-it@mx-tone-defs>
             <template>
               <div class="r">
-                <dt><label><span data-m-ex:.="$it.label"></span><input type="text" data-m-ex:.value@mx.style="'' + (((dm.mx.style || {})[$it.key]) ?? '')" data-m-ex:mx.style@.input="{ ...(dm.mx.style || {}), [$it.key]: val }" data-m-ex:.title@mx.style="((dm.mx.style || {})[$it.key]) ?? ''"></label></dt>
-                <dd><code data-m-ex:.="$it.css"></code></dd>
+                <dt><code title="$it.label" data-m-ex:.="$it.css"></code></dt>
+                <dd><div class="tone"><span class="sw" data-m-ex:.style.background@mx.style="((dm.mx.style || {})[$it.key]) || ''"></span><span class="sw sw-fg" data-m-ex:.style.color@mx.style="((dm.mx.style || {})[$it.key]) || ''">A</span><input type="text" data-m-ex:.value@mx.style="'' + (((dm.mx.style || {})[$it.key]) ?? '')" data-m-ex:mx.style@.input="{ ...(dm.mx.style || {}), [$it.key]: val }" data-m-ex:.title@mx.style="(($it.label || '') + ': ' + ((((dm.mx.style || {})[$it.key]) ?? '')))" aria-label="$it.label"></div></dd>
               </div>
             </template>
           </dl></section>
@@ -426,6 +460,7 @@
             <input type="color" value="#5d74ff" aria-label="Accent seed" data-m-ex:mx.style.tone-accent@.input="window.mExCelHexToOklch(val)">
             <input type="text" aria-label="Accent OKLCH" data-m-ex@.^rw@mx.style.tone-accent>
           </div>
+          <small><span class="sw" data-m-ex:.style.background@mx.style="dm.mx.style && dm.mx.style.toneAccent || ''"></span><span class="sw sw-fg" data-m-ex:.style.color@mx.style="dm.mx.style && dm.mx.style.toneAccent || ''">A</span><code data-m-ex:.@mx.style.tone-accent></code></small>
         </label>
       </div>
       <dl class="stats">

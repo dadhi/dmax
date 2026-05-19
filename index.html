@@ -12,6 +12,7 @@
       height: 100%;
       margin: 0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      overflow-anchor: none;
     }
 
     header {
@@ -34,37 +35,18 @@
     #summary {
       margin-left: auto;
       font-weight: 600;
+      color: #bfdbfe;
+      text-decoration: none;
     }
 
     main {
       padding-bottom: 24px;
     }
 
-    #examples-nav,
     #asserts-panel,
-    #live-dsub,
     #ported-examples {
       padding: 12px;
       border-top: 1px solid #e2e8f0;
-    }
-
-    #examples-nav {
-      background: #f8fafc;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-
-    #examples-nav a {
-      color: #1d4ed8;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    #examples-nav span {
-      color: #475569;
-      font-size: 12px;
     }
 
     #asserts-panel {
@@ -76,6 +58,7 @@
       white-space: pre-wrap;
       word-break: break-word;
       margin: 0;
+      overflow-anchor: none;
     }
 
     .note {
@@ -162,26 +145,10 @@
   <header>
     <a href="https://dadhi.github.io/dmax/">dmax</a>
     <a href="examples/m-ex-cel.html">m-ex-cel</a>
-    <div id="summary">Tests 0: Passed 0, Failed 0</div>
+    <a id="summary" href="#asserts-panel">Tests 0: Passed 0, Failed 0</a>
   </header>
   <main>
-    <section id="examples-nav">
-      <strong>Examples</strong>
-      <a href="https://dadhi.github.io/dmax/">Notebook</a>
-      <a href="examples/m-ex-cel.html">Excel-like SSE grid</a>
-      <span>Live examples first, asserts at the end.</span>
-    </section>
     <div id='foo' hidden>good</div>
-    <section id="live-dsub">
-      <h3 style="margin:0 0 8px 0">Live dmEx examples</h3>
-      <form id="live-form">
-        <input id="live-name" value="Ada" />
-        <button id="live-btn" type="button">Emit click/value</button>
-        <button id="live-submit" type="submit">Emit form submit</button>
-      </form>
-      <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
-      <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
-    </section>
     <section id="ported-examples">
       <h3 style="margin:0 0 8px 0">Live runtime examples</h3>
       <div data-m-si='{
@@ -198,14 +165,13 @@
         "val-source":{"bar":7},
         "uplot":{"title":"Revenue vs Cost","points":true,"labels":["Revenue","Cost"],"data":[[1,2,3,4,5],[12,18,16,22,24],[8,11,13,15,18]],"series":[{"label":"Revenue","stroke":"#2563eb"},{"label":"Cost","stroke":"#dc2626"}],"w":420,"h":220},
         "uplot2":null,
-        "uplot-demo-dms":[],
         "uplot-last":null,
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
-      <h4>0. WC host props and events via `data-m-ex` + vendored uPlot</h4>
+      <h4>0. uPlot host props and events</h4>
       <template data-m-wc="mx-uplot" data-m-wc-props="cfg"><div data-m-ex@.cfg="window.mxUplotRender(el, detail.detail)"></div></template>
-      <div class="page" data-m-it@uplot-demo-dms><template><code data-m-ex:.@$it="$it.value ? $it.name + '=&quot;' + $it.value + '&quot;' : $it.name"></code><span data-m-sh:.@$it="$ix + 1 < dm.uplotDemoDms.length"> · </span></template> Change title/width, click Step/Add point/Toggle points, then click chart points and watch the second chart + JSON payload update.</div>
-      <p>Pattern: define custom elements with <code>data-m-wc</code> on <code>template</code>, then drive host props and events with normal <code>data-m-ex</code>. The second instance is optional so the example can show separate host instances, not just one wrapper.</p>
+      <div class="page">Edit the title or width and the chart should update immediately. Click Step data / Add point / Toggle points to change the first chart. Click Duplicate chart to create a second live instance. Click any point to inspect the emitted payload below.</div>
+      <p>This uses a small declarative custom-element shell: <code>data-m-wc</code> defines the host and normal <code>data-m-ex</code> drives host props/events.</p>
       <div class="wc-demo">
         <div>
           <label>Title <input value="Revenue vs Cost" data-m-ex@.^rw@uplot.title></label>
@@ -215,29 +181,29 @@
           <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
           <button id="uplotDup" data-m-ex:uplot2@.="window.cloneUplot(dm.uplot)">Duplicate chart</button>
         </div>
+        <p data-m-ex:.@uplot="'title: ' + dm.uplot.title + ' · width: ' + dm.uplot.w + ' · points: ' + (dm.uplot.points ? 'on' : 'off') + ' · second chart: ' + (dm.uplot2 ? 'on' : 'off')"></p>
         <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point="{ from: 'uplot-1', ...val }"></mx-uplot>
         <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2 data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point="{ from: 'uplot-2', ...val }"></mx-uplot>
-        <div data-m-ex:uplot-demo-dms@_init^attrs.#uplotdemo.data-m-></div>
-        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="JSON.stringify(dm.uplotLast)||'click a point'"></pre>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="dm.uplotLast ? JSON.stringify(dm.uplotLast, null, 2) : 'click a point'" aria-label="uPlot point payload"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@user.name</code> · <code>data-m-ex@.^rw^num@user.age</code> Type in the inputs and look for the greeting and age text to update immediately.</div>
-      <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name></label>
+      <div class="page"><code>data-m-ex@.^rw@user.name</code> · <code>data-m-ex:user.name@.input=&quot;val&quot;</code> · <code>data-m-ex@.^rw^num@user.age</code> · <code>data-m-ex:user.age@.input^num=&quot;val&quot;</code> Type in the inputs and look for the greeting and age text to update while you type.</div>
+      <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name data-m-ex:user.name@.input="val"></label>
       <p>Hello, <strong data-m-ex:.@user.name></strong>!</p>
-      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw^num@user.age></label>
+      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw^num@user.age data-m-ex:user.age@.input^num="val"></label>
       <p>Age: <span data-m-ex:.@user.age></span> years old</p>
       <h4>1.a data-m-ex Direction Examples</h4>
       <div class="page"><code>data-m-ex:.@user.name</code> · <code>data-m-ex:user.name@.input=&quot;val&quot;</code> · <code>data-m-ex@.^rw@user.name</code> Compare one-way signal→element, one-way element→signal, and two-way sync side by side.</div>
       <label>Signal -> Element: <input id="sigToProp" data-m-ex:.@user.name></label>
       <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-m-ex:user.name@.input="val"></label>
-      <label>Two-way: <input id="twoWay" data-m-ex@.^rw@user.name></label>
+      <label>Two-way: <input id="twoWay" data-m-ex@.^rw@user.name data-m-ex:user.name@.input="val"></label>
       <div>Signal preview: <span data-m-ex:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@user.ui.theme-color</code> · <code>data-m-ex:.style.color@user.ui.theme-color=&quot;dm.user.ui.themeColor&quot;</code> · <code>data-m-ex@.^rw^num@user.ui.font-size</code> · <code>data-m-ex:.style.font-size@user.ui.font-size=&quot;val + 'px'&quot;</code> · <code>data-m-ex@.^rw@user.ui.is-active</code> Change the color, font slider, and checkbox; look for style and status changes in the preview text.</div>
-      <label>Theme Color: <input id="themeColorInput" type="color" data-m-ex@.^rw@user.ui.theme-color></label>
+      <div class="page"><code>data-m-ex@.^rw@user.ui.theme-color</code> · <code>data-m-ex:user.ui.theme-color@.input=&quot;val&quot;</code> · <code>data-m-ex:.style.color@user.ui.theme-color=&quot;dm.user.ui.themeColor&quot;</code> · <code>data-m-ex@.^rw^num@user.ui.font-size</code> · <code>data-m-ex:user.ui.font-size@.input^num=&quot;val&quot;</code> · <code>data-m-ex:.style.font-size@user.ui.font-size=&quot;val + 'px'&quot;</code> · <code>data-m-ex@.^rw@user.ui.is-active</code> Change the color, drag the font slider, and toggle the checkbox; style changes should apply immediately.</div>
+      <label>Theme Color: <input id="themeColorInput" type="color" data-m-ex@.^rw@user.ui.theme-color data-m-ex:user.ui.theme-color@.input="val"></label>
       <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-m-ex:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
       <label>Font Size: <span data-m-ex:.@user.ui.font-size></span>px</label>
-      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw^num@user.ui.font-size>
+      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw^num@user.ui.font-size data-m-ex:user.ui.font-size@.input^num="val">
       <p id="themeFontPreview" data-m-ex:.style.font-size@user.ui.font-size="val + 'px'">Resizable text</p>
       <label><input id="themeActiveToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Active</label>
       <p>Status: <strong data-m-ex:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
@@ -273,8 +239,8 @@
       <p><span id="example4ConsoleOut" data-m-ex:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
       <p><strong id="example4VisibleOut" data-m-ex:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@message</code> · <code>data-m-ex:.@#src.input=&quot;document.getElementById('src').value&quot;</code> · <code>data-m-ex:.value@#src.input=&quot;document.getElementById('src').value&quot;</code> Type in the source input and look for both the text preview and readonly mirror to track it.</div>
-      <input id="src" placeholder="Type here..." data-m-ex@.^rw@message>
+      <div class="page"><code>data-m-ex@.^rw@message</code> · <code>data-m-ex:message@.input=&quot;val&quot;</code> · <code>data-m-ex:.@#src.input=&quot;document.getElementById('src').value&quot;</code> · <code>data-m-ex:.value@#src.input=&quot;document.getElementById('src').value&quot;</code> Type in the source input and look for both the text preview and readonly mirror to track it while you type.</div>
+      <input id="src" placeholder="Type here..." data-m-ex@.^rw@message data-m-ex:message@.input="val">
       <p id="srcPreview" data-m-ex:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-m-ex:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
@@ -427,6 +393,10 @@
       <pre id="out"></pre>
     </section>
   </main>
+  <script>
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+    addEventListener('load', () => !location.hash && scrollTo(0, 0), { once: true })
+  </script>
   <script>
     // Mirror console to <pre>, count tests
     (function () {

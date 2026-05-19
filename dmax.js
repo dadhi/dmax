@@ -1283,7 +1283,7 @@
       if (customElements.get(name) || WC_TMPLS.has(tpl)) return
       WC_TMPLS.add(tpl)
       const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(/[^,\s]+/g) || NIL
-      const WC = class extends HTMLElement { connectedCallback() { if (WC_INITS.has(this)) return; WC_INITS.add(this); if (!this.firstElementChild && tpl.content) this.appendChild(tpl.content.cloneNode(true)), wireItClone(this) } }
+      const WC = class extends HTMLElement { connectedCallback() { if (WC_INITS.has(this)) return; WC_INITS.add(this); if (!this.firstElementChild && tpl.content) this.appendChild(tpl.content.cloneNode(true)), wireItClone(this); for (const p of props) { let v = this['$' + p]; if (hasOwn(this, p)) v = this[p], delete this[p]; v !== undefined && (this[p] = v) } } }
       for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v })), this.firstElementChild && this.firstElementChild.dispatchEvent(new CustomEvent(p, { detail: v })) } })
       customElements.define(name, WC)
     }
