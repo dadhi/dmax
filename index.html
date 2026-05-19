@@ -198,10 +198,12 @@
         "val-source":{"bar":7},
         "uplot":{"title":"Revenue vs Cost","points":true,"labels":["Revenue","Cost"],"data":[[1,2,3,4,5],[12,18,16,22,24],[8,11,13,15,18]],"series":[{"label":"Revenue","stroke":"#2563eb"},{"label":"Cost","stroke":"#dc2626"}],"w":420,"h":220},
         "uplot2":null,
+        "uplot-demo-dms":[],
         "uplot-last":null,
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
       <h4>0. WC host props and events via `data-m-ex` + vendored uPlot</h4>
+      <template data-m-wc="mx-uplot" data-m-wc-props="cfg"><div data-m-ex@.cfg="window.mxUplotRender(el, detail.detail)"></div></template>
       <div class="page" data-m-it@uplot-demo-dms><template><code data-m-ex:.@$it="$it.value ? $it.name + '=&quot;' + $it.value + '&quot;' : $it.name"></code><span data-m-sh:.@$it="$ix + 1 < dm.uplotDemoDms.length"> · </span></template></div>
       <p>Pattern: define custom elements with <code>data-m-wc</code> on <code>template</code>, then drive host props and events with normal <code>data-m-ex</code>. The second instance is optional so the example can show separate host instances, not just one wrapper.</p>
       <div class="wc-demo">
