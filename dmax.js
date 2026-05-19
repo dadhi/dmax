@@ -785,63 +785,43 @@
         return
       }
 
-      // we need to change the value and THEN notify, so to avoid value preservation lets collect the handlers with changes first
       let collected = [], diffed = false, diff = null, pathDiffs = []
       for (const h of handlers) {
         const hp = h.trig.path, changeMod = h.siChangeM
         if (!hp) {
-          if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) {// compare roots if it is the first time
-            diffed = true
-            diff = diffShapeShallow(curVal, val)
-          }
-          if (path || changeMod !== SIG_CHANGED_SHAPE_ONLY || diff)
-            collected.push([h, path ? null : diff]) // path-based notifications do not forward a root diff
+          if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) diffed = true, diff = diffShapeShallow(curVal, val)
+          if (path || changeMod !== SIG_CHANGED_SHAPE_ONLY || diff) collected.push([h, path ? null : diff])
           continue
         }
-
-        // if some path value changed - filter out the handlers diverting from the path
         if (path) {
-          const pl = path.length, hl = hp.length, notifyParent = hl < pl, minLen = notifyParent ? hl : pl
+          const pl = path.length, hl = hp.length, minLen = hl < pl ? hl : pl
           let i = 0
           for (; i < minLen && path[i] == hp[i]; ++i);
           if (i < minLen) continue
-          if (notifyParent) { collected.push([h, null]); continue }
+          if (hl < pl) { collected.push([h, null]); continue }
           if (pl == hl) {
-            if (!diffed && changeMod !== SIG_CHANGED_ANY) {
-              diffed = true
-              diff = diffShapeShallow(curVal, val)
-            }
-            if (changeMod !== SIG_CHANGED_SHAPE_ONLY || diff)
-              collected.push([h, diff])
+            if (!diffed && changeMod !== SIG_CHANGED_ANY) diffed = true, diff = diffShapeShallow(curVal, val)
+            if (changeMod !== SIG_CHANGED_SHAPE_ONLY || diff) collected.push([h, diff])
             continue
           }
         }
-
-        // the hp has the longer path based on previous checks, we to check that it actually changed
-        // first, check if we did this comparison before
-        let hCol = null, p = null
-        for (const col of collected) // check if the same
-          if ((p = col[0].trig.path) && samePath(p, hp)) { hCol = col; break }
-
         const pathCur = getPrValAndDepth(siVal, hp)[0]
-        let pathVal
-        if (hCol) pathVal = hCol[2]
-        else {
+        let pathVal = undefined, pathDiff = null
+        for (const col of collected) {
+          const p = col[0].trig.path
+          if (p && samePath(p, hp)) { pathVal = col[2]; break }
+        }
+        if (pathVal === undefined) {
           pathVal = getPrValAndDepth(val, hp)[0]
           if (!valChangedDeep(pathCur, pathVal)) continue
         }
-
-        let pathDiffed = false, pathDiff = null
         if (changeMod != SIG_CHANGED_ANY) {
-          for (const pd of pathDiffs) if (samePath(pd[0], hp)) { pathDiffed = true; pathDiff = pd[1]; break }
-          if (!pathDiffed) {
-            pathDiff = diffShapeShallow(pathCur, pathVal)
-            pathDiffs.push([hp, pathDiff])
-          }
+          let pd = null
+          for (const x of pathDiffs) if (samePath(x[0], hp)) { pd = x; break }
+          if (pd) pathDiff = pd[1]
+          else pathDiffs.push([hp, pathDiff = diffShapeShallow(pathCur, pathVal)])
         }
-
-        if (changeMod !== SIG_CHANGED_SHAPE_ONLY || pathDiff)
-          collected.push([h, pathDiff, pathVal])
+        if (changeMod !== SIG_CHANGED_SHAPE_ONLY || pathDiff) collected.push([h, pathDiff, pathVal])
       }
 
       if (!path) _dm.set(root, val)
@@ -1143,7 +1123,7 @@
         else if (!sendAll && mr === M_SEND_ALL) sendAll = true
         else if (!patchAll && mr === M_PATCH_ALL) patchAll = true
       }
-      if (resultTa && resultTa.mods) for (const m of resultTa.mods) if (m.root === M_REPLACE || m.root === M_MERGE || m.root === M_APPEND || m.root === M_PREPEND) { resultMode = m.root; break }
+      if (resultTa && resultTa.mods) resultMode = getWriteMode(resultTa.mods)
       const busyStat = mkOrStatSi(busyMod, M_BUSY), completeStat = mkOrStatSi(completeMod, M_COMPLETE), errStat = mkOrStatSi(errMod, M_ERR), codeStat = mkOrStatSi(codeMod, M_CODE), openStat = mkOrStatSi(openMod, M_SSE_OPEN), closeStat = mkOrStatSi(closeMod, M_SSE_CLOSE), abortStat = mkOrStatSi(abortMod, M_ABORT)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
@@ -1159,18 +1139,13 @@
       for (const add of adds) {
         const ap = add.path
         add.key = (ap ? ap.at(-1) : add.root) || 'value'
-        add.spread = false
         if (add.isEv && add.root) add.taEl = getElById(add.root, dKey)
-        for (let i = 0; i < add.mods.length && !add.spread; ++i) add.spread = add.mods[i].root === M_SPREAD
+        for (let i = 0; i < add.mods.length; ++i) if (add.mods[i].root === M_SPREAD) { add.spread = true; break }
       }
       const actRouteMods = []
-      for (const m of urlMods) { const p = m.path
-        if (typeof p === 'string') actRouteMods.push([false, p, p, null])
-        else if (p && p.isSi) actRouteMods.push([false, p.path ? p.path.at(-1) : p.root, null, p])
-      }
-      for (const m of bodyMods) { const p = m.path
-        if (typeof p === 'string') actRouteMods.push([true, p, p, null])
-        else if (p && p.isSi) actRouteMods.push([true, p.path ? p.path.at(-1) : p.root, null, p])
+      for (const ms of [urlMods, bodyMods]) for (const m of ms) { const p = m.path, b = ms === bodyMods
+        if (typeof p === 'string') actRouteMods.push([b, p, p, null])
+        else if (p && p.isSi) actRouteMods.push([b, p.path ? p.path.at(-1) : p.root, null, p])
       }
       const actHdrMods = []
       for (const m of hdrMods) { const p = m.path, pLast = p && p.isSi ? (p.path ? p.path.at(-1) : p.root) : null
@@ -1196,14 +1171,14 @@
             else bodyFields[add.key] = val
           }
           for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
-          let finalUrl = url, hasQ = finalUrl.indexOf('?') >= 0
+          let finalUrl = url, hasQ = finalUrl.includes('?')
           for (const k in queryParams) finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent('' + (queryParams[k] ?? '')), hasQ = true
-          let hs = ACT_HS_EMPTY, sharedHs = true
+          let hs = ACT_HS_EMPTY, sharedHs = 1
           if (hdrsPath) {
             const hdrObj = resolveMPathVal(hdrsPath)
             if (isPlainObj(hdrObj)) {
               hs = noProto()
-              sharedHs = false
+              sharedHs = 0
               for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + hdrObj[hk]
             }
           }
@@ -1214,13 +1189,13 @@
           if (authPath != null) {
             const authVal = resolveMPathVal(authPath)
             if (authVal != null) {
-              if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
+              if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0
               hs[H_AUTHORIZATION] = '' + authVal
             }
           }
           for (const [kebabKey, path, ref] of actHdrMods) {
             const mVal = ref ? getSiValOrIt(ref) : _dm.get(path)
-            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = false
+            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0
             hs[kebabKey] = mVal != null ? '' + mVal : ''
           }
           let bodyCount = 0, firstBodyKey = null
@@ -1352,20 +1327,20 @@
       const toAttrs = to.attributes, fromAttrs = from.attributes, tl = toAttrs.length, fl = fromAttrs.length
       if (!fl && !tl) return
       if (fl === tl) {
-        let same = true, orderChanged = false
+        let same = true, re = false
         for (let i = 0; i < tl; i++) {
-          const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
-          if (fromAttr.name !== toAttr.name) { same = false; orderChanged = true; break }
-          if (fromAttr.value !== toAttr.value) { same = false; break }
+          const fa = fromAttrs[i], ta = toAttrs[i]
+          if (fa.name !== ta.name) { same = false; re = true; break }
+          if (fa.value !== ta.value) { same = false; break }
         }
         if (same) return
-        if (orderChanged) {
-          let sameNames = true
+        if (re) {
+          let same = true
           for (let i = 0; i < tl; i++) {
-            const toAttr = toAttrs[i], fromAttr = fromAttrs.getNamedItem(toAttr.name)
-            if (!fromAttr || fromAttr.value !== toAttr.value) { sameNames = false; break }
+            const ta = toAttrs[i], fa = fromAttrs.getNamedItem(ta.name)
+            if (!fa || fa.value !== ta.value) { same = false; break }
           }
-          if (sameNames) return
+          if (same) return
         }
       }
       if (!tl) {
@@ -1373,13 +1348,10 @@
         return
       }
       for (let i = 0; i < tl; i++) {
-        const { name, value } = toAttrs[i], fromAttr = fromAttrs.getNamedItem(name)
-        if (!fromAttr || fromAttr.value !== value) from.setAttribute(name, value)
+        const ta = toAttrs[i], fa = fromAttrs.getNamedItem(ta.name)
+        if (!fa || fa.value !== ta.value) from.setAttribute(ta.name, ta.value)
       }
-      for (let i = fl - 1; i >= 0; i--) {
-        const name = fromAttrs[i].name
-        if (!to.hasAttribute(name)) from.removeAttribute(name)
-      }
+      for (let i = fl - 1; i >= 0; i--) if (!to.hasAttribute(fromAttrs[i].name)) from.removeAttribute(fromAttrs[i].name)
     }
 
     // Reconcile from children to match to children with one forward pass.
@@ -1436,41 +1408,31 @@
     }
 
     let _morphActiveEl = null
+    const doneMorph = (root) => root && (_morphActiveEl = null)
     // Update from in place without disturbing matched-node listeners or cleanup state.
     // Preserve caret, selection, and scroll across streamed updates.
     const morph = (from, to) => {
       const root = _morphActiveEl === null
       if (root) _morphActiveEl = document.activeElement
-      if (from.nodeType === 3 /*TEXT*/ && to.nodeType === 3) {
+      if (from.nodeType === 3 && to.nodeType === 3) {
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
-        if (root) _morphActiveEl = null
-        return
+        return doneMorph(root)
       }
-      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE) { if (root) _morphActiveEl = null; return }
-      if (noMorph(from) || noMorph(to)) { if (root) _morphActiveEl = null; return }
+      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE || noMorph(from) || noMorph(to)) return doneMorph(root)
       if (from.tagName !== to.tagName) {
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
-        if (root) _morphActiveEl = null
-        return
+        return doneMorph(root)
       }
-      const fromFirst = from.firstChild, toFirst = to.firstChild
-      if (sameAttrs(from, to)) {
-        if (!fromFirst && !toFirst) { if (root) _morphActiveEl = null; return }
-        if (fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
-          if (fromFirst.nodeValue === toFirst.nodeValue) { if (root) _morphActiveEl = null; return }
-        }
-      }
+      const fromFirst = from.firstChild, toFirst = to.firstChild, textOnly = fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE
+      if (sameAttrs(from, to) && (!fromFirst && !toFirst || textOnly && fromFirst.nodeValue === toFirst.nodeValue)) return doneMorph(root)
       const tag = from.tagName, isFocused = from === _morphActiveEl
       let selStart = -1, selEnd = -1, selDir = 'none', selVal = null, selIdx = -1
       if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
         try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {}
-      } else if (isFocused && tag === 'SELECT') {
-        selVal = from.value
-        selIdx = from.selectedIndex
-      }
+      } else if (isFocused && tag === 'SELECT') selVal = from.value, selIdx = from.selectedIndex
       const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft, keepScroll = scrollTop || scrollLeft
       updateAttrs(from, to)
-      if (fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE) {
+      if (textOnly) {
         if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
       } else if (fromFirst || toFirst) morphChildren(from, to)
       if (keepScroll) {
@@ -1483,7 +1445,7 @@
         from.value = selVal
         if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length) from.selectedIndex = selIdx
       }
-      if (root) _morphActiveEl = null
+      doneMorph(root)
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
@@ -1512,11 +1474,10 @@
 
     const insertFragRelative = (taEl, srcEls, mode) => {
       if (!taEl || !srcEls || !srcEls.length) return
-      const frag = document.createDocumentFragment()
+      const frag = document.createDocumentFragment(), before = mode === M_PREPEND ? taEl.firstChild || null : mode === M_BEFORE ? taEl : taEl.nextSibling
       for (const src of srcEls) frag.appendChild(src.cloneNode(true))
-      if (mode === M_APPEND) { taEl.appendChild(frag); return }
-      const par = mode === M_PREPEND ? taEl : taEl.parentNode
-      if (par) par.insertBefore(frag, mode === M_PREPEND ? taEl.firstChild || null : mode === M_BEFORE ? taEl : taEl.nextSibling)
+      if (mode === M_APPEND) taEl.appendChild(frag)
+      else (mode === M_PREPEND ? taEl : taEl.parentNode)?.insertBefore(frag, before)
     }
 
     const applyPatchPair = (taEl, srcEl, mode, reuse = false) => {
@@ -1529,11 +1490,6 @@
       } else morph(taEl, srcEl)
     }
 
-    const applyPatchSource = (srcEl, mode) => {
-      if (srcEl.id) applyPatchPair(document.getElementById(srcEl.id), srcEl, mode, true)
-      else warn('patch-elements needs ids without selector')
-    }
-
     const applyPatchEls = (args) => {
       const mode = (args.mode || M_OUTER).toLowerCase()
       const sel = args.selector ? '' + args.selector : ''
@@ -1543,10 +1499,7 @@
 
       if (mode === M_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
-        else for (const src of srcEls) {
-          if (src.id) document.getElementById(src.id)?.remove()
-          else warn('patch-elements remove needs ids without selector')
-        }
+        else for (const src of srcEls) src.id ? document.getElementById(src.id)?.remove() : warn('patch-elements remove needs ids without selector')
         return
       }
 
@@ -1569,11 +1522,10 @@
       }
 
       if (!srcEls.length) return
-      if (srcEls.length === 1) {
-        applyPatchSource(srcEls[0], mode)
-        return
+      for (const src of srcEls) {
+        if (src.id) applyPatchPair(document.getElementById(src.id), src, mode, true)
+        else warn('patch-elements needs ids without selector')
       }
-      for (const src of srcEls) applyPatchSource(src, mode)
     }
 
     const applyJsonMergePatch = (prev, patch) => {
@@ -1597,65 +1549,50 @@
       const onlyIfMissing = (args.onlyIfMissing || '').toLowerCase() === 'true'
       for (const root in patchObj) if (hasOwn(patchObj, root)) {
         if (onlyIfMissing && _dm.has(root)) continue
-        const next = applyJsonMergePatch(_dm.get(root), patchObj[root])
-        if (next === JSON_MERGE_DELETE) {
-          if (_dm.has(root)) {
-            setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), undefined)
-            _dm.delete(root)
-            updateDebug()
-          }
-        } else {
-          setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), next)
+        const next = applyJsonMergePatch(_dm.get(root), patchObj[root]), it = mkIt(SI, null, root, null)
+        if (next !== JSON_MERGE_DELETE) setSiAndNotifySubsNDeep(dKey, it, next)
+        else if (_dm.has(root)) {
+          setSiAndNotifySubsNDeep(dKey, it, undefined)
+          _dm.delete(root)
+          updateDebug()
         }
       }
     }
 
+    const flushSse = (applied, st, dKey) => {
+      const args = st[1], ev = st[0]
+      if (st[2] && args) {
+        if (ev === SSE_EV_PATCH_ELS) applyPatchEls(args), applied.push({ event: ev, args })
+        else if (ev === SSE_EV_PATCH_SIS) applyPatchSigs(dKey, args), applied.push({ event: ev, args })
+      }
+      st[0] = 'message', st[1] = null, st[2] = false
+    }
+    const consumeSseLine = (line, st, applied, dKey) => {
+      if (!line) return flushSse(applied, st, dKey)
+      if (line[0] === ':') return
+      const ci = line.indexOf(':'), field = ci < 0 ? line : line.slice(0, ci)
+      let val = ci < 0 ? '' : line.slice(ci + 1)
+      if (val[0] === ' ') val = val.slice(1)
+      if (field === 'event') st[0] = val || 'message'
+      else if (field === 'data') {
+        const si = val.indexOf(' ')
+        if (si < 0) return
+        const key = val.slice(0, si), value = val.slice(si + 1), args = st[1] || (st[1] = noProto())
+        st[2] = true
+        if (!args[key]) args[key] = value
+        else args[key] += '\n' + value
+      }
+    }
     const applySse = (raw, dKey = 'dmax-sse') => {
       if (!raw) return NIL
-      const applied = []
-      const text = '' + raw
-      const RE_TRAILING_CR = /\r$/
-      let curEv = 'message'
-      let curArgs = null
-      let hasData = false
-      const consumeLine = (line) => {
-        if (!line) { flush(); return }
-        if (line[0] === ':') return
-        const colonIndex = line.indexOf(':')
-        const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line
-        let val = colonIndex >= 0 ? line.slice(colonIndex + 1) : ''
-        if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEv = val || 'message'
-        else if (field === 'data') {
-          const spaceIndex = val.indexOf(' ')
-          if (spaceIndex < 0) return
-          const key = val.slice(0, spaceIndex), value = val.slice(spaceIndex + 1)
-          if (!curArgs) curArgs = noProto()
-          hasData = true
-          if (!curArgs[key]) curArgs[key] = value
-          else curArgs[key] += '\n' + value
-        }
-      }
-      const flush = () => {
-        if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
-        if (curEv === SSE_EV_PATCH_ELS) {
-          applyPatchEls(curArgs)
-          applied.push({ event: curEv, args: curArgs })
-        } else if (curEv === SSE_EV_PATCH_SIS) {
-          applyPatchSigs(dKey, curArgs)
-          applied.push({ event: curEv, args: curArgs })
-        }
-        curEv = 'message'
-        curArgs = null
-        hasData = false
-      }
+      const applied = [], text = '' + raw, st = ['message', null, false], RE_TRAILING_CR = /\r$/
       let start = 0, nl
       while ((nl = text.indexOf('\n', start)) >= 0) {
-        consumeLine(text.slice(start, nl).replace(RE_TRAILING_CR, ''))
+        consumeSseLine(text.slice(start, nl).replace(RE_TRAILING_CR, ''), st, applied, dKey)
         start = nl + 1
       }
-      if (start < text.length) consumeLine(text.slice(start).replace(RE_TRAILING_CR, ''))
-      flush()
+      if (start < text.length) consumeSseLine(text.slice(start).replace(RE_TRAILING_CR, ''), st, applied, dKey)
+      flushSse(applied, st, dKey)
       return applied
     }
 
@@ -1667,46 +1604,8 @@
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
     const consumeSseStream = async (body, dKey, openStat, closeStat, errStat) => {
       if (!body || typeof body.getReader !== 'function') return NIL
-      const applied = []
-      const reader = body.getReader()
-      const decoder = new TextDecoder()
-      const RE_TRAILING_CR = /\r$/
-      let buf = ''
-      let curEv = 'message', curArgs = null, hasData = false
-      let opened = false
-
-      const flush = () => {
-        if (!hasData || !curArgs) { curEv = 'message'; curArgs = null; hasData = false; return }
-        if (curEv === SSE_EV_PATCH_ELS) {
-          applyPatchEls(curArgs)
-          applied.push({ event: curEv, args: curArgs })
-        } else if (curEv === SSE_EV_PATCH_SIS) {
-          applyPatchSigs(dKey, curArgs)
-          applied.push({ event: curEv, args: curArgs })
-        }
-        curEv = 'message'; curArgs = null; hasData = false
-      }
-
-      const consumeLine = (line) => {
-        if (!line) { flush(); return }
-        if (line[0] === ':') return
-        const ci = line.indexOf(':')
-        const field = ci >= 0 ? line.slice(0, ci) : line
-        let val = ci >= 0 ? line.slice(ci + 1) : ''
-        if (val[0] === ' ') val = val.slice(1)
-        if (field === 'event') curEv = val || 'message'
-        else if (field === 'data') {
-          const si = val.indexOf(' ')
-          if (si < 0) return
-          const key = val.slice(0, si), value = val.slice(si + 1)
-          if (!curArgs) curArgs = noProto()
-          hasData = true
-          if (!curArgs[key]) curArgs[key] = value
-          else curArgs[key] += '\n' + value
-        }
-      }
-
-      let streamErr = null
+      const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false], RE_TRAILING_CR = /\r$/
+      let buf = '', opened = false, streamErr = null
       try {
         while (true) {
           const { done, value } = await reader.read()
@@ -1719,15 +1618,14 @@
           buf += decoder.decode(value, { stream: true })
           let nl
           while ((nl = buf.indexOf('\n')) >= 0) {
-            consumeLine(buf.slice(0, nl).replace(RE_TRAILING_CR, ''))
+            consumeSseLine(buf.slice(0, nl).replace(RE_TRAILING_CR, ''), st, applied, dKey)
             buf = buf.slice(nl + 1)
           }
         }
-        // Flush the TextDecoder and process any remaining partial line
         const trailing = decoder.decode()
         if (trailing) buf += trailing
-        if (buf) consumeLine(buf.replace(RE_TRAILING_CR, ''))
-        flush()
+        if (buf) consumeSseLine(buf.replace(RE_TRAILING_CR, ''), st, applied, dKey)
+        flushSse(applied, st, dKey)
       } catch (e) {
         streamErr = e
         logErr('SSE stream error:', e)
@@ -1735,9 +1633,7 @@
       if (openStat) setSiAndNotifySubsNDeep(dKey, openStat, false)
       if (streamErr) {
         if (errStat) setSiAndNotifySubsNDeep(dKey, errStat, streamErr.message || '' + streamErr)
-      } else {
-        if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, true)
-      }
+      } else if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, true)
       return applied
     }
 
