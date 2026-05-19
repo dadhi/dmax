@@ -367,7 +367,7 @@
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
     const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4
-    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8
+    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
@@ -387,6 +387,7 @@
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
         else if (r === M_NUM) f |= MF_NUM
+        else if (r === M_RW) f |= MF_RW
         else if (!isTimer && r === M_DEBOUNCE) d = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
         else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (r in PERMIT_MODS) p = p ? p.push ? (p.push(m), p) : [p, m] : m
@@ -408,9 +409,9 @@
     const addNonSiTrSub = (el, tr, mod, fn, elSubs, ran, prTa = null) => {
       const sp = tr.sp, isSp = !!sp
       if (!isSp && !expected(prTa, 'Expected non-SP trigger target in addNonSiTrSub:', tr, 'on:', el)) return null
-      const modded = addTrSub(el, tr, mod, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath)
-      if (sp?.init) return modded && !ran && invokeSub(modded, { type: SP_INIT }, mod.s === MV_PR ? getReadVal(el, mod, mod.v.length ? mod.v : null) : mod.s === MV_ATTRS ? getReadVal(el, mod, mod.v) : SP_INIT, el, tr), true
-      if (modded && !ran && tr.isImmediate && (!sp || sp.immediate)) return invokeSub(modded, null, isSp ? null : getReadVal(prTa.taEl, mod, prTa.readPath), el, tr), true
+      const modded = addTrSub(el, tr, mod, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath, isSp ? null : prTa.readEl)
+      if (sp?.init) return modded && !ran && invokeSub(modded, { type: SP_INIT }, mod.s === MV_PR || mod.s === MV_ATTRS ? getReadVal(mod.r ? getElById(mod.r) : el, mod, mod.s === MV_PR ? mod.v.length ? mod.v : null : mod.v) : SP_INIT, el, tr), true
+      if (modded && !ran && tr.isImmediate && (!sp || sp.immediate)) return invokeSub(modded, null, isSp ? null : getReadVal(prTa.readEl, mod, prTa.readPath), el, tr), true
       return ran
     }
 
@@ -691,7 +692,7 @@
       }
       return out
     }
-    const getReadVal = (el, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(mod.r ? getElById(mod.r) : el, readPath) : getElPrVal(mod.s === MV_PR && mod.r ? getElById(mod.r) : el, readPath)
+    const getReadVal = (readEl, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(readEl, readPath) : getElPrVal(readEl, readPath)
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
@@ -729,7 +730,7 @@
       elSubs.push(sub)
       return modded
     }
-    const addTrSub = (el, tr, mod, fn, elSubs, taEl, evName, prPath, readPath = prPath) => {
+    const addTrSub = (el, tr, mod, fn, elSubs, taEl, evName, prPath, readPath = prPath, readEl = taEl) => {
       if (tr.isSi) {
         const sub = { el, trig: tr, fn, siChangeM: mod.c, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, tr, mod, sub)
@@ -742,7 +743,7 @@
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, getReadVal(taEl, mod, readPath), el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, getReadVal(readEl, mod, readPath), el, tr)
       taEl.addEventListener(evName, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -766,7 +767,6 @@
     const setSiAndNotifySubs = (dKey, tar, val) => {
       const root = tar?.root, path = tar?.path
       if (!root) return null
-
       let siVal = _dm.get(root), curVal = siVal, parent = siVal, d = 0, last = null
       if (path) {
         if (!path.length) return null
@@ -855,7 +855,7 @@
       updateDebug()
     }
 
-    let syncDepth = 0, MAX_SYNC_DEPTH = 32;
+    let syncDepth=0,MAX_SYNC_DEPTH=32;
     const setSiAndNotifySubsNDeep = (dKey, tar, val) => {
       if (syncDepth++ > MAX_SYNC_DEPTH) return logErr(`Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${dKey}`)
       try { return setSiAndNotifySubs(dKey, tar, val) } finally { syncDepth-- }
@@ -878,7 +878,7 @@
       let debDm = null, debEl = null, debVal = null, debDetail = null
       let onDebounce = null
       const h = function (dm, el, trIt, providedVal, detail) {
-        trIt ||= tr
+        trIt = trIt || tr
         if (!inDebounce) {
           if (prevent) detail?.preventDefault?.()
           if (deb) {
@@ -897,7 +897,8 @@
             last = now
           }
         }
-        let trVal = readM === MV_EV && !isSig ? (detail?.detail?.value ?? detail?.detail?.ms ?? detail) : isSig ? (providedVal ?? getSiVal(trIt)) : providedVal ?? detail?.detail?.value ?? detail?.detail?.ms ?? detail
+        const dd = detail && detail.detail
+        let trVal = readM === MV_EV && !isSig ? (dd?.value ?? dd?.ms ?? detail) : isSig ? (providedVal ?? getSiVal(trIt)) : providedVal ?? dd?.value ?? dd?.ms ?? detail
         if (useVal) trVal = getPrValAndDepth(trVal, valPath)[0]
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
@@ -920,23 +921,21 @@
       if (!tars.length && trigs.length) {
         const readTrs = [], writePrTrs = [], writeSiTrs = []
         for (const tr of trigs) {
-          const mods = pickMods(tr.mods, globMods); let hasRw = false
-          for (let i=0;i<mods.length&&!hasRw;i++) hasRw = mods[i].root===M_RW
-          const mod = compileMods(tr, mods)
-          if (!hasRw) {
+          const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
+          if(!(mod.f&MF_RW)){
             readTrs.push({ tr, mod })
-            if (tr.isSi) writeSiTrs.push(tr)
+            if (tr.isSi) writeSiTrs.push([tr, getWriteMode(tr.mods)])
             continue
           }
           if (!tr.isEv) return logErr('Error:', E_RW_REQ, dKey)
           const prTa = getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV)
           if (!prTa) return
-          writePrTrs.push({ trig: tr, mod, taEl: prTa.taEl, readEl: prTa.readEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
+          writePrTrs.push({ tr, mod, w: getWriteMode(tr.mods), taEl: prTa.taEl, readEl: prTa.readEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
         if (writePrTrs.length && readTrs.length) {
           let ran = false
           const syncPrTas = (dm, syncTr, trigVal, detail) => {
             const exprVal = fn(dm, el, syncTr, trigVal, detail)
-            for (const prTr of writePrTrs) setPr(el, dKey, prTr.tar, combineActResult(getElPrVal(prTr.taEl, prTr.prPath), exprVal, getWriteMode(prTr.trig.mods)))
+            for (const prTr of writePrTrs) setPr(el, dKey, prTr.tar, combineActResult(getElPrVal(prTr.taEl, prTr.prPath), exprVal, prTr.w))
           }
           for (const readTr of readTrs) {
             const tr = readTr.tr, mod = readTr.mod
@@ -953,10 +952,10 @@
             for (const prTr of writePrTrs) {
               const writeSi = (dm, _el, syncTr, trigVal, detail) => {
                 const exprVal = fn(dm, el, syncTr, trigVal, detail)
-                for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr, combineActResult(getSiVal(siTr), exprVal, getWriteMode(siTr.mods)))
+                for (const siTr of writeSiTrs) setSiAndNotifySubsNDeep(dKey, siTr[0], combineActResult(getSiVal(siTr[0]), exprVal, siTr[1]))
               }
-              const moddedHandler = addTrSub(el, prTr.trig, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath)
-              if (prTr.trig.isImmediate != false) invokeSub(moddedHandler, null, getReadVal(prTr.readEl, prTr.mod, prTr.readPath), el, prTr.trig)
+              const moddedHandler = addTrSub(el, prTr.tr, prTr.mod, writeSi, elSubs, prTr.taEl, prTr.ev, prTr.prPath, prTr.readPath, prTr.readEl)
+              if (prTr.tr.isImmediate != false) invokeSub(moddedHandler, null, getReadVal(prTr.readEl, prTr.mod, prTr.readPath), el, prTr.tr)
             }
           }
           return
@@ -1300,7 +1299,7 @@
         if (!evTaEl) return logErr('Error: dmAct element not found in trigger:', tr, 'in:', dKey)
         const ev = tr.path?.[0] ?? getDefaultEv(evTaEl)
         if (!ev) return logErr('Error: dmAct event not found in trigger:', tr, 'in:', dKey)
-        const moddedHandler = addTrSub(el, tr, mod, doRequest, elSubs, evTaEl, ev, null)
+        const moddedHandler = addTrSub(el, tr, mod, doRequest, elSubs, evTaEl, ev, null, null, evTaEl)
         if (!ran && tr.isImmediate) ran = true, invokeSub(moddedHandler, null, getElPrVal(evTaEl, null), el, tr)
       }
     }

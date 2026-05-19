@@ -76,7 +76,7 @@ Choose dmax when you want:
 <template data-m-wc="my-style-panel"><div>...</div></template>
 <my-style-panel data-m-ex:.open@panel.open></my-style-panel>
 
-<mx-uplot data-m-ex:.cfg@chart data-m-ex:chart-last@.point="detail"></mx-uplot>
+<mx-uplot data-m-ex:.cfg@chart data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
 ```
 
 ## Core directives
@@ -186,7 +186,7 @@ That keeps WC usage smaller and clearer: define with `data-m-wc`, drive with `da
 Event output stays on normal `data-m-ex` too:
 
 ```html
-<mx-uplot data-m-ex:chart-last@.point="detail"></mx-uplot>
+<mx-uplot data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
 ```
 
 ## Actions and SSE

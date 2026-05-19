@@ -341,7 +341,7 @@
       <p class="note">GitHub Pages cannot host the backend stream here, so this page installs a tiny in-page mock <code>text/event-stream</code> endpoint. The button still exercises dmax's real SSE action path.</p>
       <div class="controls">
         <button data-m-get^open.mx.feed-open^close.mx.feed-done^err.mx.feed-error^abort.mx.feed-stop@.click="'m-ex-cel.stream?ms=' + dm.mx.speedMs">Start stream</button>
-        <button data-m-ex:mx@.click="(dm.mx.feedStop && dm.mx.feedStop(), Object.assign({}, dm.mx, { status: 'stopping…' }))" data-m-ex:.disabled@!mx.feed-open>Stop</button>
+        <button data-m-ex:mx@.click="(dm.mx.feedStop && dm.mx.feedStop(), { ...dm.mx, status: 'stopping…' })" data-m-ex:.disabled@!mx.feed-open>Stop</button>
         <button data-m-ex:mx@.click="window.mExCelInit()">Reset</button>
         <label class="field">Speed (ms)
           <input type="range" min="250" max="1600" step="50" data-m-ex@.^rw^num@mx.speed-ms>
@@ -453,7 +453,7 @@
         ]
       }
       const logMx = (mx, line) => [line].concat(mx.log || EMPTY).slice(0, 8)
-      const enrichMx = (mx) => Object.assign({}, mx, { summary: summaryRows(mx.sheet) })
+      const enrichMx = (mx) => ({ ...mx, summary: summaryRows(mx.sheet) })
       const findCell = (mx, id) => {
         for (const row of mx.sheet.rows) for (const cell of row.cells) if (cell.id === id) return cell
         return null
@@ -514,7 +514,7 @@
         return Promise.reject(new Error('fetch not available'))
       }
       window.mExCelInit = () => enrichMx(clone(INIT_MX))
-      window.mExCelPick = (mx, cell) => Object.assign({}, enrichMx(mx), { selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })
+      window.mExCelPick = (mx, cell) => ({ ...enrichMx(mx), selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })
       window.mExCelDelta = (n) => !n ? '±0' : (n > 0 ? '+' : '') + n
       window.mExCelCellVals = (cells) => Array.isArray(cells) ? cells.join(' · ') : ''
       dmScan()

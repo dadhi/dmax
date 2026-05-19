@@ -213,9 +213,9 @@
           <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
           <button id="uplotDup" data-m-ex:uplot2@.="window.cloneUplot(dm.uplot)">Duplicate chart</button>
         </div>
-        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-1' }, detail)"></mx-uplot>
-        <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2="!!dm.uplot2" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last@.point="Object.assign({ from: 'uplot-2' }, detail)"></mx-uplot>
-        <div data-m-ex:uplot-demo-dms@_init^attrs.#uplotDemo.data-m-></div>
+        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point="{ from: 'uplot-1', ...val }"></mx-uplot>
+        <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2="!!dm.uplot2" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point="{ from: 'uplot-2', ...val }"></mx-uplot>
+        <div data-m-ex:uplot-demo-dms@_init^attrs.#uplotdemo.data-m-></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="JSON.stringify(dm.uplotLast)||'click a point'"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
@@ -360,9 +360,9 @@
         <div>Parent signal preview:</div>
         <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-m-ex:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
         <div style="margin-top:6px">
-          <button id="demoChangeChild" data-m-ex:demo-parent@.="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
-          <button id="demoAddKey" data-m-ex:demo-parent@.="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
-          <button id="demoRemoveKey" data-m-ex:demo-parent@.="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
+          <button id="demoChangeChild" data-m-ex:demo-parent@.="{ ...(dm.demoParent || {}), child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 }">Change child (content)</button>
+          <button id="demoAddKey" data-m-ex:demo-parent@.="{ ...(dm.demoParent || {}), addedAt: 'shape' }">Add key (shape)</button>
+          <button id="demoRemoveKey" data-m-ex:demo-parent@.="(({ addedAt, ...o }) => o)(dm.demoParent || {})">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
           <div>Content subscriber: <span id="demoContent" data-m-ex:.@demo-parent="(dm.demoParent&&dm.demoParent.child)??''"></span></div>
@@ -494,7 +494,7 @@
   <script src="dmax.js"></script>
   <script>
     (function () {
-      const chartClone = (cfg, data) => Object.assign({}, cfg, { data })
+      const chartClone = (cfg, data) => ({ ...cfg, data })
       window.cloneUplot = (cfg) => cfg ? JSON.parse(JSON.stringify(cfg)) : cfg
       window.stepUplot = (cfg) => cfg ? chartClone(cfg, cfg.data.map((arr, i) => i ? arr.map((n, j) => n + ((j & 1) ? -1 : 1) * (i + 1)) : arr.slice())) : cfg
       window.pushUplot = (cfg) => {
@@ -502,7 +502,7 @@
         const xs = cfg.data[0], nextX = (xs[xs.length - 1] || 0) + 1
         return chartClone(cfg, cfg.data.map((arr, i) => arr.concat(i ? (arr[arr.length - 1] || 0) + (i === 1 ? 2 : 1) : nextX)))
       }
-      window.toggleUplot = (cfg) => cfg ? Object.assign({}, cfg, { points: !cfg.points }) : cfg
+      window.toggleUplot = (cfg) => cfg ? { ...cfg, points: !cfg.points } : cfg
       window.mxUplotRender = (box, cfg) => {
         const host = box && box.parentNode, P = window.uPlot
         if (!box || !host) return
@@ -514,7 +514,7 @@
         if (box._plot) box._plot.destroy()
         box.textContent = ''
         const colors = ['#2563eb', '#dc2626', '#16a34a', '#a21caf']
-        const series = [{}, ...cfg.data.slice(1).map((_, i) => Object.assign({ label: cfg.labels && cfg.labels[i] || 'S' + (i + 1), stroke: colors[i] || '#334155', width: 2 }, cfg.series && cfg.series[i] || {}, cfg.points ? { points: { show: true } } : { points: { show: false } }))]
+        const series = [{}, ...cfg.data.slice(1).map((_, i) => ({ label: cfg.labels && cfg.labels[i] || 'S' + (i + 1), stroke: colors[i] || '#334155', width: 2, ...(cfg.series && cfg.series[i] || {}), points: { show: !!cfg.points } }))]
         const plot = box._plot = new P({ width: cfg.w || 420, height: cfg.h || 220, title: cfg.title || '', series, cursor: { drag: { x: false, y: false } } }, cfg.data, box)
         plot.over.onclick = () => {
           const i = plot.cursor.idx
@@ -593,7 +593,7 @@
           if (path === '/posts/add' && isDummyJsonUrl(url)) {
             let submitted = null;
             try { submitted = init && init.body ? JSON.parse(init.body) : null; } catch (_) { }
-            const payload = Object.assign({}, DUMMYJSON_CREATED_POST, submitted && typeof submitted === 'object' ? submitted : null);
+            const payload = { ...DUMMYJSON_CREATED_POST, ...(submitted && typeof submitted === 'object' ? submitted : {}) };
             if (payload.userId != null && payload.userId !== '') payload.userId = +payload.userId;
             return Promise.resolve(makeJsonResponse(payload, 201));
           }
@@ -661,9 +661,9 @@
   <div id="__fg_reactivity_tests" style="display:none">
     <span id="contentSub" data-m-ex:.@parent="(window.__contentCount = (window.__contentCount || 0) + 1, window.__contentCount)"></span>
     <span id="shapeSub" data-m-ex:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
-    <button id="chgChild" data-m-ex:parent@.click="Object.assign({}, dm.parent || {}, { child: ((dm.parent && dm.parent.child) || 0) + 1 })">Change child</button>
-    <button id="addKey" data-m-ex:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
-    <button id="removeKey" data-m-ex:parent@.click="((o) => (delete o.added, o))(Object.assign({}, dm.parent || {}))">Remove key</button>
+    <button id="chgChild" data-m-ex:parent@.click="{ ...(dm.parent || {}), child: ((dm.parent && dm.parent.child) || 0) + 1 }">Change child</button>
+    <button id="addKey" data-m-ex:parent@.click="{ ...(dm.parent || {}), added: true }">Add key</button>
+    <button id="removeKey" data-m-ex:parent@.click="(({ added, ...o }) => o)(dm.parent || {})">Remove key</button>
   </div>
   <script src="asserts.js"></script>
 

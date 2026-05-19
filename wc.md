@@ -57,7 +57,7 @@ Preferred rule:
 Feed component events back into signals with `data-m-ex`.
 
 ```html
-<mx-uplot data-m-ex:chart-last@.point="detail"></mx-uplot>
+<mx-uplot data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
 <mx-style-panel data-m-ex:panel@.toggle="detail"></mx-style-panel>
 ```
 

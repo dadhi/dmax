@@ -160,11 +160,24 @@ function* generateDataSubCombinations() {
     }
   }
   yield {
+    attr: 'data-m-ex:.text-content^prepend@foo', valid: true, category: 'target-prepend', html: '<div id="fuzz-test" data-m-ex:.text-content^prepend@foo>old</div>', exercise: async ({ document }) => {
+      if (document.getElementById('fuzz-test').textContent !== '0old') throw new Error('expected ^prepend string write')
+    }
+  }
+  yield {
     attr: 'data-m-ex:.value@.input^pr.#input.value^ev.detail', valid: true, category: 'last-read-mod-wins', html: '<input id="fuzz-test" data-m-ex:.value@.input^pr.#input.value^ev.detail>', exercise: async ({ document, window }) => {
       const el = document.getElementById('fuzz-test')
       el.dispatchEvent(new window.CustomEvent('input', { bubbles: true, detail: 'Alice' }))
       await new Promise(r => setTimeout(r, 0))
       if (el.value !== 'Alice') throw new Error('expected last read mod to win')
+    }
+  }
+  yield {
+    attr: 'data-m-ex:.text-content@.click^attrs.#fuzz-test.data-^ev.detail', valid: true, category: 'last-read-mod-wins-attrs', html: '<div id="fuzz-test" data-note="before" data-m-ex:.text-content@.click^attrs.#fuzz-test.data-^ev.detail></div>', exercise: async ({ document, window }) => {
+      const el = document.getElementById('fuzz-test')
+      el.dispatchEvent(new window.CustomEvent('click', { bubbles: true, detail: 'Alice' }))
+      await new Promise(r => setTimeout(r, 0))
+      if (el.textContent !== 'Alice') throw new Error('expected last read mod to beat ^attrs')
     }
   }
   yield { attr: 'data-m-ex:foo@bar^!eq.3', valid: true, category: 'negated-mod' }
