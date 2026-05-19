@@ -65,8 +65,8 @@ function waitFor(conditionFn, timeout = 15000, interval = 100) {
   assert(total > 0, `expected notebook asserts to run, got ${summaryText}`);
   assert.strictEqual(failed, 0, `expected all notebook asserts to pass, got ${summaryText}`);
   assert.strictEqual(total, passed, `expected all notebook asserts to pass, got ${summaryText}`);
-  assert.strictEqual(document.getElementById('live-dsub')?.tagName, 'SECTION', 'live examples section exists');
-  assert.strictEqual(document.getElementById('ported-examples')?.tagName, 'SECTION', 'ported examples section exists');
+  assert.strictEqual(document.getElementById('ported-examples')?.tagName, 'SECTION', 'runtime examples section exists');
+  assert.strictEqual(document.getElementById('asserts-panel')?.tagName, 'SECTION', 'asserts section exists');
 
   const helloStrong = Array.from(document.getElementsByTagName('strong')).find((el) =>
     el.closest('#ported-examples') && el.parentElement?.textContent?.includes('Hello,')
