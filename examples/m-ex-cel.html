@@ -347,7 +347,7 @@
           <input type="range" min="250" max="1600" step="50" data-m-ex@.^rw^num@mx.speed-ms>
         </label>
         <label class="field">Cell size (rem)
-          <input type="range" min="3" max="7" step=".125" data-m-ex@.^rw@mx.style.size-cell>
+          <input type="range" min="3" max="7" step=".125" data-m-ex@.^rw^num@mx.style.size-cell>
         </label>
         <label class="field">Accent (OKLCH)
           <input data-m-ex@.^rw@mx.style.tone-accent>
@@ -355,15 +355,15 @@
       </div>
       <dl class="stats">
         <div><dt>Status</dt><dd data-m-ex:.@mx.status></dd></div>
-        <div><dt>Feed open</dt><dd data-m-ex:.@mx.feed-open="dm.mx.feedOpen ? 'yes' : 'no'"></dd></div>
+        <div><dt>Feed open</dt><dd data-m-ex:.@mx.feed-open="val ? 'yes' : 'no'"></dd></div>
         <div><dt>Updates</dt><dd data-m-ex:.@mx.updates></dd></div>
         <div><dt>Selected</dt><dd data-m-ex:.@mx.selected-label></dd></div>
         <div><dt>Value</dt><dd data-m-ex:.@mx.selected-value></dd></div>
-        <div><dt>Last delta</dt><dd data-m-ex:.@mx.selected-delta="window.mExCelDelta(dm.mx.selectedDelta)"></dd></div>
+        <div><dt>Last delta</dt><dd data-m-ex:.@mx.selected-delta="window.mExCelDelta(val)"></dd></div>
         <div><dt>Mode</dt><dd data-m-ex:.@mx.mode></dd></div>
       </dl>
       <p data-m-sh:.@mx.feed-done="dm.mx.feedDone && !dm.mx.feedOpen">The stream closed cleanly.</p>
-      <p data-m-sh:.@mx.feed-error="!!dm.mx.feedError">Stream error: <span data-m-ex:.@mx.feed-error></span></p>
+      <p data-m-sh:.@mx.feed-error>Stream error: <span data-m-ex:.@mx.feed-error></span></p>
     </section>
 
       <section id="mx-grid" class="panel" aria-labelledby="grid-title">
@@ -408,7 +408,7 @@
               <template>
                 <tr>
                   <th scope="row" data-m-ex:.="$it.label"></th>
-                  <td data-m-ex:.="window.mExCelCellVals($it.cells)"></td>
+                  <td data-m-ex:.="Array.isArray($it.cells) ? $it.cells.join(' · ') : ''"></td>
                 </tr>
               </template>
             </tbody>
@@ -423,7 +423,7 @@
           <h4>Latest SSE frame</h4>
           <pre data-m-ex:.@mx.latest-sse></pre>
           <h4>Latest parsed patch</h4>
-          <pre data-m-ex:.@mx.latest-patch="JSON.stringify(dm.mx.latestPatch, null, 2)"></pre>
+          <pre data-m-ex:.@mx.latest-patch="JSON.stringify(val, null, 2)"></pre>
         </article>
       </section>
     </main>
@@ -516,7 +516,6 @@
       window.mExCelInit = () => enrichMx(clone(INIT_MX))
       window.mExCelPick = (mx, cell) => ({ ...enrichMx(mx), selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })
       window.mExCelDelta = (n) => !n ? '±0' : (n > 0 ? '+' : '') + n
-      window.mExCelCellVals = (cells) => Array.isArray(cells) ? cells.join(' · ') : ''
       dmScan()
       const current = findCell(INIT_MX, INIT_MX.selectedId)
       window.dm.mx = enrichMx(window.dm.mx || clone(INIT_MX))
