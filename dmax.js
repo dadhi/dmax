@@ -1043,10 +1043,9 @@
       }
       for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
     }
-    globalThis.dm = DM; globalThis.dataM = dataM
+    globalThis.dm = DM
     globalThis.wireNode = wireNode
     globalThis.dmScan = dmScan
-    globalThis.shouldScanNode = (n) => !noScan(n)
 
     // - data-m-it@posts
     // - data-m-it+#tpl-post@posts
