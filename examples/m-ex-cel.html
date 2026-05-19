@@ -205,8 +205,15 @@
       & small { color: var(--muted); font-size: .85rem; }
       & td.is-up small { color: var(--good); }
       & td.is-down small { color: var(--bad); }
+      & td.is-up,
+      & td.is-down { animation: cell-flash .8s ease-out; }
       & td.is-selected { background: var(--accent-soft); }
       & td.is-selected button { box-shadow: inset 0 0 0 var(--line-2) var(--accent); }
+    }
+
+    @keyframes cell-flash {
+      0% { box-shadow: inset 0 0 0 999px color-mix(in oklab, var(--accent) 26%, white); }
+      100% { box-shadow: inset 0 0 0 999px transparent; }
     }
 
     #mx-meta {
@@ -452,11 +459,11 @@
               <tr data-m-it@$it.cells>
                 <th scope="row" data-m-ex:.="$it.label"></th>
                 <template>
-                  <td data-m-cl+is-selected@mx.selected-id="val === $it.id" data-m-cl+is-up+!is-down@mx.updates="$it.delta > 0" data-m-cl+is-down@mx.updates="$it.delta < 0">
-                    <button class="cell-btn" type="button" data-m-ex:mx@.click="window.mExCelPick(dm.mx, $it)">
+                  <td data-m-cl+is-selected@mx.selected-id="val === $it.id" data-m-cl+is-up+!is-down@mx.updates="window.mExCelCell(dm.mx, $it.id).delta > 0" data-m-cl+is-down@mx.updates="window.mExCelCell(dm.mx, $it.id).delta < 0">
+                    <button class="cell-btn" type="button" data-m-ex:mx@.click="window.mExCelPick(dm.mx, window.mExCelCell(dm.mx, $it.id))">
                       <span data-m-ex:.="$it.col"></span>
-                      <strong class="cell-value" data-m-ex:.="$it.value"></strong>
-                      <small class="cell-delta" data-m-ex:.="window.mExCelDelta($it.delta)"></small>
+                      <strong class="cell-value" data-m-ex:.@mx.updates="window.mExCelCell(dm.mx, $it.id).value"></strong>
+                      <small class="cell-delta" data-m-ex:.@mx.updates="window.mExCelDelta(window.mExCelCell(dm.mx, $it.id).delta)"></small>
                     </button>
                   </td>
                 </template>
@@ -522,6 +529,10 @@
       }
       const logMx = (mx, line) => [line].concat(mx.log || EMPTY).slice(0, 8)
       const enrichMx = (mx) => ({ ...mx, summary: summaryRows(mx.sheet) })
+      window.mExCelCell = (mx, id) => {
+        for (const row of mx.sheet.rows) for (const cell of row.cells) if (cell.id === id) return cell
+        return { id, row: '', col: '', value: '', delta: 0 }
+      }
       const nextPatch = (mx) => {
         const sheet = clone(mx.sheet)
         const ri = mx.updates % sheet.rows.length
