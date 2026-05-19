@@ -43,12 +43,18 @@ const LIBS = {
     pkg: '@bigskysoftware/moxi-js',
     out: 'moxi.js',
     pick: ['moxi.js', 'dist/moxi.js', 'dist/cjs/index.js', 'dist/esm/index.js', 'src/moxi.js', 'index.js']
+  },
+  uplot: {
+    pkg: 'uplot',
+    out: 'uplot.js',
+    pick: ['dist/uPlot.iife.min.js', 'dist/uPlot.iife.js', 'dist/uPlot.esm.js', 'dist/uPlot.cjs.js'],
+    extras: [{ out: 'uplot.css', pick: ['dist/uPlot.min.css'] }]
   }
 }
 
 const args = new Set(process.argv.slice(2))
 if (args.has('-h') || args.has('--help')) {
-  console.log(`usage: node tools/vendor-libs.js [--all] [--fixi] [--datastar] [--with-moxi]\n\n` +
+  console.log(`usage: node tools/vendor-libs.js [--all] [--fixi] [--datastar] [--uplot] [--with-moxi]\n\n` +
     `defaults: datastar + fixi + paxi + rexi + ssexi\n` +
     `examples:\n` +
     `  node tools/vendor-libs.js\n` +
@@ -59,11 +65,11 @@ if (args.has('-h') || args.has('--help')) {
   process.exit(0)
 }
 
-const hasNamed = [...args].some(a => /^--(?:datastar|fixi|paxi|rexi|ssexi|moxi)$/.test(a))
+const hasNamed = [...args].some(a => /^--(?:datastar|fixi|paxi|rexi|ssexi|moxi|uplot)$/.test(a))
 const selected = hasNamed
   ? [...args].map(a => a.slice(2)).filter(a => LIBS[a])
   : args.has('--all')
-    ? ['datastar', 'fixi', 'paxi', 'rexi', 'ssexi', 'moxi']
+    ? ['datastar', 'fixi', 'paxi', 'rexi', 'ssexi', 'moxi', 'uplot']
     : ['datastar', 'fixi', 'paxi', 'rexi', 'ssexi']
 if (args.has('--with-moxi') && !selected.includes('moxi')) selected.push('moxi')
 
@@ -158,13 +164,21 @@ async function vendorOne(name) {
   const src = pickFile(pkgDir, cfg.pick)
   const out = path.join(VENDOR_DIR, cfg.out)
   fs.copyFileSync(src, out)
+  const extras = []
+  for (const extra of cfg.extras || []) {
+    const extraSrc = pickFile(pkgDir, extra.pick)
+    const extraOut = path.join(VENDOR_DIR, extra.out)
+    fs.copyFileSync(extraSrc, extraOut)
+    extras.push({ file: path.relative(ROOT, extraOut), source: path.relative(pkgDir, extraSrc) })
+  }
   return {
     name,
     pkg: cfg.pkg,
     version,
     tarball,
     file: path.relative(ROOT, out),
-    source: path.relative(pkgDir, src)
+    source: path.relative(pkgDir, src),
+    extras
   }
 }
 

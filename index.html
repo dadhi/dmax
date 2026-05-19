@@ -5,6 +5,7 @@
   <meta charset="utf-8" />
   <title>dmax notebook asserts — index.html</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="tools/vendor/uplot.css" />
   <style>
     html,
     body {
@@ -26,19 +27,52 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
+    header a {
+      color: #bfdbfe;
+    }
+
     #summary {
       margin-left: auto;
       font-weight: 600;
     }
 
     main {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      height: calc(100% - 0px);
+      padding-bottom: 24px;
+    }
+
+    #examples-nav,
+    #asserts-panel,
+    #live-dsub,
+    #ported-examples {
+      padding: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    #examples-nav {
+      background: #f8fafc;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #examples-nav a {
+      color: #1d4ed8;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    #examples-nav span {
+      color: #475569;
+      font-size: 12px;
+    }
+
+    #asserts-panel {
+      position: relative;
     }
 
     #out {
-      padding: 12px;
+      padding: 12px 0 0;
       white-space: pre-wrap;
       word-break: break-word;
       margin: 0;
@@ -48,7 +82,8 @@
       color: #475569;
       font-style: italic;
       padding: 8px 12px;
-      border-bottom: 1px solid #e2e8f0;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       background: #f8fafc;
     }
 
@@ -75,18 +110,69 @@
     .chk.fail {
       color: #dc2626;
     }
+
+    #dbg-wrap {
+      position: relative;
+      margin-top: 8px;
+    }
+
+    #dbg-toggle {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      font: inherit;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    #dbg-panel {
+      display: none;
+      margin-top: 8px;
+    }
+
+    #dbg-wrap:hover #dbg-panel,
+    #dbg-wrap[data-open="1"] #dbg-panel {
+      display: block;
+    }
+
+    .wc-demo {
+      display: grid;
+      gap: 10px;
+      align-items: start;
+    }
+
+    mx-uplot {
+      display: block;
+      min-height: 220px;
+      border: 1px solid #dbeafe;
+      border-radius: 6px;
+      background: #fff;
+      padding: 8px;
+      overflow: auto;
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <div id="summary">Tests 0: Failed 0, Total 0</div>
+    <a href="https://dadhi.github.io/dmax/">dmax</a>
+    <a href="examples/m-ex-cel.html">m-ex-cel</a>
+    <div id="summary">Tests 0: Passed 0, Failed 0</div>
   </header>
   <main>
-    <div class="note">Output is mirrored from console.log/error</div>
-    <pre id="out"></pre>
+    <section id="examples-nav">
+      <strong>Examples</strong>
+      <a href="https://dadhi.github.io/dmax/">Notebook</a>
+      <a href="examples/m-ex-cel.html">Excel-like SSE grid</a>
+      <span>Live examples first, asserts at the end.</span>
+    </section>
     <div id='foo' hidden>good</div>
-    <section id="live-dsub" style="padding:12px;border-top:1px solid #e2e8f0">
+    <section id="live-dsub">
       <h3 style="margin:0 0 8px 0">Live dmEx examples</h3>
       <form id="live-form">
         <input id="live-name" value="Ada" />
@@ -96,7 +182,7 @@
       <pre id="live-raw" role="status" aria-live="polite" aria-label="Live trigger data output" style="margin:8px 0 0 0"></pre>
       <div id="live-branch" role="status" aria-live="polite" aria-label="Trigger type classification"></div>
     </section>
-    <section id="ported-examples" style="padding:12px;border-top:1px solid #e2e8f0">
+    <section id="ported-examples">
       <h3 style="margin:0 0 8px 0">Ported examples (index.html → updated syntax)</h3>
       <div data-m-si='{
         "user":{"name":"Alice","age":25,"ui":{"themeColor":"#007bff","isActive":true,"fontSize":16}},
@@ -110,31 +196,51 @@
         "busy":false,"err":null,"code":null,"postResult":null,"createdPost":null,
         "post-loading":false,"post-error":null,"post-code":null,"post-result-custom":null,
         "val-source":{"bar":7},
+        "uplot":{"title":"Revenue vs Cost","points":true,"labels":["Revenue","Cost"],"data":[[1,2,3,4,5],[12,18,16,22,24],[8,11,13,15,18]],"series":[{"label":"Revenue","stroke":"#2563eb"},{"label":"Cost","stroke":"#dc2626"}],"w":420,"h":220},
+        "uplot2":null,
+        "uplot-last":null,
         "sse-message":"","sse-count":0,"sse-status":null
       }'></div>
+      <h4>0. WC host props and events via `data-m-ex` + vendored uPlot</h4>
+      <div class="page" data-m-it@uplot-demo-dms><template><code data-m-ex:.@$it="$it.value ? $it.name + '=&quot;' + $it.value + '&quot;' : $it.name"></code><span data-m-sh:.@$it="$ix + 1 < dm.uplotDemoDms.length"> · </span></template></div>
+      <p>Pattern: define custom elements with <code>data-m-wc</code> on <code>template</code>, then drive host props and events with normal <code>data-m-ex</code>. The second instance is optional so the example can show separate host instances, not just one wrapper.</p>
+      <div class="wc-demo">
+        <div>
+          <label>Title <input value="Revenue vs Cost" data-m-ex@.^rw@uplot.title></label>
+          <label>Width <input type="range" min="280" max="640" step="20" data-m-ex@.^rw^num@uplot.w></label>
+          <button id="uplotStep" data-m-ex:uplot@.="window.stepUplot(dm.uplot)">Step data</button>
+          <button id="uplotPush" data-m-ex:uplot@.="window.pushUplot(dm.uplot)">Add point</button>
+          <button id="uplotPts" data-m-ex:uplot@.="window.toggleUplot(dm.uplot)">Toggle points</button>
+          <button id="uplotDup" data-m-ex:uplot2@.="window.cloneUplot(dm.uplot)">Duplicate chart</button>
+        </div>
+        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point="{ from: 'uplot-1', ...val }"></mx-uplot>
+        <mx-uplot id="uplotDemo2" data-m-sh:.@uplot2 data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point="{ from: 'uplot-2', ...val }"></mx-uplot>
+        <div data-m-ex:uplot-demo-dms@_init^attrs.#uplotdemo.data-m-></div>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="JSON.stringify(dm.uplotLast)||'click a point'"></pre>
+      </div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <div class="page"><code data-attr-for="exUserNameInput" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="exUserAgeInput" data-attr-name="data-m-ex@.^rw@user.age" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex@.^rw@user.name</code> · <code>data-m-ex@.^rw^num@user.age</code></div>
       <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name></label>
       <p>Hello, <strong data-m-ex:.@user.name></strong>!</p>
-      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw@user.age="Number(val || 0)"></label>
+      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw^num@user.age></label>
       <p>Age: <span data-m-ex:.@user.age></span> years old</p>
       <h4>1.a data-m-ex Direction Examples</h4>
-      <div class="page"><code data-attr-for="sigToProp" data-attr-name="data-m-ex:.@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="elToSig" data-attr-name="data-m-ex:user.name@.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="twoWay" data-attr-name="data-m-ex@.^rw@user.name" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:.@user.name</code> · <code>data-m-ex:user.name@.input=&quot;val&quot;</code> · <code>data-m-ex@.^rw@user.name</code></div>
       <label>Signal -> Element: <input id="sigToProp" data-m-ex:.@user.name></label>
       <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-m-ex:user.name@.input="val"></label>
       <label>Two-way: <input id="twoWay" data-m-ex@.^rw@user.name></label>
       <div>Signal preview: <span data-m-ex:.@user.name="dm.user.name"></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
-      <div class="page"><code data-attr-for="themeColorInput" data-attr-name="data-m-ex@.^rw@user.ui.theme-color" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeColorPreview" data-attr-name="data-m-ex:.style.color@user.ui.theme-color" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontSlider" data-attr-name="data-m-ex@.^rw@user.ui.font-size" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeFontPreview" data-attr-name="data-m-ex:.style.font-size@user.ui.font-size" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="themeActiveToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex@.^rw@user.ui.theme-color</code> · <code>data-m-ex:.style.color@user.ui.theme-color=&quot;dm.user.ui.themeColor&quot;</code> · <code>data-m-ex@.^rw^num@user.ui.font-size</code> · <code>data-m-ex:.style.font-size@user.ui.font-size=&quot;`${dm.user.ui.fontSize}px`&quot;</code> · <code>data-m-ex@.^rw@user.ui.is-active</code></div>
       <label>Theme Color: <input id="themeColorInput" type="color" data-m-ex@.^rw@user.ui.theme-color></label>
       <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-m-ex:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
       <label>Font Size: <span data-m-ex:.@user.ui.font-size></span>px</label>
-      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw@user.ui.font-size>
+      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw^num@user.ui.font-size>
       <p id="themeFontPreview" data-m-ex:.style.font-size@user.ui.font-size="`${dm.user.ui.fontSize}px`">Resizable text</p>
       <label><input id="themeActiveToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Active</label>
       <p>Status: <strong data-m-ex:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
       <h4>3. Multiple Triggers &amp; Targets</h4>
-      <div class="page"><code data-attr-for="countPlusBtn" data-attr-name="data-m-ex:count@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countMinusBtn" data-attr-name="data-m-ex:count@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="countResetBtn" data-attr-name="data-m-ex:count@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="countDisplay" data-attr-name="data-m-ex:.@count" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="doubledDisplay" data-attr-name="data-m-ex:.:doubled@count" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="probeBtn" data-attr-name="data-m-ex:.@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="gOnceBtn" data-attr-name="data-m-ex^once:once-test@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="gAlwaysBtn" data-attr-name="data-m-ex^once:always-test@.^always" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="incGuard" data-attr-name="data-m-ex:guard-val@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:count@.=&quot;dm.count + 1&quot;</code> · <code>data-m-ex:count@.=&quot;dm.count - 1&quot;</code> · <code>data-m-ex:count@.=&quot;0&quot;</code><br><code>data-m-ex:.@count=&quot;dm.count&quot;</code> · <code>data-m-ex:.:doubled@count=&quot;dm.count * 2&quot;</code> · <code>data-m-ex:.@.=&quot;`${el.id || ''} ${detail &amp;&amp; detail.type ? detail.type : 'click'}`&quot;</code><br><code>data-m-ex^once:once-test@.=&quot;(dm.onceTest || 0) + 1&quot;</code> · <code>data-m-ex^once:always-test@.^always=&quot;(dm.alwaysTest || 0) + 1&quot;</code> · <code>data-m-ex:guard-val@.=&quot;dm.guardVal + 1&quot;</code></div>
       <button id="countPlusBtn" data-m-ex:count@.="dm.count + 1">+1</button>
       <button id="countMinusBtn" data-m-ex:count@.="dm.count - 1">-1</button>
       <button id="countResetBtn" data-m-ex:count@.="0">Reset</button>
@@ -160,57 +266,57 @@
         <span id="timeoutOut" data-m-ex:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
       </div>
       <h4>4. Side Effects &amp; Multiple Triggers</h4>
-      <div class="page"><code data-attr-for="example4ConsoleOut" data-attr-name="data-m-ex:.@count@#btn1@#btn2" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="example4VisibleOut" data-attr-name="data-m-ex:.@count@#btn1@#btn2" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:.@count@#btn1@#btn2=&quot;console.log('Triggered!', dm.count) || '✓ Check console'&quot;</code> · <code>data-m-ex:.@count@#btn1@#btn2=&quot;({ btn1: 'Button 1', btn2: 'Button 2' }[(trig &amp;&amp; trig.root) || ''] || 'count') + ' → ' + dm.count&quot;</code></div>
       <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
       <p><span id="example4ConsoleOut" data-m-ex:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
       <p><strong id="example4VisibleOut" data-m-ex:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code data-attr-for="src" data-attr-name="data-m-ex@.^rw@message" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="srcPreview" data-attr-name="data-m-ex:.@#src.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="mirror" data-attr-name="data-m-ex:.value@#src.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex@.^rw@message</code> · <code>data-m-ex:.@#src.input=&quot;document.getElementById('src').value&quot;</code> · <code>data-m-ex:.value@#src.input=&quot;document.getElementById('src').value&quot;</code></div>
       <input id="src" placeholder="Type here..." data-m-ex@.^rw@message>
       <p id="srcPreview" data-m-ex:.@#src.input="document.getElementById('src').value"></p>
       <input id="mirror" readonly data-m-ex:.value@#src.input="document.getElementById('src').value">
       <h4>6. Window Events &amp; Intervals</h4>
-      <div class="page"><code data-attr-for="windowWidthOut" data-attr-name="data-m-ex:.@_window.resize" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeOut" data-attr-name="data-m-ex:.@_interval.1000" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="timeoutOut" data-attr-name="data-m-ex:.@_timeout.1500" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="viewedOut" data-attr-name="data-m-ex:.@_viewed^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="initOut" data-attr-name="data-m-ex:.@_init" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:.@_window.resize=&quot;window.innerWidth + 'px'&quot;</code> · <code>data-m-ex:.@_interval.1000=&quot;new Date().toLocaleTimeString()&quot;</code> · <code>data-m-ex:.@_timeout.1500=&quot;(detail &amp;&amp; detail.ms) ? ('timeout ' + detail.ms) : ''&quot;</code> · <code>data-m-ex:.@_viewed^once=&quot;'✓ Viewed (ratio: ' + (detail &amp;&amp; detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'&quot;</code> · <code>data-m-ex:.@_init=&quot;'✓ Initialized (detail.type: ' + (detail &amp;&amp; detail.type) + ')'&quot;</code></div>
       <p>Window width: <span id="windowWidthOut" data-m-ex:.@_window.resize="window.innerWidth + 'px'"></span></p>
       <p>Current time: <span id="timeOut" data-m-ex:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
       <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
       <p>On init: <span id="initOut" data-m-ex:.@_init="'✓ Initialized (detail.type: ' + (detail && detail.type) + ')'"></span></p>
       <h4>7. Default Props &amp; Events</h4>
-      <div class="page"><code data-attr-for="inp1Preview" data-attr-name="data-m-ex:.@#inp1.input" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="btn3Preview" data-attr-name="data-m-ex:.@#btn3" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:.@#inp1.input=&quot;document.getElementById('inp1').value&quot;</code> · <code>data-m-ex:.@#btn3=&quot;'Clicked!'&quot;</code></div>
       <input id="inp1" placeholder="Mirrors on input">
       <p><span id="inp1Preview" data-m-ex:.@#inp1.input="document.getElementById('inp1').value"></span></p>
       <button id="btn3">Click me</button>
       <p><span id="btn3Preview" data-m-ex:.@#btn3="'Clicked!'"></span></p>
-      <h4>7.a `^val` trigger picks</h4>
-      <div class="page"><code data-attr-for="valpickinput" data-attr-name="data-m-ex:val-prop-picked@.input^val.data-foo-bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPicked" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="valSignalPlusOne" data-attr-name="data-m-ex:.@val-source^val.bar" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <h4>7.a `^pr` / `^si` trigger picks</h4>
+      <div class="page"><code>data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num</code> · <code>data-m-ex:.@val-source^si.bar=&quot;val&quot;</code> · <code>data-m-ex:.@val-source^si.bar=&quot;val + 1&quot;</code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <label>Non-default event prop:
-          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^val.data-foo-bar="Number(val)">
+          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num>
         </label>
         <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
         <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked="dm.valPropPicked"></strong></div>
       </div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <button id="valSignalStep" data-m-ex:val-source@.="({ bar: ((dm.valSource && dm.valSource.bar) || 0) + 1 })">Increment <code>valSource.bar</code></button>
-        <div>Signal child via <code>^val.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^val.bar="val"></strong></div>
-        <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^val.bar="val + 1"></strong></div>
+        <div>Signal child via <code>^si.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^si.bar="val"></strong></div>
+        <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^si.bar="val + 1"></strong></div>
       </div>
       <h4>8. Classes &amp; Display</h4>
-      <div class="page"><code data-attr-for="classToggle" data-attr-name="data-m-ex@.^rw@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="classBox" data-attr-name="data-m-cl+active+!inactive@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayBox" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="displayNeg" data-attr-name="data-m-sh:.@user.ui.is-active" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex@.^rw@user.ui.is-active</code> · <code>data-m-cl+active+!inactive@user.ui.is-active=&quot;dm.user.ui.isActive&quot;</code> · <code>data-m-sh:.@user.ui.is-active</code> · <code>data-m-sh:.@user.ui.is-active=&quot;!dm.user.ui.isActive&quot;</code></div>
       <label><input id="classToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Toggle Active</label>
       <div id="classBox" data-m-cl+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
       <p id="displayBox" data-m-sh:.@user.ui.is-active>Visible only when active</p>
       <p id="displayNeg" data-m-sh:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
       <h4>9. List Rendering (data-m-it)</h4>
-      <div class="page"><code data-attr-for="dumpPostsPrimary" data-attr-name="data-m-it+#tpl-post@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-template="tpl-post" data-attr-selector="[data-index]" data-attr-name="data-m-cl+zebra-even+!zebra-odd@posts^immediate" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="inline-posts" data-attr-name="data-m-it@posts" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thread-posts" data-attr-name="data-m-it+#tpl-thread@threads" data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="addPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="updateSecondPost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removeFirst" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="removePost" data-attr-name="data-m-ex:posts@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="refreshThreads" data-attr-name="data-m-ex:threads@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-it+#tpl-post@posts</code> · <code>data-m-cl+zebra-even+!zebra-odd@posts=&quot;$ix % 2 === 0&quot;</code> · <code>data-m-it@posts</code> · <code>data-m-it+#tpl-thread@threads</code><br><code>data-m-ex:posts@.</code> · <code>data-m-ex:posts@.</code> · <code>data-m-ex:posts@.</code> · <code>data-m-ex:posts@.</code> · <code>data-m-ex:threads@.</code></div>
         <template id="tpl-post">
-          <li data-index="$ix" data-m-cl+zebra-even+!zebra-odd@posts^immediate="$ix % 2 === 0">
+          <li data-index="$ix" data-m-cl+zebra-even+!zebra-odd@posts="$ix % 2 === 0">
           <span class="num" data-m-ex:.@posts="$ix + 1"></span>
           <span class="item" data-m-ex:.@posts="(typeof dm.posts[$ix] === 'object') ? JSON.stringify(dm.posts[$ix], null, 2) : dm.posts[$ix]" style="margin-left:8px"></span>
         </li>
       </template>
       <ul id="dumpPostsPrimary" data-m-it+#tpl-post@posts></ul>
-        <ul id="inline-posts" data-m-it@posts><template><li data-index="$ix" data-m-cl+zebra-even+!zebra-odd@posts^immediate="$ix % 2 === 0"><span data-m-ex:.@posts="$ix + 1"></span> <span data-m-ex:.@posts="dm.posts[$ix]"></span></li></template></ul>
+        <ul id="inline-posts" data-m-it@posts><template><li data-index="$ix" data-m-cl+zebra-even+!zebra-odd@posts="$ix % 2 === 0"><span data-m-ex:.@posts="$ix + 1"></span> <span data-m-ex:.@posts="dm.posts[$ix]"></span></li></template></ul>
       <template id="tpl-thread">
         <li class="thread">
           <strong data-m-ex:.@threads="$it.title"></strong>
@@ -238,7 +344,7 @@
         <button id="refreshThreads" data-m-ex:threads@.="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
       </div>
       <h4>10. Modifiers demo</h4>
-      <div class="page"><code data-attr-for="onceBtn" data-attr-name="data-m-ex:mod-once@.^once" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="debBtn" data-attr-name="data-m-ex:mod-deb@.^debounce.120" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="thrBtn" data-attr-name="data-m-ex:mod-thr@.^throttle.120" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="andBtn" data-attr-name="data-m-ex:mod-and@.^and.gate" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:mod-once@.^once=&quot;(dm.modOnce || 0) + 1&quot;</code> · <code>data-m-ex:mod-deb@.^debounce.120=&quot;(dm.modDeb || 0) + 1&quot;</code> · <code>data-m-ex:mod-thr@.^throttle.120=&quot;(dm.modThr || 0) + 1&quot;</code> · <code>data-m-ex:mod-and@.^and.gate=&quot;(dm.modAnd || 0) + 1&quot;</code></div>
       <button id="onceBtn" data-m-ex:mod-once@.^once="(dm.modOnce || 0) + 1">Once</button>
       <span data-m-ex:.@mod-once="dm.modOnce"></span>
       <button id="debBtn" data-m-ex:mod-deb@.^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
@@ -249,22 +355,22 @@
       <button id="andBtn" data-m-ex:mod-and@.^and.gate="(dm.modAnd || 0) + 1">AND</button>
       <span data-m-ex:.@mod-and="dm.modAnd"></span>
       <h4>10.a Content vs Shape</h4>
-      <div class="page"><code data-attr-for="demoChangeChild" data-attr-name="data-m-ex:demo-parent@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="demoAddKey" data-attr-name="data-m-ex:demo-parent@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="demoRemoveKey" data-attr-name="data-m-ex:demo-parent@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), child: ((dm.demoParent &amp;&amp; dm.demoParent.child) || 0) + 1 }&quot;</code><br><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), addedAt: 'shape' }&quot;</code> · <code>data-m-ex:demo-parent@.=&quot;(({ addedAt, ...o }) =&gt; o)(dm.demoParent || {})&quot;</code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Parent signal preview:</div>
         <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-m-ex:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
         <div style="margin-top:6px">
-          <button id="demoChangeChild" data-m-ex:demo-parent@.="Object.assign({}, dm.demoParent || {}, { child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 })">Change child (content)</button>
-          <button id="demoAddKey" data-m-ex:demo-parent@.="Object.assign({}, dm.demoParent || {}, { addedAt: 'shape' })">Add key (shape)</button>
-          <button id="demoRemoveKey" data-m-ex:demo-parent@.="((o) => (delete o.addedAt, o))(Object.assign({}, dm.demoParent || {}))">Remove key (shape)</button>
+          <button id="demoChangeChild" data-m-ex:demo-parent@.="{ ...(dm.demoParent || {}), child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 }">Change child (content)</button>
+          <button id="demoAddKey" data-m-ex:demo-parent@.="{ ...(dm.demoParent || {}), addedAt: 'shape' }">Add key (shape)</button>
+          <button id="demoRemoveKey" data-m-ex:demo-parent@.="(({ addedAt, ...o }) => o)(dm.demoParent || {})">Remove key (shape)</button>
         </div>
         <div style="margin-top:8px">
-          <div>Content subscriber: <span id="demoContent" data-m-ex:.@demo-parent="String(dm.demoParent && dm.demoParent.child) || ''"></span></div>
+          <div>Content subscriber: <span id="demoContent" data-m-ex:.@demo-parent="(dm.demoParent&&dm.demoParent.child)??''"></span></div>
           <div>Shape subscriber: <span id="demoShape" data-m-ex:.@demo-parent^shape_only="detail ? window.formatShapeChange(detail) : ''"></span></div>
         </div>
       </div>
       <h4>10.b Constant Index Signals</h4>
-      <div class="page"><code data-attr-for="post0Title" data-attr-name="data-m-ex:.@post-objs[0].title" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="post1Title" data-attr-name="data-m-ex:.@post-objs[1].title" data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="setPost0Title" data-attr-name="data-m-ex:post-objs[0].title@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code> · <code data-attr-for="setPost1Title" data-attr-name="data-m-ex:post-objs[1].title@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-ex:.@post-objs[0].title=&quot;dm.postObjs[0].title&quot;</code> · <code>data-m-ex:.@post-objs[1].title=&quot;dm.postObjs[1].title&quot;</code> · <code>data-m-ex:post-objs[0].title@.=&quot;'NewP0Title'&quot;</code> · <code>data-m-ex:post-objs[1].title@.=&quot;'NewP1Title'&quot;</code></div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Post 0: <strong id="post0Title" data-m-ex:.@post-objs[0].title="dm.postObjs[0].title"></strong></div>
         <div>Post 1: <strong id="post1Title" data-m-ex:.@post-objs[1].title="dm.postObjs[1].title"></strong></div>
@@ -274,39 +380,49 @@
         </div>
       </div>
       <h4>State Tree (Live Debug)</h4>
-      <pre data-m-dbg style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+      <div id="dbg-wrap">
+        <button id="dbg-toggle" type="button" aria-expanded="false">Debug signals</button>
+        <div id="dbg-panel">
+          <pre data-m-dbg style="background:#f8fafc;padding:8px;border:1px solid #e2e8f0;border-radius:6px"></pre>
+        </div>
+      </div>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <div class="page"><code data-attr-for="loadPost" data-attr-name="data-m-get^busy.busy^err.err^code.code:post-result@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+      <div class="page"><code>data-m-get^busy.busy^err.err^code.code:post-result@.=&quot;'https://dummyjson.com/posts/1'&quot;</code></div>
       <button id="loadPost" data-m-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
       <div>Busy: <span data-m-ex:.@busy="dm.busy"></span> | Error: <span data-m-ex:.@err="dm.err"></span> | Code: <span data-m-ex:.@code="dm.code"></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <div class="page"><code data-attr-for="loadPostCustomBusy" data-attr-name="data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <div class="page"><code>data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.=&quot;'https://dummyjson.com/posts/1'&quot;</code></div>
         <button id="loadPostCustomBusy" data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
         <strong style="margin-left:8px" data-m-sh:.@post-loading>Loading…</strong>
         <div>Error: <span data-m-ex:.@post-error="dm.postError"></span> | Code: <span data-m-ex:.@post-code="dm.postCode"></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>
       <div>
-        <div class="page"><code data-attr-for="create-post" data-attr-name="data-m-ex:draftPost@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code><br><code data-attr-for="create-post" data-attr-name="data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread" data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: +document.getElementById('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code></div>
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-m-ex:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: Number(document.getElementById('new-user-id').value || 0) })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: +document.getElementById('new-user-id').value||0 })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <div class="page"><code data-attr-for="oobLoad" data-attr-name="data-m-get^html^busy.busy^err.err^code.code@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <div class="page"><code>data-m-get^html^busy.busy^err.err^code.code@.=&quot;'/mock/oob'&quot;</code></div>
         <button id="oobLoad" data-m-get^html^busy.busy^err.err^code.code@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <div class="page"><code data-attr-for="sseLoad" data-attr-name="data-m-get^busy.busy^err.err:sse-status@." data-m-ex:.@idx="window.exampleAttrCode(el)"></code></div>
+        <div class="page"><code>data-m-get^busy.busy^err.err:sse-status@.=&quot;'/mock/dmax-sse'&quot;</code></div>
         <button id="sseLoad" data-m-get^busy.busy^err.err:sse-status@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
         <div>Message: <span data-m-ex:.@sse-message="dm.sseMessage"></span> | Count: <span data-m-ex:.@sse-count="dm.sseCount"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
       </div>
+    </section>
+    <section id="asserts-panel">
+      <h3 style="margin:0 0 8px 0">Asserts</h3>
+      <div class="note">Output is mirrored from console.log/error. The sticky top summary updates live.</div>
+      <pre id="out"></pre>
     </section>
   </main>
   <script>
@@ -320,8 +436,8 @@
         try {
           if (typeof v === 'string') return v;
           if (v && typeof v === 'object') return JSON.stringify(v);
-          return String(v);
-        } catch (_) { return String(v); }
+          return '' + v;
+        } catch (_) { return '' + v; }
       }
       function append(args) {
         const isPass = args && args.length && (args[0] === '✓' || args[0] === '\u2713');
@@ -335,9 +451,7 @@
           div.appendChild(chk);
           const rest = args.slice(1).map(toText).join(' ');
           div.appendChild(document.createTextNode(' ' + rest));
-        } else {
-          div.textContent = line;
-        }
+        } else div.textContent = line;
         out.appendChild(div);
         if (isPass) { pass++; total++; }
         else if (isFail) { fail++; total++; }
@@ -358,27 +472,39 @@
       if (change.removedRange) parts.push('removedRange: ' + change.removedRange.join(','));
       return parts.join(' | ');
     };
-    window.exampleAttrCode = function (el) {
-      if (!el) return '';
-      const attrName = el.getAttribute('data-attr-name');
-      if (!attrName) return '';
-      let target = null;
-      const forId = el.getAttribute('data-attr-for');
-      if (forId) target = document.getElementById(forId);
-      else {
-        const templateId = el.getAttribute('data-attr-template');
-        const selector = el.getAttribute('data-attr-selector') || '*';
-        const template = templateId ? document.getElementById(templateId) : null;
-        if (template && template.content) target = template.content.querySelector(selector);
-      }
-      if (!target) return attrName;
-      const value = target.getAttribute(attrName);
-      return value == null || value === '' ? attrName : `${attrName}="${value}"`;
-    };
   </script>
+  <script src="tools/vendor/uplot.js"></script>
   <script src="dmax.js"></script>
   <script>
     (function () {
+      const chartClone = (cfg, data) => ({ ...cfg, data })
+      window.cloneUplot = (cfg) => cfg ? JSON.parse(JSON.stringify(cfg)) : cfg
+      window.stepUplot = (cfg) => cfg ? chartClone(cfg, cfg.data.map((arr, i) => i ? arr.map((n, j) => n + ((j & 1) ? -1 : 1) * (i + 1)) : arr.slice())) : cfg
+      window.pushUplot = (cfg) => {
+        if (!cfg || !cfg.data || !cfg.data.length) return cfg
+        const xs = cfg.data[0], nextX = (xs[xs.length - 1] || 0) + 1
+        return chartClone(cfg, cfg.data.map((arr, i) => arr.concat(i ? (arr[arr.length - 1] || 0) + (i === 1 ? 2 : 1) : nextX)))
+      }
+      window.toggleUplot = (cfg) => cfg ? { ...cfg, points: !cfg.points } : cfg
+      window.mxUplotRender = (box, cfg) => {
+        const host = box && box.parentNode, P = window.uPlot
+        if (!box || !host) return
+        if (!cfg || !cfg.data || !cfg.data.length || !P) {
+          if (box._plot) box._plot.destroy(), box._plot = null
+          box.textContent = P ? 'chart needs cfg' : 'uPlot unavailable'
+          return
+        }
+        if (box._plot) box._plot.destroy()
+        box.textContent = ''
+        const colors = ['#2563eb', '#dc2626', '#16a34a', '#a21caf']
+        const series = [{}, ...cfg.data.slice(1).map((_, i) => ({ label: cfg.labels && cfg.labels[i] || 'S' + (i + 1), stroke: colors[i] || '#334155', width: 2, ...(cfg.series && cfg.series[i] || {}), points: { show: !!cfg.points } }))]
+        const plot = box._plot = new P({ width: cfg.w || 420, height: cfg.h || 220, title: cfg.title || '', series, cursor: { drag: { x: false, y: false } } }, cfg.data, box)
+        plot.over.onclick = () => {
+          const i = plot.cursor.idx
+          if (i == null) return
+          host.dispatchEvent(new CustomEvent('point', { detail: { i, x: cfg.data[0][i], ys: cfg.data.slice(1).map(arr => arr[i]) } }))
+        }
+      }
       const DUMMYJSON_POST = Object.freeze({
         id: 1,
         title: 'His mother had always taught him',
@@ -450,8 +576,8 @@
           if (path === '/posts/add' && isDummyJsonUrl(url)) {
             let submitted = null;
             try { submitted = init && init.body ? JSON.parse(init.body) : null; } catch (_) { }
-            const payload = Object.assign({}, DUMMYJSON_CREATED_POST, submitted && typeof submitted === 'object' ? submitted : null);
-            if (payload.userId != null && payload.userId !== '') payload.userId = Number(payload.userId);
+            const payload = { ...DUMMYJSON_CREATED_POST, ...(submitted && typeof submitted === 'object' ? submitted : {}) };
+            if (payload.userId != null && payload.userId !== '') payload.userId = +payload.userId;
             return Promise.resolve(makeJsonResponse(payload, 201));
           }
           if (u === '/mock/oob') {
@@ -500,31 +626,27 @@
       function initPortedExamples() {
         const roots = [document.getElementById('ported-examples'), document.getElementById('__fg_reactivity_tests')].filter(Boolean);
         if (!roots.length) return;
-        const deferred = [];
-        for (const root of roots) {
-          const nodes = [root].concat(Array.from(root.querySelectorAll('*')));
-          for (const n of nodes) {
-            for (const a of Array.from(n.attributes || EMPTY_ARR)) {
-              if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value);
-              else deferred.push([n, a.name, a.value]);
-            }
-          }
-        }
-        for (const [n, aName, aVal] of deferred) wireNode(n, aName, aVal);
+        for (const root of roots) dmScan(root);
         installDemoFetchMock();
       }
 
       initLiveDSubExamples();
       initPortedExamples();
+      const dbgWrap = document.getElementById('dbg-wrap'), dbgToggle = document.getElementById('dbg-toggle');
+      if (dbgWrap && dbgToggle) dbgToggle.addEventListener('click', () => {
+        const open = dbgWrap.getAttribute('data-open') === '1';
+        dbgWrap.setAttribute('data-open', open ? '0' : '1');
+        dbgToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+      });
       window.addEventListener('dmax:tests:done', installDemoFetchMock);
     })();
   </script>
   <div id="__fg_reactivity_tests" style="display:none">
     <span id="contentSub" data-m-ex:.@parent="(window.__contentCount = (window.__contentCount || 0) + 1, window.__contentCount)"></span>
     <span id="shapeSub" data-m-ex:.@parent^shape_only="(window.__shapeCount = (window.__shapeCount || 0) + 1, window.__shapeCount)"></span>
-    <button id="chgChild" data-m-ex:parent@.click="Object.assign({}, dm.parent || {}, { child: ((dm.parent && dm.parent.child) || 0) + 1 })">Change child</button>
-    <button id="addKey" data-m-ex:parent@.click="Object.assign({}, dm.parent || {}, { added: true })">Add key</button>
-    <button id="removeKey" data-m-ex:parent@.click="((o) => (delete o.added, o))(Object.assign({}, dm.parent || {}))">Remove key</button>
+    <button id="chgChild" data-m-ex:parent@.click="{ ...(dm.parent || {}), child: ((dm.parent && dm.parent.child) || 0) + 1 }">Change child</button>
+    <button id="addKey" data-m-ex:parent@.click="{ ...(dm.parent || {}), added: true }">Add key</button>
+    <button id="removeKey" data-m-ex:parent@.click="(({ added, ...o }) => o)(dm.parent || {})">Remove key</button>
   </div>
   <script src="asserts.js"></script>
 

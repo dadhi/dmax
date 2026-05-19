@@ -168,10 +168,12 @@
     __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
-    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no val mod exists')
-    __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: __si('style', ['color']) }]], ['style', 'color'], 'compileMods parsed val path')
-    __assert((mods) => compileMods(__ev(), mods).v, [[{ root: M_VAL, path: null }]], NIL, 'compileMods null val path')
-    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE }, 'compileMods flags/change mode')
+    __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { kind: MOD, not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
+    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods parsed pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods null pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo' }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '' }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => {
       const el = document.createElement('input')
@@ -180,15 +182,15 @@
     }, [], { ev: 'change', prPath: ['value'], readPath: ['value'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa default prop path')
     __assert(() => {
       const el = document.createElement('input')
-      const mods = compileMods(__ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }])
+      const mods = compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }])
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), mods, E_TRIG_EL, E_TRIG_EV, false)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
     }, [], { ev: 'change', prPath: ['value'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa keeps prop path but changes read path')
     __assert(() => {
       const el = document.createElement('input')
-      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_VAL, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
-    }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies val path when enabled')
+    }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies pr path when enabled')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
     __assert(__sign, ['data-m-si:foo', '{bar: "hey"}'], { "foo": { "bar": "hey" } }, 'signal = value')
     __assert(__sign, ['data-m-si:foo-bar:baz'], { "baz": null, "fooBar": null }, 'signals')
@@ -360,6 +362,16 @@
       'Seaman!', '#foo default prop')
     __assert(setPr, [null, 'data-eval:#foo.style.color', __ev('foo', ['style', 'color']), 'lime'],
       'lime', '#foo nested prop')
+    __assert(() => {
+      const el = document.createElement('div')
+      setPr(el, 'data-eval:.style.accent-soft', __ev('', ['style', 'accentSoft']), 'pink')
+      return el.style.getPropertyValue('--accent-soft')
+    }, [], 'pink', 'css var target via style camel path')
+    __assert(() => {
+      const el = document.createElement('div')
+      setPr(el, 'data-eval:.style', __ev('', ['style']), { color: 'lime', accentSoft: 'pink' })
+      return [el.style.color, el.style.getPropertyValue('--accent-soft')]
+    }, [], ['lime', 'pink'], 'style object target sets props and css vars')
     __assert(setPr, [null, 'data-eval:foo', { kind: SI, not: null, root: 'foo', path: ['style', 'color'] }, 'lime'],
       null, 'unexpected signal')
     __assert(diffShapeShallow, ['a', 'b'], null, 'non-objects => no shape change')
@@ -602,13 +614,13 @@
       }
     }
     __assert(__tSubEventPropToSignalEmptyExpr, [], { out: 'Zed', diag: 'direct-handler' }, 'dmEx empty expr passes trigger value to signal');
-    function __tSubEventValModPropToSignal() {
+    function __tSubEventPrModPropToSignal() {
       __reset();
       try {
         const inp = document.createElement('input');
         inp.value = 'Zed';
         inp.setAttribute('data-foo-bar', '33');
-        dmEx(inp, 'data-m-ex:out@.^val.data-foo-bar', 'val');
+        dmEx(inp, 'data-m-ex:out@.^pr.data-foo-bar', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -617,7 +629,7 @@
         return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    __assert(__tSubEventValModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^val selects non-default event property');
+    __assert(__tSubEventPrModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^pr selects non-default event property');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
@@ -660,17 +672,47 @@
       return { before, after: Object.keys(DM).sort(), foo: DM['foo'], bar: DM['bar'] };
     }
     __assert(__tSubSignalEmptyExprNoTarget, [], { before: ['foo'], after: ['foo'], foo: 8, bar: undefined }, 'dmEx empty expr with no target is a no-op');
-    function __tSubSignalValModPathAndExpr() {
+    function __tSubInitAttrs() {
+      __reset();
+      const tpl = document.createElement('template');
+      tpl.innerHTML = '<div id="attrsHost" data-m-ex:.@foo="bar" data-m-sh:.@bar="baz" aria-label="skip"></div>';
+      const host = tpl.content.firstElementChild;
+      document.body.appendChild(host);
+      try {
+        dmEx(host, 'data-m-ex:attrs@_init^attrs.#attrsHost.data-m-', 'val');
+        return DM['attrs'];
+      } finally { host.remove(); }
+    }
+    __assert(__tSubInitAttrs, [], [{ name: 'data-m-ex:.@foo', value: 'bar' }, { name: 'data-m-sh:.@bar', value: 'baz' }], 'dmEx _init ^attrs collects matching attrs');
+    function __tSubTarMerge() {
+      __reset();
+      _dm.set('foo', { a: 1, c: { x: 1 } });
+      _dm.set('bar', { b: 2, c: { y: 2 } });
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:foo^merge@bar', 'val');
+      return DM['foo'];
+    }
+    __assert(__tSubTarMerge, [], { a: 1, b: 2, c: { x: 1, y: 2 } }, 'dmEx target ^merge combines with current signal value');
+    function __tSubTarAppendFallback() {
+      __reset();
+      _dm.set('foo', 1);
+      _dm.set('bar', 3);
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:foo^append@bar', 'val');
+      return DM['foo'];
+    }
+    __assert(__tSubTarAppendFallback, [], 3, 'dmEx target ^append falls back to replace');
+    function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });
       const el = document.createElement('div');
-      dmEx(el, 'data-m-ex:bar@foo^val.bar', '');
-      dmEx(el, 'data-m-ex:baz@foo^val.bar', 'val + 1');
+      dmEx(el, 'data-m-ex:bar@foo^si.bar', '');
+      dmEx(el, 'data-m-ex:baz@foo^si.bar', 'val + 1');
       const initial = { bar: DM['bar'], baz: DM['baz'] };
       setSiAndNotifySubs('test', { root: 'foo', path: null }, { bar: 8 });
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
-    __assert(__tSubSignalValModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^val path feeds raw and expression values');
+    __assert(__tSubSignalSiModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^si path feeds raw and expression values');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
@@ -842,6 +884,20 @@
       return { before, sigAfterWrite, elAfterSignal: inp.value }
     }
     __assert(__tSubRwTwoWayDefault, [], { before: 'Ada', sigAfterWrite: 'Bob', elAfterSignal: 'Eve' }, 'dmEx ^rw two-way default');
+    function __tSubRwNum() {
+      __reset();
+      const inp = document.createElement('input')
+      _dm.set('n', 3)
+      dmEx(inp, 'data-m-ex@.^rw^num@n')
+      const before = inp.value
+      inp.value = '7.5'
+      inp.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['n']
+      inp.value = ''
+      inp.dispatchEvent(mkEv('change'))
+      return { before, sigAfterWrite, sigAfterEmpty: DM['n'] }
+    }
+    __assert(__tSubRwNum, [], { before: '3', sigAfterWrite: 7.5, sigAfterEmpty: null }, 'dmEx ^rw^num coerces input strings to numbers');
     function __tSubSignalToPropOnly() {
       __reset();
       const inp = document.createElement('input')
@@ -896,12 +952,12 @@
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
     __assert(__tSubRwCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dmEx ^rw checkbox checked/value default prop');
-    function __tSubRwValPathBothWays() {
+    function __tSubRwPrPathBothWays() {
       __reset();
       const inp = document.createElement('input')
       inp.val = { value: 'Initial' }
       _dm.set('name', 'Ada')
-      dmEx(inp, 'data-m-ex@.^val.val.value^rw@name')
+      dmEx(inp, 'data-m-ex@.^pr.val.value^rw@name')
       const before = inp.val.value
       inp.val.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -909,12 +965,25 @@
       setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, afterSignal: inp.val.value }
     }
-    __assert(__tSubRwValPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^val path both ways');
+    __assert(__tSubRwPrPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^pr path both ways');
+    function __tSubRwDetailsOpen() {
+      __reset();
+      const det = document.createElement('details')
+      _dm.set('open', true)
+      dmEx(det, 'data-m-ex@.^rw@open')
+      const before = det.open
+      det.open = false
+      det.dispatchEvent(mkEv('toggle'))
+      const sigAfterWrite = DM['open']
+      setSiAndNotifySubs('t', { root: 'open', path: null }, true)
+      return { before, sigAfterWrite, afterSignal: det.open }
+    }
+    __assert(__tSubRwDetailsOpen, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dmEx ^rw uses details open/toggle defaults');
     function __tClassSignalToggle() {
       __reset()
       const div = document.createElement('div')
       _dm.set('active', false)
-      dmCl(div, 'data-m-cl+active@active^immediate')
+      dmCl(div, 'data-m-cl+active@active')
       const hadBefore = div.classList.contains('active')
       setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('active')
@@ -922,12 +991,12 @@
       const hadFinal = div.classList.contains('active')
       return { hadBefore, hadAfter, hadFinal }
     }
-    __assert(__tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dmCl signal toggle with immediate');
+    __assert(__tClassSignalToggle, [], { hadBefore: false, hadAfter: true, hadFinal: false }, 'dmCl signal toggle defaults immediate');
     function __tClassInvertedClass() {
       __reset()
       const div = document.createElement('div')
       _dm.set('active', false)
-      dmCl(div, 'data-m-cl+!inactive@active^immediate')
+      dmCl(div, 'data-m-cl+!inactive@active')
       const hadBefore = div.classList.contains('inactive')
       setSiAndNotifySubs('t', { root: 'active', path: null }, true)
       const hadAfter = div.classList.contains('inactive')
@@ -938,7 +1007,7 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', true)
-      dmCl(div, 'data-m-cl+is-active+!is-inactive@active^immediate')
+      dmCl(div, 'data-m-cl+is-active+!is-inactive@active')
       const activeBefore = div.classList.contains('is-active')
       const inactiveBefore = div.classList.contains('is-inactive')
       setSiAndNotifySubs('t', { root: 'active', path: null }, false)
@@ -951,19 +1020,30 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('count', 2)
-      dmCl(div, 'data-m-cl+even@count^immediate', 'dm.count % 2 === 0')
+      dmCl(div, 'data-m-cl+even@count', 'dm.count % 2 === 0')
       const hadBefore = div.classList.contains('even')
       setSiAndNotifySubs('t', { root: 'count', path: null }, 3)
       const hadAfter = div.classList.contains('even')
       return { hadBefore, hadAfter }
     }
     __assert(__tClassWithExpr, [], { hadBefore: true, hadAfter: false }, 'dmCl compiled expression controls class');
+    function __tClassNotImmediate() {
+      __reset()
+      const div = document.createElement('div')
+      _dm.set('active', true)
+      dmCl(div, 'data-m-cl+active@active^notimmediate')
+      const hadBefore = div.classList.contains('active')
+      setSiAndNotifySubs('t', { root: 'active', path: null }, false)
+      const hadAfter = div.classList.contains('active')
+      return { hadBefore, hadAfter }
+    }
+    __assert(__tClassNotImmediate, [], { hadBefore: false, hadAfter: false }, 'dmCl ^notimmediate skips setup run');
     function __tDispHideShow() {
       __reset()
       const div = document.createElement('div')
       div.style.display = 'block'
       _dm.set('visible', true)
-      dmSh(div, 'data-m-sh:.@visible^immediate')
+      dmSh(div, 'data-m-sh:.@visible')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfterHide = div.style.display
@@ -975,10 +1055,10 @@
     function __tDispWireNodeEmptyValue() {
       __reset()
       const tpl = document.createElement('template')
-      tpl.innerHTML = '<div style="display:block" data-m-sh:.@visible^immediate></div>'
+      tpl.innerHTML = '<div style="display:block" data-m-sh:.@visible></div>'
       const div = tpl.content.firstElementChild
       _dm.set('visible', true)
-      wireNode(div, 'data-m-sh:.@visible^immediate', div.getAttribute('data-m-sh:.@visible^immediate'))
+      wireNode(div, 'data-m-sh:.@visible', div.getAttribute('data-m-sh:.@visible'))
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'visible', path: null }, false)
       const displayAfter = div.style.display
@@ -990,7 +1070,7 @@
       const div = document.createElement('div')
       div.style.display = 'flex'
       _dm.set('count', 0)
-      dmSh(div, 'data-m-sh:.@count^immediate', 'dm.count > 0')
+      dmSh(div, 'data-m-sh:.@count', 'dm.count > 0')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'count', path: null }, 5)
       const displayAfter = div.style.display
@@ -1005,7 +1085,7 @@
       document.body.appendChild(box)
       try {
         _dm.set('show', true)
-        dmSh(box, 'data-m-sh:.@show^immediate')
+        dmSh(box, 'data-m-sh:.@show')
         const displayBefore = box.style.display
         setSiAndNotifySubs('t', { root: 'show', path: null }, false)
         const displayAfter = box.style.display
@@ -1013,6 +1093,18 @@
       } finally { box.remove() }
     }
     __assert(__tDispTargetElSignal, [], { displayBefore: 'block', displayAfter: 'none' }, 'dmSh hides element on false signal');
+    function __tDispNotImmediate() {
+      __reset()
+      const div = document.createElement('div')
+      div.style.display = 'block'
+      _dm.set('show', false)
+      dmSh(div, 'data-m-sh:.@show^notimmediate')
+      const displayBefore = div.style.display
+      setSiAndNotifySubs('t', { root: 'show', path: null }, true)
+      const displayAfter = div.style.display
+      return { displayBefore, displayAfter }
+    }
+    __assert(__tDispNotImmediate, [], { displayBefore: 'block', displayAfter: 'block' }, 'dmSh ^notimmediate skips setup run');
     function __tDumpAppendOnly() {
       __reset()
       const el = document.createElement('ul')
