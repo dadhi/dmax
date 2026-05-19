@@ -1043,7 +1043,7 @@
       }
       for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
     }
-    globalThis.dataM = dataM
+    globalThis.dm = DM; globalThis.dataM = dataM
     globalThis.wireNode = wireNode
     globalThis.dmScan = dmScan
     globalThis.shouldScanNode = (n) => !noScan(n)
