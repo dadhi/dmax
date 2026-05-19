@@ -380,7 +380,7 @@ function formatNum(n, digits = 2) {
 const BM_SCALE = Math.max(+process.env.BM_SCALE || 1, 0.001)
 const bmIters = (n) => Math.max(1, Math.round(n * BM_SCALE))
 
-async function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null) {
+async function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null, settle = null) {
   setup()
   for (let i = 0; i < 10; i++) {
     if (i % 2) {
@@ -398,6 +398,12 @@ async function runScenario(name, iters, setup, applyA, applyB, check, validateA 
   const ms = Number(process.hrtime.bigint() - t0) / 1e6
   if (validateA) { await applyA(); validateA() }
   if (validateB) { await applyB(); validateB() }
+  // Optional: flush pending framework settle timers before sampling memory.
+  // Datastar schedules 300 ms CSS-settle callbacks via window.setTimeout on every merge.
+  // In a synchronous benchmark loop `await undefined` only drains microtasks, so those
+  // callbacks accumulate (holding detached DOM trees) until the settle wait yields to the
+  // macrotask queue.  See memory analysis block above for the full root-cause details.
+  if (settle) await settle()
   if (global.gc) global.gc()
   const endMem = process.memoryUsage().heapUsed
   const result = check()
@@ -531,16 +537,23 @@ async function runDatastarScenarios(window, payloads) {
   const validateBaseGrid = () => v.assertGrid(payloads.expectedBase, 'base-grid')
   const validateSmallGrid = () => v.assertGrid(payloads.expectedSmall, 'small-grid')
   const validateLargeGrid = () => v.assertGrid(payloads.expectedLarge, 'large-grid')
+  // Flush datastar's 300 ms CSS-settle timers before the endMem snapshot.
+  // Without this, every merge queues a window.setTimeout(..., 300) callback that holds a
+  // strong reference to the old (detached) element.  Because the benchmark loop is
+  // synchronous, none of these fire until we explicitly yield to the macrotask queue.
+  // Waiting 350 ms via the JSDOM timer gives all pending 300 ms callbacks a chance to run,
+  // releasing their detached-element references before global.gc() samples the heap.
+  const flushSettleTimers = () => new Promise(r => window.setTimeout(r, 350))
 
   return [
-    await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => mergeFragments(payloads.smallPointed, 'morph'), () => mergeFragments(payloads.basePointed, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => mergeFragments(payloads.smallOob, 'morph'), () => mergeFragments(payloads.baseOob, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid),
-    await runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'outer', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid),
-    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid),
-    await runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'outer', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid)
+    await runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => mergeFragments(payloads.smallPointed, 'morph'), () => mergeFragments(payloads.basePointed, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => mergeFragments(payloads.smallOob, 'morph'), () => mergeFragments(payloads.baseOob, 'morph'), v.cellText, validateSmallGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => mergeFragments(payloads.smallHtml, 'outer', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'), v.cellText, validateSmallGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'morph', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'morph', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid, flushSettleTimers),
+    await runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => mergeFragments(payloads.largeHtml, 'outer', '#bench-app'), () => mergeFragments(payloads.baseHtml, 'outer', '#bench-app'), v.cellText, validateLargeGrid, validateBaseGrid, flushSettleTimers)
   ]
 }
 
@@ -765,6 +778,59 @@ function formatParityProbe(probe) {
 //       requestAnimationFrame / queueMicrotask to keep the main thread responsive.
 //       In the benchmark this would show lower worst-case latency at the cost of
 //       throughput, but in production it prevents frame drops on slow hardware.
+//
+// Memory delta investigation (issue: "Investigate mem-delta in the dmax vs datastar vs fixi benchmark"):
+//
+// Root cause of datastar dom-replace/outer ~176 MB raw delta (120 iters, small-diff):
+//   Every merge via datastar's internal bt() helper does the following sequence:
+//     1. a.replaceWith(r)            — detaches the old element tree from the DOM
+//     2. t.cleanup(a)                — removes 'a' from the internal #t Map (plain Map,
+//                                      not WeakMap), but does NOT recurse into children
+//     3. t.apply(document.body)      — O(N) DOM scan; re-registers reactive effects for any
+//                                      data-* signal attributes (none present on the plain
+//                                      benchmark grid, so this is a pure scan with no effect)
+//     4. setTimeout(() => { s.classList.remove(U); l.remove(U) }, 300)
+//                                    — KEY: 's' is the OLD detached full-page element; the
+//                                      closure keeps the full detached DOM tree (~1.5 MB in
+//                                      JSDOM) alive until this 300 ms settle timer fires.
+//   In a real browser the 300 ms settle timer fires between SSE events and the detached tree
+//   is promptly released.  In this benchmark the measurement loop is synchronous — each
+//   `await applyA()` resolves immediately since applyA returns undefined, so `await undefined`
+//   only drains microtasks, not the macrotask timer queue — therefore ALL 120 settle timers
+//   remain pending simultaneously when global.gc() is called after the loop.
+//   Each pending timer closure holds ~1.5 MB of detached JSDOM nodes:
+//     120 iters × ~1.47 MB ≈ 176 MB   (small-diff, 120 iters)
+//      30 iters × ~1.82 MB ≈  54 MB   (large-diff,  30 iters)
+//   The iter ratio (4×) tracks the delta ratio (176/54 ≈ 3.3×), confirming linear per-timer
+//   accumulation.  The same mechanism explains the pointed/OOB deltas:
+//     100 iters × ~2.1 KB ≈ 213 KB   (pointed, single-element timer)
+//     100 iters × ~3.3 KB ≈ 328 KB   (OOB, 4-element timer)
+//   which also match the measured values precisely.
+//
+// Corrected measurement via settle flush:
+//   runScenario() now accepts an optional settle() callback that is awaited after validation
+//   but BEFORE the final global.gc() + endMem snapshot.  For datastar scenarios this is:
+//     () => new Promise(r => window.setTimeout(r, 350))
+//   This waits 350 ms in JSDOM's timer queue, allowing all 300 ms settle callbacks to fire
+//   and release their detached-element references before memory is sampled.  The timing
+//   measurement (ms) is captured before the settle wait and is not affected.
+//
+// dmax dom-replace/outer path: near-zero / negative delta
+//   applyPatchPair calls taEl.replaceWith(srcEl) — a plain DOM swap.  dmax has no reactive
+//   cleanup Map, no apply(document.body) scan, and no settle timers, so replaced elements
+//   leave no dangling references.  Negative deltas reflect GC freeing warmup objects that
+//   were allocated before startMem was sampled but not yet collected.
+//
+// Morph paths (dmax 73–100 KB, datastar ~93–140 KB after settle flush):
+//   Expected transient GC noise.  Morph reuses existing DOM nodes in place, so most
+//   allocations are short-lived intermediate objects (attribute list diffs, morph-state
+//   locals).  dmax's lower delta is consistent with its single-pass lazy-Map approach
+//   versus idiomorph's two-pass algorithm with a persistent-ID Set + Map.
+//
+// fixi dom-replace path (~59 KB):
+//   target.outerHTML = html re-parses the HTML string inline; no reactive cleanup map and
+//   no settle timers.  The ~59 KB reflects JSDOM parser/node overhead that partially
+//   survives the post-loop GC — not a structural leak.
 
 ;(async () => {
   const payloads = makePayloads()
@@ -815,6 +881,7 @@ function formatParityProbe(probe) {
   console.log(global.gc
     ? 'memory: mem-delta is heapUsed(after forced GC) - heapUsed(before forced GC) per scenario'
     : 'memory: mem-delta is heapUsed(after) - heapUsed(before) without explicit GC (run with `node --expose-gc` for cleaner numbers)')
+  if (global.gc) console.log('memory: datastar scenarios await window.setTimeout(350ms) before GC to flush 300ms settle timers — see memory analysis in source')
   console.log('final-cell: textContent of the probed grid cell after the final validated apply in the scenario')
   console.log('x-vs-dmax: avg-ms relative to dmax for the same normalized case (1.00x means equal, 2.00x means 2x slower)')
   console.log('')
