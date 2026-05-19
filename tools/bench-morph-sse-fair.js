@@ -358,6 +358,7 @@ function formatNum(n, digits = 2) {
 
 const BM_SCALE = Math.max(+process.env.BM_SCALE || 1, 0.001)
 const BM_MEM_SAMPLES = Math.max(+process.env.BM_MEM_SAMPLES || 5, 1)
+const BM_SCENARIO_SAMPLES = Math.max(+process.env.BM_SCENARIO_SAMPLES || 3, 1)
 const bmIters = (n) => Math.max(1, Math.round(n * BM_SCALE))
 
 function stableHeapUsed() {
@@ -369,6 +370,32 @@ function stableHeapUsed() {
     if (used < best) best = used
   }
   return best
+}
+
+const median = (nums) => {
+  const sorted = nums.slice().sort((a, b) => a - b)
+  return sorted[(sorted.length - 1) >> 1]
+}
+
+function aggregateScenarioRuns(runs) {
+  const first = runs[0]
+  const avgMs = median(runs.map(r => r.avgMs))
+  const memDelta = median(runs.map(r => r.memDelta))
+  const ms = avgMs * first.iters
+  return {
+    ...first,
+    runs: runs.length,
+    ms,
+    avgMs,
+    opsPerSec: 1000 / avgMs,
+    memDelta
+  }
+}
+
+async function sampleScenario(run) {
+  const runs = []
+  for (let i = 0; i < BM_SCENARIO_SAMPLES; i++) runs.push(await run())
+  return aggregateScenarioRuns(runs)
 }
 
 async function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null) {
@@ -486,9 +513,13 @@ async function withWindow(loadWindow, run) {
   }
 }
 
+async function withSampledWindow(loadWindow, run) {
+  return sampleScenario(() => withWindow(loadWindow, run))
+}
+
 async function runDmaxScenarios(payloads) {
   return [
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements, applyDmaxSse } = window
       if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function') throw new Error('dmax benchmark helpers are not available on window')
       const host = document.createElement('div')
@@ -500,7 +531,7 @@ async function runDmaxScenarios(payloads) {
       const validateSmallUnchangedControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-unchanged-controls')
       return runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxSse(payloads.smallSse, 'bench'), () => applyDmaxSse(payloads.baseSse, 'bench'), v.cellText, validateSmallUnchangedControls, validateBase)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -511,7 +542,7 @@ async function runDmaxScenarios(payloads) {
       const validateSmallUnchangedControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-unchanged-controls')
       return runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }), v.cellText, validateSmallUnchangedControls, validateBase)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxSse } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -522,7 +553,7 @@ async function runDmaxScenarios(payloads) {
       const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
       return runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxSse(payloads.smallSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateSmallMorph, validateBase)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxSse } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -533,7 +564,7 @@ async function runDmaxScenarios(payloads) {
       const validateLargeMorph = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeMorph, 'large-morph')
       return runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxSse(payloads.largeSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateLargeMorph, validateBase)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -544,7 +575,7 @@ async function runDmaxScenarios(payloads) {
       const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
       return runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallMorph, validateBase)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -555,7 +586,7 @@ async function runDmaxScenarios(payloads) {
       const validateSmallReplace = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallReplace, 'small-replace')
       return runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallReplace, validateBaseReplace)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -566,7 +597,7 @@ async function runDmaxScenarios(payloads) {
       const validateLargeMorph = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeMorph, 'large-morph')
       return runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeMorph, validateBase)
     }),
-    await withWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow(loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -581,7 +612,7 @@ async function runDmaxScenarios(payloads) {
 }
 
 async function runDatastarScenarios(payloads) {
-  const mk = (name, iters, applyA, applyB, validateA, validateB) => withWindow(loadDatastarWindow, async (window) => {
+  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow(loadDatastarWindow, async (window) => {
     const { document } = window
     const host = document.createElement('div')
     host.id = 'bench-host'
@@ -636,7 +667,7 @@ async function runFixiScenarios(payloads) {
   const probeWindow = await loadFixiWindow()
   const hasMorph = hasFixi(probeWindow, 'morph'), hasSse = !!probeWindow.__fixiBench?.hasSsexi
   probeWindow.close()
-  const mk = (name, iters, applyA, applyB, validateA, validateB) => withWindow(loadFixiWindow, async (window) => {
+  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow(loadFixiWindow, async (window) => {
     const { document } = window
     const host = document.createElement('div')
     host.id = 'bench-host'
@@ -854,9 +885,10 @@ function formatParityProbe(probe) {
   console.log(`fixi:     vendored fixi stack (${fixiInfo?.hasParityStack ? 'fixi+paxi+rexi+ssexi present; pointed/oob use targeted SSE swaps, full-page morph uses paxi' : fixiInfo?.hasPaxi ? 'fixi+paxi present; morph rows enabled, SSE rows skipped without ssexi' : 'fixi.js core only; replace rows only'})`)
   console.log('validation: sums are asserted for pointed/OOB/full-page paths; morph form-state parity is reported separately')
   for (const probe of parityProbes) console.log(`parity:${probe.framework.padEnd(9)} ${formatParityProbe(probe)}`)
+  console.log(`sampling: each scenario reports median(avg-ms, mem-delta) across ${BM_SCENARIO_SAMPLES} fresh-window run(s); heap floor uses ${BM_MEM_SAMPLES} GC sample(s) when available`)
   console.log(global.gc
-    ? 'memory: mem-delta is heapUsed(after forced GC) - heapUsed(before forced GC) inside a fresh scenario window'
-    : 'memory: mem-delta is heapUsed(after) - heapUsed(before) without explicit GC (run with `node --expose-gc` for cleaner numbers)')
+    ? 'memory: mem-delta is median(heapUsed(after forced GC) - heapUsed(before forced GC)) inside fresh scenario windows'
+    : 'memory: mem-delta is median(heapUsed(after) - heapUsed(before)) without explicit GC (run with `node --expose-gc` for cleaner numbers)')
   console.log('final-cell: textContent of the probed grid cell after the final validated apply in the scenario')
   console.log('x-vs-dmax: avg-ms relative to dmax for the same normalized case (1.00x means equal, 2.00x means 2x slower)')
   console.log('')
