@@ -352,6 +352,10 @@ async function loadFixiWindow() {
   return window
 }
 
+async function loadNativeWindow() {
+  return loadWindowFromScripts([])
+}
+
 function formatNum(n, digits = 2) {
   return Number(n).toFixed(digits)
 }
@@ -359,6 +363,9 @@ function formatNum(n, digits = 2) {
 const BM_SCALE = Math.max(+process.env.BM_SCALE || 1, 0.001)
 const BM_MEM_SAMPLES = Math.max(+process.env.BM_MEM_SAMPLES || 5, 1)
 const BM_SCENARIO_SAMPLES = Math.max(+process.env.BM_SCENARIO_SAMPLES || 3, 1)
+const BM_TRACE = /^(1|true|yes)$/i.test(process.env.BM_TRACE || '')
+const BM_TRACE_FW = (process.env.BM_TRACE_FW || '').trim()
+const BM_TRACE_CASE = (process.env.BM_TRACE_CASE || '').trim()
 const bmIters = (n) => Math.max(1, Math.round(n * BM_SCALE))
 
 function stableHeapUsed() {
@@ -382,23 +389,56 @@ function aggregateScenarioRuns(runs) {
   const avgMs = median(runs.map(r => r.avgMs))
   const memDelta = median(runs.map(r => r.memDelta))
   const ms = avgMs * first.iters
+  const sample = runs.slice().sort((a, b) => (a.memDelta - b.memDelta) || (a.avgMs - b.avgMs))[(runs.length - 1) >> 1]
   return {
     ...first,
     runs: runs.length,
+    samples: runs,
     ms,
     avgMs,
     opsPerSec: 1000 / avgMs,
-    memDelta
+    memDelta,
+    dbgBodyElDelta: sample.inspectStart && sample.inspectEnd ? sample.inspectEnd.bodyElements - sample.inspectStart.bodyElements : null,
+    dbgHostElDelta: sample.inspectStart && sample.inspectEnd ? sample.inspectEnd.elements - sample.inspectStart.elements : null,
+    dbgHtmlLenDelta: sample.inspectStart && sample.inspectEnd ? sample.inspectEnd.hostHtmlLen - sample.inspectStart.hostHtmlLen : null
   }
 }
 
-async function sampleScenario(run) {
+function shouldTrace(framework, name) {
+  return BM_TRACE && (!BM_TRACE_FW || BM_TRACE_FW === framework) && (!BM_TRACE_CASE || BM_TRACE_CASE === name)
+}
+
+function inspectBenchState(document, host) {
+  const all = host.querySelectorAll('*')
+  const ids = host.querySelectorAll('[id]')
+  return {
+    elements: all.length,
+    ids: ids.length,
+    bodyElements: document.body.querySelectorAll('*').length,
+    bodyHtmlLen: document.body.innerHTML.length,
+    hostHtmlLen: host.innerHTML.length
+  }
+}
+
+function logTrace(framework, runIndex, sample) {
+  console.log(`[trace] ${framework}/${sample.name} run=${runIndex + 1}/${BM_SCENARIO_SAMPLES} iters=${sample.iters} avg-ms=${formatNum(sample.avgMs, 3)} mem-delta=${sample.memDelta}`)
+  console.log(`[trace]   heap start=${sample.startMem} end=${sample.endMem}`)
+  if (sample.inspectStart) console.log(`[trace]   inspect-start ${JSON.stringify(sample.inspectStart)}`)
+  if (sample.inspectEnd) console.log(`[trace]   inspect-end   ${JSON.stringify(sample.inspectEnd)}`)
+}
+
+async function sampleScenario(framework, run, name) {
   const runs = []
-  for (let i = 0; i < BM_SCENARIO_SAMPLES; i++) runs.push(await run())
+  const trace = shouldTrace(framework, name)
+  for (let i = 0; i < BM_SCENARIO_SAMPLES; i++) {
+    const sample = await run(i)
+    runs.push(sample)
+    if (trace) logTrace(framework, i, sample)
+  }
   return aggregateScenarioRuns(runs)
 }
 
-async function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null) {
+async function runScenario(name, iters, setup, applyA, applyB, check, validateA = null, validateB = null, inspect = null) {
   setup()
   for (let i = 0; i < 10; i++) {
     if (i % 2) {
@@ -409,6 +449,7 @@ async function runScenario(name, iters, setup, applyA, applyB, check, validateA 
       if (validateB) validateB()
     }
   }
+  const inspectStart = inspect ? inspect() : null
   const startMem = stableHeapUsed()
   const t0 = process.hrtime.bigint()
   for (let i = 0; i < iters; i++) await (i % 2 ? applyA : applyB)()
@@ -416,6 +457,7 @@ async function runScenario(name, iters, setup, applyA, applyB, check, validateA 
   if (validateA) { await applyA(); validateA() }
   if (validateB) { await applyB(); validateB() }
   const endMem = stableHeapUsed()
+  const inspectEnd = inspect ? inspect() : null
   const result = check()
   return {
     name,
@@ -424,6 +466,10 @@ async function runScenario(name, iters, setup, applyA, applyB, check, validateA 
     avgMs: ms / iters,
     opsPerSec: iters / ms * 1000,
     memDelta: endMem - startMem,
+    startMem,
+    endMem,
+    inspectStart,
+    inspectEnd,
     result
   }
 }
@@ -513,13 +559,13 @@ async function withWindow(loadWindow, run) {
   }
 }
 
-async function withSampledWindow(loadWindow, run) {
-  return sampleScenario(() => withWindow(loadWindow, run))
+async function withSampledWindow(framework, name, loadWindow, run) {
+  return sampleScenario(framework, (runIndex) => withWindow(loadWindow, (window) => run(window, runIndex)), name)
 }
 
 async function runDmaxScenarios(payloads) {
   return [
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-sse-els_pointed_dom-patch_outer_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements, applyDmaxSse } = window
       if (typeof applyDmaxPatchElements !== 'function' || typeof applyDmaxSse !== 'function') throw new Error('dmax benchmark helpers are not available on window')
       const host = document.createElement('div')
@@ -529,9 +575,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateSmallUnchangedControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-unchanged-controls')
-      return runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxSse(payloads.smallSse, 'bench'), () => applyDmaxSse(payloads.baseSse, 'bench'), v.cellText, validateSmallUnchangedControls, validateBase)
+      return runScenario('resp-sse-els_pointed_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxSse(payloads.smallSse, 'bench'), () => applyDmaxSse(payloads.baseSse, 'bench'), v.cellText, validateSmallUnchangedControls, validateBase, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-sse-els_oob_dom-patch_outer_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -540,9 +586,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateSmallUnchangedControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-unchanged-controls')
-      return runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }), v.cellText, validateSmallUnchangedControls, validateBase)
+      return runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }), v.cellText, validateSmallUnchangedControls, validateBase, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-sse-html_full_dom-morph_morph_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxSse } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -551,9 +597,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
-      return runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxSse(payloads.smallSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateSmallMorph, validateBase)
+      return runScenario('resp-sse-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxSse(payloads.smallSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateSmallMorph, validateBase, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-sse-html_full_dom-morph_morph_large-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxSse } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -562,9 +608,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateLargeMorph = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeMorph, 'large-morph')
-      return runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxSse(payloads.largeSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateLargeMorph, validateBase)
+      return runScenario('resp-sse-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxSse(payloads.largeSseHtml, 'bench'), () => applyDmaxSse(payloads.baseSseHtml, 'bench'), v.cellText, validateLargeMorph, validateBase, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-html_full_dom-morph_morph_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -573,9 +619,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
-      return runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallMorph, validateBase)
+      return runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallMorph, validateBase, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-html_full_dom-replace_outer_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -584,9 +630,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBaseReplace = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseReplace, 'base-replace')
       const validateSmallReplace = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallReplace, 'small-replace')
-      return runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallReplace, validateBaseReplace)
+      return runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallReplace, validateBaseReplace, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-html_full_dom-morph_morph_large-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -595,9 +641,9 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateLargeMorph = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeMorph, 'large-morph')
-      return runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeMorph, validateBase)
+      return runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeMorph, validateBase, () => inspectBenchState(document, host))
     }),
-    await withSampledWindow(loadDmaxWindow, async (window) => {
+    await withSampledWindow('dmax', 'resp-html_full_dom-replace_outer_large-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
       const host = document.createElement('div')
       host.id = 'bench-host'
@@ -606,13 +652,13 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBaseReplace = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseReplace, 'base-replace')
       const validateLargeReplace = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeReplace, 'large-replace')
-      return runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeReplace, validateBaseReplace)
+      return runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeReplace, validateBaseReplace, () => inspectBenchState(document, host))
     })
   ]
 }
 
 async function runDatastarScenarios(payloads) {
-  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow(loadDatastarWindow, async (window) => {
+  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow('datastar', name, loadDatastarWindow, async (window) => {
     const { document } = window
     const host = document.createElement('div')
     host.id = 'bench-host'
@@ -620,7 +666,7 @@ async function runDatastarScenarios(payloads) {
     const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
     const mergeFragments = (fragments, mergeMode, selector = '') => applyDatastarFragments(window, fragments, mergeMode, selector)
     const v = makeValidators(host, () => document.activeElement, payloads, 'datastar')
-    return runScenario(name, iters, mountBase, () => applyA(mergeFragments), () => applyB(mergeFragments), v.cellText, () => validateA(v), () => validateB(v))
+    return runScenario(name, iters, mountBase, () => applyA(mergeFragments), () => applyB(mergeFragments), v.cellText, () => validateA(v), () => validateB(v), () => inspectBenchState(document, host))
   })
   const baseGrid = (v) => v.assertGrid(payloads.expectedBase, 'base-grid')
   const smallGrid = (v) => v.assertGrid(payloads.expectedSmall, 'small-grid')
@@ -662,12 +708,36 @@ async function callFixi(el, fetch) {
   }
 }
 
+async function runNativeScenarios(payloads) {
+  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow('native', name, loadNativeWindow, async (window) => {
+    const { document } = window
+    const host = document.createElement('div')
+    host.id = 'bench-host'
+    document.body.appendChild(host)
+    const mountBase = () => { host.innerHTML = payloads.baseHtml; seedUserFormState(host) }
+    const v = makeValidators(host, () => document.activeElement, payloads, 'native')
+    const replaceHtml = (html) => {
+      const el = document.getElementById('bench-app')
+      if (!el) throw new Error('native benchmark target #bench-app missing')
+      el.outerHTML = html
+    }
+    return runScenario(name, iters, mountBase, () => applyA(replaceHtml), () => applyB(replaceHtml), v.cellText, () => validateA(v), () => validateB(v), () => inspectBenchState(document, host))
+  })
+  const baseGrid = (v) => v.assertGrid(payloads.expectedBase, 'base-grid')
+  const smallGrid = (v) => v.assertGrid(payloads.expectedSmall, 'small-grid')
+  const largeGrid = (v) => v.assertGrid(payloads.expectedLarge, 'large-grid')
+  return [
+    await mk('resp-html_full_dom-replace_outer_small-diff', bmIters(120), (apply) => apply(payloads.smallHtml), (apply) => apply(payloads.baseHtml), smallGrid, baseGrid),
+    await mk('resp-html_full_dom-replace_outer_large-diff', bmIters(30), (apply) => apply(payloads.largeHtml), (apply) => apply(payloads.baseHtml), largeGrid, baseGrid)
+  ]
+}
+
 async function runFixiScenarios(payloads) {
   const rows = []
   const probeWindow = await loadFixiWindow()
   const hasMorph = hasFixi(probeWindow, 'morph'), hasSse = !!probeWindow.__fixiBench?.hasSsexi
   probeWindow.close()
-  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow(loadFixiWindow, async (window) => {
+  const mk = (name, iters, applyA, applyB, validateA, validateB) => withSampledWindow('fixi', name, loadFixiWindow, async (window) => {
     const { document } = window
     const host = document.createElement('div')
     host.id = 'bench-host'
@@ -702,7 +772,7 @@ async function runFixiScenarios(payloads) {
         document.removeEventListener('fx:sse:message', onMsg)
       }
     }
-    return runScenario(name, iters, mountBase, () => applyA({ reqHtml, reqSse }), () => applyB({ reqHtml, reqSse }), v.cellText, () => validateA(v), () => validateB(v))
+    return runScenario(name, iters, mountBase, () => applyA({ reqHtml, reqSse }), () => applyB({ reqHtml, reqSse }), v.cellText, () => validateA(v), () => validateB(v), () => inspectBenchState(document, host))
   })
   const baseGrid = (v) => v.assertGrid(payloads.expectedBase, 'base-grid')
   const smallGrid = (v) => v.assertGrid(payloads.expectedSmall, 'small-grid')
@@ -730,17 +800,23 @@ async function runFixiScenarios(payloads) {
 
 function normScenario(name) { return name }
 const CASE_ORDER = ['resp-sse-els_pointed_dom-patch_outer_small-diff', 'resp-sse-els_oob_dom-patch_outer_small-diff', 'resp-sse-html_full_dom-morph_morph_small-diff', 'resp-sse-html_full_dom-morph_morph_large-diff', 'resp-html_full_dom-morph_morph_small-diff', 'resp-html_full_dom-replace_outer_small-diff', 'resp-html_full_dom-morph_morph_large-diff', 'resp-html_full_dom-replace_outer_large-diff']
-const FW_ORDER = { dmax: 0, datastar: 1, fixi: 2 }
-const FW_SHORT = { dmax: 'dmax', datastar: 'ds', fixi: 'fix' }
+const FW_ORDER = { native: 0, dmax: 1, datastar: 2, fixi: 3 }
+const FW_SHORT = { native: 'nat', dmax: 'dmax', datastar: 'ds', fixi: 'fix' }
 const parseCase = (s) => {
   const [resp = '', shape = '', work = '', mode = '', diff = ''] = s.split('_')
   return { resp: resp.slice(5), shape, work, mode, diff }
 }
 const withFw = (framework, rows) => rows.map(r => ({ framework, case: normScenario(r.name), caseParts: parseCase(r.name), ...r }))
 const addXF = (rows) => {
-  const base = Object.create(null)
-  for (const r of rows) if (r.framework === 'dmax' && base[r.case] == null) base[r.case] = r.avgMs
-  for (const r of rows) r.x = base[r.case] ? r.avgMs / base[r.case] : 1
+  const dmaxBase = Object.create(null), nativeBase = Object.create(null)
+  for (const r of rows) {
+    if (r.framework === 'dmax' && dmaxBase[r.case] == null) dmaxBase[r.case] = r.avgMs
+    if (r.framework === 'native' && nativeBase[r.case] == null) nativeBase[r.case] = r.memDelta
+  }
+  for (const r of rows) {
+    r.x = dmaxBase[r.case] ? r.avgMs / dmaxBase[r.case] : 1
+    r.memNet = nativeBase[r.case] == null ? null : r.memDelta - nativeBase[r.case]
+  }
   return rows.sort((a, b) => (CASE_ORDER.indexOf(a.case) - CASE_ORDER.indexOf(b.case)) || (FW_ORDER[a.framework] - FW_ORDER[b.framework]))
 }
 
@@ -868,6 +944,7 @@ function formatParityProbe(probe) {
   const fixiInfo = fixiInfoWindow.__fixiBench
   fixiInfoWindow.close()
   const results = addXF([
+    ...withFw('native', await runNativeScenarios(payloads)),
     ...withFw('dmax', await runDmaxScenarios(payloads)),
     ...withFw('datastar', await runDatastarScenarios(payloads)),
     ...withFw('fixi', await runFixiScenarios(payloads))
@@ -891,9 +968,11 @@ function formatParityProbe(probe) {
     : 'memory: mem-delta is median(heapUsed(after) - heapUsed(before)) without explicit GC (run with `node --expose-gc` for cleaner numbers)')
   console.log('final-cell: textContent of the probed grid cell after the final validated apply in the scenario')
   console.log('x-vs-dmax: avg-ms relative to dmax for the same normalized case (1.00x means equal, 2.00x means 2x slower)')
+  console.log('mem-net: mem-delta minus native jsdom outerHTML baseline for the same case (shown only where native baseline exists)')
+  console.log('dbgΔ: compact debug deltas for the median-memory sample as bodyEls/hostEls/hostHtmlLen')
   console.log('')
-  console.log('resp       shape        work          mode     diff         fw     iters   total-ms   avg-ms   x-vs-dmax   ops/s     mem-delta   final-cell')
-  console.log('----------------------------------------------------------------------------------------------------------------------------------------')
+  console.log('resp       shape        work          mode     diff         fw     iters   total-ms   avg-ms   x-vs-dmax   ops/s     mem-delta   mem-net   dbgΔ        final-cell')
+  console.log('----------------------------------------------------------------------------------------------------------------------------------------------------------------')
   for (const r of results) {
     const p = r.caseParts
     const line = [
@@ -909,9 +988,16 @@ function formatParityProbe(probe) {
       formatNum(r.x, 2).padStart(10) + 'x',
       formatNum(r.opsPerSec, 1).padStart(8),
       String(r.memDelta).padStart(11),
+      String(r.memNet == null ? '' : r.memNet).padStart(9),
+      `${r.dbgBodyElDelta ?? ''}/${r.dbgHostElDelta ?? ''}/${r.dbgHtmlLenDelta ?? ''}`.padStart(10),
       String(r.result).padStart(11)
     ].join('   ')
     console.log(line)
+  }
+  const worstNet = results.filter(r => r.framework === 'dmax' && r.memNet != null).sort((a, b) => b.memNet - a.memNet)[0]
+  if (worstNet) {
+    console.log('')
+    console.log(`worst-dmax-mem-net: case=${worstNet.case} mem-net=${worstNet.memNet} dbgΔ=${worstNet.dbgBodyElDelta}/${worstNet.dbgHostElDelta}/${worstNet.dbgHtmlLenDelta}`)
   }
 })().catch(err => {
   console.error(err && err.stack ? err.stack : err)
