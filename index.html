@@ -138,6 +138,8 @@
       padding: 8px;
       overflow: auto;
     }
+    .active { border-color: #28a745 !important; background: #eaffea; }
+    .inactive { opacity: .7; filter: grayscale(.2); }
   </style>
 </head>
 
@@ -174,8 +176,8 @@
       <p>This uses a small declarative custom-element shell: <code>data-m-wc</code> defines the host and normal <code>data-m-ex</code> drives host props/events.</p>
       <div class="wc-demo">
         <div>
-          <label>Title <input id="uplot-title-input" value="Revenue vs Cost" data-m-ex:.value@uplot="dm.uplot.title" data-m-ex:uplot@#uplot-title-input.input="window.setUplotTitle(dm.uplot, document.getElementById('uplot-title-input').value)"></label>
-          <label>Width <input id="uplot-width-input" type="range" min="280" max="640" step="20" data-m-ex:.value@uplot="String(dm.uplot.w)" data-m-ex:uplot@#uplot-width-input.input="window.setUplotWidth(dm.uplot, +document.getElementById('uplot-width-input').value)"></label>
+          <label>Title <input id="uplot-title-input" value="Revenue vs Cost" data-m-ex:.value@uplot="dm.uplot.title" data-m-ex:uplot@#uplot-title-input.input="window.setUplotTitle(dm.uplot, val)"></label>
+          <label>Width <input id="uplot-width-input" type="range" min="280" max="640" step="20" data-m-ex:.value@uplot="String(dm.uplot.w)" data-m-ex:uplot@#uplot-width-input.input="window.setUplotWidth(dm.uplot, +val)"></label>
           <button id="uplot-step" data-m-ex:uplot@#uplot-step.click="window.stepUplot(dm.uplot)">Step data</button>
           <button id="uplot-push" data-m-ex:uplot@#uplot-push.click="window.pushUplot(dm.uplot)">Add point</button>
           <button id="uplot-pts" data-m-ex:uplot@#uplot-pts.click="window.toggleUplot(dm.uplot)">Toggle points</button>
@@ -239,10 +241,10 @@
       <p><span id="example4ConsoleOut" data-m-ex:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
       <p><strong id="example4VisibleOut" data-m-ex:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@message</code> · <code>data-m-ex:message@.input=&quot;val&quot;</code> · <code>data-m-ex:.@#src.input=&quot;document.getElementById('src').value&quot;</code> · <code>data-m-ex:.value@#src.input=&quot;document.getElementById('src').value&quot;</code> Type in the source input and look for both the text preview and readonly mirror to track it while you type.</div>
+      <div class="page"><code>data-m-ex@.^rw@message</code> · <code>data-m-ex:message@.input=&quot;val&quot;</code> · <code>data-m-ex:.@#src.input=&quot;val&quot;</code> · <code>data-m-ex:.value@#src.input=&quot;val&quot;</code> Type in the source input and look for both the text preview and readonly mirror to track it while you type.</div>
       <input id="src" placeholder="Type here..." data-m-ex@.^rw@message data-m-ex:message@.input="val">
-      <p id="srcPreview" data-m-ex:.@#src.input="document.getElementById('src').value"></p>
-      <input id="mirror" readonly data-m-ex:.value@#src.input="document.getElementById('src').value">
+      <p id="srcPreview" data-m-ex:.@#src.input="val"></p>
+      <input id="mirror" readonly data-m-ex:.value@#src.input="val">
       <h4>6. Window Events &amp; Intervals</h4>
       <div class="page"><code>data-m-ex:.@_window.resize=&quot;window.innerWidth + 'px'&quot;</code> · <code>data-m-ex:.@_interval.1000=&quot;new Date().toLocaleTimeString()&quot;</code> · <code>data-m-ex:.@_timeout.1500=&quot;(detail &amp;&amp; detail.ms) ? ('timeout ' + detail.ms) : ''&quot;</code> · <code>data-m-ex:.@_viewed^once=&quot;'✓ Viewed (ratio: ' + (detail &amp;&amp; detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'&quot;</code> · <code>data-m-ex:.@_init=&quot;'✓ Initialized (detail.type: ' + (detail &amp;&amp; detail.type) + ')'&quot;</code> Resize the window, wait for the timer labels, and scroll the viewed line into view to see each special trigger fire.</div>
       <p>Window width: <span id="windowWidthOut" data-m-ex:.@_window.resize="window.innerWidth + 'px'"></span></p>
@@ -250,9 +252,9 @@
       <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
       <p>On init: <span id="initOut" data-m-ex:.@_init="'✓ Initialized (detail.type: ' + (detail && detail.type) + ')'"></span></p>
       <h4>7. Default Props &amp; Events</h4>
-      <div class="page"><code>data-m-ex:.@#inp1.input=&quot;document.getElementById('inp1').value&quot;</code> · <code>data-m-ex:.@#btn3=&quot;'Clicked!'&quot;</code> Type in the input and click the button; the labels below should mirror the default prop/event behavior.</div>
+      <div class="page"><code>data-m-ex:.@#inp1.input=&quot;val&quot;</code> · <code>data-m-ex:.@#btn3=&quot;'Clicked!'&quot;</code> Type in the input and click the button; the labels below should mirror the default prop/event behavior.</div>
       <input id="inp1" placeholder="Mirrors on input">
-      <p><span id="inp1Preview" data-m-ex:.@#inp1.input="document.getElementById('inp1').value"></span></p>
+      <p><span id="inp1Preview" data-m-ex:.@#inp1.input="val"></span></p>
       <button id="btn3">Click me</button>
       <p><span id="btn3Preview" data-m-ex:.@#btn3="'Clicked!'"></span></p>
       <h4>7.a `^pr` / `^si` trigger picks</h4>
@@ -261,7 +263,7 @@
         <label>Non-default event prop:
           <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num>
         </label>
-        <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="document.getElementById('valpickinput').value"></span></div>
+        <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="val"></span></div>
         <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked="dm.valPropPicked"></strong></div>
       </div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
@@ -367,11 +369,11 @@
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
       </div>
       <div>
-        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: +document.getElementById('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
+        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-m-ex:draftPost@.="({ title: document.getElementById('new-title').value, body: document.getElementById('new-body').value, userId: +document.getElementById('new-user-id').value||0 })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
@@ -449,6 +451,7 @@
   <script src="dmax.js"></script>
   <script>
     (function () {
+      window.dmEl = (id) => document.getElementById(id)
       const chartClone = (cfg, data = cfg && cfg.data) => cfg ? ({ ...cfg, data, labels: cfg.labels ? cfg.labels.slice() : cfg.labels, series: cfg.series ? cfg.series.map(s => s ? { ...s } : s) : cfg.series }) : cfg
       const chartCloneDeepData = (cfg) => chartClone(cfg, cfg && cfg.data ? cfg.data.map(arr => arr.slice()) : cfg && cfg.data)
       window.cloneUplot = (cfg) => cfg ? JSON.parse(JSON.stringify(cfg)) : cfg
