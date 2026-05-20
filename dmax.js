@@ -1296,6 +1296,7 @@
     const sameSlot = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id || b.id ? a.id === b.id : a.tagName === b.tagName
 
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
+    const HTML_NS = 'http://www.w3.org/1999/xhtml'
     const TEXT_NODE = 3
     const _siSelCache = new Map()
     const SI_BAD_SYMS = ' \t\r\n#>+~:.[],|'
@@ -1310,6 +1311,10 @@
     }
 
     const getPatchTars = (selector, simpleId = selector && getSimpleIdSelector(selector), el = simpleId && document.getElementById(simpleId)) => !selector ? NIL : simpleId ? el ? [el] : NIL : document.querySelectorAll(selector)
+    const getFirstHtmlId = (html) => {
+      const m = /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(html)
+      return m ? (m[1] || m[2] || '') : ''
+    }
 
     const sameAttrs = (from, to) => {
       const fromAttrs = from.attributes, toAttrs = to.attributes, len = toAttrs.length
@@ -1481,7 +1486,10 @@
 
     const applyPatchPair = (taEl, srcEl, mode, reuse = false) => {
       if (!taEl || !srcEl) return
-      if (mode === M_REPLACE) taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
+      if (mode === M_REPLACE) {
+        if (taEl.nodeType === ELEMENT_NODE && srcEl.nodeType === ELEMENT_NODE && taEl.parentNode && taEl.namespaceURI === HTML_NS && srcEl.namespaceURI === HTML_NS) taEl.outerHTML = reuse ? srcEl.outerHTML : srcEl.cloneNode(true).outerHTML
+        else taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
+      }
       else if (mode === M_INNER) {
         const to = taEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
@@ -1494,6 +1502,24 @@
       const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
       const rawEls = args[SSE_ELS] || ''
+
+      if (mode === M_REPLACE && ns.toLowerCase() === 'html' && rawEls) {
+        if (sel) {
+          const tars = getPatchTars(sel)
+          if (tars.length === 1) {
+            tars[0].outerHTML = '' + rawEls
+            return
+          }
+        } else {
+          const id = getFirstHtmlId('' + rawEls)
+          const tar = id && document.getElementById(id)
+          if (tar) {
+            tar.outerHTML = '' + rawEls
+            return
+          }
+        }
+      }
+
       const srcEls = parseSseEls(rawEls, ns)
 
       if (mode === M_REMOVE) {

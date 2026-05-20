@@ -368,6 +368,11 @@ const BM_TRACE_FW = (process.env.BM_TRACE_FW || '').trim()
 const BM_TRACE_CASE = (process.env.BM_TRACE_CASE || '').trim()
 const bmIters = (n) => Math.max(1, Math.round(n * BM_SCALE))
 
+async function settleBench() {
+  await Promise.resolve()
+  await new Promise(resolve => setTimeout(resolve, 0))
+}
+
 function stableHeapUsed() {
   if (!global.gc) return process.memoryUsage().heapUsed
   let best = Infinity
@@ -449,6 +454,7 @@ async function runScenario(name, iters, setup, applyA, applyB, check, validateA 
       if (validateB) validateB()
     }
   }
+  await settleBench()
   const inspectStart = inspect ? inspect() : null
   const startMem = stableHeapUsed()
   const t0 = process.hrtime.bigint()
@@ -456,6 +462,7 @@ async function runScenario(name, iters, setup, applyA, applyB, check, validateA 
   const ms = Number(process.hrtime.bigint() - t0) / 1e6
   if (validateA) { await applyA(); validateA() }
   if (validateB) { await applyB(); validateB() }
+  await settleBench()
   const endMem = stableHeapUsed()
   const inspectEnd = inspect ? inspect() : null
   const result = check()
