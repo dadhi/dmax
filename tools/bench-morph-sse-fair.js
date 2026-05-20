@@ -728,14 +728,24 @@ async function runNativeScenarios(payloads) {
       if (!el) throw new Error('native benchmark target #bench-app missing')
       el.outerHTML = html
     }
-    return runScenario(name, iters, mountBase, () => applyA(replaceHtml), () => applyB(replaceHtml), v.cellText, () => validateA(v), () => validateB(v), () => inspectBenchState(document, host))
+    const morphHtml = (html) => {
+      const next = document.createElement('div')
+      next.innerHTML = html
+      const to = next.firstElementChild
+      const from = document.getElementById('bench-app')
+      if (!from || !to) throw new Error('native morph baseline target #bench-app missing')
+      from.replaceWith(to)
+    }
+    return runScenario(name, iters, mountBase, () => applyA({ replaceHtml, morphHtml }), () => applyB({ replaceHtml, morphHtml }), v.cellText, () => validateA(v), () => validateB(v), () => inspectBenchState(document, host))
   })
   const baseGrid = (v) => v.assertGrid(payloads.expectedBase, 'base-grid')
   const smallGrid = (v) => v.assertGrid(payloads.expectedSmall, 'small-grid')
   const largeGrid = (v) => v.assertGrid(payloads.expectedLarge, 'large-grid')
   return [
-    await mk('resp-html_full_dom-replace_outer_small-diff', bmIters(120), (apply) => apply(payloads.smallHtml), (apply) => apply(payloads.baseHtml), smallGrid, baseGrid),
-    await mk('resp-html_full_dom-replace_outer_large-diff', bmIters(30), (apply) => apply(payloads.largeHtml), (apply) => apply(payloads.baseHtml), largeGrid, baseGrid)
+    await mk('resp-html_full_dom-morph_morph_small-diff', bmIters(120), ({ morphHtml }) => morphHtml(payloads.smallHtml), ({ morphHtml }) => morphHtml(payloads.baseHtml), smallGrid, baseGrid),
+    await mk('resp-html_full_dom-replace_outer_small-diff', bmIters(120), ({ replaceHtml }) => replaceHtml(payloads.smallHtml), ({ replaceHtml }) => replaceHtml(payloads.baseHtml), smallGrid, baseGrid),
+    await mk('resp-html_full_dom-morph_morph_large-diff', bmIters(30), ({ morphHtml }) => morphHtml(payloads.largeHtml), ({ morphHtml }) => morphHtml(payloads.baseHtml), largeGrid, baseGrid),
+    await mk('resp-html_full_dom-replace_outer_large-diff', bmIters(30), ({ replaceHtml }) => replaceHtml(payloads.largeHtml), ({ replaceHtml }) => replaceHtml(payloads.baseHtml), largeGrid, baseGrid)
   ]
 }
 
@@ -975,7 +985,7 @@ function formatParityProbe(probe) {
     : 'memory: mem-delta is median(heapUsed(after) - heapUsed(before)) without explicit GC (run with `node --expose-gc` for cleaner numbers)')
   console.log('final-cell: textContent of the probed grid cell after the final validated apply in the scenario')
   console.log('x-vs-dmax: avg-ms relative to dmax for the same normalized case (1.00x means equal, 2.00x means 2x slower)')
-  console.log('mem-net: mem-delta minus native jsdom outerHTML baseline for the same case (shown only where native baseline exists)')
+  console.log('mem-net: mem-delta minus native jsdom baseline for the same case (replace uses outerHTML; morph uses parse+replaceWith)')
   console.log('dbgΔ: compact debug deltas for the median-memory sample as bodyEls/hostEls/hostHtmlLen')
   console.log('')
   console.log('resp       shape        work          mode     diff         fw     iters   total-ms   avg-ms   x-vs-dmax   ops/s     mem-delta   mem-net   dbgΔ        final-cell')
@@ -1001,10 +1011,12 @@ function formatParityProbe(probe) {
     ].join('   ')
     console.log(line)
   }
-  const worstNet = results.filter(r => r.framework === 'dmax' && r.memNet != null).sort((a, b) => b.memNet - a.memNet)[0]
-  if (worstNet) {
+  const worstReplaceNet = results.filter(r => r.framework === 'dmax' && r.memNet != null && r.caseParts.work === 'dom-replace').sort((a, b) => b.memNet - a.memNet)[0]
+  const worstMorphNet = results.filter(r => r.framework === 'dmax' && r.memNet != null && r.caseParts.work === 'dom-morph').sort((a, b) => b.memNet - a.memNet)[0]
+  if (worstReplaceNet || worstMorphNet) {
     console.log('')
-    console.log(`worst-dmax-mem-net: case=${worstNet.case} mem-net=${worstNet.memNet} dbgΔ=${worstNet.dbgBodyElDelta}/${worstNet.dbgHostElDelta}/${worstNet.dbgHtmlLenDelta}`)
+    if (worstReplaceNet) console.log(`worst-dmax-replace-mem-net: case=${worstReplaceNet.case} mem-net=${worstReplaceNet.memNet} dbgΔ=${worstReplaceNet.dbgBodyElDelta}/${worstReplaceNet.dbgHostElDelta}/${worstReplaceNet.dbgHtmlLenDelta}`)
+    if (worstMorphNet) console.log(`worst-dmax-morph-mem-net: case=${worstMorphNet.case} mem-net=${worstMorphNet.memNet} dbgΔ=${worstMorphNet.dbgBodyElDelta}/${worstMorphNet.dbgHostElDelta}/${worstMorphNet.dbgHtmlLenDelta}`)
   }
 })().catch(err => {
   console.error(err && err.stack ? err.stack : err)

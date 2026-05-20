@@ -1296,7 +1296,6 @@
     const sameSlot = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id || b.id ? a.id === b.id : a.tagName === b.tagName
 
     const _HTML_PARSE_TEMPLATE = document.createElement('template')
-    const HTML_NS = 'http://www.w3.org/1999/xhtml'
     const TEXT_NODE = 3
     const _siSelCache = new Map()
     const SI_BAD_SYMS = ' \t\r\n#>+~:.[],|'
@@ -1311,10 +1310,6 @@
     }
 
     const getPatchTars = (selector, simpleId = selector && getSimpleIdSelector(selector), el = simpleId && document.getElementById(simpleId)) => !selector ? NIL : simpleId ? el ? [el] : NIL : document.querySelectorAll(selector)
-    const getFirstHtmlId = (html) => {
-      const m = /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(html)
-      return m ? (m[1] || m[2] || '') : ''
-    }
 
     const sameAttrs = (from, to) => {
       const fromAttrs = from.attributes, toAttrs = to.attributes, len = toAttrs.length
@@ -1483,51 +1478,30 @@
       if (mode === M_APPEND) taEl.appendChild(frag)
       else (mode === M_PREPEND ? taEl : taEl.parentNode)?.insertBefore(frag, before)
     }
-
     const applyPatchPair = (taEl, srcEl, mode, reuse = false) => {
       if (!taEl || !srcEl) return
-      if (mode === M_REPLACE) {
-        if (taEl.nodeType === ELEMENT_NODE && srcEl.nodeType === ELEMENT_NODE && taEl.parentNode && taEl.namespaceURI === HTML_NS && srcEl.namespaceURI === HTML_NS) taEl.outerHTML = reuse ? srcEl.outerHTML : srcEl.cloneNode(true).outerHTML
-        else taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
-      }
+      if (mode === M_REPLACE) taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
       else if (mode === M_INNER) {
         const to = taEl.cloneNode(false)
         for (let ch = srcEl.firstChild; ch; ch = ch.nextSibling) to.appendChild(ch.cloneNode(true))
         morphChildren(taEl, to)
       } else morph(taEl, srcEl)
     }
-
     const applyPatchEls = (args) => {
       const mode = (args.mode || M_OUTER).toLowerCase()
       const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
       const rawEls = args[SSE_ELS] || ''
-
-      if (mode === M_REPLACE && ns.toLowerCase() === 'html' && rawEls) {
-        if (sel) {
-          const tars = getPatchTars(sel)
-          if (tars.length === 1) {
-            tars[0].outerHTML = '' + rawEls
-            return
-          }
-        } else {
-          const id = getFirstHtmlId('' + rawEls)
-          const tar = id && document.getElementById(id)
-          if (tar) {
-            tar.outerHTML = '' + rawEls
-            return
-          }
-        }
+      if (mode === M_REPLACE && ns === 'html' && rawEls) {
+        const tars = sel && getPatchTars(sel), m = !sel && /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(rawEls), tar = sel ? tars.length === 1 && tars[0] : document.getElementById(m && (m[1] || m[2] || ''))
+        if (tar) return void (tar.outerHTML = '' + rawEls)
       }
-
       const srcEls = parseSseEls(rawEls, ns)
-
       if (mode === M_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) src.id ? document.getElementById(src.id)?.remove() : warn('patch-elements remove needs ids without selector')
         return
       }
-
       if (mode === M_APPEND || mode === M_PREPEND || mode === M_BEFORE || mode === M_AFTER) {
         if (!sel || !srcEls.length) return
         for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
