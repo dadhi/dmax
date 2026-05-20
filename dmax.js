@@ -1283,7 +1283,7 @@
       if (customElements.get(name) || WC_TMPLS.has(tpl)) return
       WC_TMPLS.add(tpl)
       const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(/[^,\s]+/g) || NIL
-      const WC = class extends HTMLElement { connectedCallback() { if (WC_INITS.has(this)) return; WC_INITS.add(this); if (!this.firstElementChild && tpl.content) this.appendChild(tpl.content.cloneNode(true)), wireItClone(this) } }
+      const WC = class extends HTMLElement { connectedCallback() { if (WC_INITS.has(this)) return; WC_INITS.add(this); if (!this.firstElementChild && tpl.content) this.appendChild(tpl.content.cloneNode(true)), wireItClone(this); for (const p of props) { let v = this['$' + p]; if (hasOwn(this, p)) v = this[p], delete this[p]; v !== undefined && (this[p] = v) } } }
       for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v })), this.firstElementChild && this.firstElementChild.dispatchEvent(new CustomEvent(p, { detail: v })) } })
       customElements.define(name, WC)
     }
@@ -1478,7 +1478,6 @@
       if (mode === M_APPEND) taEl.appendChild(frag)
       else (mode === M_PREPEND ? taEl : taEl.parentNode)?.insertBefore(frag, before)
     }
-
     const applyPatchPair = (taEl, srcEl, mode, reuse = false) => {
       if (!taEl || !srcEl) return
       if (mode === M_REPLACE) taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
@@ -1488,20 +1487,21 @@
         morphChildren(taEl, to)
       } else morph(taEl, srcEl)
     }
-
     const applyPatchEls = (args) => {
       const mode = (args.mode || M_OUTER).toLowerCase()
       const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
       const rawEls = args[SSE_ELS] || ''
+      if (mode === M_REPLACE && ns === 'html' && rawEls) {
+        const tars = sel && getPatchTars(sel), m = !sel && /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(rawEls), tar = sel ? tars.length === 1 && tars[0] : document.getElementById(m && (m[1] || m[2] || ''))
+        if (tar) return void (tar.outerHTML = '' + rawEls)
+      }
       const srcEls = parseSseEls(rawEls, ns)
-
       if (mode === M_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
         else for (const src of srcEls) src.id ? document.getElementById(src.id)?.remove() : warn('patch-elements remove needs ids without selector')
         return
       }
-
       if (mode === M_APPEND || mode === M_PREPEND || mode === M_BEFORE || mode === M_AFTER) {
         if (!sel || !srcEls.length) return
         for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)

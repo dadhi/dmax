@@ -1,4 +1,4 @@
-name: Bench morph + SSE parity
+name: Bench morph + SSE
 
 on:
   workflow_dispatch:
@@ -31,10 +31,12 @@ jobs:
           node-version: '22'
       - name: Install project dependencies
         run: npm install
-      - name: Run dmax vs Datastar parity benchmark
+      - name: Run benchmark
         continue-on-error: true
         env:
-          BM_SCALE: '0.2'
+          BM_SCALE: '0.05'
+          BM_MEM_SAMPLES: '7'
+          BM_SCENARIO_SAMPLES: '3'
         run: |
           node --expose-gc --max-old-space-size=4096 tools/bench-morph-sse.js | tee bench-morph-sse.txt
       - name: Upload benchmark output
