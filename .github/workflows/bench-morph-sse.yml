@@ -1,4 +1,4 @@
-name: Bench morph + SSE parity
+name: Bench morph + SSE
 
 on:
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
     paths:
       - 'dmax.js'
       - 'tools/bench-morph-sse.js'
-      - 'tools/bench-morph-sse-fair.js'
       - 'tools/vendor/**'
       - '.github/workflows/bench-morph-sse.yml'
   push:
@@ -15,7 +14,6 @@ on:
     paths:
       - 'dmax.js'
       - 'tools/bench-morph-sse.js'
-      - 'tools/bench-morph-sse-fair.js'
       - 'tools/vendor/**'
       - '.github/workflows/bench-morph-sse.yml'
 
@@ -33,25 +31,17 @@ jobs:
           node-version: '22'
       - name: Install project dependencies
         run: npm install
-      - name: Run legacy dmax vs Datastar parity benchmark
-        continue-on-error: true
-        env:
-          BM_SCALE: '0.2'
-        run: |
-          node --expose-gc --max-old-space-size=4096 tools/bench-morph-sse.js | tee bench-morph-sse.txt
-      - name: Run fair benchmark
+      - name: Run benchmark
         continue-on-error: true
         env:
           BM_SCALE: '0.05'
           BM_MEM_SAMPLES: '7'
           BM_SCENARIO_SAMPLES: '3'
         run: |
-          node --expose-gc --max-old-space-size=4096 tools/bench-morph-sse-fair.js | tee bench-morph-sse-fair.txt
+          node --expose-gc --max-old-space-size=4096 tools/bench-morph-sse.js | tee bench-morph-sse.txt
       - name: Upload benchmark output
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bench-morph-sse-output
-          path: |
-            bench-morph-sse.txt
-            bench-morph-sse-fair.txt
+          path: bench-morph-sse.txt
