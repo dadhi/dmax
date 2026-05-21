@@ -88,9 +88,9 @@ const FETCH_FAILURE_RE = /dmAct fail/;
 
     const exampleLabels = Array.from(doc.querySelectorAll('#ported-examples .page'));
     const labelCodes = Array.from(doc.querySelectorAll('#ported-examples .page code'));
-    if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
-    if (labelCodes.length >= 40) pass('Ported examples render dmax-driven code labels'); else fail('Ported examples missing dmax-driven code labels');
-    if (labelCodes.every((node) => /data-m-(ex|it|cl|sh|get|post|put|patch|delete|dbg|si|wc|no)/.test(node.textContent || ''))) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
+    if (exampleLabels.length >= 14) pass('Runtime examples show visible attribute labels'); else fail('Runtime examples missing visible attribute labels');
+    if (labelCodes.length >= 40) pass('Runtime examples render dmax-driven code labels'); else fail('Runtime examples missing dmax-driven code labels');
+    if (labelCodes.every((node) => /data-m-(ex|it|cl|sh|get|post|put|patch|delete|dbg|si|wc|no)/.test(node.textContent || ''))) pass('Runtime example labels sync from source attributes'); else fail('Runtime example labels do not match source attributes');
     if (labelCodes.some((node) => /data-m-ex:.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
     // Section 0: uPlot helpers keep charts live across repeated config changes

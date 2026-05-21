@@ -170,11 +170,12 @@
     }), 37], 'parse rejects variable bracket index trigger')
     __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { kind: MOD, not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
     __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods parsed pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods null pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo' }, 'compileMods attrs path')
-    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '' }, 'compileMods flags/change mode')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
+    __assert(() => compileMods(__ev(), [{ root: M_JSOS, path: '4' }]).j, [], '4', 'compileMods jsos keeps raw arg')
     __assert(() => {
       const el = document.createElement('input')
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), NIL), E_TRIG_EL, E_TRIG_EV, false)
@@ -503,6 +504,13 @@
       { trigVal: 9, detail: { type: 'custom-value', detail: { value: 9 } } },
       { trigVal: 12, detail: { type: 'custom-ms', detail: { ms: 12 } } }
     ], 'applyTrMs: event detail fallback');
+    function __tTrigModsJsos() {
+      __reset(); _dm.set('n', 2)
+      let out = null
+      applyTrMsMods((_dm, _el, _tr, val) => out = val, __si('foo'), [{ root: M_JSOS, path: 'n' }])(DM, null, null, { a: 1 }, null)
+      return out
+    }
+    __assert(__tTrigModsJsos, [], '{\n  "a": 1\n}', 'applyTrMs: jsos stringifies trigger value with signal indent');
     function __tTrigModsDebounce() {
       const st = setTimeout, ct = clearTimeout
       let id = 0

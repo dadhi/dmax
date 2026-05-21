@@ -39,7 +39,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOTIMMEDIATE = 'notimmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -372,7 +372,7 @@
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
-      let f = 0, d = 0, t = 0, p = null, v = NIL, c = SIG_CHANGED_ANY, s = 0, r0 = ''
+      let f = 0, d = 0, t = 0, p = null, v = NIL, c = SIG_CHANGED_ANY, s = 0, r0 = '', j = null
       for (const m of mods) {
         const r = m.root
         if (r === M_WITH_SHAPE) c = SIG_CHANGED_WITH_SHAPE
@@ -387,12 +387,13 @@
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
         else if (r === M_NUM) f |= MF_NUM
+        else if (r === M_JSOS) j = m.path ?? 2
         else if (r === M_RW) f |= MF_RW
         else if (!isTimer && r === M_DEBOUNCE) d = +(resolveMPathVal(m.path) ?? M_DEBOUNCE_MS) || M_DEBOUNCE_MS
         else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (r in PERMIT_MODS) p = p ? p.push ? (p.push(m), p) : [p, m] : m
       }
-      return { f, d, t, p, v, c, s, r: r0 }
+      return { f, d, t, p, v, c, s, r: r0, j }
     }
     const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, usePrPath = true) => {
       const taEl = tr.root ? getElById(tr.root, dKey) : el
@@ -438,6 +439,7 @@
       return getSiValOrIt(parsed)
     }
 
+    const dmJsos = (v, sp = 2) => JSON.stringify(v, null, +(resolveMPathVal(sp) ?? 2) || 0)
     const resolveHtmlSelector = (mPath) => {
       const v = resolveMPathVal(mPath)
       if (typeof v === 'string' && v) {
@@ -852,8 +854,8 @@
      * @returns {TriggerHandler}
      */
     const applyTrMs = (fn, tr, mod, removeSub) => {
-      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, readM = mod.s, useVal = (readM === MV_SI && isSig || readM === MV_EV && !isSig) && valPath.length, useNum = f & MF_NUM
-      if (!(once || prevent || deb || thr || permitMods || tr.not || useVal || useNum) && (isSig || removeSub || tr.sp?.init)) return fn
+      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, readM = mod.s, useVal = (readM === MV_SI && isSig || readM === MV_EV && !isSig) && valPath.length, useNum = f & MF_NUM, jsos = mod.j
+      if (!(once || prevent || deb || thr || permitMods || tr.not || useVal || useNum || jsos != null) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false
       let debDm = null, debEl = null, debVal = null, debDetail = null
       let onDebounce = null
@@ -883,6 +885,7 @@
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
         if (permitMods && !modsPermitVal(permitMods, trVal)) return
+        if (jsos != null) trVal = dmJsos(trVal, jsos)
         try { fn(dm, el, trIt, trVal, detail) } catch (e) { logErr('handler:', e) }
         if (once) removeSubOrClearId(removeSub)
       }
