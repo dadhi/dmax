@@ -359,7 +359,7 @@
       <h4>11. Actions demo + OOB HTML morph</h4>
       <div class="page"><code>data-m-get^busy.busy^err.err^code.code:post-result@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Run the request and look for busy/code fields plus the JSON payload below.</div>
       <button id="loadPost" data-m-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
-      <div>Busy: <span data-m-ex:.@busy="dm.busy"></span> | Error: <span data-m-ex:.@err="dm.err"></span> | Code: <span data-m-ex:.@code="dm.code"></span></div>
+      <div>Busy: <span data-m-ex:.@busy></span> | Error: <span data-m-ex:.@err></span> | Code: <span data-m-ex:.@code></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
         <div class="page"><code>data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Same request, but watch the custom busy/error/code signals instead of the default ones.</div>
@@ -376,17 +376,22 @@
         <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
       </div>
+      <div style="margin-top:8px;border:1px dashed #eab308;padding:8px">
+        <div class="page"><code>data-m-ex:.dataset.payload^jsos@created-post</code> writes JSON text into a data-* attribute without spelling out a manual stringify expression.</div>
+        <div id="jsosTarget" data-m-ex:.dataset.payload^jsos@created-post></div>
+        <pre style="background:#fffbeb;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="dmJsos(val)"></pre>
+      </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
         <div class="page"><code>data-m-get^html^busy.busy^err.err^code.code@.=&quot;'/mock/oob'&quot;</code> Run it and watch the target block morph without a full replace.</div>
         <button id="oobLoad" data-m-get^html^busy.busy^err.err^code.code@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <div class="page"><code>data-m-get^busy.busy^err.err:sse-status@.=&quot;'/mock/dmax-sse'&quot;</code> Run the stream and look for both signal updates and morphed HTML in the SSE target.</div>
-        <button id="sseLoad" data-m-get^busy.busy^err.err:sse-status@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
+        <div class="page"><code>data-m-get^sse^stat.sse-meta:sse-events@.=&quot;'/mock/dmax-sse'&quot;</code> Run the stream and look for both signal updates and morphed HTML in the SSE target.</div>
+        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
         <div>Message: <span data-m-ex:.@sse-message="dm.sseMessage"></span> | Count: <span data-m-ex:.@sse-count="dm.sseCount"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
-        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-status="JSON.stringify(dm.sseStatus, null, 2)"></pre>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-meta="JSON.stringify(dm.sseMeta, null, 2)"></pre>
       </div>
     </section>
     <section id="asserts-panel">

@@ -231,6 +231,12 @@ function getPathname(url) {
   }, 'POST request body spreads the draft post signal');
   assert.strictEqual(last.init.headers['content-type'], 'application/json', 'POST request is JSON');
 
+  const jsosTarget = document.getElementById('jsosTarget');
+  assert(jsosTarget, 'jsos target exists');
+  await waitFor(() => (jsosTarget.dataset.payload || '').includes('Notebook post from test'))
+    .catch(e => { throw new Error('^jsos did not stringify attribute payload: ' + e.message); });
+  assert.deepStrictEqual(JSON.parse(jsosTarget.dataset.payload), state2.createdPost, '^jsos stores JSON text in attributes');
+
   console.log('POST test passed');
 
   const oobBtn = document.getElementById('oobLoad');
@@ -258,7 +264,16 @@ function getPathname(url) {
   const state3 = readDebugState(document);
   assert.strictEqual(state3.sseMessage, 'hello from dmax', 'SSE signal patch updates message');
   assert.strictEqual(state3.sseCount, 1, 'SSE signal patch updates count');
-  assert.strictEqual(state3.err, null, 'SSE leaves err null on success');
+  assert.deepStrictEqual(state3.sseMeta, {
+    busy: false,
+    complete: true,
+    err: null,
+    code: 200,
+    open: false,
+    close: true,
+    abort: null,
+  }, 'SSE grouped stat signal is kept in sync');
+  assert.strictEqual(window.__lastRequest().init.headers.accept, 'text/event-stream', 'SSE action asks for event-stream');
   assert.strictEqual(window.__lastRequest().url, '/mock/dmax-sse', 'SSE action uses the local deterministic mock route');
   console.log('SSE test passed');
 

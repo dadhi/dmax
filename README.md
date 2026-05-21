@@ -26,6 +26,21 @@ Design bias:
 
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
+By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later.
+
+## Distribution files
+
+- `dmax.js`: 86,336 bytes
+- `dist/dmax.min.js`: 46,677 bytes
+- `dist/dmax.min.js.gz`: 16,663 bytes
+- `dist/dmax.min.js.br`: 14,982 bytes
+
+Build/update them with:
+
+```sh
+npm run build:min
+```
+
 ## Why pick dmax
 
 Choose dmax when you want:
@@ -113,6 +128,8 @@ Choose dmax when you want:
 <input data-m-ex:.@user.name>
 ```
 
+When `data-m-ex` only needs to forward the trigger value, omit the expression entirely. `data-m-ex:.@count` is shorthand for `data-m-ex:.@count="val"`.
+
 ### One-way element -> signal
 
 ```html
@@ -144,6 +161,16 @@ Choose dmax when you want:
   <template><li data-m-ex:.="$it.title"></li></template>
 </ul>
 ```
+
+### JSON-string output for attr-driven components
+
+Use `^jsos` when a target expects JSON as a string, such as an observed attribute on a custom element:
+
+```html
+<game-board data-m-ex:.state^jsos@board-state></game-board>
+```
+
+This is shorthand for writing `JSON.stringify(val)` yourself. The helper is also exposed as `dmJsos(val)` for custom expressions.
 
 ### CSS custom property binding
 
@@ -181,6 +208,12 @@ For host props, use normal `data-m-ex` on the custom element:
 </my-style-panel>
 ```
 
+For attr-driven components that parse JSON from an attribute, prefer `^jsos`:
+
+```html
+<game-board data-m-ex:.state^jsos@board-state></game-board>
+```
+
 That keeps WC usage smaller and clearer: define with `data-m-wc`, drive with `data-m-ex`.
 
 Event output stays on normal `data-m-ex` too:
@@ -203,6 +236,7 @@ Action features include:
 - `^complete.<signal>`
 - `^err.<signal>`
 - `^code.<signal>`
+- `^stat.<signal>` for grouped status fields `{busy, complete, err, code, open, close, abort}`
 - `^hs.<signal>`, `^header.<name>`, `^auth.<signal>`
 - `^url.<path>`, `^body.<path>`
 - `^send-all`, `^patch-all`, `^sync-all`
@@ -221,6 +255,19 @@ Lifecycle helpers:
 - `^close.<signal>`
 - `^retry.N`
 - `^abort.<signal>`
+
+Grouped status example:
+
+```html
+<div data-m-get^sse^stat.feed@_init="'/stream'"></div>
+<pre data-m-ex:.@feed="JSON.stringify(dm.feed, null, 2)"></pre>
+```
+
+This keeps all action lifecycle fields under one signal:
+
+```json
+{"busy":false,"complete":true,"err":null,"code":200,"open":false,"close":true,"abort":null}
+```
 
 dmax uses `fetch` + `ReadableStream`, so it supports:
 - custom headers
