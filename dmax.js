@@ -453,32 +453,28 @@
       const p = mod.path
       return typeof p === 'string' ? mkIt(SI, null, p || fallbackRoot, null) : p?.isSi ? p : mkIt(SI, null, fallbackRoot, null)
     }
-    const STAT_KEYS = Object.freeze([M_BUSY, M_COMPLETE, M_ERR, M_CODE, M_SSE_OPEN, M_SSE_CLOSE, M_ABORT])
-    const STAT_DEFAULTS = Object.freeze({ [M_BUSY]: false, [M_COMPLETE]: false, [M_ERR]: null, [M_CODE]: null, [M_SSE_OPEN]: false, [M_SSE_CLOSE]: false, [M_ABORT]: null })
-    const mkStatFieldSi = (stat, key) => stat ? mkIt(SI, null, stat.root, stat.path ? stat.path.concat([key]) : [key]) : null
+    const mkStatTar = (root, path, key) => ({ root, path: path ? path.concat(key) : [key] })
     const defStatSi = (stat) => {
       if (!stat) return null
       let cur = _dm.get(stat.root)
-      if (!cur || typeof cur !== 'object') _dm.set(stat.root, cur = {})
+      if (!cur || typeof cur !== 'object') _dm.set(stat.root, cur = noProto())
       let parent = cur
       const path = stat.path
-      if (path && path.length) for (let i = 0; i < path.length; ++i) parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = {})
-      for (const key of STAT_KEYS) if (!(key in parent)) parent[key] = STAT_DEFAULTS[key]
+      if (path && path.length) for (let i = 0; i < path.length; ++i) parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
+      if (!hasOwn(parent, M_BUSY)) parent[M_BUSY] = false
+      if (!hasOwn(parent, M_COMPLETE)) parent[M_COMPLETE] = false
+      if (!hasOwn(parent, M_ERR)) parent[M_ERR] = null
+      if (!hasOwn(parent, M_CODE)) parent[M_CODE] = null
+      if (!hasOwn(parent, M_SSE_OPEN)) parent[M_SSE_OPEN] = false
+      if (!hasOwn(parent, M_SSE_CLOSE)) parent[M_SSE_CLOSE] = false
+      if (!hasOwn(parent, M_ABORT)) parent[M_ABORT] = null
       return stat
     }
     const mkActStats = (mod) => {
       const stat = defStatSi(mkOrStatSi(mod, M_STAT))
-      return stat ? Object.assign({ stat }, Object.fromEntries(STAT_KEYS.map(key => [key, mkStatFieldSi(stat, key)]))) : null
-    }
-
-    const defSi = (si, val) => {
-      if (si && !_dm.has(si.root)) _dm.set(si.root, val)
-      return si
-    }
-    const setS = (dKey, stat, val) => stat && setSiAndNotifySubsNDeep(dKey, stat, val)
-    const setStatus = (dKey, stat, stats, key, val) => {
-      setS(dKey, stat, val)
-      if (stats) setS(dKey, stats[key], val)
+      if (!stat) return null
+      const { root, path } = stat
+      return { [M_BUSY]: mkStatTar(root, path, M_BUSY), [M_COMPLETE]: mkStatTar(root, path, M_COMPLETE), [M_ERR]: mkStatTar(root, path, M_ERR), [M_CODE]: mkStatTar(root, path, M_CODE), [M_SSE_OPEN]: mkStatTar(root, path, M_SSE_OPEN), [M_SSE_CLOSE]: mkStatTar(root, path, M_SSE_CLOSE), [M_ABORT]: mkStatTar(root, path, M_ABORT) }
     }
 
     const isJsonContentType = (ct) => {
@@ -1108,14 +1104,14 @@
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
       const resultTa = findFirstKind(tars, SI)
-      let busyMod = null, completeMod = null, errMod = null, codeMod = null, statMod = null
+      let statMod = null
       let isJson = false, isText = false, isHtml = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null, authMod = null
       let hsNoKebab = false
       let sendAll = false, patchAll = false
       let resultMode = M_REPLACE, htmlDomMod = null
-      let openMod = null, closeMod = null, retryMod = null, abortMod = null
+      let retryMod = null
       const urlMods = [], bodyMods = [], hdrMods = []
       for (const m of globMods) {
         const mr = m.root
@@ -1135,15 +1131,8 @@
         else if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND || mr === M_BEFORE || mr === M_AFTER || mr === M_INNER || mr === M_REMOVE) {
           resultMode = mr
           if (mr !== M_MERGE) htmlDomMod = m
-        } else if (mr === M_BUSY && !busyMod) busyMod = m
-        else if (mr === M_COMPLETE && !completeMod) completeMod = m
-        else if (mr === M_ERR && !errMod) errMod = m
-        else if (mr === M_CODE && !codeMod) codeMod = m
-        else if (mr === M_STAT && !statMod) statMod = m
-        else if (mr === M_SSE_OPEN && !openMod) openMod = m
-        else if (mr === M_SSE_CLOSE && !closeMod) closeMod = m
+        } else if (mr === M_STAT && !statMod) statMod = m
         else if (mr === M_RETRY && !retryMod) retryMod = m
-        else if (mr === M_ABORT && !abortMod) abortMod = m
         else if (mr === M_URL) urlMods.push(m)
         else if (mr === M_BODY) bodyMods.push(m)
         else if (mr === M_HDR) hdrMods.push(m)
@@ -1152,11 +1141,9 @@
         else if (!patchAll && mr === M_PATCH_ALL) patchAll = true
       }
       if (resultTa && resultTa.mods) resultMode = getWriteMode(resultTa.mods)
-      const busyStat = mkOrStatSi(busyMod, M_BUSY), completeStat = mkOrStatSi(completeMod, M_COMPLETE), errStat = mkOrStatSi(errMod, M_ERR), codeStat = mkOrStatSi(codeMod, M_CODE), openStat = mkOrStatSi(openMod, M_SSE_OPEN), closeStat = mkOrStatSi(closeMod, M_SSE_CLOSE), abortStat = mkOrStatSi(abortMod, M_ABORT)
       const actStats = mkActStats(statMod)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
-      defSi(busyStat, false), defSi(completeStat, false), defSi(errStat, null), defSi(codeStat, null), defSi(openStat, false), defSi(closeStat, false), defSi(abortStat, null)
       let enc = ''
       if (encBr) enc = 'br'
       if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
@@ -1181,23 +1168,21 @@
         if (typeof p === 'string') actHdrMods.push([camelToKebab(p), p, null])
         else if (pLast) actHdrMods.push([camelToKebab(pLast), null, p])
       }
+      const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) return logErr('Error: dmAct: URL is empty in:', dKey)
-        setStatus(dKey, busyStat, actStats, M_BUSY, true), setStatus(dKey, completeStat, actStats, M_COMPLETE, false), setStatus(dKey, errStat, actStats, M_ERR, null), setStatus(dKey, codeStat, actStats, M_CODE, null)
+        ss(M_BUSY, true), ss(M_COMPLETE, false), ss(M_ERR, null), ss(M_CODE, null)
         try {
-          const queryParams = noProto(), bodyFields = noProto()
+          const queryParams = noProto(), bodyFields = noProto(), addDst = isGetOrDelete ? queryParams : bodyFields
           if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
           for (const add of adds) {
             const addEl = add.isEv ? (add.taEl || el) : null
             const val = addEl ? getElPrVal(addEl, add.path) : add.isEv ? null : getSiValOrIt(add)
             if (add.spread) {
-              if (val && typeof val === 'object') {
-                for (const k in val) if (hasOwn(val, k)) (isGetOrDelete ? queryParams : bodyFields)[k] = val[k]
-              } else if (isGetOrDelete) queryParams.value = val
-              else bodyFields.value = val
-            } else if (isGetOrDelete) queryParams[add.key] = val
-            else bodyFields[add.key] = val
+              if (val && typeof val === 'object') for (const k in val) if (hasOwn(val, k)) addDst[k] = val[k]
+              else addDst.value = val
+            } else addDst[add.key] = val
           }
           for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
           let finalUrl = url, hasQ = finalUrl.includes('?')
@@ -1242,19 +1227,19 @@
           }
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
-          setStatus(dKey, abortStat, actStats, M_ABORT, activeAbort)
+          ss(M_ABORT, activeAbort)
           const init = { method, headers: hs }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
           const res = await window.fetch(finalUrl, init)
-          const ct = (res.headers && res.headers.get('content-type')) || ''
-          let payload, htmlApplied = false
-          if (ct.includes('text/event-stream')) {
-            if (res.body && typeof res.body.getReader === 'function') payload = await consumeSseStream(res.body, dKey, openStat, closeStat, errStat, actStats)
+          const ct = res.headers?.get('content-type') || '', isSseCt = ct.includes('text/event-stream')
+          let payload
+          if (isSseCt) {
+            if (res.body && typeof res.body.getReader === 'function') payload = await consumeSseStream(res.body, dKey, actStats)
             else {
-              setStatus(dKey, openStat, actStats, M_SSE_OPEN, true)
+              ss(M_SSE_OPEN, true)
               payload = applySse(await res.text(), dKey)
-              setStatus(dKey, openStat, actStats, M_SSE_OPEN, false), setStatus(dKey, closeStat, actStats, M_SSE_CLOSE, true)
+              ss(M_SSE_OPEN, false), ss(M_SSE_CLOSE, true)
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
@@ -1262,22 +1247,22 @@
             const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EP)?.root ?? '')
             const selector = hp ? resolveHtmlSelector(hp) : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '') : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '') : ''
             applyPatchEls({ [SSE_ELS]: payload, selector, mode })
-            htmlApplied = true
-          } else if (isJsonContentType(ct)) payload = await res.json()
-          else payload = await res.text()
-          if (!htmlApplied) applyActPayload(dKey, resultTa, payload, resultMode)
-          if (!htmlApplied && patchAll) patchMatchingSis(dKey, payload, resultMode)
-          setStatus(dKey, busyStat, actStats, M_BUSY, false), setStatus(dKey, completeStat, actStats, M_COMPLETE, true), setStatus(dKey, errStat, actStats, M_ERR, null), setStatus(dKey, codeStat, actStats, M_CODE, Number.isFinite(res.status) ? res.status : null), setStatus(dKey, abortStat, actStats, M_ABORT, null)
+          } else {
+            payload = isJsonContentType(ct) ? await res.json() : await res.text()
+            applyActPayload(dKey, resultTa, payload, resultMode)
+            if (patchAll) patchMatchingSis(dKey, payload, resultMode)
+          }
+          const code = Number.isFinite(res.status) ? res.status : null
+          ss(M_BUSY, false), ss(M_COMPLETE, true), ss(M_ERR, null), ss(M_CODE, code), ss(M_ABORT, null)
           activeAbort = null
-          if (retryDelay > 0 && ct.includes('text/event-stream') && !(ac && ac.signal.aborted)) setTimeout(doRequest, retryDelay)
+          if (retryDelay > 0 && isSseCt && !(ac && ac.signal.aborted)) setTimeout(doRequest, retryDelay)
         } catch (err) {
           activeAbort = null
-          setStatus(dKey, abortStat, actStats, M_ABORT, null), setStatus(dKey, openStat, actStats, M_SSE_OPEN, false)
-          const isAbort = err && err.name === 'AbortError'
-          setStatus(dKey, busyStat, actStats, M_BUSY, false), setStatus(dKey, completeStat, actStats, M_COMPLETE, true)
+          const isAbort = err && err.name === 'AbortError', code = Number.isFinite(err && err.status) ? err.status : null
+          ss(M_ABORT, null), ss(M_SSE_OPEN, false), ss(M_BUSY, false), ss(M_COMPLETE, true)
           if (!isAbort) {
-            setStatus(dKey, errStat, actStats, M_ERR, err && err.message ? err.message : '' + err)
-            setStatus(dKey, codeStat, actStats, M_CODE, Number.isFinite(err && err.status) ? err.status : null)
+            ss(M_ERR, err && err.message ? err.message : '' + err)
+            ss(M_CODE, code)
             logErr('dmAct fail:', err)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
@@ -1631,38 +1616,32 @@
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    const consumeSseStream = async (body, dKey, openStat, closeStat, errStat, actStats) => {
+    const consumeSseStream = async (body, dKey, actStats) => {
       if (!body || typeof body.getReader !== 'function') return NIL
+      const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
       const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false], RE_TRAILING_CR = /\r$/
-      let buf = '', opened = false, streamErr = null
+      let buf = '', opened = false
       try {
-        while (true) {
+        for (;;) {
           const { done, value } = await reader.read()
           if (done) break
-          if (!opened) {
-            opened = true
-            setStatus(dKey, openStat, actStats, M_SSE_OPEN, true)
-            setStatus(dKey, closeStat, actStats, M_SSE_CLOSE, false)
-          }
+          if (!opened) opened = true, ss(M_SSE_OPEN, true), ss(M_SSE_CLOSE, false)
           buf += decoder.decode(value, { stream: true })
           let nl
-          while ((nl = buf.indexOf('\n')) >= 0) {
-            consumeSseLine(buf.slice(0, nl).replace(RE_TRAILING_CR, ''), st, applied, dKey)
-            buf = buf.slice(nl + 1)
-          }
+          while ((nl = buf.indexOf('\n')) >= 0) consumeSseLine(buf.slice(0, nl).replace(RE_TRAILING_CR, ''), st, applied, dKey), buf = buf.slice(nl + 1)
         }
         const trailing = decoder.decode()
         if (trailing) buf += trailing
         if (buf) consumeSseLine(buf.replace(RE_TRAILING_CR, ''), st, applied, dKey)
         flushSse(applied, st, dKey)
       } catch (e) {
-        streamErr = e
+        ss(M_SSE_OPEN, false)
+        ss(M_ERR, e.message || '' + e)
         logErr('SSE stream error:', e)
+        return applied
       }
-      setStatus(dKey, openStat, actStats, M_SSE_OPEN, false)
-      if (streamErr) {
-        setStatus(dKey, errStat, actStats, M_ERR, streamErr.message || '' + streamErr)
-      } else setStatus(dKey, closeStat, actStats, M_SSE_CLOSE, true)
+      ss(M_SSE_OPEN, false)
+      ss(M_SSE_CLOSE, true)
       return applied
     }
 

@@ -183,8 +183,9 @@ const FETCH_FAILURE_RE = /dmAct fail/;
     const pfont = findByAttr('p', 'data-m-ex:.style.font-size@user.ui.font-size');
     if (!range || !pfont) fail('Section2 font elements missing');
     range.value = '24';
+    fire(range, 'input');
     fire(range, 'change');
-    await sleep(60);
+    await waitFor(() => /24px/.test(pfont.style.fontSize || pfont.getAttribute('style') || ''), 500);
     if (/24px/.test(pfont.style.fontSize || pfont.getAttribute('style') || '')) pass('Section2 font-size sync'); else fail('Section2 font-size not applied');
 
     const checkbox = findByAttr('input', 'data-m-ex@.^rw@user.ui.is-active');
@@ -586,13 +587,13 @@ const FETCH_FAILURE_RE = /dmAct fail/;
 
     pageLogs.length = 0;
     fire(loadPost, 'click');
-    await waitFor(() => readState().postResult && readState().code === 200, 2000);
+    await waitFor(() => readState().postResult && readState().req && readState().req.code === 200, 2000);
     if (readState().postResult?.title === 'His mother had always taught him') pass('Section11 GET action populates DummyJSON post'); else fail('Section11 GET action did not populate post result');
     if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 GET action does not log fetch failure'); else fail('Section11 GET action logged fetch failure');
 
     pageLogs.length = 0;
     fire(createPost, 'click');
-    await waitFor(() => readState().createdPost && readState().code === 201, 2000);
+    await waitFor(() => readState().createdPost && readState().req && readState().req.code === 201, 2000);
     if (readState().createdPost?.title === 'I am in love with someone.') pass('Section11 POST action populates created post'); else fail('Section11 POST action did not populate created post');
     if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 POST action does not log fetch failure'); else fail('Section11 POST action logged fetch failure');
 
