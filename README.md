@@ -26,8 +26,6 @@ Design bias:
 
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later.
-
 ## Distribution files
 
 - `dmax.js`: 84,509 bytes

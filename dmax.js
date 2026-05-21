@@ -1046,14 +1046,6 @@
     globalThis.dm = DM
     globalThis.wireNode = wireNode
     globalThis.dmScan = dmScan
-    if (!globalThis.__dmaxAutoScanScheduled) {
-      globalThis.__dmaxAutoScanScheduled = true
-      const runAutoScan = () => {
-        if (document.body) dmScan(document.body)
-      }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runAutoScan, { once: true })
-      else queueMicrotask(runAutoScan)
-    }
 
     // - data-m-it@posts
     // - data-m-it+#tpl-post@posts
