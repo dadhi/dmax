@@ -952,6 +952,48 @@
       return { before, sigAfterWrite, afterSignal: cb.checked }
     }
     __assert(__tSubRwCheckboxDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dmEx ^rw checkbox checked/value default prop');
+    function __tSubRwRadioDefaultProp() {
+      __reset();
+      const radio = document.createElement('input')
+      radio.type = 'radio'
+      _dm.set('picked', true)
+      dmEx(radio, 'data-m-ex@.^rw@picked')
+      const before = radio.checked
+      radio.checked = false
+      radio.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['picked']
+      setSiAndNotifySubs('t', { root: 'picked', path: null }, true)
+      return { before, sigAfterWrite, afterSignal: radio.checked }
+    }
+    __assert(__tSubRwRadioDefaultProp, [], { before: true, sigAfterWrite: false, afterSignal: true }, 'dmEx ^rw radio default prop uses checked both ways');
+    function __tSubRwSelectNum() {
+      __reset();
+      const sel = document.createElement('select')
+      sel.innerHTML = '<option value="1">One</option><option value="2">Two</option>'
+      _dm.set('choice', 2)
+      dmEx(sel, 'data-m-ex@.^rw^num@choice')
+      const before = sel.value
+      sel.value = '1'
+      sel.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['choice']
+      setSiAndNotifySubs('t', { root: 'choice', path: null }, 2)
+      return { before, sigAfterWrite, afterSignal: sel.value }
+    }
+    __assert(__tSubRwSelectNum, [], { before: '2', sigAfterWrite: 1, afterSignal: '2' }, 'dmEx ^rw^num coerces select value both ways');
+    function __tSubRwSelectSelectedIndexPrNum() {
+      __reset();
+      const sel = document.createElement('select')
+      sel.innerHTML = '<option>Alpha</option><option>Beta</option><option>Gamma</option>'
+      _dm.set('selIx', 1)
+      dmEx(sel, 'data-m-ex@.^pr.selected-index^rw^num@sel-ix')
+      const before = sel.selectedIndex
+      sel.selectedIndex = 2
+      sel.dispatchEvent(mkEv('change'))
+      const sigAfterWrite = DM['selIx']
+      setSiAndNotifySubs('t', { root: 'selIx', path: null }, 0)
+      return { before, sigAfterWrite, afterSignal: sel.selectedIndex }
+    }
+    __assert(__tSubRwSelectSelectedIndexPrNum, [], { before: 1, sigAfterWrite: 2, afterSignal: 0 }, 'dmEx ^pr.selected-index^rw^num syncs select selectedIndex');
     function __tSubRwPrPathBothWays() {
       __reset();
       const inp = document.createElement('input')
@@ -1710,6 +1752,57 @@
         }
       } finally { delete window.fetch }
     })
+    __asyncAssert('^send-all seeds body and +spread overrides colliding keys after it', async () => {
+      __reset()
+      let capturedBody = null
+      window.fetch = (_url, init) => {
+        capturedBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('page', '1')
+        _dm.set('extra', 'root')
+        _dm.set('payload', { page: '9', extra: 'spread', keep: 'k' })
+        dmAct(btn, 'data-m-post^json^send-all:res@.click+payload^spread', '"https://api.test/send-all-spread"')
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: JSON.parse(capturedBody),
+          expected: { page: '9', extra: 'spread', payload: { page: '9', extra: 'spread', keep: 'k' }, keep: 'k' }
+        }
+      } finally { delete window.fetch }
+    })
+    __asyncAssert('^url/^body route mods override colliding keys from +spread payloads', async () => {
+      __reset()
+      let capturedUrl = null, capturedBody = null
+      window.fetch = (url, init) => {
+        capturedUrl = url
+        capturedBody = init.body
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const btn = document.createElement('button')
+        _dm.set('page', '2')
+        _dm.set('cursor', 'forced')
+        _dm.set('payload', { page: '9', cursor: 'spread', tag: 'a', bodyOnly: 'x' })
+        dmAct(btn, 'data-m-post^json^url.page^body.cursor:res@.click+payload^spread', '"https://api.test/route-override"')
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { url: capturedUrl, body: JSON.parse(capturedBody) },
+          expected: { url: 'https://api.test/route-override?page=2', body: { page: '9', cursor: 'forced', tag: 'a', bodyOnly: 'x' } }
+        }
+      } finally { delete window.fetch }
+    })
     __asyncAssert('^sse implies no-cache hs automatically', async () => {
       __reset()
       let capturedHs = null
@@ -2090,6 +2183,67 @@
       } finally { root.remove() }
     }
     __assert(__tDmaxSseMultilineCrlfElements, [], 'line1\nline2', 'dmax: SSE parser preserves CRLF multi-line payloads without full-string normalization')
+    function __tDmaxSseBurstOrdering() {
+      __reset()
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="burst-a">A0</div><div id="burst-b">B0</div><div class="burst-rm">gone</div>'
+      document.body.appendChild(root)
+      try {
+        const stream = [
+          'event: dmax-patch-signals',
+          'data: dmaxSignals {"burstVal":1}',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="burst-a">A1</div>',
+          '',
+          'event: dmax-patch-signals',
+          'data: dmaxSignals {"burstVal":2}',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="burst-b">B2</div>',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode remove',
+          'data: selector .burst-rm',
+          ''
+        ].join('\n')
+        const applied = applySse(stream, 't')
+        return {
+          events: applied.length,
+          burstVal: _dm.get('burstVal'),
+          a: root.querySelector('#burst-a')?.textContent || '',
+          b: root.querySelector('#burst-b')?.textContent || '',
+          removed: root.querySelector('.burst-rm') === null
+        }
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseBurstOrdering, [], { events: 5, burstVal: 2, a: 'A1', b: 'B2', removed: true }, 'dmax: SSE burst preserves event ordering across signals, morphs, and remove')
+    function __tDmaxSseMultiplePatchesSameId() {
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="same-id">zero</div>'
+      document.body.appendChild(root)
+      try {
+        const stream = [
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="same-id">one</div>',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="same-id">two</div>',
+          '',
+          'event: dmax-patch-elements',
+          'data: mode outer',
+          'data: dmaxElements <div id="same-id">three</div>',
+          ''
+        ].join('\n')
+        const applied = applySse(stream, 't')
+        return { events: applied.length, txt: root.querySelector('#same-id')?.textContent || '' }
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseMultiplePatchesSameId, [], { events: 3, txt: 'three' }, 'dmax: SSE applies multiple same-id patches in order and keeps the last result')
     function __tMorphStyleAttr() {
       const from = document.createElement('div')
       from.setAttribute('style', 'color: red; font-size: 12px')
@@ -2311,6 +2465,84 @@
         actual: { abortCalled, signalAborted },
         expected: { abortCalled: true, signalAborted: true }
       }
+    })
+    __asyncAssert('SSE stream can run again on the same target and apply the latest patch', async () => {
+      __reset()
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="sse-repeat">initial</div>'
+      document.body.appendChild(root)
+      try {
+        const mkBody = (html) => {
+          const bytes = new TextEncoder().encode([
+            'event: dmax-patch-elements',
+            'data: mode outer',
+            'data: dmaxElements ' + html,
+            ''
+          ].join('\n'))
+          let done = false
+          return { getReader() { return { async read() { if (done) return { done: true }; done = true; return { done: false, value: bytes } } } } }
+        }
+        let run = 0
+        window.fetch = () => Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: n => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+          body: mkBody(++run === 1 ? '<div id="sse-repeat">first</div>' : '<div id="sse-repeat">second</div>')
+        })
+        const btn = document.createElement('button')
+        dmAct(btn, 'data-m-get@.click', "'/mock/sse-repeat'")
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 10))
+        const first = root.querySelector('#sse-repeat')?.textContent || ''
+        __fireEventSub(btn, 'click')
+        await new Promise(r => setTimeout(r, 10))
+        return {
+          actual: { first, second: root.querySelector('#sse-repeat')?.textContent || '' },
+          expected: { first: 'first', second: 'second' }
+        }
+      } finally { delete window.fetch; root.remove() }
+    })
+    __asyncAssert('SSE morph still works after a prior ^html^replace action replaced the target node', async () => {
+      __reset()
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="combo-target">old</div>'
+      document.body.appendChild(root)
+      try {
+        const htmlBtn = document.createElement('button')
+        const sseBtn = document.createElement('button')
+        window.fetch = (url) => {
+          if (url === '/mock/html-combo') return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: { get: n => String(n || '').toLowerCase() === 'content-type' ? 'text/html' : null },
+            text: async () => '<div id="combo-target">replaced</div>'
+          })
+          const bytes = new TextEncoder().encode([
+            'event: dmax-patch-elements',
+            'data: mode outer',
+            'data: dmaxElements <div id="combo-target">streamed</div>',
+            ''
+          ].join('\n'))
+          let done = false
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: { get: n => String(n || '').toLowerCase() === 'content-type' ? 'text/event-stream' : null },
+            body: { getReader() { return { async read() { if (done) return { done: true }; done = true; return { done: false, value: bytes } } } } }
+          })
+        }
+        dmAct(htmlBtn, 'data-m-get^html^replace@.click', "'/mock/html-combo'")
+        __fireEventSub(htmlBtn, 'click')
+        await new Promise(r => setTimeout(r, 0))
+        const afterReplace = root.querySelector('#combo-target')?.textContent || ''
+        dmAct(sseBtn, 'data-m-get@.click', "'/mock/sse-combo'")
+        __fireEventSub(sseBtn, 'click')
+        await new Promise(r => setTimeout(r, 10))
+        return {
+          actual: { afterReplace, afterSse: root.querySelector('#combo-target')?.textContent || '' },
+          expected: { afterReplace: 'replaced', afterSse: 'streamed' }
+        }
+      } finally { delete window.fetch; root.remove() }
     })
     // ---- missing utility function tests ----
     __assert(isDigitsOnly, ['0'], true, 'isDigitsOnly single zero')
