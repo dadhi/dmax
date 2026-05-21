@@ -93,6 +93,45 @@ const FETCH_FAILURE_RE = /dmAct fail/;
     if (labelCodes.every((node) => /data-m-(ex|it|cl|sh|get|post|put|patch|delete|dbg|si|wc|no)/.test(node.textContent || ''))) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
     if (labelCodes.some((node) => /data-m-ex:.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
+    // Section 0: uPlot helpers keep charts live across repeated config changes
+    const uplotHost1 = doc.getElementById('uplotdemo');
+    const uplotHost2 = doc.getElementById('uplotDemo2');
+    const getPlot = (host) => host && host.firstElementChild && host.firstElementChild._plot;
+    if (!uplotHost1 || !uplotHost2 || typeof window.mxUplotRender !== 'function' || typeof window.setUplotTitle !== 'function' || typeof window.setUplotWidth !== 'function' || typeof window.cloneUplot !== 'function' || typeof window.stepUplot !== 'function' || typeof window.toggleUplot !== 'function') fail('Section0 uPlot helpers missing');
+    window.uPlot = function FakeUPlot(opts, data, box) {
+      this.opts = opts;
+      this.data = data;
+      this.over = doc.createElement('div');
+      this.over.className = 'fake-uplot-over';
+      box.appendChild(this.over);
+    };
+    window.uPlot.prototype.destroy = function () { this.over && this.over.remove(); };
+    let cfg1 = {
+      title: 'Revenue vs Cost', points: true,
+      labels: ['Revenue', 'Cost'],
+      data: [[1, 2, 3, 4, 5], [12, 18, 16, 22, 24], [8, 11, 13, 15, 18]],
+      series: [{ label: 'Revenue', stroke: '#2563eb' }, { label: 'Cost', stroke: '#dc2626' }],
+      w: 420, h: 220
+    };
+    window.mxUplotRender(uplotHost1.firstElementChild, cfg1);
+    if ((getPlot(uplotHost1)?.opts?.width || 0) === 420) pass('Section0 uPlot initial chart mounted'); else fail('Section0 uPlot initial chart did not mount');
+    cfg1 = window.setUplotWidth(cfg1, 600);
+    window.mxUplotRender(uplotHost1.firstElementChild, cfg1);
+    cfg1 = window.setUplotWidth(cfg1, 560);
+    window.mxUplotRender(uplotHost1.firstElementChild, cfg1);
+    if ((getPlot(uplotHost1)?.opts?.width || 0) === 560) pass('Section0 uPlot width updates more than once'); else fail('Section0 uPlot width did not update twice');
+    let cfg2 = window.cloneUplot(cfg1);
+    uplotHost2.style.display = '';
+    window.mxUplotRender(uplotHost2.firstElementChild, cfg2);
+    if ((getPlot(uplotHost2)?.opts?.title || '') === (getPlot(uplotHost1)?.opts?.title || '')) pass('Section0 uPlot duplicate chart renders second instance'); else fail('Section0 uPlot duplicate chart did not render second instance');
+    cfg1 = window.toggleUplot(window.stepUplot(cfg1));
+    cfg2 = window.cloneUplot(cfg1);
+    cfg1 = window.setUplotTitle(cfg1, 'Revenue vs Cost44');
+    cfg2 = window.setUplotTitle(cfg2, 'Revenue vs Cost44');
+    window.mxUplotRender(uplotHost1.firstElementChild, cfg1);
+    window.mxUplotRender(uplotHost2.firstElementChild, cfg2);
+    if ((getPlot(uplotHost1)?.opts?.title || '') === 'Revenue vs Cost44' && (getPlot(uplotHost2)?.opts?.title || '') === 'Revenue vs Cost44') pass('Section0 uPlot title updates after repeated changes'); else fail('Section0 uPlot title stopped updating after repeated changes');
+
     // Section 1: data-m-ex sync
     const nameInput = doc.getElementById('exUserNameInput');
     const nameOut = findByAttr('strong', 'data-m-ex:.@user.name');
