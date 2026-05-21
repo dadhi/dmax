@@ -34,6 +34,7 @@
 
     const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
+    const SEL_LEADS = '#.[*:', SSE_COMMENT = ':'
     const SI = 's', EP = DOT, SP = '_'
 
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
@@ -41,7 +42,7 @@
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_PREVENT = 'prevent'
     const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
-    const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code'
+    const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code', M_STAT = 'stat'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
     const M_BROTLI = 'brotli', M_BR = 'br', M_GZIP = 'gzip', M_DEFLATE = 'deflate', M_COMPRESS = 'compress'
     const M_REPLACE = 'replace', M_MERGE = 'merge', M_APPEND = 'append', M_PREPEND = 'prepend'
@@ -439,11 +440,11 @@
       return getSiValOrIt(parsed)
     }
 
-    const dmJsos = (v, sp = 2) => JSON.stringify(v, null, +(resolveMPathVal(sp) ?? 2) || 0)
+    const dmJsos = (v, sp = 2) => typeof v === 'string' ? v : JSON.stringify(v, null, +(resolveMPathVal(sp) ?? 2) || 0)
     const resolveHtmlSelector = (mPath) => {
       const v = resolveMPathVal(mPath)
       if (typeof v === 'string' && v) {
-        const c = v[0]; return (c === '#' || c === '.' || c === '[' || c === '*' || c === ':') ? v : '#' + v
+        const c = v[0]; return SEL_LEADS.includes(c) ? v : '#' + v
       }
       return ''
     }
@@ -452,12 +453,33 @@
       const p = mod.path
       return typeof p === 'string' ? mkIt(SI, null, p || fallbackRoot, null) : p?.isSi ? p : mkIt(SI, null, fallbackRoot, null)
     }
+    const STAT_KEYS = Object.freeze([M_BUSY, M_COMPLETE, M_ERR, M_CODE, M_SSE_OPEN, M_SSE_CLOSE, M_ABORT])
+    const STAT_DEFAULTS = Object.freeze({ [M_BUSY]: false, [M_COMPLETE]: false, [M_ERR]: null, [M_CODE]: null, [M_SSE_OPEN]: false, [M_SSE_CLOSE]: false, [M_ABORT]: null })
+    const mkStatFieldSi = (stat, key) => stat ? mkIt(SI, null, stat.root, stat.path ? stat.path.concat([key]) : [key]) : null
+    const defStatSi = (stat) => {
+      if (!stat) return null
+      let cur = _dm.get(stat.root)
+      if (!cur || typeof cur !== 'object') _dm.set(stat.root, cur = {})
+      let parent = cur
+      const path = stat.path
+      if (path && path.length) for (let i = 0; i < path.length; ++i) parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = {})
+      for (const key of STAT_KEYS) if (!(key in parent)) parent[key] = STAT_DEFAULTS[key]
+      return stat
+    }
+    const mkActStats = (mod) => {
+      const stat = defStatSi(mkOrStatSi(mod, M_STAT))
+      return stat ? Object.assign({ stat }, Object.fromEntries(STAT_KEYS.map(key => [key, mkStatFieldSi(stat, key)]))) : null
+    }
 
     const defSi = (si, val) => {
       if (si && !_dm.has(si.root)) _dm.set(si.root, val)
       return si
     }
     const setS = (dKey, stat, val) => stat && setSiAndNotifySubsNDeep(dKey, stat, val)
+    const setStatus = (dKey, stat, stats, key, val) => {
+      setS(dKey, stat, val)
+      if (stats) setS(dKey, stats[key], val)
+    }
 
     const isJsonContentType = (ct) => {
       const low = (ct || '').toLowerCase()
@@ -952,7 +974,9 @@
           try {
             for (const tar of tars) {
               failedTa = tar
-              const mode = getWriteMode(tar.mods), nextVal = tar.isSi ? combineActResult(getSiVal(tar), exprVal, mode) : combineActResult(getElPrVal(tar.root ? getElById(tar.root, dKey) : el, tar.path), exprVal, mode)
+              const mode = getWriteMode(tar.mods)
+              const outVal = tar.mods && tar.mods.some((m) => m.root === M_JSOS) ? dmJsos(exprVal) : exprVal
+              const nextVal = tar.isSi ? combineActResult(getSiVal(tar), outVal, mode) : combineActResult(getElPrVal(tar.root ? getElById(tar.root, dKey) : el, tar.path), outVal, mode)
               if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, nextVal)
               else setPr(el, dKey, tar, nextVal)
             }
@@ -1047,6 +1071,7 @@
       for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
     }
     globalThis.dm = DM
+    globalThis.dmJsos = dmJsos
     globalThis.wireNode = wireNode
     globalThis.dmScan = dmScan
 
@@ -1083,7 +1108,7 @@
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
       const resultTa = findFirstKind(tars, SI)
-      let busyMod = null, completeMod = null, errMod = null, codeMod = null
+      let busyMod = null, completeMod = null, errMod = null, codeMod = null, statMod = null
       let isJson = false, isText = false, isHtml = false, isForm = false, isSse = false, noCache = false
       let encBr = false, encGzip = false, encDeflate = false, encCompress = false
       let hdrsMod = null, authMod = null
@@ -1114,6 +1139,7 @@
         else if (mr === M_COMPLETE && !completeMod) completeMod = m
         else if (mr === M_ERR && !errMod) errMod = m
         else if (mr === M_CODE && !codeMod) codeMod = m
+        else if (mr === M_STAT && !statMod) statMod = m
         else if (mr === M_SSE_OPEN && !openMod) openMod = m
         else if (mr === M_SSE_CLOSE && !closeMod) closeMod = m
         else if (mr === M_RETRY && !retryMod) retryMod = m
@@ -1127,6 +1153,7 @@
       }
       if (resultTa && resultTa.mods) resultMode = getWriteMode(resultTa.mods)
       const busyStat = mkOrStatSi(busyMod, M_BUSY), completeStat = mkOrStatSi(completeMod, M_COMPLETE), errStat = mkOrStatSi(errMod, M_ERR), codeStat = mkOrStatSi(codeMod, M_CODE), openStat = mkOrStatSi(openMod, M_SSE_OPEN), closeStat = mkOrStatSi(closeMod, M_SSE_CLOSE), abortStat = mkOrStatSi(abortMod, M_ABORT)
+      const actStats = mkActStats(statMod)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
       defSi(busyStat, false), defSi(completeStat, false), defSi(errStat, null), defSi(codeStat, null), defSi(openStat, false), defSi(closeStat, false), defSi(abortStat, null)
@@ -1157,7 +1184,7 @@
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) return logErr('Error: dmAct: URL is empty in:', dKey)
-        setS(dKey, busyStat, true), setS(dKey, completeStat, false), setS(dKey, errStat, null), setS(dKey, codeStat, null)
+        setStatus(dKey, busyStat, actStats, M_BUSY, true), setStatus(dKey, completeStat, actStats, M_COMPLETE, false), setStatus(dKey, errStat, actStats, M_ERR, null), setStatus(dKey, codeStat, actStats, M_CODE, null)
         try {
           const queryParams = noProto(), bodyFields = noProto()
           if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
@@ -1215,7 +1242,7 @@
           }
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
-          setS(dKey, abortStat, activeAbort)
+          setStatus(dKey, abortStat, actStats, M_ABORT, activeAbort)
           const init = { method, headers: hs }
           if (body != null) init.body = body
           if (ac) init.signal = ac.signal
@@ -1223,11 +1250,11 @@
           const ct = (res.headers && res.headers.get('content-type')) || ''
           let payload, htmlApplied = false
           if (ct.includes('text/event-stream')) {
-            if (res.body && typeof res.body.getReader === 'function') payload = await consumeSseStream(res.body, dKey, openStat, closeStat, errStat)
+            if (res.body && typeof res.body.getReader === 'function') payload = await consumeSseStream(res.body, dKey, openStat, closeStat, errStat, actStats)
             else {
-              setS(dKey, openStat, true)
+              setStatus(dKey, openStat, actStats, M_SSE_OPEN, true)
               payload = applySse(await res.text(), dKey)
-              setS(dKey, openStat, false), setS(dKey, closeStat, true)
+              setStatus(dKey, openStat, actStats, M_SSE_OPEN, false), setStatus(dKey, closeStat, actStats, M_SSE_CLOSE, true)
             }
           } else if (isHtml && ct.includes('text/html')) {
             payload = await res.text()
@@ -1240,17 +1267,17 @@
           else payload = await res.text()
           if (!htmlApplied) applyActPayload(dKey, resultTa, payload, resultMode)
           if (!htmlApplied && patchAll) patchMatchingSis(dKey, payload, resultMode)
-          setS(dKey, busyStat, false), setS(dKey, completeStat, true), setS(dKey, errStat, null), setS(dKey, codeStat, Number.isFinite(res.status) ? res.status : null), setS(dKey, abortStat, null)
+          setStatus(dKey, busyStat, actStats, M_BUSY, false), setStatus(dKey, completeStat, actStats, M_COMPLETE, true), setStatus(dKey, errStat, actStats, M_ERR, null), setStatus(dKey, codeStat, actStats, M_CODE, Number.isFinite(res.status) ? res.status : null), setStatus(dKey, abortStat, actStats, M_ABORT, null)
           activeAbort = null
           if (retryDelay > 0 && ct.includes('text/event-stream') && !(ac && ac.signal.aborted)) setTimeout(doRequest, retryDelay)
         } catch (err) {
           activeAbort = null
-          setS(dKey, abortStat, null), setS(dKey, openStat, false)
+          setStatus(dKey, abortStat, actStats, M_ABORT, null), setStatus(dKey, openStat, actStats, M_SSE_OPEN, false)
           const isAbort = err && err.name === 'AbortError'
-          setS(dKey, busyStat, false), setS(dKey, completeStat, true)
+          setStatus(dKey, busyStat, actStats, M_BUSY, false), setStatus(dKey, completeStat, actStats, M_COMPLETE, true)
           if (!isAbort) {
-            setS(dKey, errStat, err && err.message ? err.message : '' + err)
-            setS(dKey, codeStat, Number.isFinite(err && err.status) ? err.status : null)
+            setStatus(dKey, errStat, actStats, M_ERR, err && err.message ? err.message : '' + err)
+            setStatus(dKey, codeStat, actStats, M_CODE, Number.isFinite(err && err.status) ? err.status : null)
             logErr('dmAct fail:', err)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
@@ -1571,7 +1598,7 @@
     }
     const consumeSseLine = (line, st, applied, dKey) => {
       if (!line) return flushSse(applied, st, dKey)
-      if (line[0] === ':') return
+      if (line[0] === SSE_COMMENT) return
       const ci = line.indexOf(':'), field = ci < 0 ? line : line.slice(0, ci)
       let val = ci < 0 ? '' : line.slice(ci + 1)
       if (val[0] === ' ') val = val.slice(1)
@@ -1604,7 +1631,7 @@
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.
     // onOpen() is called once when the first chunk arrives; onClose(err) when the stream ends.
-    const consumeSseStream = async (body, dKey, openStat, closeStat, errStat) => {
+    const consumeSseStream = async (body, dKey, openStat, closeStat, errStat, actStats) => {
       if (!body || typeof body.getReader !== 'function') return NIL
       const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false], RE_TRAILING_CR = /\r$/
       let buf = '', opened = false, streamErr = null
@@ -1614,8 +1641,8 @@
           if (done) break
           if (!opened) {
             opened = true
-            if (openStat) setSiAndNotifySubsNDeep(dKey, openStat, true)
-            if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, false)
+            setStatus(dKey, openStat, actStats, M_SSE_OPEN, true)
+            setStatus(dKey, closeStat, actStats, M_SSE_CLOSE, false)
           }
           buf += decoder.decode(value, { stream: true })
           let nl
@@ -1632,10 +1659,10 @@
         streamErr = e
         logErr('SSE stream error:', e)
       }
-      if (openStat) setSiAndNotifySubsNDeep(dKey, openStat, false)
+      setStatus(dKey, openStat, actStats, M_SSE_OPEN, false)
       if (streamErr) {
-        if (errStat) setSiAndNotifySubsNDeep(dKey, errStat, streamErr.message || '' + streamErr)
-      } else if (closeStat) setSiAndNotifySubsNDeep(dKey, closeStat, true)
+        setStatus(dKey, errStat, actStats, M_ERR, streamErr.message || '' + streamErr)
+      } else setStatus(dKey, closeStat, actStats, M_SSE_CLOSE, true)
       return applied
     }
 
