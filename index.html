@@ -387,9 +387,10 @@
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <div class="page"><code>data-m-get^sse^stat.sse-meta:sse-events@.=&quot;'/mock/dmax-sse'&quot;</code> Run the stream and look for both signal updates and morphed HTML in the SSE target.</div>
-        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
+        <div class="page"><code>data-m-get^sse^stat.sse-meta:sse-events@.=&quot;'/mock/dmax-sse'&quot;</code> Replays one short mocked SSE response through dmax's real SSE path, then closes. It updates signals and morphs the target once so the behavior is easy to inspect.</div>
+        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="'/mock/dmax-sse'">Replay one mocked SSE response</button>
         <div>Message: <span data-m-ex:.@sse-message="dm.sseMessage"></span> | Count: <span data-m-ex:.@sse-count="dm.sseCount"></span></div>
+        <div>SSE status: <span data-m-ex:.@sse-meta="!val ? 'idle' : val.open ? 'open' : val.close ? 'closed' : val.busy ? 'loading' : val.complete ? 'complete' : 'ready'"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-meta^jsos.2></pre>
       </div>
@@ -560,12 +561,12 @@
           }
           if (u === '/mock/dmax-sse') {
             const bodyText = [
-              'event: dmax-patch-signals',
-              'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
+              'event: dm-signals',
+              'data: dmSignals {"sseMessage":"hello from dmax","sseCount":1}',
               '',
-              'event: dmax-patch-elements',
+              'event: dm-elements',
               'data: mode outer',
-              'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+              'data: dmElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
               ''
             ].join('\n');
             let streamBody = null;

@@ -1164,9 +1164,9 @@
         else if (p && p.isSi) actRouteMods.push([b, p.path ? p.path.at(-1) : p.root, null, p])
       }
       const actHdrMods = []
-      for (const m of hdrMods) { const p = m.path, pLast = p && p.isSi ? (p.path ? p.path.at(-1) : p.root) : null
+      for (const m of hdrMods) { const p = m.path
         if (typeof p === 'string') actHdrMods.push([camelToKebab(p), p, null])
-        else if (pLast) actHdrMods.push([camelToKebab(pLast), null, p])
+        else if (p && p.isSi) actHdrMods.push([camelToKebab(p.path ? p.path.at(-1) : p.root), null, p])
       }
       const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
       const doRequest = async () => {
@@ -1177,8 +1177,7 @@
           const queryParams = noProto(), bodyFields = noProto(), addDst = isGetOrDelete ? queryParams : bodyFields
           if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
           for (const add of adds) {
-            const addEl = add.isEv ? (add.taEl || el) : null
-            const val = addEl ? getElPrVal(addEl, add.path) : add.isEv ? null : getSiValOrIt(add)
+            const val = add.isEv ? getElPrVal(add.taEl || el, add.path) : getSiValOrIt(add)
             if (add.spread) {
               if (val && typeof val === 'object') for (const k in val) if (hasOwn(val, k)) addDst[k] = val[k]
               else addDst.value = val
@@ -1208,9 +1207,9 @@
             }
           }
           for (const [kebabKey, path, ref] of actHdrMods) {
-            const mVal = ref ? getSiValOrIt(ref) : _dm.get(path)
             if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0
-            hs[kebabKey] = mVal != null ? '' + mVal : ''
+            const v = ref ? getSiValOrIt(ref) : _dm.get(path)
+            hs[kebabKey] = v != null ? '' + v : ''
           }
           let bodyCount = 0, firstBodyKey = null
           for (const bk in bodyFields) if (hasOwn(bodyFields, bk)) { if (!bodyCount) firstBodyKey = bk; bodyCount++ }
@@ -1252,17 +1251,16 @@
             applyActPayload(dKey, resultTa, payload, resultMode)
             if (patchAll) patchMatchingSis(dKey, payload, resultMode)
           }
-          const code = Number.isFinite(res.status) ? res.status : null
-          ss(M_BUSY, false), ss(M_COMPLETE, true), ss(M_ERR, null), ss(M_CODE, code), ss(M_ABORT, null)
+          ss(M_BUSY, false), ss(M_COMPLETE, true), ss(M_ERR, null), ss(M_CODE, Number.isFinite(res.status) ? res.status : null), ss(M_ABORT, null)
           activeAbort = null
           if (retryDelay > 0 && isSseCt && !(ac && ac.signal.aborted)) setTimeout(doRequest, retryDelay)
         } catch (err) {
           activeAbort = null
-          const isAbort = err && err.name === 'AbortError', code = Number.isFinite(err && err.status) ? err.status : null
+          const isAbort = err && err.name === 'AbortError'
           ss(M_ABORT, null), ss(M_SSE_OPEN, false), ss(M_BUSY, false), ss(M_COMPLETE, true)
           if (!isAbort) {
             ss(M_ERR, err && err.message ? err.message : '' + err)
-            ss(M_CODE, code)
+            ss(M_CODE, Number.isFinite(err && err.status) ? err.status : null)
             logErr('dmAct fail:', err)
             if (retryDelay > 0) setTimeout(doRequest, retryDelay)
           }
@@ -1463,8 +1461,8 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
-    const SSE_EV_PATCH_ELS = 'dmax-patch-elements', SSE_EV_PATCH_SIS = 'dmax-patch-signals'
-    const SSE_ELS = 'dmaxElements', SSE_SIS = 'dmaxSignals'
+    const SSE_EV_PATCH_ELS = 'dm-elements', SSE_EV_PATCH_SIS = 'dm-signals'
+    const SSE_ELS = 'dmElements', SSE_SIS = 'dmSignals'
 
     const parseSseEls = (html, ns) => {
       if (!html) return NIL
@@ -1611,7 +1609,7 @@
     }
 
     // Consume a text/event-stream response body incrementally using the Streams API.
-    // Applies dmax-patch-elements and dmax-patch-signals events as each SSE ev
+    // Applies dm-elements and dm-signals events as each SSE ev
     // arrives rather than after the full response is buffered, lowering first-update
     // latency and peak memory for large or long-lived streams.
     // Falls back gracefully when the browser/environment does not expose a ReadableStream body.

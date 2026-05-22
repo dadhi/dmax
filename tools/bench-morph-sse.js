@@ -300,11 +300,11 @@ function renderOobPatch(cells, row, col) {
 function makeSseOuter(html, selector = '') {
   const safeHtml = String(html).replace(/\r/g, '')
   const lines = [
-    'event: dmax-patch-elements',
+    'event: dm-elements',
     'data: mode outer'
   ]
   if (selector) lines.push(`data: selector ${selector}`)
-  for (const line of safeHtml.split('\n')) lines.push(`data: dmaxElements ${line}`)
+  for (const line of safeHtml.split('\n')) lines.push(`data: dmElements ${line}`)
   lines.push('')
   return lines.join('\n')
 }
@@ -593,7 +593,7 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateSmallUnchangedControls = () => v.assertState(payloads.expectedSmall, payloads.expectedFormBaseMorph, 'small-unchanged-controls')
-      return runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallOob }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseOob }), v.cellText, validateSmallUnchangedControls, validateBase, () => inspectBenchState(document, host))
+      return runScenario('resp-sse-els_oob_dom-patch_outer_small-diff', bmIters(500), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.smallOob }), () => applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.baseOob }), v.cellText, validateSmallUnchangedControls, validateBase, () => inspectBenchState(document, host))
     }),
     await withSampledWindow('dmax', 'resp-sse-html_full_dom-morph_morph_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxSse } = window
@@ -626,7 +626,7 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateSmallMorph = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallMorph, 'small-morph')
-      return runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallMorph, validateBase, () => inspectBenchState(document, host))
+      return runScenario('resp-html_full_dom-morph_morph_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.baseHtml }), v.cellText, validateSmallMorph, validateBase, () => inspectBenchState(document, host))
     }),
     await withSampledWindow('dmax', 'resp-html_full_dom-replace_outer_small-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
@@ -637,7 +637,7 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBaseReplace = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseReplace, 'base-replace')
       const validateSmallReplace = () => v.assertState(payloads.expectedSmall, payloads.expectedFormSmallReplace, 'small-replace')
-      return runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateSmallReplace, validateBaseReplace, () => inspectBenchState(document, host))
+      return runScenario('resp-html_full_dom-replace_outer_small-diff', bmIters(120), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmElements: payloads.smallHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmElements: payloads.baseHtml }), v.cellText, validateSmallReplace, validateBaseReplace, () => inspectBenchState(document, host))
     }),
     await withSampledWindow('dmax', 'resp-html_full_dom-morph_morph_large-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
@@ -648,7 +648,7 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBase = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseMorph, 'base')
       const validateLargeMorph = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeMorph, 'large-morph')
-      return runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeMorph, validateBase, () => inspectBenchState(document, host))
+      return runScenario('resp-html_full_dom-morph_morph_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.baseHtml }), v.cellText, validateLargeMorph, validateBase, () => inspectBenchState(document, host))
     }),
     await withSampledWindow('dmax', 'resp-html_full_dom-replace_outer_large-diff', loadDmaxWindow, async (window) => {
       const { document, applyDmaxPatchElements } = window
@@ -659,7 +659,7 @@ async function runDmaxScenarios(payloads) {
       const v = makeValidators(host, () => document.activeElement, payloads, 'dmax')
       const validateBaseReplace = () => v.assertState(payloads.expectedBase, payloads.expectedFormBaseReplace, 'base-replace')
       const validateLargeReplace = () => v.assertState(payloads.expectedLarge, payloads.expectedFormLargeReplace, 'large-replace')
-      return runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmaxElements: payloads.baseHtml }), v.cellText, validateLargeReplace, validateBaseReplace, () => inspectBenchState(document, host))
+      return runScenario('resp-html_full_dom-replace_outer_large-diff', bmIters(30), mountBase, () => applyDmaxPatchElements({ mode: 'replace', dmElements: payloads.largeHtml }), () => applyDmaxPatchElements({ mode: 'replace', dmElements: payloads.baseHtml }), v.cellText, validateLargeReplace, validateBaseReplace, () => inspectBenchState(document, host))
     })
   ]
 }
@@ -967,7 +967,7 @@ function formatParityProbe(probe) {
     ...withFw('fixi', await runFixiScenarios(payloads))
   ])
   const parityProbes = [
-    await withWindow(loadDmaxWindow, async (window) => probeMorphParity(window, payloads, 'dmax', () => window.applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.smallHtml }), () => window.applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.baseHtml }), () => window.applyDmaxPatchElements({ mode: 'outer', dmaxElements: payloads.largeHtml }))),
+    await withWindow(loadDmaxWindow, async (window) => probeMorphParity(window, payloads, 'dmax', () => window.applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.smallHtml }), () => window.applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.baseHtml }), () => window.applyDmaxPatchElements({ mode: 'outer', dmElements: payloads.largeHtml }))),
     await withWindow(loadDatastarWindow, async (window) => probeMorphParity(window, payloads, 'datastar', () => applyDatastarFragments(window, payloads.smallHtml, 'morph', '#bench-app'), () => applyDatastarFragments(window, payloads.baseHtml, 'morph', '#bench-app'), () => applyDatastarFragments(window, payloads.largeHtml, 'morph', '#bench-app'))),
     await withWindow(loadFixiWindow, async (window) => probeMorphParity(window, payloads, 'fixi', () => { const el = window.document.querySelector('#bench-app'); if (el) window.morph ? window.morph(el, payloads.smallHtml) : el.outerHTML = payloads.smallHtml }, () => { const el = window.document.querySelector('#bench-app'); if (el) window.morph ? window.morph(el, payloads.baseHtml) : el.outerHTML = payloads.baseHtml }, () => { const el = window.document.querySelector('#bench-app'); if (el) window.morph ? window.morph(el, payloads.largeHtml) : el.outerHTML = payloads.largeHtml }))
   ]
