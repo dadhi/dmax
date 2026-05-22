@@ -170,11 +170,12 @@
     }), 37], 'parse rejects variable bracket index trigger')
     __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { kind: MOD, not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
     __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods parsed pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '' }, 'compileMods null pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo' }, 'compileMods attrs path')
-    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '' }, 'compileMods flags/change mode')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
+    __assert(() => compileMods(__ev(), [{ root: M_JSOS, path: '4' }]).j, [], '4', 'compileMods jsos keeps raw arg')
     __assert(() => {
       const el = document.createElement('input')
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), NIL), E_TRIG_EL, E_TRIG_EV, false)
@@ -228,12 +229,6 @@
     __assert(mkOrStatSi, [{ path: 'complete' }, 'busy'], { kind: SI, not: null, root: 'complete', path: null }, 'status signal root string')
     __assert(mkOrStatSi, [{ path: __si('user', ['name']) }, 'busy'], { kind: SI, not: null, root: 'user', path: ['name'] }, 'status signal parsed path')
     __assert(mkOrStatSi, [{ path: null }, 'busy'], { kind: SI, not: null, root: 'busy', path: null }, 'status signal fallback')
-    __assert((si, val, nextVal) => {
-      _dm.clear()
-      defSi(si, val)
-      defSi(si, nextVal)
-      return _dm.get(si.root)
-    }, [{ root: 'busy' }, false, true], false, 'defSi keeps existing signal value')
     __assert(buildItItemRef, ['threads', ['replies'], 3], 'threads.replies.3', 'dmIt item ref helper')
     __assert(buildItItemRef, ['posts', null, 2], 'posts.2', 'dmIt item ref helper root only')
     __assert(buildItItemExpr, ['grid', ['0', 'items'], 2], 'dm.grid[0].items[2]', 'dmIt item expr helper')
@@ -503,6 +498,13 @@
       { trigVal: 9, detail: { type: 'custom-value', detail: { value: 9 } } },
       { trigVal: 12, detail: { type: 'custom-ms', detail: { ms: 12 } } }
     ], 'applyTrMs: event detail fallback');
+    function __tTrigModsJsos() {
+      __reset(); _dm.set('n', 2)
+      let out = null
+      applyTrMsMods((_dm, _el, _tr, val) => out = val, __si('foo'), [{ root: M_JSOS, path: 'n' }])(DM, null, null, { a: 1 }, null)
+      return out
+    }
+    __assert(__tTrigModsJsos, [], '{\n  "a": 1\n}', 'applyTrMs: jsos stringifies trigger value with signal indent');
     function __tTrigModsDebounce() {
       const st = setTimeout, ct = clearTimeout
       let id = 0
@@ -1360,77 +1362,39 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^busy.<signal> goes true while fetching then false on success', async () => {
+    __asyncAssert('^stat.<signal> tracks busy/complete/code on success', async () => {
       __reset()
       let resolveFetch
       window.fetch = () => new Promise(r => { resolveFetch = r })
       try {
         const btn = document.createElement('button')
-        _dm.set('busy', false)
+        _dm.set('req', null)
         _dm.set('data', null)
-        dmAct(btn, 'data-m-get^busy.busy:data@.click', '"https://api.test/data"')
+        dmAct(btn, 'data-m-get^stat.req:data@.click', '"https://api.test/data"')
         __fireEventSub(btn, 'click')
-        const busyDuring = DM['busy']
-        resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 42 })
+        const reqDuring = { ...DM['req'] }
+        resolveFetch({ ok: true, status: 204, headers: { get: () => 'application/json' }, json: async () => 42 })
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: { busyDuring, busyAfter: DM['busy'] },
-          expected: { busyDuring: true, busyAfter: false }
+          actual: { busyDuring: reqDuring.busy, completeDuring: reqDuring.complete, codeDuring: reqDuring.code, busyAfter: DM['req'].busy, completeAfter: DM['req'].complete, codeAfter: DM['req'].code },
+          expected: { busyDuring: true, completeDuring: false, codeDuring: null, busyAfter: false, completeAfter: true, codeAfter: 204 }
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^complete.<signal> is false before/during fetch then true on success', async () => {
-      __reset()
-      let resolveFetch
-      window.fetch = () => new Promise(r => { resolveFetch = r })
-      try {
-        const btn = document.createElement('button')
-        _dm.set('busy2', false)
-        _dm.set('done', false)
-        _dm.set('data2', null)
-        dmAct(btn, 'data-m-get^busy.busy2^complete.done:data2@.click', '"https://api.test/data"')
-        __fireEventSub(btn, 'click')
-        const completeDuring = DM['done']
-        resolveFetch({ ok: true, headers: { get: () => 'application/json' }, json: async () => 99 })
-        await new Promise(r => setTimeout(r, 0))
-        await new Promise(r => setTimeout(r, 0))
-        return {
-          actual: { completeDuring, completeAfter: DM['done'], busy: DM['busy2'] },
-          expected: { completeDuring: false, completeAfter: true, busy: false }
-        }
-      } finally { delete window.fetch }
-    })
-    __asyncAssert('^complete.<signal> is set true on fetch error', async () => {
-      __reset()
-      window.fetch = () => Promise.reject(new Error('fail'))
-      try {
-        const btn = document.createElement('button')
-        _dm.set('done2', false)
-        dmAct(btn, 'data-m-get^complete.done2:data@.click', '"https://api.test/data"')
-        __fireEventSub(btn, 'click')
-        await new Promise(r => setTimeout(r, 0))
-        await new Promise(r => setTimeout(r, 0))
-        return {
-          actual: { done: DM['done2'] },
-          expected: { done: true }
-        }
-      } finally { delete window.fetch }
-    })
-    __asyncAssert('fetch failure sets ^err.<signal> and clears ^busy.<signal>', async () => {
+    __asyncAssert('^stat.<signal> tracks err and complete on failure', async () => {
       __reset()
       window.fetch = () => Promise.reject(new Error('Network error'))
       try {
         const btn = document.createElement('button')
-        _dm.set('busy', false)
-        _dm.set('errMsg', null)
-        dmAct(btn, 'data-m-get^busy.busy^err.err-msg:data@.click', '"https://api.test/data"')
+        _dm.set('req2', null)
+        dmAct(btn, 'data-m-get^stat.req2:data@.click', '"https://api.test/data"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         await new Promise(r => setTimeout(r, 0))
         return {
-          actual: { busy: DM['busy'], err: DM['errMsg'] },
-          expected: { busy: false, err: 'Network error' }
+          actual: { busy: DM['req2'].busy, complete: DM['req2'].complete, err: DM['req2'].err, code: DM['req2'].code },
+          expected: { busy: false, complete: true, err: 'Network error', code: null }
         }
       } finally { delete window.fetch }
     })
@@ -2364,7 +2328,7 @@
     }
     __assert(__tMorphMixedKeyedUnkeyed, [], { k1same: true, k1text: 'K1 updated', count: 2 }, 'parity: mixed keyed/unkeyed list — keyed node reused and moved, unkeyed morphed in-place')
     // --- SSE lifecycle async tests ---
-    __asyncAssert('^open and ^close lifecycle signals are set during SSE stream', async () => {
+    __asyncAssert('^stat.<signal> tracks SSE open/close lifecycle', async () => {
       __reset()
       const lines = [
         'event: dmax-patch-signals',
@@ -2384,21 +2348,14 @@
           }
         }
       }
-      _dm.set('sseOpen', false)
-      _dm.set('sseClose', false)
-      await consumeSseStream(
-        fakeBody,
-        'test-lc',
-        { kind: SI, not: null, root: 'sseOpen', path: null },
-        { kind: SI, not: null, root: 'sseClose', path: null },
-        null
-      )
+      const stat = mkActStats({ path: 'feed', root: M_STAT })
+      await consumeSseStream(fakeBody, 'test-lc', stat)
       return {
-        actual: { lcVal: _dm.get('lcVal'), sseOpen: _dm.get('sseOpen'), sseClose: _dm.get('sseClose') },
-        expected: { lcVal: 42, sseOpen: false, sseClose: true }
+        actual: { lcVal: _dm.get('lcVal'), open: _dm.get('feed').open, close: _dm.get('feed').close },
+        expected: { lcVal: 42, open: false, close: true }
       }
     })
-    __asyncAssert('^open lifecycle signal set via dmAct ^open.sseOn^close.sseDone modifiers', async () => {
+    __asyncAssert('^stat.<signal> is wired through dmAct SSE modifiers', async () => {
       __reset()
       const lines = [
         'event: dmax-patch-signals',
@@ -2425,16 +2382,16 @@
       })
       try {
         const btn = document.createElement('button')
-        dmAct(btn, 'data-m-get^open.sseOn^close.sseDone@.click', "'/mock/lc2'")
+        dmAct(btn, 'data-m-get^sse^stat.feed@.click', "'/mock/lc2'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 30))
       } finally { delete window.fetch }
       return {
-        actual: { lc2Val: _dm.get('lc2Val'), sseOn: _dm.get('sseOn'), sseDone: _dm.get('sseDone') },
-        expected: { lc2Val: 7, sseOn: false, sseDone: true }
+        actual: { lc2Val: _dm.get('lc2Val'), open: _dm.get('feed').open, close: _dm.get('feed').close },
+        expected: { lc2Val: 7, open: false, close: true }
       }
     })
-    __asyncAssert('^abort signal lets callers cancel the fetch request', async () => {
+    __asyncAssert('^stat.<signal>.abort lets callers cancel the fetch request', async () => {
       __reset()
       let abortCalled = false
       let signalAborted = false
@@ -2453,11 +2410,11 @@
       }
       try {
         const btn = document.createElement('button')
-        dmAct(btn, 'data-m-get^abort.cancelFn@.click', "'/mock/long'")
+        dmAct(btn, 'data-m-get^stat.req@.click', "'/mock/long'")
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 10))
-        // Now cancel via the signal stored by ^abort
-        const cancelFn = _dm.get('cancelFn')
+        // Now cancel via the signal stored by ^stat.req.abort
+        const cancelFn = _dm.get('req') && _dm.get('req').abort
         if (typeof cancelFn === 'function') { cancelFn(); abortCalled = true }
         await new Promise(r => setTimeout(r, 20))
       } finally { delete window.fetch }

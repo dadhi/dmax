@@ -271,13 +271,13 @@ function* generateDataActionCombinations() {
     yield { attr: `data-m-${method}:result@.click`, valid: true, category: `${method}-basic` };
     yield { attr: `data-m-${method}^json:result@.click`, valid: true, category: `${method}-json` };
     yield { attr: `data-m-${method}+#input.value:result@.click`, valid: true, category: `${method}-input` };
-    yield { attr: `data-m-${method}^busy.busy^err.err:result@.click`, valid: true, category: `${method}-state` };
+    yield { attr: `data-m-${method}^stat.req:result@.click`, valid: true, category: `${method}-state` };
     // Test hyphenated signal names (must convert to camelCase)
     yield { attr: `data-m-${method}:post-result@.click`, valid: true, category: `${method}-hyphenated-target` };
     // Note: Actions don't support signal triggers (only event triggers like @#.click or @_interval.1000)
-    // Test state signals via modifiers
-    yield { attr: `data-m-${method}^busy.req-busy^err.req-err^code.req-code:result@.click`, valid: true, category: `${method}-state-modes` };
-    yield { attr: `data-m-${method}^busy.status:result@.click`, valid: true, category: `${method}-state-all` };
+    // Test state signals via grouped modifier
+    yield { attr: `data-m-${method}^stat.req-state:result@.click`, valid: true, category: `${method}-state-modes` };
+    yield { attr: `data-m-${method}^stat.status:result@.click`, valid: true, category: `${method}-state-all` };
     yield { attr: `data-m-${method}^hs.req-hs:result@.click`, valid: true, category: `${method}-headers-modifier` };
     yield { attr: `data-m-${method}^hs.raw-hs^hs-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
     yield { attr: `data-m-${method}^header.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };

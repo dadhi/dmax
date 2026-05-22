@@ -88,9 +88,9 @@ const FETCH_FAILURE_RE = /dmAct fail/;
 
     const exampleLabels = Array.from(doc.querySelectorAll('#ported-examples .page'));
     const labelCodes = Array.from(doc.querySelectorAll('#ported-examples .page code'));
-    if (exampleLabels.length >= 14) pass('Ported examples show visible attribute labels'); else fail('Ported examples missing visible attribute labels');
-    if (labelCodes.length >= 40) pass('Ported examples render dmax-driven code labels'); else fail('Ported examples missing dmax-driven code labels');
-    if (labelCodes.every((node) => /data-m-(ex|it|cl|sh|get|post|put|patch|delete|dbg|si|wc|no)/.test(node.textContent || ''))) pass('Ported example labels sync from source attributes'); else fail('Ported example labels do not match source attributes');
+    if (exampleLabels.length >= 14) pass('Runtime examples show visible attribute labels'); else fail('Runtime examples missing visible attribute labels');
+    if (labelCodes.length >= 40) pass('Runtime examples render dmax-driven code labels'); else fail('Runtime examples missing dmax-driven code labels');
+    if (labelCodes.every((node) => /data-m-(ex|it|cl|sh|get|post|put|patch|delete|dbg|si|wc|no)/.test(node.textContent || ''))) pass('Runtime example labels sync from source attributes'); else fail('Runtime example labels do not match source attributes');
     if (labelCodes.some((node) => /data-m-ex:.@count@#btn1@#btn2/.test(node.textContent || ''))) pass('Section4 label shows explicit multi-button triggers'); else fail('Section4 label missing explicit multi-button triggers');
 
     // Section 0: uPlot helpers keep charts live across repeated config changes
@@ -183,8 +183,9 @@ const FETCH_FAILURE_RE = /dmAct fail/;
     const pfont = findByAttr('p', 'data-m-ex:.style.font-size@user.ui.font-size');
     if (!range || !pfont) fail('Section2 font elements missing');
     range.value = '24';
+    fire(range, 'input');
     fire(range, 'change');
-    await sleep(60);
+    await waitFor(() => /24px/.test(pfont.style.fontSize || pfont.getAttribute('style') || ''), 500);
     if (/24px/.test(pfont.style.fontSize || pfont.getAttribute('style') || '')) pass('Section2 font-size sync'); else fail('Section2 font-size not applied');
 
     const checkbox = findByAttr('input', 'data-m-ex@.^rw@user.ui.is-active');
@@ -586,13 +587,13 @@ const FETCH_FAILURE_RE = /dmAct fail/;
 
     pageLogs.length = 0;
     fire(loadPost, 'click');
-    await waitFor(() => readState().postResult && readState().code === 200, 2000);
+    await waitFor(() => readState().postResult && readState().req && readState().req.code === 200, 2000);
     if (readState().postResult?.title === 'His mother had always taught him') pass('Section11 GET action populates DummyJSON post'); else fail('Section11 GET action did not populate post result');
     if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 GET action does not log fetch failure'); else fail('Section11 GET action logged fetch failure');
 
     pageLogs.length = 0;
     fire(createPost, 'click');
-    await waitFor(() => readState().createdPost && readState().code === 201, 2000);
+    await waitFor(() => readState().createdPost && readState().req && readState().req.code === 201, 2000);
     if (readState().createdPost?.title === 'I am in love with someone.') pass('Section11 POST action populates created post'); else fail('Section11 POST action did not populate created post');
     if (!pageLogs.some((l) => FETCH_FAILURE_RE.test(l))) pass('Section11 POST action does not log fetch failure'); else fail('Section11 POST action logged fetch failure');
 

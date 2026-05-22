@@ -188,9 +188,9 @@ function getPathname(url) {
   assert.deepStrictEqual(state1.postResult.reactions, { likes: 192, dislikes: 25 }, 'postResult uses DummyJSON reactions');
   assert.strictEqual(state1.postResult.views, 305, 'postResult uses DummyJSON views');
   assert.strictEqual(state1.postResult.userId, 121, 'postResult uses DummyJSON userId');
-  assert.strictEqual(state1.busy, false, 'busy is false after GET completion');
-  assert.strictEqual(state1.err, null, 'err is null on GET success');
-  assert.strictEqual(state1.code, 200, 'GET code is recorded');
+  assert.strictEqual(state1.req.busy, false, 'busy is false after GET completion');
+  assert.strictEqual(state1.req.err, null, 'err is null on GET success');
+  assert.strictEqual(state1.req.code, 200, 'GET code is recorded');
   assert.strictEqual(window.__lastRequest().init.method, 'GET', 'GET request uses GET method');
   assert.strictEqual(window.__lastRequest().url, 'https://dummyjson.com/posts/1', 'GET request uses DummyJSON endpoint');
   console.log('GET test passed');
@@ -216,9 +216,9 @@ function getPathname(url) {
   assert.strictEqual(state2.createdPost.title, 'Notebook post from test', 'createdPost reflects updated title');
   assert.strictEqual(state2.createdPost.body, 'Updated from the actions.e2e harness.', 'createdPost reflects updated body');
   assert.strictEqual(state2.createdPost.userId, Number(updatedUserId), 'createdPost normalizes userId to a number');
-  assert.strictEqual(state2.busy, false, 'POST busy false after completion');
-  assert.strictEqual(state2.err, null, 'POST err null on success');
-  assert.strictEqual(state2.code, 201, 'POST code is recorded');
+  assert.strictEqual(state2.req.busy, false, 'POST busy false after completion');
+  assert.strictEqual(state2.req.err, null, 'POST err null on success');
+  assert.strictEqual(state2.req.code, 201, 'POST code is recorded');
 
   const last = window.__lastRequest();
   assert.strictEqual(last.init.method, 'POST', 'POST request uses POST method');

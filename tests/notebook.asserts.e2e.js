@@ -71,7 +71,7 @@ function waitFor(conditionFn, timeout = 15000, interval = 100) {
   const helloStrong = Array.from(document.getElementsByTagName('strong')).find((el) =>
     el.closest('#ported-examples') && el.parentElement?.textContent?.includes('Hello,')
   );
-  assert.strictEqual(helloStrong?.textContent, 'Alice', 'ported examples stay rendered after asserts run');
+  assert.strictEqual(helloStrong?.textContent, 'Alice', 'runtime examples stay rendered after asserts run');
 
   console.log('Notebook asserts smoke test passed:', summaryText);
   process.exit(0);

@@ -85,8 +85,8 @@ Choose dmax when you want:
   <template><li data-m-ex:.="$it"></li></template>
 </ul>
 
-<button data-m-get^json^busy.loading:result@.click="'/api/data'">Load</button>
-<span data-m-sh@loading>Loading…</span>
+<button data-m-get^json^stat.req:result@.click="'/api/data'">Load</button>
+<span data-m-sh@req.busy>Loading…</span>
 
 <template data-m-wc="my-style-panel"><div>...</div></template>
 <my-style-panel data-m-ex:.open@panel.open></my-style-panel>
@@ -232,10 +232,6 @@ Event output stays on normal `data-m-ex` too:
 
 Action features include:
 - `^json`, `^text`, `^html`, `^form`
-- `^busy.<signal>`
-- `^complete.<signal>`
-- `^err.<signal>`
-- `^code.<signal>`
 - `^stat.<signal>` for grouped status fields `{busy, complete, err, code, open, close, abort}`
 - `^hs.<signal>`, `^header.<name>`, `^auth.<signal>`
 - `^url.<path>`, `^body.<path>`
@@ -251,16 +247,14 @@ Supported SSE events:
 - `dmax-patch-signals`
 
 Lifecycle helpers:
-- `^open.<signal>`
-- `^close.<signal>`
+- `^stat.<signal>`
 - `^retry.N`
-- `^abort.<signal>`
 
 Grouped status example:
 
 ```html
 <div data-m-get^sse^stat.feed@_init="'/stream'"></div>
-<pre data-m-ex:.@feed="JSON.stringify(dm.feed, null, 2)"></pre>
+<pre data-m-ex:.@feed^jsos.2></pre>
 ```
 
 This keeps all action lifecycle fields under one signal:

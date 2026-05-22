@@ -168,7 +168,7 @@
         "uplot":{"title":"Revenue vs Cost","points":true,"labels":["Revenue","Cost"],"data":[[1,2,3,4,5],[12,18,16,22,24],[8,11,13,15,18]],"series":[{"label":"Revenue","stroke":"#2563eb"},{"label":"Cost","stroke":"#dc2626"}],"w":420,"h":220},
         "uplot2":null,
         "uplot-last":null,
-        "sse-message":"","sse-count":0,"sse-status":null
+        "sse-message":"","sse-count":0,"sse-meta":null
       }'></div>
       <h4>0. uPlot host props and events</h4>
       <template data-m-wc="mx-uplot" data-m-wc-props="cfg"><div data-m-ex@.cfg="window.mxUplotRender(el, detail.detail)"></div></template>
@@ -186,7 +186,7 @@
         <p data-m-ex:.@uplot@uplot2="'title: ' + dm.uplot.title + ' · width: ' + dm.uplot.w + ' · points: ' + (dm.uplot.points ? 'on' : 'off') + ' · second chart: ' + (dm.uplot2 ? 'on' : 'off')"></p>
         <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point="{ from: 'uplot-1', ...val }"></mx-uplot>
         <mx-uplot id="uplotDemo2" style="display:none" data-m-ex:.style.display@uplot2="dm.uplot2 ? '' : 'none'" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point="{ from: 'uplot-2', ...val }"></mx-uplot>
-        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last="dm.uplotLast ? JSON.stringify(dm.uplotLast, null, 2) : 'click a point'" aria-label="uPlot point payload"></pre>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last^jsos.2="dm.uplotLast ? val : 'click a point'" aria-label="uPlot point payload"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
       <div class="page"><code>data-m-ex@.^rw@user.name</code> · <code>data-m-ex:user.name@.input=&quot;val&quot;</code> · <code>data-m-ex@.^rw^num@user.age</code> · <code>data-m-ex:user.age@.input^num=&quot;val&quot;</code> Type in the inputs and look for the greeting and age text to update while you type.</div>
@@ -282,7 +282,7 @@
         <template id="tpl-post">
           <li data-index="$ix" data-m-cl+zebra-even+!zebra-odd@posts="$ix % 2 === 0">
           <span class="num" data-m-ex:.@posts="$ix + 1"></span>
-          <span class="item" data-m-ex:.@posts="(typeof dm.posts[$ix] === 'object') ? JSON.stringify(dm.posts[$ix], null, 2) : dm.posts[$ix]" style="margin-left:8px"></span>
+          <span class="item" data-m-ex:.@posts^si.$ix^jsos.2="typeof dm.posts[$ix] === 'object' ? val : dm.posts[$ix]" style="margin-left:8px"></span>
         </li>
       </template>
       <ul id="dumpPostsPrimary" data-m-it+#tpl-post@posts></ul>
@@ -328,7 +328,7 @@
       <div class="page"><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), child: ((dm.demoParent &amp;&amp; dm.demoParent.child) || 0) + 1 }&quot;</code><br><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), addedAt: 'shape' }&quot;</code> · <code>data-m-ex:demo-parent@.=&quot;(({ addedAt, ...o }) =&gt; o)(dm.demoParent || {})&quot;</code> Compare content-only updates with shape changes; the shape subscriber should stay quiet until keys are added or removed.</div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <div>Parent signal preview:</div>
-        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-m-ex:.@demo-parent="JSON.stringify(dm.demoParent, null, 2)"></pre>
+        <pre id="demoState" style="background:#fafafa;padding:8px;border-radius:4px" data-m-ex:.@demo-parent^jsos.2></pre>
         <div style="margin-top:6px">
           <button id="demoChangeChild" data-m-ex:demo-parent@.="{ ...(dm.demoParent || {}), child: ((dm.demoParent && dm.demoParent.child) || 0) + 1 }">Change child (content)</button>
           <button id="demoAddKey" data-m-ex:demo-parent@.="{ ...(dm.demoParent || {}), addedAt: 'shape' }">Add key (shape)</button>
@@ -357,33 +357,33 @@
         </div>
       </div>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <div class="page"><code>data-m-get^busy.busy^err.err^code.code:post-result@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Run the request and look for busy/code fields plus the JSON payload below.</div>
-      <button id="loadPost" data-m-get^busy.busy^err.err^code.code:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
-      <div>Busy: <span data-m-ex:.@busy></span> | Error: <span data-m-ex:.@err></span> | Code: <span data-m-ex:.@code></span></div>
-      <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result="JSON.stringify(dm.postResult, null, 2)"></pre>
+      <div class="page"><code>data-m-get^stat.req:post-result@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
+      <button id="loadPost" data-m-get^stat.req:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
+      <div>Busy: <span data-m-ex:.@req.busy></span> | Error: <span data-m-ex:.@req.err></span> | Code: <span data-m-ex:.@req.code></span></div>
+      <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result^jsos.2></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <div class="page"><code>data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Same request, but watch the custom busy/error/code signals instead of the default ones.</div>
-        <button id="loadPostCustomBusy" data-m-get^busy.post-loading^err.post-error^code.post-code:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom busy/error/code signals)</button>
-        <strong style="margin-left:8px" data-m-sh:.@post-loading>Loading…</strong>
-        <div>Error: <span data-m-ex:.@post-error="dm.postError"></span> | Code: <span data-m-ex:.@post-code="dm.postCode"></span></div>
-        <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom="JSON.stringify(dm.postResultCustom, null, 2)"></pre>
+        <div class="page"><code>data-m-get^stat.post-state:post-result-custom@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
+        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom grouped status)</button>
+        <strong style="margin-left:8px" data-m-sh:.@post-state.busy>Loading…</strong>
+        <div>Error: <span data-m-ex:.@post-state.err></span> | Code: <span data-m-ex:.@post-state.code></span></div>
+        <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom^jsos.2></pre>
       </div>
       <div>
-        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
+        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^stat.req:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^busy.busy^err.err^code.code:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
-        <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="JSON.stringify(dm.createdPost, null, 2)"></pre>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^stat.req:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post^jsos.2></pre>
       </div>
       <div style="margin-top:8px;border:1px dashed #eab308;padding:8px">
-        <div class="page"><code>data-m-ex:.dataset.payload^jsos@created-post</code> writes JSON text into a data-* attribute without spelling out a manual stringify expression.</div>
-        <div id="jsosTarget" data-m-ex:.dataset.payload^jsos@created-post></div>
-        <pre style="background:#fffbeb;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post="dmJsos(val)"></pre>
+        <div class="page"><code>data-m-ex:.dataset.payload@created-post^jsos.2</code> writes JSON text into a data-* attribute without spelling out a manual stringify expression.</div>
+        <div id="jsosTarget" data-m-ex:.dataset.payload@created-post^jsos.2></div>
+        <pre style="background:#fffbeb;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post^jsos.2></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <div class="page"><code>data-m-get^html^busy.busy^err.err^code.code@.=&quot;'/mock/oob'&quot;</code> Run it and watch the target block morph without a full replace.</div>
-        <button id="oobLoad" data-m-get^html^busy.busy^err.err^code.code@.="'/mock/oob'">Load OOB HTML + morph</button>
+        <div class="page"><code>data-m-get^html^stat.req@.=&quot;'/mock/oob'&quot;</code> Run it and watch the target block morph without a full replace.</div>
+        <button id="oobLoad" data-m-get^html^stat.req@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
@@ -391,7 +391,7 @@
         <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="'/mock/dmax-sse'">Run dmax SSE stream</button>
         <div>Message: <span data-m-ex:.@sse-message="dm.sseMessage"></span> | Count: <span data-m-ex:.@sse-count="dm.sseCount"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
-        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-meta="JSON.stringify(dm.sseMeta, null, 2)"></pre>
+        <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-meta^jsos.2></pre>
       </div>
     </section>
     <section id="asserts-panel">
@@ -534,19 +534,6 @@
         }
       }
 
-      function initLiveDSubExamples() {
-        const liveForm = document.getElementById('live-form');
-        const liveBtn = document.getElementById('live-btn');
-        const liveName = document.getElementById('live-name');
-        if (!liveForm || !liveBtn || !liveName) return;
-        const liveTrigList = '@#live-btn.click@#live-name.value@_window.resize@_document.visibilitychange@_form.submit@_interval.2000@_timeout.1500';
-        dmEx(liveBtn, `data-m-ex:#live-raw${liveTrigList}`,
-          `JSON.stringify({dm, el: el && el.id, trig: trig && {kind: trig.kind, root: trig.root, path: trig.path}, val, detail})`);
-        dmEx(liveBtn, `data-m-ex:#live-branch${liveTrigList}`,
-          `trig && trig.kind === '${SP}' ? ('special:' + trig.root) : (trig && trig.path && trig.path[0] === 'value' ? 'prop-trigger' : 'event-trigger')`);
-        liveBtn.addEventListener('click', () => liveName.dispatchEvent(mkEv('change')));
-      }
-
       function installDemoFetchMock() {
         if (window.__dmaxDemoFetchInstalled && typeof window.fetch === 'function') return;
         const baseFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
@@ -606,15 +593,14 @@
         window.__dmaxDemoFetchInstalled = true;
       }
 
-      function initPortedExamples() {
+      function initExamples() {
         const roots = [document.getElementById('ported-examples'), document.getElementById('__fg_reactivity_tests')].filter(Boolean);
         if (!roots.length) return;
         for (const root of roots) dmScan(root);
         installDemoFetchMock();
       }
 
-      initLiveDSubExamples();
-      initPortedExamples();
+      initExamples();
       const dbgWrap = document.getElementById('dbg-wrap'), dbgToggle = document.getElementById('dbg-toggle');
       if (dbgWrap && dbgToggle) dbgToggle.addEventListener('click', () => {
         const open = dbgWrap.getAttribute('data-open') === '1';
