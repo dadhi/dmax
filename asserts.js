@@ -1272,6 +1272,27 @@
       } finally { tplEl.remove(); el.remove() }
     }
     __assert(__tDumpExplicitTemplate, [], 2, 'dmIt +#tplId explicit template reference appends 2 clones')
+    __assert(() => {
+      __reset()
+      _dm.set('user', { name: 'Ann' })
+      const seen = []
+      const off = dmSub('user.name', (v) => seen.push(v))
+      dmSet('user.name', 'Ada')
+      off()
+      dmSet('user.name', 'Bob')
+      return seen
+    }, [], ['Ann', 'Ada'], 'dmSub signal shorthand is immediate and cleanup stops later updates')
+    __assert(() => {
+      __reset()
+      const inp = document.createElement('input'), seen = []
+      const off = dmSub(inp, '.input^num', (v) => seen.push(v))
+      inp.value = '7'
+      __fireEventSub(inp, 'input')
+      off()
+      inp.value = '9'
+      __fireEventSub(inp, 'input')
+      return seen
+    }, [], [7], 'dmSub event shorthand reads element value and cleanup removes listener')
     // ---- dmAct async tests ----
     // Tests run sequentially to avoid concurrent __reset() interference with shared _subs/_dm state.
     let _asyncChain = Promise.resolve()
@@ -1287,6 +1308,33 @@
         })
       )
     }
+    __asyncAssert('public dmAct wrapper binds action attrs from JS', async () => {
+      __reset()
+      const fetchCalls = []
+      window.fetch = (url, init) => {
+        fetchCalls.push({ url, method: init.method })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const host = document.createElement('div')
+        _dm.set('go', 0)
+        _dm.set('res', null)
+        const off = globalThis.dmAct(host, 'get:res@go^notimmediate', '"https://api.test/pub"')
+        dmSet('go', 1)
+        await new Promise(r => setTimeout(r, 0))
+        off()
+        dmSet('go', 2)
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, res: DM['res'] },
+          expected: { calls: 1, method: 'GET', url: 'https://api.test/pub', res: { ok: true } }
+        }
+      } finally { delete window.fetch }
+    })
     __asyncAssert('GET ^immediate fires fetch and sets result', async () => {
       __reset()
       const fetchCalls = []
