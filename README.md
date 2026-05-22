@@ -243,8 +243,8 @@ Action features include:
 dmax supports `text/event-stream` action responses with incremental application.
 
 Supported SSE events:
-- `dmax-patch-elements`
-- `dmax-patch-signals`
+- `dm-elements`
+- `dm-signals`
 
 Lifecycle helpers:
 - `^stat.<signal>`
@@ -367,5 +367,7 @@ npm run test:min
 
 ## Current build sizes
 
-- `dmax.js` — 86,143 bytes
-- `dist/dmax.min.js` — 45,182 bytes
+- `dmax.js` — 84,241 bytes
+- `dist/dmax.min.js` — 45,889 bytes
+- `dist/dmax.min.js.gz` — 16,407 bytes
+- `dist/dmax.min.js.br` — 14,770 bytes

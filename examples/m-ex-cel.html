@@ -122,7 +122,7 @@
       }
       & .field-accent small {
         display: grid;
-        grid-template-columns: 1.5rem 1.5rem minmax(0, 1fr);
+        grid-template-columns: 1.5rem minmax(0, 1fr);
         gap: var(--space-2);
         align-items: center;
         color: var(--muted);
@@ -137,7 +137,6 @@
         background: linear-gradient(135deg, #fff, #e2e8f0);
         font: 700 .75rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       }
-      & .sw-fg { background: linear-gradient(135deg, #fff 0 50%, #0f172a 50%); }
       & .field-accent input[type='color'] {
         inline-size: 2.75rem;
         block-size: 2.25rem;
@@ -354,7 +353,7 @@
     mx-style-panel code { color: #475569; }
     mx-style-panel .tone {
       display: grid;
-      grid-template-columns: 1.5rem 1.5rem minmax(0, 1fr);
+      grid-template-columns: 1.5rem 2rem minmax(0, 1fr);
       gap: 6px;
       align-items: center;
     }
@@ -368,8 +367,8 @@
       background: linear-gradient(135deg, #fff, #e2e8f0);
       font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
-    mx-style-panel .sw-fg { background: linear-gradient(135deg, #fff 0 50%, #0f172a 50%); }
     mx-style-panel input { inline-size: 100%; font: inherit; }
+    mx-style-panel input[type='color'] { inline-size: 2rem; block-size: 2rem; padding: 0; border: 1px solid #cbd5e1; border-radius: 999px; background: transparent; }
     mx-style-panel input[type='text'] { padding: 6px 7px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
     mx-style-panel input[type='range'] { accent-color: #2563eb; }
     mx-style-panel input:focus-visible,
@@ -411,8 +410,8 @@
         <summary class="fab" aria-controls="mx-style-panel">◐</summary>
         <section class="panel" id="mx-style-panel">
           <h2>Style props</h2>
-          <p>Compact live tokens for this page.</p>
-          <div class="tools"><button type="button" data-m-ex:mx.style@.click="Object.fromEntries([...(dm.mxStyleDefs || []), ...(dm.mxToneDefs || [])].map(d => [d.key, d.val]))">reset</button></div>
+          <p>Compact live tokens for this page. Copy styles writes the current values as a <code>:root { ... }</code> block.</p>
+          <div class="tools"><button type="button" data-m-ex:mx@.click="window.mExCelCopyStyles(dm.mx)">copy styles</button><button type="button" data-m-ex:mx.style@.click="Object.fromEntries([...(dm.mxStyleDefs || []), ...(dm.mxToneDefs || [])].map(d => [d.key, d.val]))">reset</button></div>
           <section class="group"><h3>Layout</h3><dl data-m-it@mx-style-defs>
             <template>
               <div class="r">
@@ -425,7 +424,7 @@
             <template>
               <div class="r">
                 <dt><code title="$it.label" data-m-ex:.="$it.css"></code></dt>
-                <dd><div class="tone"><span class="sw" data-m-ex:.style.background@mx.style="((dm.mx.style || {})[$it.key]) || ''"></span><span class="sw sw-fg" data-m-ex:.style.color@mx.style="((dm.mx.style || {})[$it.key]) || ''">A</span><input type="text" data-m-ex:.value@mx.style="'' + (((dm.mx.style || {})[$it.key]) ?? '')" data-m-ex:mx.style@.input="{ ...(dm.mx.style || {}), [$it.key]: val }" data-m-ex:.title@mx.style="(($it.label || '') + ': ' + ((((dm.mx.style || {})[$it.key]) ?? '')))" aria-label="$it.label"></div></dd>
+                <dd><div class="tone"><span class="sw" data-m-ex:.style.background@mx.style="((dm.mx.style || {})[$it.key]) || ''"></span><input data-m-sh:.="$it.key === 'toneAccent'" type="color" value="#5d74ff" aria-label="Accent seed" data-m-ex:mx.style.tone-accent@.input="window.mExCelHexToOklch(val)"><input type="text" data-m-ex:.value@mx.style="'' + (((dm.mx.style || {})[$it.key]) ?? '')" data-m-ex:mx.style@.input="{ ...(dm.mx.style || {}), [$it.key]: val }" data-m-ex:.title@mx.style="(($it.label || '') + ': ' + ((((dm.mx.style || {})[$it.key]) ?? '')))" aria-label="$it.label"></div></dd>
               </div>
             </template>
           </dl></section>
@@ -460,7 +459,7 @@
             <input type="color" value="#5d74ff" aria-label="Accent seed" data-m-ex:mx.style.tone-accent@.input="window.mExCelHexToOklch(val)">
             <input type="text" aria-label="Accent OKLCH" data-m-ex@.^rw@mx.style.tone-accent>
           </div>
-          <small><span class="sw" data-m-ex:.style.background@mx.style="dm.mx.style && dm.mx.style.toneAccent || ''"></span><span class="sw sw-fg" data-m-ex:.style.color@mx.style="dm.mx.style && dm.mx.style.toneAccent || ''">A</span><code data-m-ex:.@mx.style.tone-accent></code></small>
+          <small><span class="sw" data-m-ex:.style.background@mx.style="dm.mx.style && dm.mx.style.toneAccent || ''"></span><code data-m-ex:.@mx.style.tone-accent></code></small>
         </label>
       </div>
       <dl class="stats">
@@ -518,7 +517,7 @@
               <template>
                 <tr>
                   <th scope="row" data-m-ex:.="$it.label"></th>
-                  <td data-m-ex:.="Array.isArray($it.cells) ? $it.cells.join(' · ') : ''"></td>
+                  <td data-m-ex:.@mx.updates="window.mExCelSummary(dm.mx, $ix).cells.join(' · ')"></td>
                 </tr>
               </template>
             </tbody>
@@ -568,6 +567,7 @@
         for (const row of mx.sheet.rows) for (const cell of row.cells) if (cell.id === id) return cell
         return { id, row: '', col: '', value: '', delta: 0 }
       }
+      window.mExCelSummary = (mx, ix) => (mx.summary && mx.summary[ix]) || { label: '', cells: EMPTY }
       const nextPatch = (mx) => {
         const sheet = clone(mx.sheet)
         const ri = mx.updates % sheet.rows.length
@@ -587,7 +587,7 @@
         return patch
       }
       const encoder = new TextEncoder()
-      const sseChunk = (patch) => `event: dmax-patch-signals\ndata: dmaxSignals ${JSON.stringify({ mx: patch })}\n\n`
+      const sseChunk = (patch) => `event: dm-signals\ndata: dmSignals ${JSON.stringify({ mx: patch })}\n\n`
       const mockSseResponse = (ms, signal) => {
         let timer = null, ctrl = null
         const close = () => {
@@ -630,6 +630,15 @@
         const l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b, m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b, s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
         const L = .2104542553 * Math.cbrt(l) + .793617785 * Math.cbrt(m) - .0040720468 * Math.cbrt(s), a = 1.9779984951 * Math.cbrt(l) - 2.428592205 * Math.cbrt(m) + .4505937099 * Math.cbrt(s), bb = .0259040371 * Math.cbrt(l) + .7827717662 * Math.cbrt(m) - .808675766 * Math.cbrt(s)
         return `oklch(${(L * 100).toFixed(1)}% ${Math.hypot(a, bb).toFixed(3)} ${(Math.atan2(bb, a) * 180 / Math.PI + 360) % 360 | 0})`
+      }
+      window.mExCelCopyStyles = (mx) => {
+        const style = mx.style || {}, defs = [...(window.dm.mxStyleDefs || EMPTY), ...(window.dm.mxToneDefs || EMPTY)]
+        const css = ':root {\n' + defs.map(d => {
+          const v = style[d.key], u = d.key.slice(0, 4) === 'tone' ? '' : d.key.slice(0, 4) === 'line' ? 'px' : 'rem'
+          return `  ${d.css}: ${v}${u};`
+        }).join('\n') + '\n}'
+        navigator.clipboard && navigator.clipboard.writeText(css)
+        return { ...mx, log: logMx(mx, 'copied :root style block') }
       }
       window.mExCelInit = () => enrichMx(clone(INIT_MX))
       window.mExCelPick = (mx, cell) => ({ ...enrichMx(mx), selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })

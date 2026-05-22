@@ -161,12 +161,12 @@ function getPathname(url) {
     }
     if (pathname === '/mock/dmax-sse') {
       return Promise.resolve(makeSseResponse([
-        'event: dmax-patch-signals',
-        'data: dmaxSignals {"sseMessage":"hello from dmax","sseCount":1}',
+        'event: dm-signals',
+        'data: dmSignals {"sseMessage":"hello from dmax","sseCount":1}',
         '',
-        'event: dmax-patch-elements',
+        'event: dm-elements',
         'data: mode outer',
-        'data: dmaxElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
+        'data: dmElements <div id="sseTarget"><strong>SSE morphed target</strong> <span>✓</span></div>',
         ''
       ].join('\n')));
     }
