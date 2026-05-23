@@ -341,16 +341,10 @@
           const al = a.length, bl = b.length
           return al == bl ? null : al > bl ? { addedRange: [bl, al - bl] } : { removedRange: [al, bl - al] }
         }
-        let added = []
-        for (const k in a) if (hasOwn(a, k)) added.push(k)
-        return { added, removedRange: [0, b.length] }
+        return { added: Object.keys(a), removedRange: [0, b.length] }
       }
 
-      if (Array.isArray(a)) {
-        let removed = []
-        for (const k in b) if (hasOwn(b, k)) removed.push(k)
-        return { removed, addedRange: [0, a.length] }
-      }
+      if (Array.isArray(a)) return { removed: Object.keys(b), addedRange: [0, a.length] }
 
       // Shallow object key shape diff: track added/removed keys only
       let added = [], removed = []
@@ -370,6 +364,7 @@
     const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16
     const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
+    const compileTrMods = (tr, globMods) => compileMods(tr, pickMods(tr.mods, globMods))
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
@@ -454,6 +449,7 @@
       return typeof p === 'string' ? mkIt(SI, null, p || fallbackRoot, null) : p?.isSi ? p : mkIt(SI, null, fallbackRoot, null)
     }
     const mkStatTar = (root, path, key) => ({ root, path: path ? path.concat(key) : [key] })
+    const STAT_KEYS_F = [M_BUSY, M_COMPLETE, M_SSE_OPEN, M_SSE_CLOSE], STAT_KEYS_N = [M_ERR, M_CODE, M_ABORT]
     const defStatSi = (stat) => {
       if (!stat) return null
       let cur = _dm.get(stat.root)
@@ -461,20 +457,17 @@
       let parent = cur
       const path = stat.path
       if (path && path.length) for (let i = 0; i < path.length; ++i) parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
-      if (!hasOwn(parent, M_BUSY)) parent[M_BUSY] = false
-      if (!hasOwn(parent, M_COMPLETE)) parent[M_COMPLETE] = false
-      if (!hasOwn(parent, M_ERR)) parent[M_ERR] = null
-      if (!hasOwn(parent, M_CODE)) parent[M_CODE] = null
-      if (!hasOwn(parent, M_SSE_OPEN)) parent[M_SSE_OPEN] = false
-      if (!hasOwn(parent, M_SSE_CLOSE)) parent[M_SSE_CLOSE] = false
-      if (!hasOwn(parent, M_ABORT)) parent[M_ABORT] = null
+      for (const k of STAT_KEYS_F) if (!hasOwn(parent, k)) parent[k] = false
+      for (const k of STAT_KEYS_N) if (!hasOwn(parent, k)) parent[k] = null
       return stat
     }
     const mkActStats = (mod) => {
       const stat = defStatSi(mkOrStatSi(mod, M_STAT))
       if (!stat) return null
-      const { root, path } = stat
-      return { [M_BUSY]: mkStatTar(root, path, M_BUSY), [M_COMPLETE]: mkStatTar(root, path, M_COMPLETE), [M_ERR]: mkStatTar(root, path, M_ERR), [M_CODE]: mkStatTar(root, path, M_CODE), [M_SSE_OPEN]: mkStatTar(root, path, M_SSE_OPEN), [M_SSE_CLOSE]: mkStatTar(root, path, M_SSE_CLOSE), [M_ABORT]: mkStatTar(root, path, M_ABORT) }
+      const { root, path } = stat, out = noProto()
+      for (const k of STAT_KEYS_F) out[k] = mkStatTar(root, path, k)
+      for (const k of STAT_KEYS_N) out[k] = mkStatTar(root, path, k)
+      return out
     }
 
     const isJsonContentType = (ct) => {
@@ -491,10 +484,11 @@
     const isPlainObj = (val) => !!val && typeof val === 'object' && !Array.isArray(val)
 
     const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
+    const forOwn = (obj, fn) => { for (const k in obj) if (hasOwn(obj, k)) fn(k, obj[k]) }
 
     const cloneOwnProps = (obj) => {
       const out = noProto()
-      for (const key in obj) if (hasOwn(obj, key)) out[key] = obj[key]
+      forOwn(obj, (k, v) => out[k] = v)
       return out
     }
 
@@ -502,7 +496,7 @@
       if (!base || base === ACT_HS_EMPTY) return extra || ACT_HS_EMPTY
       if (!extra || extra === ACT_HS_EMPTY) return base
       const out = cloneOwnProps(base)
-      for (const key in extra) if (hasOwn(extra, key)) out[key] = extra[key]
+      forOwn(extra, (k, v) => out[k] = v)
       return Object.freeze(out)
     }
 
@@ -617,9 +611,8 @@
     const mergeActVals = (prev, next) => {
       if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
       if (!isPlainObj(prev) || !isPlainObj(next)) return next
-      const out = noProto()
-      for (const k in prev) if (hasOwn(prev, k)) out[k] = prev[k]
-      for (const k in next) if (hasOwn(next, k)) out[k] = hasOwn(out, k) ? mergeActVals(out[k], next[k]) : next[k]
+      const out = cloneOwnProps(prev)
+      forOwn(next, (k, v) => out[k] = hasOwn(out, k) ? mergeActVals(out[k], v) : v)
       return out
     }
 
@@ -640,15 +633,12 @@
     const getWriteMode = (mods) => { for (const m of mods || NIL) if (m.root === M_REPLACE || m.root === M_MERGE || m.root === M_APPEND || m.root === M_PREPEND) return m.root; return M_REPLACE }
 
     const patchMatchingSis = (dKey, payload, resultMode) => {
-      // Patch-all operates on top-level object fields only; arrays have no stable field names to map onto root signals.
       if (!isPlainObj(payload)) return
-      for (const key in payload) {
-        if (!hasOwn(payload, key)) continue
+      forOwn(payload, (key, v) => {
         const root = kebabToCamel(key)
-        if (!_dm.has(root)) continue
-        const prev = _dm.get(root)
-        setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(prev, payload[key], resultMode))
-      }
+        if (!_dm.has(root)) return
+        setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), v, resultMode))
+      })
     }
 
     const applyActPayload = (dKey, resultTa, payload, resultMode) => {
@@ -922,7 +912,7 @@
       if (!tars.length && trigs.length) {
         const readTrs = [], writePrTrs = [], writeSiTrs = []
         for (const tr of trigs) {
-          const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
+          const mod = compileTrMods(tr, globMods)
           if(!(mod.f&MF_RW)){
             readTrs.push({ tr, mod })
             if (tr.isSi) writeSiTrs.push([tr, getWriteMode(tr.mods)])
@@ -981,7 +971,7 @@
       }
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return } let ran = false
       for (const tr of trigs) {
-        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
+        const mod = compileTrMods(tr, globMods)
         if (tr.isSi) {
           const sub = addTrSub(el, tr, mod, fn, elSubs)
           if (!ran && tr.isImmediate != false) ran = true, invokeBoundSub(sub)
@@ -993,55 +983,44 @@
         if ((ran = addNonSiTrSub(el, tr, mod, fn, elSubs, ran, prTa)) == null) return
       }
     }
+    const getTaFromTars = (el, dKey, tars) => { const p = findFirstKind(tars, EP); return (p && p.root) ? getElById(p.root, dKey) : el }
+    const wireTrLoop = (el, dKey, dVal, trigs, globMods, applySi, applyEv) => {
+      const fn = dVal ? compileFn(dVal, dKey) : null
+      if (dVal && !fn) return
+      const elSubs = upsert(_cleanupBoundSubs, el)
+      for (const tr of trigs) {
+        const mod = compileTrMods(tr, globMods)
+        if (tr.isSi) {
+          const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applySi(fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
+          if (tr.isImmediate != false) invokeBoundSub(sub)
+        } else {
+          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
+          if (tr.isEv && !prTa) return
+          if (addNonSiTrSub(el, tr, mod, (dm, _el, _trig, trigVal, detail) => applyEv(fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
+        }
+      }
+    }
     // - data-m-cl+active@is-active
     // - data-m-cl+active+!inactive@is-active="dm.isActive"
     const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!adds.length) return logErr('Error: dmCl requires class names via + syntax in:', dKey)
       if (!trigs.length) return logErr('Error: dmCl requires at least one trigger in:', dKey)
-      const prTa = findFirstKind(tars, EP)
-      const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
+      const taEl = getTaFromTars(el, dKey, tars)
       if (!taEl) return logErr('Error: dmCl target element not found in:', dKey)
-      const fn = dVal ? compileFn(dVal, dKey) : null
-      if (dVal && !fn) return
-      const elSubs = upsert(_cleanupBoundSubs, el)
-      for (const tr of trigs) {
-        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
-        if (tr.isSi) {
-          const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
-          if (tr.isImmediate != false) invokeBoundSub(sub)
-        } else {
-          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
-          if (tr.isEv && !prTa) return
-          if (addNonSiTrSub(el, tr, mod, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
-        }
-      }
+      wireTrLoop(el, dKey, dVal, trigs, globMods, (v) => applyClVal(adds, taEl, v), (v) => applyClVal(adds, taEl, v))
     }
     // - data-m-sh:.@is-visible
     // - data-m-sh:.@is-visible="!dm.isVisible"
     const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
       if (!trigs.length) return logErr('Error: dmSh requires at least one trigger in:', dKey)
-      const prTa = findFirstKind(tars, EP)
-      const taEl = (prTa && prTa.root) ? getElById(prTa.root, dKey) : el
+      const taEl = getTaFromTars(el, dKey, tars)
       if (!taEl) return logErr('Error: dmSh target element not found in:', dKey)
       const inline = (taEl.style && taEl.style.display) || ''
       const computed = getComputedDisplay(taEl)
       const origDisp = inline ? inline : (computed === 'none' || !computed ? 'block' : computed)
-      const fn = dVal ? compileFn(dVal, dKey) : null
-      if (dVal && !fn) return
-      const elSubs = upsert(_cleanupBoundSubs, el)
-      for (const tr of trigs) {
-        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
-        if (tr.isSi) {
-          const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, inline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
-          if (tr.isImmediate != false) invokeBoundSub(sub)
-        } else {
-          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
-          if (tr.isEv && !prTa) return
-          if (addNonSiTrSub(el, tr, mod, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, inline, origDisp, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
-        }
-      }
+      wireTrLoop(el, dKey, dVal, trigs, globMods, (v) => applyDisplayValue(taEl, inline, origDisp, v), (v) => applyDisplayValue(taEl, inline, origDisp, v))
     }
     const dataM = {}
     const wireNode = (n, an, v) => {
@@ -1078,7 +1057,6 @@
       if (!trigs.length) return logErr('Error: dmIt requires a signal trigger in:', dKey)
       const tr = trigs[0]
       if (!tr.isSi) return logErr('Error: dmIt trigger must be a signal in:', dKey)
-      const mods = pickMods(tr.mods, globMods)
       let tpl = null
       if (adds.length && adds[0].isEv && adds[0].root) tpl = getElById(adds[0].root, dKey)
       if (!tpl) tpl = el.querySelector('template')
@@ -1090,7 +1068,7 @@
       if (!itState) IT_STATES.set(el, itState = { nodes: [], count: 0 })
       const itemRefBase = buildItRefBase(tr.root, tr.path)
       const itemExprBase = buildItExprBase(tr.root, tr.path)
-      addTrSub(el, tr, compileMods(tr, mods), () => renderItState(el, tr, itState, tplFirst, itemRefBase, itemExprBase), upsert(_cleanupBoundSubs, el))
+      addTrSub(el, tr, compileTrMods(tr, globMods), () => renderItState(el, tr, itState, tplFirst, itemRefBase, itemExprBase), upsert(_cleanupBoundSubs, el))
       if (tr.isImmediate ?? true) renderItState(el, tr, itState, tplFirst, itemRefBase, itemExprBase)
     }
     // - data-m-get:result@.click="'/api/items'"
@@ -1144,11 +1122,7 @@
       const actStats = mkActStats(statMod)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
-      let enc = ''
-      if (encBr) enc = 'br'
-      if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
-      if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
-      if (encCompress) enc += (enc ? ', ' : '') + 'compress'
+      const enc = [encBr && 'br', encGzip && 'gzip', encDeflate && 'deflate', encCompress && 'compress'].filter(Boolean).join(', ')
       const baseHs = buildActBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
@@ -1179,7 +1153,7 @@
           for (const add of adds) {
             const val = add.isEv ? getElPrVal(add.taEl || el, add.path) : getSiValOrIt(add)
             if (add.spread) {
-              if (val && typeof val === 'object') for (const k in val) if (hasOwn(val, k)) addDst[k] = val[k]
+              if (val && typeof val === 'object') forOwn(val, (k, v) => addDst[k] = v)
               else addDst.value = val
             } else addDst[add.key] = val
           }
@@ -1192,12 +1166,12 @@
             if (isPlainObj(hdrObj)) {
               hs = noProto()
               sharedHs = 0
-              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + hdrObj[hk]
+              forOwn(hdrObj, (hk, v) => hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + v)
             }
           }
           if (baseHs !== ACT_HS_EMPTY) {
             if (hs === ACT_HS_EMPTY) hs = baseHs
-            else for (const hk in baseHs) if (hasOwn(baseHs, hk)) hs[hk] = baseHs[hk]
+            else forOwn(baseHs, (hk, v) => hs[hk] = v)
           }
           if (authPath != null) {
             const authVal = resolveMPathVal(authPath)
@@ -1219,7 +1193,7 @@
             if (isForm && (isPlainObj(raw) || Array.isArray(raw))) {
               const params = new URLSearchParams()
               if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) params.append('' + i, '' + (raw[i] ?? ''))
-              else for (const k in raw) if (hasOwn(raw, k)) params.append(k, '' + (raw[k] ?? ''))
+              else forOwn(raw, (k, v) => params.append(k, '' + (v ?? '')))
               body = params.toString()
             } else if (isJson || isPlainObj(raw) || Array.isArray(raw)) body = JSON.stringify(raw)
             else body = '' + raw
@@ -1276,7 +1250,7 @@
           if (!ran) ran = true, doRequest()
           continue
         }
-        const mods = pickMods(tr.mods, globMods), mod = compileMods(tr, mods)
+        const mod = compileTrMods(tr, globMods)
         if (tr.isSi) {
           addTrSub(el, tr, mod, doRequest, elSubs)
           if (!ran && tr.isImmediate) ran = true, doRequest()
@@ -1544,11 +1518,11 @@
       if (patch === null) return JSON_MERGE_DELETE
       if (!isPlainObj(patch)) return patch
       const out = isPlainObj(prev) ? cloneOwnProps(prev) : noProto()
-      for (const k in patch) if (hasOwn(patch, k)) {
-        const next = applyJsonMergePatch(out[k], patch[k])
+      forOwn(patch, (k, v) => {
+        const next = applyJsonMergePatch(out[k], v)
         if (next === JSON_MERGE_DELETE) delete out[k]
         else out[k] = next
-      }
+      })
       return out
     }
 
@@ -1559,16 +1533,16 @@
       try { patchObj = JSON.parse(raw) } catch (_) { return logErr('Error: patch sigs in', dKey, 'expect JSON but found invalid format') }
       if (!isPlainObj(patchObj)) return
       const onlyIfMissing = (args.onlyIfMissing || '').toLowerCase() === 'true'
-      for (const root in patchObj) if (hasOwn(patchObj, root)) {
-        if (onlyIfMissing && _dm.has(root)) continue
-        const next = applyJsonMergePatch(_dm.get(root), patchObj[root]), it = mkIt(SI, null, root, null)
+      forOwn(patchObj, (root, v) => {
+        if (onlyIfMissing && _dm.has(root)) return
+        const next = applyJsonMergePatch(_dm.get(root), v), it = mkIt(SI, null, root, null)
         if (next !== JSON_MERGE_DELETE) setSiAndNotifySubsNDeep(dKey, it, next)
         else if (_dm.has(root)) {
           setSiAndNotifySubsNDeep(dKey, it, undefined)
           _dm.delete(root)
           updateDebug()
         }
-      }
+      })
     }
 
     const flushSse = (applied, st, dKey) => {
@@ -1579,7 +1553,8 @@
       }
       st[0] = 'message', st[1] = null, st[2] = false
     }
-    const consumeSseLine = (line, st, applied, dKey) => {
+    const consumeSseLine = (raw, st, applied, dKey) => {
+      const line = raw[raw.length - 1] === '\r' ? raw.slice(0, -1) : raw
       if (!line) return flushSse(applied, st, dKey)
       if (line[0] === SSE_COMMENT) return
       const ci = line.indexOf(':'), field = ci < 0 ? line : line.slice(0, ci)
@@ -1597,13 +1572,13 @@
     }
     const applySse = (raw, dKey = 'dmax-sse') => {
       if (!raw) return NIL
-      const applied = [], text = '' + raw, st = ['message', null, false], RE_TRAILING_CR = /\r$/
+      const applied = [], text = '' + raw, st = ['message', null, false]
       let start = 0, nl
       while ((nl = text.indexOf('\n', start)) >= 0) {
-        consumeSseLine(text.slice(start, nl).replace(RE_TRAILING_CR, ''), st, applied, dKey)
+        consumeSseLine(text.slice(start, nl), st, applied, dKey)
         start = nl + 1
       }
-      if (start < text.length) consumeSseLine(text.slice(start).replace(RE_TRAILING_CR, ''), st, applied, dKey)
+      if (start < text.length) consumeSseLine(text.slice(start), st, applied, dKey)
       flushSse(applied, st, dKey)
       return applied
     }
@@ -1617,7 +1592,7 @@
     const consumeSseStream = async (body, dKey, actStats) => {
       if (!body || typeof body.getReader !== 'function') return NIL
       const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
-      const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false], RE_TRAILING_CR = /\r$/
+      const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false]
       let buf = '', opened = false
       try {
         for (;;) {
@@ -1626,11 +1601,11 @@
           if (!opened) opened = true, ss(M_SSE_OPEN, true), ss(M_SSE_CLOSE, false)
           buf += decoder.decode(value, { stream: true })
           let nl
-          while ((nl = buf.indexOf('\n')) >= 0) consumeSseLine(buf.slice(0, nl).replace(RE_TRAILING_CR, ''), st, applied, dKey), buf = buf.slice(nl + 1)
+          while ((nl = buf.indexOf('\n')) >= 0) consumeSseLine(buf.slice(0, nl), st, applied, dKey), buf = buf.slice(nl + 1)
         }
         const trailing = decoder.decode()
         if (trailing) buf += trailing
-        if (buf) consumeSseLine(buf.replace(RE_TRAILING_CR, ''), st, applied, dKey)
+        if (buf) consumeSseLine(buf, st, applied, dKey)
         flushSse(applied, st, dKey)
       } catch (e) {
         ss(M_SSE_OPEN, false)
