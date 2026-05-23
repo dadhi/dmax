@@ -1067,13 +1067,7 @@
       for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
     }
     const noOp = () => {}
-    const getApiDKey = (dKey, head = '') => dKey.indexOf(DM_KEY) === 0 ? dKey : DM_KEY + head + dKey
-    const getApiSiTar = (tar, dKey = 'dmSet') => {
-      if (tar?.kind) return tar.kind === SI ? tar : (logErr('dmSet signal target expected:', tar, dKey), null)
-      if (typeof tar !== 'string' || !tar) return logErr('dmSet signal target expected:', tar, dKey), null
-      const tr = parseCached(getApiDKey(tar, tar[0] === ':' ? 'si' : 'si:'))[TARG][0]
-      return tr?.kind === SI ? tr : (logErr('dmSet signal target expected:', tar, dKey), null)
-    }
+    const getApiDKey = (dKey, head) => dKey.indexOf(DM_KEY) === 0 ? dKey : DM_KEY + head + dKey
     const bindAddedSubs = (el, bind) => {
       if (!el || el.nodeType !== ELEMENT_NODE) return logErr('dm element expected:', el), noOp
       const elSubs = upsert(_cleanupBoundSubs, el), n = elSubs.length
@@ -1087,9 +1081,7 @@
         for (let i = 0; i < added.length; ++i) removeSubOrClearId(added[i])
         const live = _cleanupBoundSubs.get(el)
         if (!live) return
-        for (let i = live.length - 1; i >= 0; --i)
-          for (let j = 0; j < added.length; ++j)
-            if (live[i] === added[j]) { live.splice(i, 1); break }
+        for (let i = live.length - 1; i >= 0; --i) if (added.includes(live[i])) live.splice(i, 1)
       }
     }
     // - dmSet('user.name', 'Ada')
@@ -1099,30 +1091,33 @@
         for (const k in tar) if (hasOwn(tar, k)) dmSet(k, tar[k], dKey)
         return tar
       }
-      const tr = getApiSiTar(tar, dKey)
-      if (!tr) return null
-      setSiAndNotifySubsNDeep(dKey, tr, val)
+      if (tar?.kind) { if (tar.kind !== SI) return logErr('dmSet signal target expected:', tar, dKey), null }
+      else {
+        if (typeof tar !== 'string' || !tar) return logErr('dmSet signal target expected:', tar, dKey), null
+        tar = parseCached(getApiDKey(tar, tar[0] === ':' ? 'si' : 'si:'))[TARG][0]
+        if (tar?.kind !== SI) return logErr('dmSet signal target expected:', tar, dKey), null
+      }
+      setSiAndNotifySubsNDeep(dKey, tar, val)
       return val
     }
     // - const off = dmSub('user.name', (v) => console.log(v))
     // - const off = dmSub(btn, '.click^once', () => console.log('click'))
-    const dmSub = (a, b, c, el = typeof a === 'string' ? document.body : a, dKey = typeof a === 'string' ? a : b, fn = typeof a === 'string' ? b : c) => {
+    const dmSub = (a, b, c, isStr = typeof a === 'string', el = isStr ? document.body : a, dKey = getApiDKey(isStr ? a : b, 'ex@'), fn = isStr ? b : c) => {
       if (typeof fn !== 'function') return logErr('dmSub function expected:', dKey), noOp
-      dKey = getApiDKey(dKey, 'ex@')
       return bindAddedSubs(el, (host, elSubs) => {
         const it = parseCached(dKey), trigs = it[TRIG], globMods = it[MOD]
         if (!trigs.length || it[TARG].length || it[ADD].length) return logErr('dmSub triggers/mods only:', dKey)
         let ran = false
         for (const tr of trigs) {
-          const cb = (dm, _el, trig, trigVal, detail) => fn(trigVal, detail, trig, dm, host), mod = compileMods(tr, pickMods(tr.mods, globMods))
+          const mod = compileMods(tr, pickMods(tr.mods, globMods)), cb = (dm, _el, trig, trigVal, detail) => fn(trigVal, detail, trig, dm, host)
           if (tr.isSi) {
             const sub = addTrSub(host, tr, mod, cb, elSubs)
             if (tr.isImmediate != false) invokeBoundSub(sub)
-            continue
+          } else {
+            const prTa = tr.isEv ? getTrPrTa(host, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
+            if (tr.isEv && !prTa) return
+            if ((ran = addNonSiTrSub(host, tr, mod, cb, elSubs, ran, prTa)) == null) return
           }
-          const prTa = tr.isEv ? getTrPrTa(host, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
-          if (tr.isEv && !prTa) return
-          if ((ran = addNonSiTrSub(host, tr, mod, cb, elSubs, ran, prTa)) == null) return
         }
       })
     }
@@ -1354,7 +1349,7 @@
     }
     // - const off = dmAct(btn, 'get^stat.req:data@go^notimmediate', "'/api/data'")
     // - dmSet('go', 1)
-    const dmActApi = (el, dKey, dVal) => bindAddedSubs(el, (host) => dmAct(host, getApiDKey(dKey), dVal))
+    const dmActApi = (el, dKey, dVal) => bindAddedSubs(el, (host) => dmAct(host, getApiDKey(dKey, ''), dVal))
     const WC_TMPLS = new WeakSet(), WC_INITS = new WeakSet()
     const defWc = (tpl, name) => {
       if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
