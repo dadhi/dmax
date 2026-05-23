@@ -341,10 +341,16 @@
           const al = a.length, bl = b.length
           return al == bl ? null : al > bl ? { addedRange: [bl, al - bl] } : { removedRange: [al, bl - al] }
         }
-        return { added: Object.keys(a), removedRange: [0, b.length] }
+        let added = []
+        for (const k in a) if (hasOwn(a, k)) added.push(k)
+        return { added, removedRange: [0, b.length] }
       }
 
-      if (Array.isArray(a)) return { removed: Object.keys(b), addedRange: [0, a.length] }
+      if (Array.isArray(a)) {
+        let removed = []
+        for (const k in b) if (hasOwn(b, k)) removed.push(k)
+        return { removed, addedRange: [0, a.length] }
+      }
 
       // Shallow object key shape diff: track added/removed keys only
       let added = [], removed = []
@@ -484,11 +490,10 @@
     const isPlainObj = (val) => !!val && typeof val === 'object' && !Array.isArray(val)
 
     const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
-    const forOwn = (obj, fn) => { for (const k in obj) if (hasOwn(obj, k)) fn(k, obj[k]) }
 
     const cloneOwnProps = (obj) => {
       const out = noProto()
-      forOwn(obj, (k, v) => out[k] = v)
+      for (const key in obj) if (hasOwn(obj, key)) out[key] = obj[key]
       return out
     }
 
@@ -496,7 +501,7 @@
       if (!base || base === ACT_HS_EMPTY) return extra || ACT_HS_EMPTY
       if (!extra || extra === ACT_HS_EMPTY) return base
       const out = cloneOwnProps(base)
-      forOwn(extra, (k, v) => out[k] = v)
+      for (const key in extra) if (hasOwn(extra, key)) out[key] = extra[key]
       return Object.freeze(out)
     }
 
@@ -612,7 +617,7 @@
       if (Array.isArray(prev) && Array.isArray(next)) return prev.concat(next)
       if (!isPlainObj(prev) || !isPlainObj(next)) return next
       const out = cloneOwnProps(prev)
-      forOwn(next, (k, v) => out[k] = hasOwn(out, k) ? mergeActVals(out[k], v) : v)
+      for (const k in next) if (hasOwn(next, k)) out[k] = hasOwn(out, k) ? mergeActVals(out[k], next[k]) : next[k]
       return out
     }
 
@@ -634,11 +639,11 @@
 
     const patchMatchingSis = (dKey, payload, resultMode) => {
       if (!isPlainObj(payload)) return
-      forOwn(payload, (key, v) => {
+      for (const key in payload) if (hasOwn(payload, key)) {
         const root = kebabToCamel(key)
-        if (!_dm.has(root)) return
-        setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), v, resultMode))
-      })
+        if (!_dm.has(root)) continue
+        setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), payload[key], resultMode))
+      }
     }
 
     const applyActPayload = (dKey, resultTa, payload, resultMode) => {
@@ -984,22 +989,6 @@
       }
     }
     const getTaFromTars = (el, dKey, tars) => { const p = findFirstKind(tars, EP); return (p && p.root) ? getElById(p.root, dKey) : el }
-    const wireTrLoop = (el, dKey, dVal, trigs, globMods, applySi, applyEv) => {
-      const fn = dVal ? compileFn(dVal, dKey) : null
-      if (dVal && !fn) return
-      const elSubs = upsert(_cleanupBoundSubs, el)
-      for (const tr of trigs) {
-        const mod = compileTrMods(tr, globMods)
-        if (tr.isSi) {
-          const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applySi(fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
-          if (tr.isImmediate != false) invokeBoundSub(sub)
-        } else {
-          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
-          if (tr.isEv && !prTa) return
-          if (addNonSiTrSub(el, tr, mod, (dm, _el, _trig, trigVal, detail) => applyEv(fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
-        }
-      }
-    }
     // - data-m-cl+active@is-active
     // - data-m-cl+active+!inactive@is-active="dm.isActive"
     const dmCl = (el, dKey, dVal) => {
@@ -1008,7 +997,20 @@
       if (!trigs.length) return logErr('Error: dmCl requires at least one trigger in:', dKey)
       const taEl = getTaFromTars(el, dKey, tars)
       if (!taEl) return logErr('Error: dmCl target element not found in:', dKey)
-      wireTrLoop(el, dKey, dVal, trigs, globMods, (v) => applyClVal(adds, taEl, v), (v) => applyClVal(adds, taEl, v))
+      const fn = dVal ? compileFn(dVal, dKey) : null
+      if (dVal && !fn) return
+      const elSubs = upsert(_cleanupBoundSubs, el)
+      for (const tr of trigs) {
+        const mod = compileTrMods(tr, globMods)
+        if (tr.isSi) {
+          const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
+          if (tr.isImmediate != false) invokeBoundSub(sub)
+        } else {
+          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
+          if (tr.isEv && !prTa) return
+          if (addNonSiTrSub(el, tr, mod, (dm, _el, _trig, trigVal, detail) => applyClVal(adds, taEl, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
+        }
+      }
     }
     // - data-m-sh:.@is-visible
     // - data-m-sh:.@is-visible="!dm.isVisible"
@@ -1020,7 +1022,20 @@
       const inline = (taEl.style && taEl.style.display) || ''
       const computed = getComputedDisplay(taEl)
       const origDisp = inline ? inline : (computed === 'none' || !computed ? 'block' : computed)
-      wireTrLoop(el, dKey, dVal, trigs, globMods, (v) => applyDisplayValue(taEl, inline, origDisp, v), (v) => applyDisplayValue(taEl, inline, origDisp, v))
+      const fn = dVal ? compileFn(dVal, dKey) : null
+      if (dVal && !fn) return
+      const elSubs = upsert(_cleanupBoundSubs, el)
+      for (const tr of trigs) {
+        const mod = compileTrMods(tr, globMods)
+        if (tr.isSi) {
+          const sub = addTrSub(el, tr, mod, (dm, siEl, siTr, trigVal, detail) => applyDisplayValue(taEl, inline, origDisp, fn ? fn(dm, siEl, siTr, trigVal, detail) : trigVal), elSubs)
+          if (tr.isImmediate != false) invokeBoundSub(sub)
+        } else {
+          const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false) : null
+          if (tr.isEv && !prTa) return
+          if (addNonSiTrSub(el, tr, mod, (dm, _el, _trig, trigVal, detail) => applyDisplayValue(taEl, inline, origDisp, fn ? fn(dm, el, tr, trigVal, detail) : true), elSubs, false, prTa) == null) return
+        }
+      }
     }
     const dataM = {}
     const wireNode = (n, an, v) => {
@@ -1122,7 +1137,11 @@
       const actStats = mkActStats(statMod)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
-      const enc = [encBr && 'br', encGzip && 'gzip', encDeflate && 'deflate', encCompress && 'compress'].filter(Boolean).join(', ')
+      let enc = ''
+      if (encBr) enc = 'br'
+      if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
+      if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
+      if (encCompress) enc += (enc ? ', ' : '') + 'compress'
       const baseHs = buildActBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
@@ -1153,7 +1172,7 @@
           for (const add of adds) {
             const val = add.isEv ? getElPrVal(add.taEl || el, add.path) : getSiValOrIt(add)
             if (add.spread) {
-              if (val && typeof val === 'object') forOwn(val, (k, v) => addDst[k] = v)
+              if (val && typeof val === 'object') for (const k in val) if (hasOwn(val, k)) addDst[k] = val[k]
               else addDst.value = val
             } else addDst[add.key] = val
           }
@@ -1166,12 +1185,12 @@
             if (isPlainObj(hdrObj)) {
               hs = noProto()
               sharedHs = 0
-              forOwn(hdrObj, (hk, v) => hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + v)
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + hdrObj[hk]
             }
           }
           if (baseHs !== ACT_HS_EMPTY) {
             if (hs === ACT_HS_EMPTY) hs = baseHs
-            else forOwn(baseHs, (hk, v) => hs[hk] = v)
+            else for (const hk in baseHs) if (hasOwn(baseHs, hk)) hs[hk] = baseHs[hk]
           }
           if (authPath != null) {
             const authVal = resolveMPathVal(authPath)
@@ -1193,7 +1212,7 @@
             if (isForm && (isPlainObj(raw) || Array.isArray(raw))) {
               const params = new URLSearchParams()
               if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) params.append('' + i, '' + (raw[i] ?? ''))
-              else forOwn(raw, (k, v) => params.append(k, '' + (v ?? '')))
+              else for (const k in raw) if (hasOwn(raw, k)) params.append(k, '' + (raw[k] ?? ''))
               body = params.toString()
             } else if (isJson || isPlainObj(raw) || Array.isArray(raw)) body = JSON.stringify(raw)
             else body = '' + raw
@@ -1518,11 +1537,11 @@
       if (patch === null) return JSON_MERGE_DELETE
       if (!isPlainObj(patch)) return patch
       const out = isPlainObj(prev) ? cloneOwnProps(prev) : noProto()
-      forOwn(patch, (k, v) => {
-        const next = applyJsonMergePatch(out[k], v)
+      for (const k in patch) if (hasOwn(patch, k)) {
+        const next = applyJsonMergePatch(out[k], patch[k])
         if (next === JSON_MERGE_DELETE) delete out[k]
         else out[k] = next
-      })
+      }
       return out
     }
 
@@ -1533,16 +1552,16 @@
       try { patchObj = JSON.parse(raw) } catch (_) { return logErr('Error: patch sigs in', dKey, 'expect JSON but found invalid format') }
       if (!isPlainObj(patchObj)) return
       const onlyIfMissing = (args.onlyIfMissing || '').toLowerCase() === 'true'
-      forOwn(patchObj, (root, v) => {
-        if (onlyIfMissing && _dm.has(root)) return
-        const next = applyJsonMergePatch(_dm.get(root), v), it = mkIt(SI, null, root, null)
+      for (const root in patchObj) if (hasOwn(patchObj, root)) {
+        if (onlyIfMissing && _dm.has(root)) continue
+        const next = applyJsonMergePatch(_dm.get(root), patchObj[root]), it = mkIt(SI, null, root, null)
         if (next !== JSON_MERGE_DELETE) setSiAndNotifySubsNDeep(dKey, it, next)
         else if (_dm.has(root)) {
           setSiAndNotifySubsNDeep(dKey, it, undefined)
           _dm.delete(root)
           updateDebug()
         }
-      })
+      }
     }
 
     const flushSse = (applied, st, dKey) => {
