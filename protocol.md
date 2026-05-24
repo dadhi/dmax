@@ -103,6 +103,52 @@ data: {"selector":"#rows","html":"<tr><td>new</td></tr>","mode":"append"}
 
 ```
 
+### Fat page morph
+
+For a whole-page refresh that should preserve as much live DOM state as possible, send one large `outer` morph against a stable page root.
+
+Client markup:
+
+```html
+<main id="app-shell">...</main>
+```
+
+SSE frame:
+
+```text
+event: dm-elements
+data: {"selector":"#app-shell","mode":"outer","html":"<main id=\"app-shell\">...full new page body...</main>"}
+
+```
+
+Use this when the server already knows the next full page shape and you want one coarse morph instead of many small patches.
+
+### OOB-style side patches
+
+If the main response is one large morph but a few extra targets should update separately, emit more `dm-elements` events after it.
+
+```text
+event: dm-elements
+data: {"selector":"#app-shell","mode":"outer","html":"<main id=\"app-shell\">...full new page body...</main>"}
+
+event: dm-elements
+data: {"selector":"#toast","mode":"outer","html":"<aside id=\"toast\">saved</aside>"}
+
+event: dm-elements
+data: {"selector":"head title","mode":"outer","html":"<title>Orders · saved</title>"}
+
+```
+
+This gives the same practical effect people often want from OOB updates:
+- one main page/body morph
+- a few separately targeted patches
+- no special backend SDK layer
+
+A common pattern is:
+1. patch status signals with `dm-signals`
+2. morph the main page root with `dm-elements`
+3. patch small side targets with extra `dm-elements`
+
 ## Streaming both kinds together
 
 A stream may interleave signal and DOM work:
