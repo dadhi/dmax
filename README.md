@@ -21,12 +21,14 @@ Working order:
 Design bias:
 - prefer a few small orthogonal features over many special cases
 - when modifiers repeat, use simple deterministic rules
-- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`, `^qs`, `^qsa`) use last-wins
+- if you learn one dmax thing, you should mostly know the rest
+- prefer consistent naming and behavior over one-off shorthand exceptions
+- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`, `^sel`, `^sel-all`) use last-wins
 - write modes (`^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`) fall back to replace when a mode does not fit the target values
 
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmQs(...)`, `dmQsa(...)`.
+By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`.
 
 ## Distribution files
 
@@ -174,14 +176,15 @@ This is shorthand for writing `JSON.stringify(val)` yourself. The helper is also
 
 ### Query-read helpers
 
-Use `^qs` / `^qsa` when the trigger should read queried nodes instead of a default prop:
+Use `^sel` / `^sel-all` when the trigger should read queried nodes instead of a default prop:
 
 ```html
-<span data-m-ex:.@_init^qs.#status="val && val.textContent"></span>
-<span data-m-ex:.@_init^qsa..todo-item="val.length"></span>
+<span data-m-ex:.@_init^sel.#status="val && val.textContent"></span>
+<span data-m-ex:.@_init^sel-all..todo-item="val.length"></span>
 ```
 
-`^qs` returns the first matching node. `^qsa` returns an array of matching nodes.
+`^sel` returns the first matching node. `^sel-all` returns an array of matching nodes.
+The matching imperative helpers are `dmSel(sel, root)` and `dmSelAll(sel, root)`.
 
 ### Frame-deferral helper
 

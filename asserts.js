@@ -173,7 +173,7 @@
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_QSA, path: '.qsa-item' }]], { f: 0, d: 0, t: 0, p: null, v: '.qsa-item', c: SIG_CHANGED_ANY, s: MV_QSA, r: '', j: null }, 'compileMods qsa keeps raw selector')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_SEL_ALL, path: '.sel-probe-item' }]], { f: 0, d: 0, t: 0, p: null, v: '.sel-probe-item', c: SIG_CHANGED_ANY, s: MV_SEL_ALL, r: '', j: null }, 'compileMods sel-all keeps raw selector')
     __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).f, [[{ root: M_RAF, path: null }]], MF_RAF, 'compileMods raf flag')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
@@ -677,12 +677,12 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dmEx(el, 'data-m-ex:bar@foo^notimmediate', 'dm.foo');
+      dmEx(el, 'data-m-ex:bar@foo^not-immediate', 'dm.foo');
       const before = DM['bar'];
       setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       return { before, after: DM['bar'] };
     }
-    __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dmEx @foo^notimmediate skips setup run but handles later changes');
+    __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dmEx @foo^not-immediate skips setup run but handles later changes');
     function __tSubSignalEmptyExprNoTarget() {
       __reset();
       _dm.set('foo', 7);
@@ -938,22 +938,22 @@
     function __tInitQsaRead() {
       __reset();
       const host = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span');
-      a.className = b.className = 'qsa-item';
+      a.className = b.className = 'sel-probe-item';
       document.body.appendChild(a);
       document.body.appendChild(b);
-      try { dmEx(host, 'data-m-ex:count@_init^qsa..qsa-item', 'val.length'); return DM['count']; }
+      try { dmEx(host, 'data-m-ex:count@_init^sel-all..sel-probe-item', 'val.length'); return DM['count']; }
       finally { a.remove(); b.remove(); }
     }
-    __assert(__tInitQsaRead, [], 2, 'dmEx _init ^qsa reads matching elements');
+    __assert(__tInitQsaRead, [], 2, 'dmEx _init ^sel-all reads matching elements');
     function __tDmQsQsa() {
       __reset();
       const host = document.createElement('div');
       host.innerHTML = '<span class="a"></span><span class="a"></span>';
       document.body.appendChild(host);
-      try { return { one: !!dmQs('.a', host), many: dmQsa('.a', host).length }; }
+      try { return { one: !!dmSel('.a', host), many: dmSelAll('.a', host).length }; }
       finally { host.remove(); }
     }
-    __assert(__tDmQsQsa, [], { one: true, many: 2 }, 'dmQs/dmQsa query from element root');
+    __assert(__tDmQsQsa, [], { one: true, many: 2 }, 'dmSel/dmSelAll query from element root');
 
     function __tSubRepeatedPermitGating() {
       __reset();
@@ -1030,13 +1030,13 @@
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
-      dmEx(inp, 'data-m-ex^notimmediate:name@.')
+      dmEx(inp, 'data-m-ex^not-immediate:name@.')
       const sigBeforeChange = DM['name']
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       return { sigBeforeChange, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSubPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dmEx ^notimmediate matches default prop->signal timing');
+    __assert(__tSubPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dmEx ^not-immediate matches default prop->signal timing');
     function __tSubRwCheckboxDefaultProp() {
       __reset();
       const cb = document.createElement('input')
@@ -1172,13 +1172,13 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', true)
-      dmCl(div, 'data-m-cl+active@active^notimmediate')
+      dmCl(div, 'data-m-cl+active@active^not-immediate')
       const hadBefore = div.classList.contains('active')
       setSiAndNotifySubs('t', { root: 'active', path: null }, false)
       const hadAfter = div.classList.contains('active')
       return { hadBefore, hadAfter }
     }
-    __assert(__tClassNotImmediate, [], { hadBefore: false, hadAfter: false }, 'dmCl ^notimmediate skips setup run');
+    __assert(__tClassNotImmediate, [], { hadBefore: false, hadAfter: false }, 'dmCl ^not-immediate skips setup run');
     function __tDispHideShow() {
       __reset()
       const div = document.createElement('div')
@@ -1239,13 +1239,13 @@
       const div = document.createElement('div')
       div.style.display = 'block'
       _dm.set('show', false)
-      dmSh(div, 'data-m-sh:.@show^notimmediate')
+      dmSh(div, 'data-m-sh:.@show^not-immediate')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'show', path: null }, true)
       const displayAfter = div.style.display
       return { displayBefore, displayAfter }
     }
-    __assert(__tDispNotImmediate, [], { displayBefore: 'block', displayAfter: 'block' }, 'dmSh ^notimmediate skips setup run');
+    __assert(__tDispNotImmediate, [], { displayBefore: 'block', displayAfter: 'block' }, 'dmSh ^not-immediate skips setup run');
     function __tDumpAppendOnly() {
       __reset()
       const el = document.createElement('ul')
@@ -1347,13 +1347,13 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['x', 'y'])
-        dmIt(el, 'data-m-it@items^notimmediate')
+        dmIt(el, 'data-m-it@items^not-immediate')
         const before = el.children.length
         setSiAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
         return { before, after: el.children.length }
       } finally { el.remove() }
     }
-    __assert(__tDumpNotImmediate, [], { before: 0, after: 3 }, 'dmIt ^notimmediate skips initial render and still responds to later changes')
+    __assert(__tDumpNotImmediate, [], { before: 0, after: 3 }, 'dmIt ^not-immediate skips initial render and still responds to later changes')
     function __tDumpExplicitTemplate() {
       __reset()
       const tplEl = document.createElement('template')
@@ -1420,7 +1420,7 @@
         const host = document.createElement('div')
         _dm.set('go', 0)
         _dm.set('res', null)
-        const off = globalThis.dmAct(host, 'get:res@go^notimmediate', '"https://api.test/pub"')
+        const off = globalThis.dmAct(host, 'get:res@go^not-immediate', '"https://api.test/pub"')
         dmSet('go', 1)
         await new Promise(r => setTimeout(r, 0))
         off()
