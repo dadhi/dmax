@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "jsdom": "^27.4.0",
-    "terser": "^5.47.1"
+    "terser": "^5.48.0"
   },
   "scripts": {
     "vendor:libs": "node tools/vendor-libs.js",
