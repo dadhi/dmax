@@ -28,6 +28,8 @@ Design bias:
 
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
+Backend note: dmax does not require a backend SDK. See `protocol.md` for the plain HTML/JSON/SSE contract.
+
 By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`.
 
 ## Distribution files
@@ -265,6 +267,7 @@ Action features include:
 ### SSE
 
 dmax supports `text/event-stream` action responses with incremental application.
+See `protocol.md` for exact wire shapes and no-SDK backend examples.
 
 Supported SSE events:
 - `dm-elements`
@@ -391,6 +394,7 @@ Choose Fixi if you want:
 | `index.html` | notebook + live examples |
 | `examples/m-ex-cel.html` | single-file semantic SSE/grid example |
 | `asserts.js` | inline assert helpers used by notebook tests |
+| `protocol.md` | backend wire contract: HTML, JSON, SSE, `dm-signals`, `dm-elements` |
 | `wc.md` | `data-m-wc` design sketch |
 | `style.md` | style-system principles for examples |
 
