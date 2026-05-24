@@ -173,7 +173,9 @@
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_QSA, path: '.qsa-item' }]], { f: 0, d: 0, t: 0, p: null, v: '.qsa-item', c: SIG_CHANGED_ANY, s: MV_QSA, r: '', j: null }, 'compileMods qsa keeps raw selector')
     __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
+    __assert((mods) => compileMods(__ev(), mods).f, [[{ root: M_RAF, path: null }]], MF_RAF, 'compileMods raf flag')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => compileMods(__ev(), [{ root: M_JSOS, path: '4' }]).j, [], '4', 'compileMods jsos keeps raw arg')
     __assert(() => {
@@ -547,6 +549,23 @@
       }
     }
     __assert(__tTrigModsThrottle, [], [1, 3], 'applyTrMs: throttle rate limit');
+    function __tTrigModsRaf() {
+      const raf = requestAnimationFrame
+      const q = []
+      requestAnimationFrame = (fn) => (q.push(fn), q.length)
+      try {
+        const out = []
+        const trig = __ev()
+        const h = applyTrMsMods((_dm, _el, _trig, trigVal) => out.push(trigVal), trig, [{ root: M_RAF, path: null }])
+        h(DM, null, trig, 1, null)
+        h(DM, null, trig, 2, null)
+        if (q[0]) q[0]()
+        return out
+      } finally {
+        requestAnimationFrame = raf
+      }
+    }
+    __assert(__tTrigModsRaf, [], [2], 'applyTrMs: raf coalesces to next frame');
     function __tTrigModsRepeatedPermitChecks() {
       __reset();
       _dm.set('gateA', true)
@@ -704,6 +723,18 @@
       return DM['foo'];
     }
     __assert(__tSubTarAppendFallback, [], 3, 'dmEx target ^append falls back to replace');
+    function __tSubTarIncDec() {
+      __reset();
+      _dm.set('n', 2);
+      const incEl = document.createElement('button'), decEl = document.createElement('button');
+      dmEx(incEl, 'data-m-ex:n^inc@.click', '');
+      dmEx(decEl, 'data-m-ex:n^dec@.click', '');
+      __fireEventSub(incEl, 'click');
+      const inc = DM['n'];
+      __fireEventSub(decEl, 'click');
+      return { inc, dec: DM['n'] };
+    }
+    __assert(__tSubTarIncDec, [], { inc: 3, dec: 2 }, 'dmEx target ^inc/^dec updates current numeric target by one');
     function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });
@@ -857,6 +888,63 @@
       return DM['counter'];
     }
     __assert(__tSubSpecialInitRanImmediateDedup, [], 1, 'dmEx _init with signal trigger: only one init run (ranImmediate dedup)');
+    function __tSubWindowHashPr() {
+      __reset();
+      const host = document.createElement('div');
+      dmEx(host, 'data-m-ex:urlHash@_window.hashchange^pr.location.hash', 'val');
+      window.location.hash = '#pop-a';
+      window.dispatchEvent(new Event('hashchange'));
+      return DM['urlHash'];
+    }
+    __assert(__tSubWindowHashPr, [], '#pop-a', 'dmEx _window.hashchange ^pr reads current hash');
+    function __tSubHistoryPushStateTar() {
+      __reset();
+      _dm.set('navUrl', '/next');
+      const host = document.createElement('div');
+      let args = null; const prev = history.pushState;
+      history.pushState = (...xs) => { args = xs; };
+      try { dmEx(host, 'data-m-ex:_history.push-state@nav-url', '[null, "", val]'); }
+      finally { history.pushState = prev; }
+      return args;
+    }
+    __assert(__tSubHistoryPushStateTar, [], [null, '', '/next'], 'dmEx _history.push-state writes history');
+    function __tCustomElDefaultPropAndEvent() {
+      __reset();
+      if (!customElements.get('x-assert-value')) customElements.define('x-assert-value', class extends HTMLElement { constructor() { super(); this.value = ''; } });
+      const wc = document.createElement('x-assert-value');
+      dmEx(wc, 'data-m-ex:.@foo', 'val');
+      dmSet('foo', 9);
+      dmEx(wc, 'data-m-ex:pick@.pick', 'val');
+      wc.dispatchEvent(new CustomEvent('pick', { detail: { value: 7 } }));
+      dmEx(wc, 'data-m-ex:pickObj@.pick-obj', 'val && val.a');
+      wc.dispatchEvent(new CustomEvent('pick-obj', { detail: { a: 3 } }));
+      return { prop: wc.value, pick: DM['pick'], pickObj: DM['pickObj'], def: getDefaultPr(wc) };
+    }
+    __assert(__tCustomElDefaultPropAndEvent, [], { prop: 9, pick: 7, pickObj: 3, def: 'value' }, 'custom element defaults use value prop and event detail');
+    function __tShadowRootScanAndCleanup() {
+      __reset();
+      const host = document.createElement('div'), shadow = host.attachShadow({ mode: 'open' });
+      shadow.innerHTML = '<span data-m-ex:.@foo></span>';
+      document.body.appendChild(host);
+      dmScan(shadow);
+      dmSet('foo', 'A');
+      const span = shadow.querySelector('span'), before = span.textContent;
+      host.remove();
+      cleanupBoundSubsDeep(host);
+      dmSet('foo', 'B');
+      return { before, after: span.textContent };
+    }
+    __assert(__tShadowRootScanAndCleanup, [], { before: 'A', after: 'A' }, 'dmScan wires shadow root and cleanup reaches shadow subtree');
+    function __tInitQsaRead() {
+      __reset();
+      const host = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span');
+      a.className = b.className = 'qsa-item';
+      document.body.appendChild(a);
+      document.body.appendChild(b);
+      try { dmEx(host, 'data-m-ex:count@_init^qsa..qsa-item', 'val.length'); return DM['count']; }
+      finally { a.remove(); b.remove(); }
+    }
+    __assert(__tInitQsaRead, [], 2, 'dmEx _init ^qsa reads matching elements');
 
     function __tSubRepeatedPermitGating() {
       __reset();
@@ -2560,9 +2648,6 @@
     __assert(samePath, [['a', 'b'], ['a', 'c']], false, 'samePath different last element')
     __assert(samePath, [['a'], ['a', 'b']], false, 'samePath different lengths')
     __assert(samePath, [[], []], true, 'samePath both empty')
-    __assert(pickMods, [[], ['fallback']], ['fallback'], 'pickMods uses fallback when local empty')
-    __assert(pickMods, [['local'], ['fallback']], ['local'], 'pickMods uses local when non-empty')
-    __assert(pickMods, [[], []], [], 'pickMods both empty returns empty')
     __assert(isPlainObj, [{}], true, 'isPlainObj plain object')
     __assert(isPlainObj, [{ a: 1 }], true, 'isPlainObj object with prop')
     __assert(isPlainObj, [[]], false, 'isPlainObj array rejected')
@@ -2590,6 +2675,8 @@
     __assert(combineActResult, ['hello ', 'world', 'append'], 'hello world', 'combineActResult append strings')
     __assert(combineActResult, ['world', 'hello ', 'prepend'], 'hello world', 'combineActResult prepend strings')
     __assert(combineActResult, [[2, 3], [1], 'prepend'], [1, 2, 3], 'combineActResult prepend arrays reversed')
+    __assert(combineActResult, [2, 9, 'inc'], 3, 'combineActResult inc uses current target value')
+    __assert(combineActResult, [2, 9, 'dec'], 1, 'combineActResult dec uses current target value')
     __assert(getSimpleIdSelector, [''], null, 'getSimpleIdSelector empty string is null')
     __assert(getSimpleIdSelector, ['#foo'], 'foo', 'getSimpleIdSelector plain id')
     __assert(getSimpleIdSelector, ['#foo.bar'], null, 'getSimpleIdSelector compound selector rejected')
