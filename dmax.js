@@ -408,7 +408,7 @@
       let ev = tr.path ? tr.path[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = tr.path, ev = getDefaultEv(taEl)
       const readEl = (mod.s === MV_PR || mod.s === MV_ATTRS) && mod.r ? getElById(mod.r, dKey) : taEl
-      const readPath = mod.s === MV_PR ? mod.v.length ? mod.v : prPath : mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? mod.v : prPath
+      const readPath = mod.s === MV_PR || mod.s === MV_EV ? mod.v.length ? mod.v : prPath : mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? mod.v : prPath
       if (usePrPath && mod.s === MV_PR && !mod.r && mod.v.length) prPath = mod.v
       ev = ev ?? getDefaultEv(taEl)
       if (!ev) return logErr('Error:', missEvMsg, tr, 'in:', dKey), null
@@ -711,6 +711,7 @@
     const dmSel = (sel, root = document) => root.querySelector(sel || '')
     const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
     const getReadVal = (readEl, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(readEl, readPath) : mod.s === MV_SEL ? dmSel(readPath, getQueryRoot(readEl)) : mod.s === MV_SEL_ALL ? dmSelAll(readPath, getQueryRoot(readEl)) : getElPrVal(readEl, readPath)
+    const getTrVal = (detail, readEl, mod, readPath) => mod.s === MV_EV ? readPath?.length ? getElPrVal(detail, readPath) : getEvVal(detail) : getReadVal(readEl, mod, readPath)
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
@@ -743,7 +744,7 @@
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, mod.s === MV_PR || mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? getReadVal(taEl, mod, readPath) : detail?.type ?? null, el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, mod.s === MV_PR || mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL || mod.s === MV_EV ? getTrVal(detail, taEl, mod, readPath) : detail?.type ?? null, el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -761,7 +762,7 @@
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS, customEv = taEl?.tagName && taEl.tagName.indexOf('-') >= 0, ev = customEv ? camelToKebab(evName) : evName
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub), useEv = !mod.s && !readPath && customEv
-      sub.fn = (detail) => invokeSub(modded, detail, useEv ? getEvVal(detail) : getReadVal(readEl, mod, readPath), el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, useEv ? getEvVal(detail) : getTrVal(detail, readEl, mod, readPath), el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -909,7 +910,7 @@
             return
           }
         }
-        let trVal = readM === MV_EV && !isSig ? getEvVal(detail) : isSig ? (providedVal ?? getSiVal(trIt)) : providedVal ?? getEvVal(detail)
+        let trVal = isSig ? (providedVal ?? getSiVal(trIt)) : readM === MV_EV ? valPath.length ? detail : getEvVal(detail) : providedVal ?? getEvVal(detail)
         if (useVal) trVal = getPrValAndDepth(trVal, valPath)[0]
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
