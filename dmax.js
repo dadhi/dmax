@@ -595,25 +595,21 @@
       if (!expected(Array.isArray(val), 'dmIt expected array value from:', tr, 'on:', el)) return
       const newLen = val.length, oldLen = itState.count || 0
       if (newLen < oldLen) {
-        for (let i = 0; i < oldLen - newLen; i++) {
-            const node = itState.nodes.pop()
-          if (node && node.parentNode) node.parentNode.removeChild(node)
-        }
+        for (let i = 0; i < oldLen - newLen; i++) { const node = itState.nodes.pop(); if (node && node.parentNode) node.parentNode.removeChild(node) }
         itState.count = newLen
       }
       if (newLen > oldLen) {
-        const frag = document.createDocumentFragment()
-        for (let idx = oldLen; idx < newLen; idx++) {
-          try {
-            const node = tplFirst.cloneNode(true)
-            const idxText = '' + idx
-            rewriteItBindings(node, itemRefBase + '.' + idxText, itemExprBase + '[' + idxText + ']', idxText)
-            frag.appendChild(node)
-            itState.nodes.push(node)
-          } catch { }
+        const count = newLen - oldLen
+        if (count === 1) {
+          const node = tplFirst.cloneNode(true), idxText = '' + oldLen
+          rewriteItBindings(node, itemRefBase + '.' + idxText, itemExprBase + '[' + idxText + ']', idxText)
+          el.appendChild(node), itState.nodes.push(node)
+        } else {
+          const frag = document.createDocumentFragment()
+          for (let idx = oldLen; idx < newLen; idx++) { try { const node = tplFirst.cloneNode(true), idxText = '' + idx; rewriteItBindings(node, itemRefBase + '.' + idxText, itemExprBase + '[' + idxText + ']', idxText); frag.appendChild(node); itState.nodes.push(node) } catch { } }
+          el.appendChild(frag)
         }
-        el.appendChild(frag)
-        for (let i = itState.nodes.length - (newLen - oldLen); i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
+        for (let i = itState.nodes.length - count; i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
         itState.count = newLen
       }
     }
@@ -976,19 +972,11 @@
       }
       if (tars.length) {
         const rawFn = fn
+        for (const tar of tars) { tar._m = getWriteMode(tar.mods); tar._j = !!(tar.mods && tar.mods.some((m) => m.root === M_JSOS)); if (!tar.isSi) tar._el = tar.isSp ? tar.root === SP_WIN ? window : tar.root === SP_DOC ? document : tar.root === SP_HISTORY ? window.history : null : tar.root ? getElById(tar.root, dKey) : null }
         fn = (dm, el, trig, trigVal, detail) => {
           const exprVal = rawFn(dm, el, trig, trigVal, detail)
-          let failedTa = null
-          try {
-            for (const tar of tars) {
-              failedTa = tar
-              const mode = getWriteMode(tar.mods)
-              const outVal = tar.mods && tar.mods.some((m) => m.root === M_JSOS) ? dmJsos(exprVal) : exprVal
-              const nextVal = tar.isSi ? combineActResult(getSiVal(tar), outVal, mode) : combineActResult(getElPrVal(tar.isSp ? tar.root === SP_WIN ? window : tar.root === SP_DOC ? document : tar.root === SP_HISTORY ? window.history : null : tar.root ? getElById(tar.root, dKey) : el, tar.path), outVal, mode)
-              if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, nextVal)
-              else setPr(el, dKey, tar, nextVal)
-            }
-          } catch (e) { logErr('Error: setting target', failedTa, 'in', dKey, 'ended with ex:', e) }
+          try { for (const tar of tars) { const outVal = tar._j ? dmJsos(exprVal) : exprVal; const nextVal = tar.isSi ? combineActResult(getSiVal(tar), outVal, tar._m) : combineActResult(getElPrVal(tar._el || el, tar.path), outVal, tar._m); if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, nextVal); else setPr(el, dKey, tar, nextVal) } }
+          catch (e) { logErr('Error: setting target in', dKey, 'ended with ex:', e) }
         }
       }
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return } let ran = false
@@ -1240,6 +1228,7 @@
         else if (p && p.isSi) actHdrMods.push([camelToKebab(p.path ? p.path.at(-1) : p.root), null, p])
       }
       const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
+      const hasAdds = adds.length > 0, hasRouteMods = actRouteMods.length > 0
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
         if (!url) return logErr('Error: dmAct: URL is empty in:', dKey)
@@ -1247,53 +1236,27 @@
         try {
           const queryParams = noProto(), bodyFields = noProto(), addDst = isGetOrDelete ? queryParams : bodyFields
           if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
-          for (const add of adds) {
+          if (hasAdds) for (const add of adds) {
             const val = add.isEv ? getElPrVal(add.taEl || el, add.path) : getSiValOrIt(add)
             if (add.spread) {
               if (val && typeof val === 'object') for (const k in val) if (hasOwn(val, k)) addDst[k] = val[k]
               else addDst.value = val
             } else addDst[add.key] = val
           }
-          for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
+          if (hasRouteMods) for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
           let finalUrl = url, hasQ = finalUrl.includes('?')
           for (const k in queryParams) finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent('' + (queryParams[k] ?? '')), hasQ = true
           let hs = ACT_HS_EMPTY, sharedHs = 1
-          if (hdrsPath) {
-            const hdrObj = resolveMPathVal(hdrsPath)
-            if (isPlainObj(hdrObj)) {
-              hs = noProto()
-              sharedHs = 0
-              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + hdrObj[hk]
-            }
-          }
-          if (baseHs !== ACT_HS_EMPTY) {
-            if (hs === ACT_HS_EMPTY) hs = baseHs
-            else for (const hk in baseHs) if (hasOwn(baseHs, hk)) hs[hk] = baseHs[hk]
-          }
-          if (authPath != null) {
-            const authVal = resolveMPathVal(authPath)
-            if (authVal != null) {
-              if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0
-              hs[H_AUTHORIZATION] = '' + authVal
-            }
-          }
-          for (const [kebabKey, path, ref] of actHdrMods) {
-            if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0
-            const v = ref ? getSiValOrIt(ref) : _dm.get(path)
-            hs[kebabKey] = v != null ? '' + v : ''
-          }
-          let bodyCount = 0, firstBodyKey = null
+          if (hdrsPath) { const hdrObj = resolveMPathVal(hdrsPath); if (isPlainObj(hdrObj)) { hs = noProto(); sharedHs = 0; for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + hdrObj[hk] } }
+          if (baseHs !== ACT_HS_EMPTY) { if (hs === ACT_HS_EMPTY) hs = baseHs; else for (const hk in baseHs) if (hasOwn(baseHs, hk)) hs[hk] = baseHs[hk] }
+          if (authPath != null) { const authVal = resolveMPathVal(authPath); if (authVal != null) { if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0; hs[H_AUTHORIZATION] = '' + authVal } }
+          for (const [kebabKey, path, ref] of actHdrMods) { if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0; const v = ref ? getSiValOrIt(ref) : _dm.get(path); hs[kebabKey] = v != null ? '' + v : '' }
+          let bodyCount = 0, firstBodyKey = null, body = null
           for (const bk in bodyFields) if (hasOwn(bodyFields, bk)) { if (!bodyCount) firstBodyKey = bk; bodyCount++ }
-          let body = null
           if (bodyCount) {
             const raw = bodyCount === 1 ? bodyFields[firstBodyKey] : bodyFields
-            if (isForm && (isPlainObj(raw) || Array.isArray(raw))) {
-              const params = new URLSearchParams()
-              if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) params.append('' + i, '' + (raw[i] ?? ''))
-              else for (const k in raw) if (hasOwn(raw, k)) params.append(k, '' + (raw[k] ?? ''))
-              body = params.toString()
-            } else if (isJson || isPlainObj(raw) || Array.isArray(raw)) body = JSON.stringify(raw)
-            else body = '' + raw
+            if (isForm && (isPlainObj(raw) || Array.isArray(raw))) { const params = new URLSearchParams(); if (Array.isArray(raw)) for (let i = 0; i < raw.length; i++) params.append('' + i, '' + (raw[i] ?? '')); else for (const k in raw) if (hasOwn(raw, k)) params.append(k, '' + (raw[k] ?? '')); body = params.toString() }
+            else body = isJson || isPlainObj(raw) || Array.isArray(raw) ? JSON.stringify(raw) : '' + raw
           }
           const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
           activeAbort = ac ? () => ac.abort() : null
