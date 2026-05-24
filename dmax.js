@@ -369,8 +369,7 @@
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
     const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16
-    const pickMods = (localMods, fallbackMods) => localMods.length ? localMods : fallbackMods
-    const compileTrMods = (tr, globMods) => compileMods(tr, pickMods(tr.mods, globMods))
+    const compileTrMods = (tr, globMods) => compileMods(tr, tr.mods.length ? tr.mods : globMods)
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
