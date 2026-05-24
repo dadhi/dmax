@@ -26,7 +26,7 @@ Design bias:
 
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`.
+By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmQs(...)`, `dmQsa(...)`.
 
 ## Distribution files
 

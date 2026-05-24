@@ -945,6 +945,15 @@
       finally { a.remove(); b.remove(); }
     }
     __assert(__tInitQsaRead, [], 2, 'dmEx _init ^qsa reads matching elements');
+    function __tDmQsQsa() {
+      __reset();
+      const host = document.createElement('div');
+      host.innerHTML = '<span class="a"></span><span class="a"></span>';
+      document.body.appendChild(host);
+      try { return { one: !!dmQs('.a', host), many: dmQsa('.a', host).length }; }
+      finally { host.remove(); }
+    }
+    __assert(__tDmQsQsa, [], { one: true, many: 2 }, 'dmQs/dmQsa query from element root');
 
     function __tSubRepeatedPermitGating() {
       __reset();

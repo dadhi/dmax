@@ -707,12 +707,10 @@
       }
       return out
     }
-    const getQueryRoot = (readEl) => {
-      let root = readEl?.getRootNode?.() || readEl?.ownerDocument || document
-      if (root === readEl && readEl?.ownerDocument) root = readEl.ownerDocument
-      return root && typeof root.querySelectorAll === 'function' ? root : document
-    }
-    const getReadVal = (readEl, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(readEl, readPath) : mod.s === MV_QS ? getQueryRoot(readEl).querySelector(readPath || '') : mod.s === MV_QSA ? Array.from(getQueryRoot(readEl).querySelectorAll(readPath || '')) : getElPrVal(readEl, readPath)
+    const getQueryRoot = (el, root = el?.getRootNode?.() || el?.ownerDocument || document) => ((root === el && el?.ownerDocument && (root = el.ownerDocument)), root && typeof root.querySelectorAll === 'function' ? root : document)
+    const dmQs = (sel, root = document) => root.querySelector(sel || '')
+    const dmQsa = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
+    const getReadVal = (readEl, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(readEl, readPath) : mod.s === MV_QS ? dmQs(readPath, getQueryRoot(readEl)) : mod.s === MV_QSA ? dmQsa(readPath, getQueryRoot(readEl)) : getElPrVal(readEl, readPath)
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
@@ -1141,6 +1139,7 @@
     globalThis.dmScan = dmScan
     globalThis.dmSet = dmSet
     globalThis.dmSub = dmSub
+    globalThis.dmQs = dmQs, globalThis.dmQsa = dmQsa
 
     // - data-m-it@posts
     // - data-m-it+#tpl-post@posts
