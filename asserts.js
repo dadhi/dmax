@@ -735,6 +735,22 @@
       return { inc, dec: DM['n'] };
     }
     __assert(__tSubTarIncDec, [], { inc: 3, dec: 2 }, 'dmEx target ^inc/^dec updates current numeric target by one');
+    function __tSubTarJsos() {
+      __reset();
+      _dm.set('src', { a: 1, b: [2, 3] });
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out^jsos@src', 'val');
+      return DM['out'];
+    }
+    __assert(__tSubTarJsos, [], '{\n  "a": 1,\n  "b": [\n    2,\n    3\n  ]\n}', 'dmEx target ^jsos precomputed flag applies JSON stringify to output');
+    function __tSubTarWindowProp() {
+      __reset();
+      _dm.set('title', 'dmax-test');
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:_window.document.title@title', 'val');
+      return document.title;
+    }
+    __assert(__tSubTarWindowProp, [], 'dmax-test', 'dmEx target _window property written via precomputed _el');
     function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });
@@ -1369,6 +1385,42 @@
       } finally { tplEl.remove(); el.remove() }
     }
     __assert(__tDumpExplicitTemplate, [], 2, 'dmIt +#tplId explicit template reference appends 2 clones')
+    function __tDumpSingleItemGrowth() {
+      __reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-idx="$ix">item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['a', 'b'])
+        dmIt(el, 'data-m-it@items')
+        const before = el.children.length
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b', 'c'])
+        const after = el.children.length
+        const lastIdx = el.lastElementChild ? el.lastElementChild.getAttribute('data-idx') : null
+        return { before, after, lastIdx }
+      } finally { el.remove() }
+    }
+    __assert(__tDumpSingleItemGrowth, [], { before: 2, after: 3, lastIdx: '2' }, 'dmIt single-item growth fast path appends one node directly')
+    function __tDumpMultiItemGrowth() {
+      __reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-idx="$ix">item</li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', ['a'])
+        dmIt(el, 'data-m-it@items')
+        const before = el.children.length
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['a', 'b', 'c', 'd'])
+        const after = el.children.length
+        const idxs = Array.from(el.children).map(n => n.getAttribute('data-idx'))
+        return { before, after, idxs }
+      } finally { el.remove() }
+    }
+    __assert(__tDumpMultiItemGrowth, [], { before: 1, after: 4, idxs: ['0', '1', '2', '3'] }, 'dmIt multi-item growth uses fragment path')
     __assert(() => {
       __reset()
       _dm.set('user', { name: 'Ann' })
@@ -2189,6 +2241,44 @@
       return { sameChild: from.firstElementChild === child, text: from.textContent }
     }
     __assert(__tMorphNoSkipsSubtree, [], { sameChild: true, text: 'keep2' }, 'data-m-no skips subtree morph')
+    function __tMorphTextOnlyFocused() {
+      const input = document.createElement('div')
+      input.setAttribute('class', 'cell')
+      input.textContent = 'old'
+      document.body.appendChild(input)
+      try {
+        input.focus()
+        const to = document.createElement('div')
+        to.setAttribute('class', 'cell')
+        to.textContent = 'new'
+        morph(input, to)
+        return { text: input.textContent, cls: input.getAttribute('class') }
+      } finally { input.remove() }
+    }
+    __assert(__tMorphTextOnlyFocused, [], { text: 'new', cls: 'cell' }, 'morph: text-only focused element still updates text via normal path')
+    function __tMorphTextOnlyAttrsDiffer() {
+      const from = document.createElement('span')
+      from.setAttribute('class', 'old')
+      from.textContent = 'old'
+      const to = document.createElement('span')
+      to.setAttribute('class', 'new')
+      to.textContent = 'new'
+      morph(from, to)
+      return { text: from.textContent, cls: from.getAttribute('class') }
+    }
+    __assert(__tMorphTextOnlyAttrsDiffer, [], { text: 'new', cls: 'new' }, 'morph: text-only with attr mismatch updates both attrs and text')
+    function __tMorphTextOnlyFastPath() {
+      const from = document.createElement('td')
+      from.setAttribute('class', 'cell')
+      from.textContent = '42'
+      const origText = from.firstChild
+      const to = document.createElement('td')
+      to.setAttribute('class', 'cell')
+      to.textContent = '99'
+      morph(from, to)
+      return { text: from.textContent, sameNode: from.firstChild === origText, cls: from.getAttribute('class') }
+    }
+    __assert(__tMorphTextOnlyFastPath, [], { text: '99', sameNode: true, cls: 'cell' }, 'morph: text-only fast path assigns nodeValue directly')
     function __tDmaxPatchElementsReplaceDiscardsFormState() {
       const container = document.createElement('div')
       container.innerHTML = '<input id="fi-inp" type="text" value="default">'
