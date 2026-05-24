@@ -210,22 +210,22 @@
       <label><input id="themeActiveToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Active</label>
       <p>Status: <strong data-m-ex:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
       <h4>3. Multiple Triggers &amp; Targets</h4>
-      <div class="page"><code>data-m-ex:count@.=&quot;dm.count + 1&quot;</code> · <code>data-m-ex:count@.=&quot;dm.count - 1&quot;</code> · <code>data-m-ex:count@.=&quot;0&quot;</code><br><code>data-m-ex:.@count=&quot;dm.count&quot;</code> · <code>data-m-ex:.:doubled@count=&quot;dm.count * 2&quot;</code> · <code>data-m-ex:.@.=&quot;`${el.id || ''} ${detail &amp;&amp; detail.type ? detail.type : 'click'}`&quot;</code><br><code>data-m-ex^once:once-test@.=&quot;(dm.onceTest || 0) + 1&quot;</code> · <code>data-m-ex^once:always-test@.^always=&quot;(dm.alwaysTest || 0) + 1&quot;</code> · <code>data-m-ex:guard-val@.=&quot;dm.guardVal + 1&quot;</code> Click the buttons and look for count, doubled value, trigger probe, once-only behavior, and guard labels to change.</div>
-      <button id="countPlusBtn" data-m-ex:count@.="dm.count + 1">+1</button>
-      <button id="countMinusBtn" data-m-ex:count@.="dm.count - 1">-1</button>
+      <div class="page"><code>data-m-ex:count^inc@.</code> · <code>data-m-ex:count^dec@.</code> · <code>data-m-ex:count@.=&quot;0&quot;</code><br><code>data-m-ex:.@count=&quot;dm.count&quot;</code> · <code>data-m-ex:.:doubled@count=&quot;dm.count * 2&quot;</code> · <code>data-m-ex:.@.=&quot;`${el.id || ''} ${detail &amp;&amp; detail.type ? detail.type : 'click'}`&quot;</code><br><code>data-m-ex^once:once-test^inc@.</code> · <code>data-m-ex^once:always-test^inc@.^always</code> · <code>data-m-ex:guard-val^inc@.</code> Click the buttons and look for count, doubled value, trigger probe, once-only behavior, and guard labels to change.</div>
+      <button id="countPlusBtn" data-m-ex:count^inc@.>+1</button>
+      <button id="countMinusBtn" data-m-ex:count^dec@.>-1</button>
       <button id="countResetBtn" data-m-ex:count@.="0">Reset</button>
       <p>Count: <strong id="countDisplay" data-m-ex:.@count="dm.count"></strong></p>
       <p>Doubled: <span id="doubledDisplay" data-m-ex:.:doubled@count="dm.count * 2"></span></p>
       <button id="probeBtn" data-m-ex:.@.="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
       <span id="probeOut" data-m-ex:.@count="trig ? trig.root : ''"></span>
       <div>
-        <button id="gOnceBtn" data-m-ex^once:once-test@.="(dm.onceTest || 0) + 1">Once +1</button>
+        <button id="gOnceBtn" data-m-ex^once:once-test^inc@.>Once +1</button>
         <span data-m-ex:.@once-test="dm.onceTest"></span>
-        <button id="gAlwaysBtn" data-m-ex^once:always-test@.^always="(dm.alwaysTest || 0) + 1">Once+Always +1</button>
+        <button id="gAlwaysBtn" data-m-ex^once:always-test^inc@.^always>Once+Always +1</button>
         <span data-m-ex:.@always-test="dm.alwaysTest"></span>
       </div>
       <div>
-        <button id="incGuard" data-m-ex:guard-val@.="dm.guardVal + 1">Inc Guard</button>
+        <button id="incGuard" data-m-ex:guard-val^inc@.>Inc Guard</button>
         <span data-m-ex:.@guard-val="dm.guardVal"></span>
         <span data-m-ex:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
         <span data-m-ex:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
@@ -251,6 +251,18 @@
       <p>Current time: <span id="timeOut" data-m-ex:.@_interval.1000="new Date().toLocaleTimeString()"></span></p>
       <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
       <p>On init: <span id="initOut" data-m-ex:.@_init="'✓ Initialized (detail.type: ' + (detail && detail.type) + ')'"></span></p>
+      <h4>6.a URL, history, WC defaults, and <code>^sel-all</code></h4>
+      <div class="page"><code>data-m-ex:_history.push-state@.</code> · <code>data-m-ex:.@_window.hashchange^pr.location.hash</code> · <code>data-m-ex:.@wc-step</code> · <code>data-m-ex:wc-picked@.step-picked</code> · <code>data-m-ex:.@_init^sel-all..sel-all-demo-item</code> Push/replace the hash, watch the current hash react, then compare default WC prop/event behavior and selector-query reads.</div>
+      <p>
+        <button id="pushHash" data-m-ex:_history.push-state@.="[null, '', '#demo-push']">Push #demo-push</button>
+        <button id="replaceHash" data-m-ex:_history.replace-state@.="[null, '', '#demo-replace']">Replace #demo-replace</button>
+      </p>
+      <p>Current hash: <span id="hashOut" data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span></p>
+      <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked="val.step"></mx-step>
+      <p>WC default <code>value</code> prop: <span data-m-ex:.@wc-step="val"></span></p>
+      <p>WC custom event detail: <span data-m-ex:.@wc-picked="val"></span></p>
+      <ul><li class="sel-all-demo-item">alpha</li><li class="sel-all-demo-item">beta</li><li class="sel-all-demo-item">gamma</li></ul>
+      <p>QSA count: <span id="qsaCount" data-m-ex:.@_init^sel-all..sel-all-demo-item="val.length"></span></p>
       <h4>7. Default Props &amp; Events</h4>
       <div class="page"><code>data-m-ex:.@#inp1.input=&quot;val&quot;</code> · <code>data-m-ex:.@#btn3=&quot;'Clicked!'&quot;</code> Type in the input and click the button; the labels below should mirror the default prop/event behavior.</div>
       <input id="inp1" placeholder="Mirrors on input">
@@ -314,15 +326,15 @@
         <button id="refreshThreads" data-m-ex:threads@.="(dm.threads || []).concat([{ title: 'Thread D', replies: ['D1'] }])">Refresh Threads</button>
       </div>
       <h4>10. Modifiers demo</h4>
-      <div class="page"><code>data-m-ex:mod-once@.^once=&quot;(dm.modOnce || 0) + 1&quot;</code> · <code>data-m-ex:mod-deb@.^debounce.120=&quot;(dm.modDeb || 0) + 1&quot;</code> · <code>data-m-ex:mod-thr@.^throttle.120=&quot;(dm.modThr || 0) + 1&quot;</code> · <code>data-m-ex:mod-and@.^and.gate=&quot;(dm.modAnd || 0) + 1&quot;</code> Click repeatedly and compare once-only, debounced, throttled, and gated behavior.</div>
-      <button id="onceBtn" data-m-ex:mod-once@.^once="(dm.modOnce || 0) + 1">Once</button>
+      <div class="page"><code>data-m-ex:mod-once^inc@.^once</code> · <code>data-m-ex:mod-deb^inc@.^debounce.120</code> · <code>data-m-ex:mod-thr^inc@.^throttle.120</code> · <code>data-m-ex:mod-and^inc@.^and.gate</code> Click repeatedly and compare once-only, debounced, throttled, and gated behavior.</div>
+      <button id="onceBtn" data-m-ex:mod-once^inc@.^once>Once</button>
       <span data-m-ex:.@mod-once="dm.modOnce"></span>
-      <button id="debBtn" data-m-ex:mod-deb@.^debounce.120="(dm.modDeb || 0) + 1">Debounce</button>
+      <button id="debBtn" data-m-ex:mod-deb^inc@.^debounce.120>Debounce</button>
       <span data-m-ex:.@mod-deb="dm.modDeb"></span>
-      <button id="thrBtn" data-m-ex:mod-thr@.^throttle.120="(dm.modThr || 0) + 1">Throttle</button>
+      <button id="thrBtn" data-m-ex:mod-thr^inc@.^throttle.120>Throttle</button>
       <span data-m-ex:.@mod-thr="dm.modThr"></span>
       <label><input id="gate" type="checkbox" data-m-ex@.^rw@gate> Gate</label>
-      <button id="andBtn" data-m-ex:mod-and@.^and.gate="(dm.modAnd || 0) + 1">AND</button>
+      <button id="andBtn" data-m-ex:mod-and^inc@.^and.gate>AND</button>
       <span data-m-ex:.@mod-and="dm.modAnd"></span>
       <h4>10.a Content vs Shape</h4>
       <div class="page"><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), child: ((dm.demoParent &amp;&amp; dm.demoParent.child) || 0) + 1 }&quot;</code><br><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), addedAt: 'shape' }&quot;</code> · <code>data-m-ex:demo-parent@.=&quot;(({ addedAt, ...o }) =&gt; o)(dm.demoParent || {})&quot;</code> Compare content-only updates with shape changes; the shape subscriber should stay quiet until keys are added or removed.</div>
@@ -454,6 +466,22 @@
     };
   </script>
   <script src="tools/vendor/uplot.js"></script>
+  <script>
+    customElements.get('mx-step') || customElements.define('mx-step', class extends HTMLElement {
+      constructor() {
+        super()
+        this.attachShadow({ mode: 'open' })
+        this._value = 0
+        this.shadowRoot.innerHTML = '<button type="button">Step +1</button><output style="margin-left:8px"></output>'
+      }
+      get value() { return this._value }
+      set value(v) { this._value = +v || 0; this.shadowRoot.querySelector('output').textContent = '' + this._value }
+      connectedCallback() {
+        this.shadowRoot.querySelector('button').onclick = () => this.dispatchEvent(new CustomEvent('step-picked', { detail: { step: this._value + 1 } }))
+        this.value = this._value
+      }
+    })
+  </script>
   <script src="dmax.js"></script>
   <script>
     (function () {

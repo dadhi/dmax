@@ -173,7 +173,9 @@
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
     __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_SEL_ALL, path: '.sel-probe-item' }]], { f: 0, d: 0, t: 0, p: null, v: '.sel-probe-item', c: SIG_CHANGED_ANY, s: MV_SEL_ALL, r: '', j: null }, 'compileMods sel-all keeps raw selector')
     __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
+    __assert((mods) => compileMods(__ev(), mods).f, [[{ root: M_RAF, path: null }]], MF_RAF, 'compileMods raf flag')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => compileMods(__ev(), [{ root: M_JSOS, path: '4' }]).j, [], '4', 'compileMods jsos keeps raw arg')
     __assert(() => {
@@ -547,6 +549,23 @@
       }
     }
     __assert(__tTrigModsThrottle, [], [1, 3], 'applyTrMs: throttle rate limit');
+    function __tTrigModsRaf() {
+      const raf = requestAnimationFrame
+      const q = []
+      requestAnimationFrame = (fn) => (q.push(fn), q.length)
+      try {
+        const out = []
+        const trig = __ev()
+        const h = applyTrMsMods((_dm, _el, _trig, trigVal) => out.push(trigVal), trig, [{ root: M_RAF, path: null }])
+        h(DM, null, trig, 1, null)
+        h(DM, null, trig, 2, null)
+        if (q[0]) q[0]()
+        return out
+      } finally {
+        requestAnimationFrame = raf
+      }
+    }
+    __assert(__tTrigModsRaf, [], [2], 'applyTrMs: raf coalesces to next frame');
     function __tTrigModsRepeatedPermitChecks() {
       __reset();
       _dm.set('gateA', true)
@@ -658,12 +677,12 @@
       __reset();
       _dm.set('foo', 7);
       const el = document.createElement('div');
-      dmEx(el, 'data-m-ex:bar@foo^notimmediate', 'dm.foo');
+      dmEx(el, 'data-m-ex:bar@foo^not-immediate', 'dm.foo');
       const before = DM['bar'];
       setSiAndNotifySubs('test', { root: 'foo', path: null }, 8);
       return { before, after: DM['bar'] };
     }
-    __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dmEx @foo^notimmediate skips setup run but handles later changes');
+    __assert(__tSubSignalNotImmediate, [], { before: undefined, after: 8 }, 'dmEx @foo^not-immediate skips setup run but handles later changes');
     function __tSubSignalEmptyExprNoTarget() {
       __reset();
       _dm.set('foo', 7);
@@ -704,6 +723,18 @@
       return DM['foo'];
     }
     __assert(__tSubTarAppendFallback, [], 3, 'dmEx target ^append falls back to replace');
+    function __tSubTarIncDec() {
+      __reset();
+      _dm.set('n', 2);
+      const incEl = document.createElement('button'), decEl = document.createElement('button');
+      dmEx(incEl, 'data-m-ex:n^inc@.click', '');
+      dmEx(decEl, 'data-m-ex:n^dec@.click', '');
+      __fireEventSub(incEl, 'click');
+      const inc = DM['n'];
+      __fireEventSub(decEl, 'click');
+      return { inc, dec: DM['n'] };
+    }
+    __assert(__tSubTarIncDec, [], { inc: 3, dec: 2 }, 'dmEx target ^inc/^dec updates current numeric target by one');
     function __tSubSignalSiModPathAndExpr() {
       __reset();
       _dm.set('foo', { bar: 7 });
@@ -857,6 +888,72 @@
       return DM['counter'];
     }
     __assert(__tSubSpecialInitRanImmediateDedup, [], 1, 'dmEx _init with signal trigger: only one init run (ranImmediate dedup)');
+    function __tSubWindowHashPr() {
+      __reset();
+      const host = document.createElement('div');
+      dmEx(host, 'data-m-ex:urlHash@_window.hashchange^pr.location.hash', 'val');
+      window.location.hash = '#pop-a';
+      window.dispatchEvent(new Event('hashchange'));
+      return DM['urlHash'];
+    }
+    __assert(__tSubWindowHashPr, [], '#pop-a', 'dmEx _window.hashchange ^pr reads current hash');
+    function __tSubHistoryPushStateTar() {
+      __reset();
+      _dm.set('navUrl', '/next');
+      const host = document.createElement('div');
+      let args = null; const prev = history.pushState;
+      history.pushState = (...xs) => { args = xs; };
+      try { dmEx(host, 'data-m-ex:_history.push-state@nav-url', '[null, "", val]'); }
+      finally { history.pushState = prev; }
+      return args;
+    }
+    __assert(__tSubHistoryPushStateTar, [], [null, '', '/next'], 'dmEx _history.push-state writes history');
+    function __tCustomElDefaultPropAndEvent() {
+      __reset();
+      if (!customElements.get('x-assert-value')) customElements.define('x-assert-value', class extends HTMLElement { constructor() { super(); this.value = ''; } });
+      const wc = document.createElement('x-assert-value');
+      dmEx(wc, 'data-m-ex:.@foo', 'val');
+      dmSet('foo', 9);
+      dmEx(wc, 'data-m-ex:pick@.pick', 'val');
+      wc.dispatchEvent(new CustomEvent('pick', { detail: { value: 7 } }));
+      dmEx(wc, 'data-m-ex:pickObj@.pick-obj', 'val && val.a');
+      wc.dispatchEvent(new CustomEvent('pick-obj', { detail: { a: 3 } }));
+      return { prop: wc.value, pick: DM['pick'], pickObj: DM['pickObj'], def: getDefaultPr(wc) };
+    }
+    __assert(__tCustomElDefaultPropAndEvent, [], { prop: 9, pick: 7, pickObj: 3, def: 'value' }, 'custom element defaults use value prop and event detail');
+    function __tShadowRootScanAndCleanup() {
+      __reset();
+      const host = document.createElement('div'), shadow = host.attachShadow({ mode: 'open' });
+      shadow.innerHTML = '<span data-m-ex:.@foo></span>';
+      document.body.appendChild(host);
+      dmScan(shadow);
+      dmSet('foo', 'A');
+      const span = shadow.querySelector('span'), before = span.textContent;
+      host.remove();
+      cleanupBoundSubsDeep(host);
+      dmSet('foo', 'B');
+      return { before, after: span.textContent };
+    }
+    __assert(__tShadowRootScanAndCleanup, [], { before: 'A', after: 'A' }, 'dmScan wires shadow root and cleanup reaches shadow subtree');
+    function __tInitQsaRead() {
+      __reset();
+      const host = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span');
+      a.className = b.className = 'sel-probe-item';
+      document.body.appendChild(a);
+      document.body.appendChild(b);
+      try { dmEx(host, 'data-m-ex:count@_init^sel-all..sel-probe-item', 'val.length'); return DM['count']; }
+      finally { a.remove(); b.remove(); }
+    }
+    __assert(__tInitQsaRead, [], 2, 'dmEx _init ^sel-all reads matching elements');
+    function __tDmQsQsa() {
+      __reset();
+      const host = document.createElement('div');
+      host.innerHTML = '<span class="a"></span><span class="a"></span>';
+      document.body.appendChild(host);
+      try { return { one: !!dmSel('.a', host), many: dmSelAll('.a', host).length }; }
+      finally { host.remove(); }
+    }
+    __assert(__tDmQsQsa, [], { one: true, many: 2 }, 'dmSel/dmSelAll query from element root');
 
     function __tSubRepeatedPermitGating() {
       __reset();
@@ -933,13 +1030,13 @@
       const inp = document.createElement('input')
       _dm.set('name', 'Ada')
       inp.value = 'Initial'
-      dmEx(inp, 'data-m-ex^notimmediate:name@.')
+      dmEx(inp, 'data-m-ex^not-immediate:name@.')
       const sigBeforeChange = DM['name']
       inp.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
       return { sigBeforeChange, sigAfterEvent: DM['name'] }
     }
-    __assert(__tSubPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dmEx ^notimmediate matches default prop->signal timing');
+    __assert(__tSubPropToSignalNotImmediate, [], { sigBeforeChange: 'Ada', sigAfterEvent: 'Bob' }, 'dmEx ^not-immediate matches default prop->signal timing');
     function __tSubRwCheckboxDefaultProp() {
       __reset();
       const cb = document.createElement('input')
@@ -1075,13 +1172,13 @@
       __reset()
       const div = document.createElement('div')
       _dm.set('active', true)
-      dmCl(div, 'data-m-cl+active@active^notimmediate')
+      dmCl(div, 'data-m-cl+active@active^not-immediate')
       const hadBefore = div.classList.contains('active')
       setSiAndNotifySubs('t', { root: 'active', path: null }, false)
       const hadAfter = div.classList.contains('active')
       return { hadBefore, hadAfter }
     }
-    __assert(__tClassNotImmediate, [], { hadBefore: false, hadAfter: false }, 'dmCl ^notimmediate skips setup run');
+    __assert(__tClassNotImmediate, [], { hadBefore: false, hadAfter: false }, 'dmCl ^not-immediate skips setup run');
     function __tDispHideShow() {
       __reset()
       const div = document.createElement('div')
@@ -1142,13 +1239,13 @@
       const div = document.createElement('div')
       div.style.display = 'block'
       _dm.set('show', false)
-      dmSh(div, 'data-m-sh:.@show^notimmediate')
+      dmSh(div, 'data-m-sh:.@show^not-immediate')
       const displayBefore = div.style.display
       setSiAndNotifySubs('t', { root: 'show', path: null }, true)
       const displayAfter = div.style.display
       return { displayBefore, displayAfter }
     }
-    __assert(__tDispNotImmediate, [], { displayBefore: 'block', displayAfter: 'block' }, 'dmSh ^notimmediate skips setup run');
+    __assert(__tDispNotImmediate, [], { displayBefore: 'block', displayAfter: 'block' }, 'dmSh ^not-immediate skips setup run');
     function __tDumpAppendOnly() {
       __reset()
       const el = document.createElement('ul')
@@ -1250,13 +1347,13 @@
       document.body.appendChild(el)
       try {
         _dm.set('items', ['x', 'y'])
-        dmIt(el, 'data-m-it@items^notimmediate')
+        dmIt(el, 'data-m-it@items^not-immediate')
         const before = el.children.length
         setSiAndNotifySubs('t', { root: 'items', path: null }, ['x', 'y', 'z'])
         return { before, after: el.children.length }
       } finally { el.remove() }
     }
-    __assert(__tDumpNotImmediate, [], { before: 0, after: 3 }, 'dmIt ^notimmediate skips initial render and still responds to later changes')
+    __assert(__tDumpNotImmediate, [], { before: 0, after: 3 }, 'dmIt ^not-immediate skips initial render and still responds to later changes')
     function __tDumpExplicitTemplate() {
       __reset()
       const tplEl = document.createElement('template')
@@ -1272,6 +1369,27 @@
       } finally { tplEl.remove(); el.remove() }
     }
     __assert(__tDumpExplicitTemplate, [], 2, 'dmIt +#tplId explicit template reference appends 2 clones')
+    __assert(() => {
+      __reset()
+      _dm.set('user', { name: 'Ann' })
+      const seen = []
+      const off = dmSub('user.name', (v) => seen.push(v))
+      dmSet('user.name', 'Ada')
+      off()
+      dmSet('user.name', 'Bob')
+      return seen
+    }, [], ['Ann', 'Ada'], 'dmSub signal shorthand is immediate and cleanup stops later updates')
+    __assert(() => {
+      __reset()
+      const inp = document.createElement('input'), seen = []
+      const off = dmSub(inp, '.input^num', (v) => seen.push(v))
+      inp.value = '7'
+      __fireEventSub(inp, 'input')
+      off()
+      inp.value = '9'
+      __fireEventSub(inp, 'input')
+      return seen
+    }, [], [7], 'dmSub event shorthand reads element value and cleanup removes listener')
     // ---- dmAct async tests ----
     // Tests run sequentially to avoid concurrent __reset() interference with shared _subs/_dm state.
     let _asyncChain = Promise.resolve()
@@ -1287,6 +1405,33 @@
         })
       )
     }
+    __asyncAssert('public dmAct wrapper binds action attrs from JS', async () => {
+      __reset()
+      const fetchCalls = []
+      window.fetch = (url, init) => {
+        fetchCalls.push({ url, method: init.method })
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ ok: true })
+        })
+      }
+      try {
+        const host = document.createElement('div')
+        _dm.set('go', 0)
+        _dm.set('res', null)
+        const off = globalThis.dmAct(host, 'get:res@go^not-immediate', '"https://api.test/pub"')
+        dmSet('go', 1)
+        await new Promise(r => setTimeout(r, 0))
+        off()
+        dmSet('go', 2)
+        await new Promise(r => setTimeout(r, 0))
+        return {
+          actual: { calls: fetchCalls.length, method: fetchCalls[0]?.method, url: fetchCalls[0]?.url, res: DM['res'] },
+          expected: { calls: 1, method: 'GET', url: 'https://api.test/pub', res: { ok: true } }
+        }
+      } finally { delete window.fetch }
+    })
     __asyncAssert('GET ^immediate fires fetch and sets result', async () => {
       __reset()
       const fetchCalls = []
@@ -2512,9 +2657,6 @@
     __assert(samePath, [['a', 'b'], ['a', 'c']], false, 'samePath different last element')
     __assert(samePath, [['a'], ['a', 'b']], false, 'samePath different lengths')
     __assert(samePath, [[], []], true, 'samePath both empty')
-    __assert(pickMods, [[], ['fallback']], ['fallback'], 'pickMods uses fallback when local empty')
-    __assert(pickMods, [['local'], ['fallback']], ['local'], 'pickMods uses local when non-empty')
-    __assert(pickMods, [[], []], [], 'pickMods both empty returns empty')
     __assert(isPlainObj, [{}], true, 'isPlainObj plain object')
     __assert(isPlainObj, [{ a: 1 }], true, 'isPlainObj object with prop')
     __assert(isPlainObj, [[]], false, 'isPlainObj array rejected')
@@ -2542,6 +2684,8 @@
     __assert(combineActResult, ['hello ', 'world', 'append'], 'hello world', 'combineActResult append strings')
     __assert(combineActResult, ['world', 'hello ', 'prepend'], 'hello world', 'combineActResult prepend strings')
     __assert(combineActResult, [[2, 3], [1], 'prepend'], [1, 2, 3], 'combineActResult prepend arrays reversed')
+    __assert(combineActResult, [2, 9, 'inc'], 3, 'combineActResult inc uses current target value')
+    __assert(combineActResult, [2, 9, 'dec'], 1, 'combineActResult dec uses current target value')
     __assert(getSimpleIdSelector, [''], null, 'getSimpleIdSelector empty string is null')
     __assert(getSimpleIdSelector, ['#foo'], 'foo', 'getSimpleIdSelector plain id')
     __assert(getSimpleIdSelector, ['#foo.bar'], null, 'getSimpleIdSelector compound selector rejected')

@@ -21,12 +21,14 @@ Working order:
 Design bias:
 - prefer a few small orthogonal features over many special cases
 - when modifiers repeat, use simple deterministic rules
-- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`) use last-wins
-- write modes (`^replace`, `^merge`, `^append`, `^prepend`) fall back to replace when a mode does not fit the target values
+- if you learn one dmax thing, you should mostly know the rest
+- prefer consistent naming and behavior over one-off shorthand exceptions
+- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`, `^sel`, `^sel-all`) use last-wins
+- write modes (`^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`) fall back to replace when a mode does not fit the target values
 
 If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
 
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later.
+By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`.
 
 ## Distribution files
 
@@ -73,7 +75,7 @@ Choose dmax when you want:
 ```html
 <div data-m-si='{"count":0,"user":{"name":"Ada"},"theme":{"cellSize":4.5}}'></div>
 
-<button data-m-ex:count@.click="dm.count + 1">+1</button>
+<button data-m-ex:count^inc@.click>+1</button>
 <span data-m-ex:.@count></span>
 
 <input data-m-ex@.^rw@user.name>
@@ -172,6 +174,28 @@ Use `^jsos` when a target expects JSON as a string, such as an observed attribut
 
 This is shorthand for writing `JSON.stringify(val)` yourself. The helper is also exposed as `dmJsos(val)` for custom expressions.
 
+### Query-read helpers
+
+Use `^sel` / `^sel-all` when the trigger should read queried nodes instead of a default prop:
+
+```html
+<span data-m-ex:.@_init^sel.#status="val && val.textContent"></span>
+<span data-m-ex:.@_init^sel-all..todo-item="val.length"></span>
+```
+
+`^sel` returns the first matching node. `^sel-all` returns an array of matching nodes.
+The matching imperative helpers are `dmSel(sel, root)` and `dmSelAll(sel, root)`.
+
+### Frame-deferral helper
+
+Use `^raf` when a trigger should coalesce to the next animation frame:
+
+```html
+<input data-m-ex:preview@.input^raf="val">
+```
+
+Repeated trigger firings in the same frame collapse to the latest one.
+
 ### CSS custom property binding
 
 Unknown `style.*` writes fall through to CSS custom properties:
@@ -236,7 +260,7 @@ Action features include:
 - `^hs.<signal>`, `^header.<name>`, `^auth.<signal>`
 - `^url.<path>`, `^body.<path>`
 - `^send-all`, `^patch-all`, `^sync-all`
-- `^replace`, `^merge`, `^append`, `^prepend`
+- `^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`
 
 ### SSE
 
@@ -280,6 +304,20 @@ dmax uses `fetch` + `ReadableStream`, so it supports:
 | `@_interval.<ms>` | repeated timer |
 | `@_timeout.<ms>` | one-shot timer |
 | `@_viewed` | fire when element enters viewport |
+
+## Special targets
+
+| Target | Meaning |
+| --- | --- |
+| `:_history.push-state` | call `history.pushState(...)` with the expression result |
+| `:_history.replace-state` | call `history.replaceState(...)` with the expression result |
+
+History writes usually pair well with window reads:
+
+```html
+<button data-m-ex:_history.push-state@.click="[null, '', '#demo']">Push</button>
+<span data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span>
+```
 
 ## Ignore controls
 

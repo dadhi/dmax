@@ -22,7 +22,7 @@ const EVENTS = ['click', 'input', 'change', 'mouseover', 'keydown'];
 const SPECIAL_EVENTS = ['_window.resize', '_document.click', '_interval.1000', '_timeout.500', '_init'];
 const SPECIAL_EVENTS_WITH_IO = ['_viewed']; // require IntersectionObserver, warn when unavailable
 
-const MODIFIERS = ['immediate', 'notimmediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10', '!eq.3', '!!eq.3', '!!!eq.3'];
+const MODIFIERS = ['immediate', 'not-immediate', 'once', 'debounce.100', 'throttle.200', 'prevent', 'and.gate', 'notand.flag', 'gt.5', 'eq.3', 'lt.10', '!eq.3', '!!eq.3', '!!!eq.3'];
 const INVALID_MODIFIERS = ['', 'unknown'];
 
 const EXPRESSIONS = [
@@ -232,7 +232,7 @@ function* generateDataSubRwCombinations() {
   yield { attr: 'data-m-ex:display-name@user.name', valid: true, category: 'nested-to-signal' };
   
   // 6. With modifiers
-  yield { attr: 'data-m-ex@.^notimmediate^rw@foo', valid: true, category: 'with-mod' };
+  yield { attr: 'data-m-ex@.^not-immediate^rw@foo', valid: true, category: 'with-mod' };
   yield { attr: 'data-m-ex@.^rw^pr.open@foo', valid: true, category: 'two-way-details-pr-open' };
 }
 
