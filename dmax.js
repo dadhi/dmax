@@ -1642,7 +1642,7 @@
       st[0] = 'message', st[1] = null, st[2] = false
     }
     const consumeSseLine = (raw, st, applied, dKey) => {
-      const line = raw.length && raw[raw.length - 1] === '\r' ? raw.slice(0, -1) : raw
+      const line = raw[raw.length - 1] === '\r' ? raw.slice(0, -1) : raw
       if (!line) return flushSse(applied, st, dKey)
       if (line[0] === SSE_COMMENT) return
       const ci = line.indexOf(':'), field = ci < 0 ? line : line.slice(0, ci)
