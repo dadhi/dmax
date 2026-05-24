@@ -266,7 +266,7 @@ function* generateDataDumpCombinations() {
   // Valid - dotted signal paths
   yield { attr: 'data-m-it+#tpl-post@user.posts', valid: true, category: 'dotted-signal' };
   yield { attr: 'data-m-it+#tpl-item@app.data.items', valid: true, category: 'deep-dotted' };
-  
+
   // Valid - incremental growth (exercises single-item fast path)
   yield { attr: 'data-m-it+#tpl-item@items', valid: true, category: 'single-item-growth' };
   yield { attr: 'data-m-it+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmIt requires a signal trigger' };
