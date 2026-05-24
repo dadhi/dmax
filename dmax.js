@@ -567,7 +567,7 @@
     }
 
     const noScan = (el) => el && el.hasAttribute && (el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_SCAN))
-    const noMorph = (el) => el && el.hasAttribute && (el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_MORPH))
+    const noMorph = (el) => el.hasAttribute(DM_NO) || el.hasAttribute(DM_NO_MORPH)
     const warn = (...a) => console.warn('[dmax]', ...a), logErr = (...a) => console.error('[dmax]', ...a)
     const wireItClone = (node) => {
       const stack = [node]
@@ -1400,19 +1400,15 @@
     const getPatchTars = (selector, simpleId = selector && getSimpleIdSelector(selector), el = simpleId && document.getElementById(simpleId)) => !selector ? NIL : simpleId ? el ? [el] : NIL : document.querySelectorAll(selector)
 
     const sameAttrs = (from, to) => {
-      const fromAttrs = from.attributes, toAttrs = to.attributes, len = toAttrs.length
-      if (fromAttrs.length !== len) return false
-      for (let i = 0; i < len; i++) {
-        const fromAttr = fromAttrs[i], toAttr = toAttrs[i]
-        if (fromAttr.name !== toAttr.name || fromAttr.value !== toAttr.value) return false
-      }
+      const fa = from.attributes, ta = to.attributes, len = ta.length
+      if (fa.length !== len) return false
+      for (let i = 0; i < len; i++) if (fa[i].name !== ta[i].name || fa[i].value !== ta[i].value) return false
       return true
     }
 
-    // Sync attributes from to onto from.
+    // Sync attributes from to onto from. Called only when attrs differ.
     const updateAttrs = (from, to) => {
       const toAttrs = to.attributes, fromAttrs = from.attributes, tl = toAttrs.length, fl = fromAttrs.length
-      if (!fl && !tl) return
       if (fl === tl) {
         let same = true, re = false
         for (let i = 0; i < tl; i++) {
@@ -1430,14 +1426,8 @@
           if (same) return
         }
       }
-      if (!tl) {
-        for (let i = fl - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name)
-        return
-      }
-      for (let i = 0; i < tl; i++) {
-        const ta = toAttrs[i], fa = fromAttrs.getNamedItem(ta.name)
-        if (!fa || fa.value !== ta.value) from.setAttribute(ta.name, ta.value)
-      }
+      if (!tl) { for (let i = fl - 1; i >= 0; i--) from.removeAttribute(fromAttrs[i].name); return }
+      for (let i = 0; i < tl; i++) { const ta = toAttrs[i]; if (fromAttrs.getNamedItem(ta.name)?.value !== ta.value) from.setAttribute(ta.name, ta.value) }
       for (let i = fl - 1; i >= 0; i--) if (!to.hasAttribute(fromAttrs[i].name)) from.removeAttribute(fromAttrs[i].name)
     }
 
@@ -1495,7 +1485,7 @@
     }
 
     let _morphActiveEl = null
-    const doneMorph = (root) => root && (_morphActiveEl = null)
+    const _endMorph = (root) => root && (_morphActiveEl = null)
     // Update from in place without disturbing matched-node listeners or cleanup state.
     // Preserve caret, selection, and scroll across streamed updates.
     const morph = (from, to) => {
@@ -1503,36 +1493,33 @@
       if (root) _morphActiveEl = document.activeElement
       if (from.nodeType === 3 && to.nodeType === 3) {
         if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
-        return doneMorph(root)
+        return _endMorph(root)
       }
-      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE || noMorph(from) || noMorph(to)) return doneMorph(root)
+      if (from.nodeType !== ELEMENT_NODE || to.nodeType !== ELEMENT_NODE || noMorph(from) || noMorph(to)) return _endMorph(root)
       if (from.tagName !== to.tagName) {
         if (from.parentNode) from.parentNode.replaceChild(to.cloneNode(true), from)
-        return doneMorph(root)
+        return _endMorph(root)
       }
       const fromFirst = from.firstChild, toFirst = to.firstChild, textOnly = fromFirst && toFirst && !fromFirst.nextSibling && !toFirst.nextSibling && fromFirst.nodeType === TEXT_NODE && toFirst.nodeType === TEXT_NODE
-      if (sameAttrs(from, to) && (!fromFirst && !toFirst || textOnly && fromFirst.nodeValue === toFirst.nodeValue)) return doneMorph(root)
-      const tag = from.tagName, isFocused = from === _morphActiveEl
+      const attrsMatch = sameAttrs(from, to)
+      if (attrsMatch && (!fromFirst && !toFirst || textOnly && fromFirst.nodeValue === toFirst.nodeValue)) return _endMorph(root)
+      if (textOnly && attrsMatch && from !== _morphActiveEl) { fromFirst.nodeValue = toFirst.nodeValue; return _endMorph(root) }
+      const isFocused = from === _morphActiveEl
       let selStart = -1, selEnd = -1, selDir = 'none', selVal = null, selIdx = -1
-      if (isFocused && (tag === 'INPUT' || tag === 'TEXTAREA')) {
-        try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {}
-      } else if (isFocused && tag === 'SELECT') selVal = from.value, selIdx = from.selectedIndex
-      const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft, keepScroll = scrollTop || scrollLeft
-      updateAttrs(from, to)
-      if (textOnly) {
-        if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue
-      } else if (fromFirst || toFirst) morphChildren(from, to)
-      if (keepScroll) {
-        if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop
-        if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft
+      if (isFocused) {
+        const tag = from.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') {
+          try { selStart = from.selectionStart; selEnd = from.selectionEnd; selDir = from.selectionDirection || 'none' } catch (_) {}
+        } else if (tag === 'SELECT') selVal = from.value, selIdx = from.selectedIndex
       }
-      if (isFocused && selStart >= 0) {
-        try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_) {}
-      } else if (isFocused && tag === 'SELECT') {
-        from.value = selVal
-        if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length) from.selectedIndex = selIdx
-      }
-      doneMorph(root)
+      const scrollTop = from.scrollTop, scrollLeft = from.scrollLeft
+      if (!attrsMatch) updateAttrs(from, to)
+      if (textOnly) { if (fromFirst.nodeValue !== toFirst.nodeValue) fromFirst.nodeValue = toFirst.nodeValue }
+      else if (fromFirst || toFirst) morphChildren(from, to)
+      if (scrollTop || scrollLeft) { if (from.scrollTop !== scrollTop) from.scrollTop = scrollTop; if (from.scrollLeft !== scrollLeft) from.scrollLeft = scrollLeft }
+      if (isFocused && selStart >= 0) { try { from.setSelectionRange(selStart, selEnd, selDir) } catch (_) {} }
+      else if (isFocused && selVal !== null) { from.value = selVal; if (from.value !== selVal && selIdx >= 0 && selIdx < from.options.length) from.selectedIndex = selIdx }
+      _endMorph(root)
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
@@ -1655,7 +1642,7 @@
       st[0] = 'message', st[1] = null, st[2] = false
     }
     const consumeSseLine = (raw, st, applied, dKey) => {
-      const line = raw[raw.length - 1] === '\r' ? raw.slice(0, -1) : raw
+      const line = raw.length && raw[raw.length - 1] === '\r' ? raw.slice(0, -1) : raw
       if (!line) return flushSse(applied, st, dKey)
       if (line[0] === SSE_COMMENT) return
       const ci = line.indexOf(':'), field = ci < 0 ? line : line.slice(0, ci)
