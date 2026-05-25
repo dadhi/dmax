@@ -369,23 +369,23 @@
         </div>
       </div>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <div class="page"><code>&lt;button data-m-get^stat.req:post-result@.=&quot;`https://dummyjson.com/posts/${1}`&quot;&gt;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
-      <button id="loadPost" data-m-get^stat.req:post-result@.="`https://dummyjson.com/posts/${1}`">Load DummyJSON post #1 (GET)</button>
+      <div class="page"><code>data-m-get^stat.req:post-result@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
+      <button id="loadPost" data-m-get^stat.req:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
       <div>Busy: <span data-m-ex:.@req.busy></span> | Error: <span data-m-ex:.@req.err></span> | Code: <span data-m-ex:.@req.code></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result^jsos.2></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <div class="page"><code>&lt;button data-m-get^stat.post-state:post-result-custom@.=&quot;`https://dummyjson.com/posts/${1}`&quot;&gt;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
-        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="`https://dummyjson.com/posts/${1}`">Load DummyJSON post #1 (custom grouped status)</button>
+        <div class="page"><code>data-m-get^stat.post-state:post-result-custom@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
+        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom grouped status)</button>
         <strong style="margin-left:8px" data-m-sh:.@post-state.busy>Loading…</strong>
         <div>Error: <span data-m-ex:.@post-state.err></span> | Code: <span data-m-ex:.@post-state.code></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom^jsos.2></pre>
       </div>
       <div>
-        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>&lt;button data-m-post^json^stat.req:created-post@.+draftPost^spread=&quot;`https://dummyjson.com/posts/add`&quot;&gt;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
+        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^stat.req:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^stat.req:created-post@.+draftPost^spread="`https://dummyjson.com/posts/add`">Create DummyJSON post (POST ^json)</button>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^stat.req:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post^jsos.2></pre>
       </div>
       <div style="margin-top:8px;border:1px dashed #eab308;padding:8px">
@@ -394,13 +394,13 @@
         <pre style="background:#fffbeb;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post^jsos.2></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <div class="page"><code>&lt;button data-m-get^html^stat.req@.="`/mock/oob`"&gt;</code> Run it and watch the target block morph without a full replace.</div>
-        <button id="oobLoad" data-m-get^html^stat.req@.="`/mock/oob`">Load OOB HTML + morph</button>
+        <div class="page"><code>data-m-get^html^stat.req@.=&quot;'/mock/oob'&quot;</code> Run it and watch the target block morph without a full replace.</div>
+        <button id="oobLoad" data-m-get^html^stat.req@.="'/mock/oob'">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <div class="page"><code>&lt;button data-m-get^sse^stat.sse-meta:sse-events@.="`/mock/dmax-sse`"&gt;</code> Replays one short mocked SSE response through dmax's real SSE path, then closes. It updates signals and morphs the target once so the behavior is easy to inspect.</div>
-        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="`/mock/dmax-sse`">Replay one mocked SSE response</button>
+        <div class="page"><code>data-m-get^sse^stat.sse-meta:sse-events@.=&quot;'/mock/dmax-sse'&quot;</code> Replays one short mocked SSE response through dmax's real SSE path, then closes. It updates signals and morphs the target once so the behavior is easy to inspect.</div>
+        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="'/mock/dmax-sse'">Replay one mocked SSE response</button>
         <div>Message: <span data-m-ex:.@sse-message></span> | Count: <span data-m-ex:.@sse-count></span></div>
         <div>SSE status: <span data-m-ex:.@sse-meta="!val ? 'idle' : val.open ? 'open' : val.close ? 'closed' : val.busy ? 'loading' : val.complete ? 'complete' : 'ready'"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
