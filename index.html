@@ -369,13 +369,13 @@
         </div>
       </div>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <div class="page"><code>&lt;button data-m-get^stat.req:post-result@.=&quot;(postId => `https://dummyjson.com/posts/${postId}`)(1)&quot;&gt;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
-      <button id="loadPost" data-m-get^stat.req:post-result@.="(postId => `https://dummyjson.com/posts/${postId}`)(1)">Load DummyJSON post #1 (GET)</button>
+      <div class="page"><code>&lt;button data-m-get^stat.req:post-result@.=&quot;`https://dummyjson.com/posts/${1}`&quot;&gt;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
+      <button id="loadPost" data-m-get^stat.req:post-result@.="`https://dummyjson.com/posts/${1}`">Load DummyJSON post #1 (GET)</button>
       <div>Busy: <span data-m-ex:.@req.busy></span> | Error: <span data-m-ex:.@req.err></span> | Code: <span data-m-ex:.@req.code></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result^jsos.2></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <div class="page"><code>&lt;button data-m-get^stat.post-state:post-result-custom@.=&quot;(postId => `https://dummyjson.com/posts/${postId}`)(1)&quot;&gt;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
-        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="(postId => `https://dummyjson.com/posts/${postId}`)(1)">Load DummyJSON post #1 (custom grouped status)</button>
+        <div class="page"><code>&lt;button data-m-get^stat.post-state:post-result-custom@.=&quot;`https://dummyjson.com/posts/${1}`&quot;&gt;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
+        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="`https://dummyjson.com/posts/${1}`">Load DummyJSON post #1 (custom grouped status)</button>
         <strong style="margin-left:8px" data-m-sh:.@post-state.busy>Loading…</strong>
         <div>Error: <span data-m-ex:.@post-state.err></span> | Code: <span data-m-ex:.@post-state.code></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom^jsos.2></pre>
