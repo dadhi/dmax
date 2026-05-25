@@ -155,6 +155,12 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
   yield { attr: 'data-m-ex:user^merge@ui', valid: true, category: 'target-merge' }
   yield {
+    attr: 'data-m-ex:.text-content^jsos@foo', valid: true, category: 'target-jsos', html: '<div id="fuzz-test" data-m-ex:.text-content^jsos@foo></div>', exercise: async ({ document }) => {
+      const text = document.getElementById('fuzz-test').textContent
+      if (text !== '0') throw new Error('expected ^jsos to stringify signal value, got: ' + text)
+    }
+  }
+  yield {
     attr: 'data-m-ex:.text-content^append@foo', valid: true, category: 'target-append', html: '<div id="fuzz-test" data-m-ex:.text-content^append@foo>old</div>', exercise: async ({ document }) => {
       if (document.getElementById('fuzz-test').textContent !== 'old0') throw new Error('expected ^append string write')
     }
@@ -280,7 +286,7 @@ function* generateDataActionCombinations() {
     yield { attr: `data-m-${method}^stat.status:result@.click`, valid: true, category: `${method}-state-all` };
     yield { attr: `data-m-${method}^hs.req-hs:result@.click`, valid: true, category: `${method}-headers-modifier` };
     yield { attr: `data-m-${method}^hs.raw-hs^hs-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
-    yield { attr: `data-m-${method}^header.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
+    yield { attr: `data-m-${method}^h.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
     yield { attr: `data-m-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
     if (method !== 'get') yield { attr: `data-m-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
     yield { attr: `data-m-${method}^append:items@.click`, valid: true, category: `${method}-append-modifier` };

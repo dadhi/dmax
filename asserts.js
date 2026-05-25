@@ -723,6 +723,22 @@
       return DM['foo'];
     }
     __assert(__tSubTarAppendFallback, [], 3, 'dmEx target ^append falls back to replace');
+    function __tSubTarJsos() {
+      __reset();
+      _dm.set('src', { a: 1, b: [2, 3] });
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out^jsos@src', 'val');
+      return DM['out'];
+    }
+    __assert(__tSubTarJsos, [], '{\n  "a": 1,\n  "b": [\n    2,\n    3\n  ]\n}', 'dmEx target ^jsos precomputed flag applies JSON stringify to output');
+    function __tSubTarWindowProp() {
+      __reset();
+      _dm.set('title', 'dmax-test');
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:_window.document.title@title', 'val');
+      return document.title;
+    }
+    __assert(__tSubTarWindowProp, [], 'dmax-test', 'dmEx target _window property written via precomputed _el');
     function __tSubTarIncDec() {
       __reset();
       _dm.set('n', 2);
@@ -1338,6 +1354,21 @@
       } finally { el.remove() }
     }
     __assert(__tDumpImmediate, [], 3, 'dmIt renders existing signal array on setup by default')
+    function __tDumpSingleItemGrowth() {
+      __reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-m-ex:.="$it"></li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', [])
+        dmIt(el, 'data-m-it@items')
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['x'])
+        return { count: el.children.length, text: el.firstElementChild?.textContent || '' }
+      } finally { el.remove() }
+    }
+    __assert(__tDumpSingleItemGrowth, [], { count: 1, text: 'x' }, 'dmIt single-item growth fast path renders one clone')
     function __tDumpNotImmediate() {
       __reset()
       const el = document.createElement('ul')
@@ -1689,7 +1720,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^sse overrides generic accept from ^hs while ^header stays most specific', async () => {
+    __asyncAssert('^sse overrides generic accept from ^hs while ^h stays most specific', async () => {
       __reset()
       let capturedHs = null
       window.fetch = (_url, init) => {
@@ -1704,7 +1735,7 @@
         const btn = document.createElement('button')
         _dm.set('reqHs', { accept: 'application/json', authorization: 'Bearer old' })
         _dm.set('authorization', 'Bearer new')
-        dmAct(btn, 'data-m-get^sse^hs.req-hs^header.authorization:res@.click', '"https://api.test/sse"')
+        dmAct(btn, 'data-m-get^sse^hs.req-hs^h.authorization:res@.click', '"https://api.test/sse"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1797,7 +1828,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^header.X keeps kebab-case header names while reading camelCase signals', async () => {
+    __asyncAssert('^h.X keeps kebab-case header names while reading camelCase signals', async () => {
       __reset()
       let capturedHs = null
       window.fetch = (_url, init) => {
@@ -1812,7 +1843,7 @@
         const btn = document.createElement('button')
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
-        dmAct(btn, 'data-m-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
+        dmAct(btn, 'data-m-get^h.authorization^h.x-trace-id:res@.click', '"https://api.test/secure"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1825,7 +1856,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^url/^body/^header resolve latest signal values on every request', async () => {
+    __asyncAssert('^url/^body/^h resolve latest signal values on every request', async () => {
       __reset()
       const calls = []
       window.fetch = (url, init) => {
@@ -1841,7 +1872,7 @@
         _dm.set('page', '1')
         _dm.set('cursor', 'a')
         _dm.set('authorization', 'Bearer old')
-        dmAct(btn, 'data-m-post^url.page^body.cursor^header.authorization:res@.click', '"https://api.test/replay"')
+        dmAct(btn, 'data-m-post^url.page^body.cursor^h.authorization:res@.click', '"https://api.test/replay"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         _dm.set('page', '2')
@@ -1948,9 +1979,8 @@
           'event: dm-signals',
           'data: dmSignals {"incrVal":99}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="sse-incr-tgt">streamed</div>',
+          'event: dm-element',
+          'data: <div id="sse-incr-tgt">streamed</div>',
           ''
         ].join('\n')
         const encoder = new TextEncoder()
@@ -2246,9 +2276,8 @@
           'event: dm-signals',
           'data: dmSignals {"sseVal":11}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="ds-target">new</div>',
+          'event: dm-element',
+          'data: <div id="ds-target">new</div>',
           '',
           'event: dm-elements',
           'data: mode remove',
@@ -2280,11 +2309,10 @@
       document.body.appendChild(root)
       try {
         const stream = [
-          'event: dm-elements',
-          'data: mode outer',
+          'event: dm-element',
           // Intentional line split: verifies multi-line SSE data fields survive CRLF parsing.
-          'data: dmElements <div id="ds-multi"><span>line1',
-          'data: dmElements line2</span></div>',
+          'data: <div id="ds-multi"><span>line1',
+          'data: line2</span></div>',
           ''
         ].join('\r\n')
         applySse(stream, 't')
@@ -2302,16 +2330,14 @@
           'event: dm-signals',
           'data: dmSignals {"burstVal":1}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="burst-a">A1</div>',
+          'event: dm-element',
+          'data: <div id="burst-a">A1</div>',
           '',
           'event: dm-signals',
           'data: dmSignals {"burstVal":2}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="burst-b">B2</div>',
+          'event: dm-element',
+          'data: <div id="burst-b">B2</div>',
           '',
           'event: dm-elements',
           'data: mode remove',
@@ -2335,17 +2361,14 @@
       document.body.appendChild(root)
       try {
         const stream = [
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="same-id">one</div>',
+          'event: dm-element',
+          'data: <div id="same-id">one</div>',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="same-id">two</div>',
+          'event: dm-element',
+          'data: <div id="same-id">two</div>',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="same-id">three</div>',
+          'event: dm-element',
+          'data: <div id="same-id">three</div>',
           ''
         ].join('\n')
         const applied = applySse(stream, 't')
@@ -2576,9 +2599,8 @@
       try {
         const mkBody = (html) => {
           const bytes = new TextEncoder().encode([
-            'event: dm-elements',
-            'data: mode outer',
-            'data: dmElements ' + html,
+            'event: dm-element',
+            'data: ' + html,
             ''
           ].join('\n'))
           let done = false
@@ -2620,9 +2642,8 @@
             text: async () => '<div id="combo-target">replaced</div>'
           })
           const bytes = new TextEncoder().encode([
-            'event: dm-elements',
-            'data: mode outer',
-            'data: dmElements <div id="combo-target">streamed</div>',
+            'event: dm-element',
+            'data: <div id="combo-target">streamed</div>',
             ''
           ].join('\n'))
           let done = false
