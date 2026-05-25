@@ -602,18 +602,25 @@
         itState.count = newLen
       }
       if (newLen > oldLen) {
-        const frag = document.createDocumentFragment()
-        for (let idx = oldLen; idx < newLen; idx++) {
-          try {
-            const node = tplFirst.cloneNode(true)
-            const idxText = '' + idx
-            rewriteItBindings(node, itemRefBase + '.' + idxText, itemExprBase + '[' + idxText + ']', idxText)
-            frag.appendChild(node)
-            itState.nodes.push(node)
-          } catch { }
+        const count = newLen - oldLen
+        if (count === 1) {
+          const node = tplFirst.cloneNode(true), idxText = '' + oldLen
+          rewriteItBindings(node, itemRefBase + '.' + idxText, itemExprBase + '[' + idxText + ']', idxText)
+          el.appendChild(node), itState.nodes.push(node)
+        } else {
+          const frag = document.createDocumentFragment()
+          for (let idx = oldLen; idx < newLen; idx++) {
+            try {
+              const node = tplFirst.cloneNode(true)
+              const idxText = '' + idx
+              rewriteItBindings(node, itemRefBase + '.' + idxText, itemExprBase + '[' + idxText + ']', idxText)
+              frag.appendChild(node)
+              itState.nodes.push(node)
+            } catch { }
+          }
+          el.appendChild(frag)
         }
-        el.appendChild(frag)
-        for (let i = itState.nodes.length - (newLen - oldLen); i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
+        for (let i = itState.nodes.length - count; i < itState.nodes.length; ++i) wireItClone(itState.nodes[i])
         itState.count = newLen
       }
     }
@@ -976,15 +983,19 @@
       }
       if (tars.length) {
         const rawFn = fn
+        for (const tar of tars) {
+          tar._m = getWriteMode(tar.mods)
+          tar._j = !!(tar.mods && tar.mods.some((m) => m.root === M_JSOS))
+          if (!tar.isSi) tar._el = tar.isSp ? tar.root === SP_WIN ? window : tar.root === SP_DOC ? document : tar.root === SP_HISTORY ? window.history : null : tar.root ? getElById(tar.root, dKey) : null
+        }
         fn = (dm, el, trig, trigVal, detail) => {
           const exprVal = rawFn(dm, el, trig, trigVal, detail)
           let failedTa = null
           try {
             for (const tar of tars) {
               failedTa = tar
-              const mode = getWriteMode(tar.mods)
-              const outVal = tar.mods && tar.mods.some((m) => m.root === M_JSOS) ? dmJsos(exprVal) : exprVal
-              const nextVal = tar.isSi ? combineActResult(getSiVal(tar), outVal, mode) : combineActResult(getElPrVal(tar.isSp ? tar.root === SP_WIN ? window : tar.root === SP_DOC ? document : tar.root === SP_HISTORY ? window.history : null : tar.root ? getElById(tar.root, dKey) : el, tar.path), outVal, mode)
+              const outVal = tar._j ? dmJsos(exprVal) : exprVal
+              const nextVal = tar.isSi ? combineActResult(getSiVal(tar), outVal, tar._m) : combineActResult(getElPrVal(tar._el || el, tar.path), outVal, tar._m)
               if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, nextVal)
               else setPr(el, dKey, tar, nextVal)
             }

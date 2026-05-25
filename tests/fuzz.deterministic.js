@@ -155,6 +155,12 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
   yield { attr: 'data-m-ex:user^merge@ui', valid: true, category: 'target-merge' }
   yield {
+    attr: 'data-m-ex:.text-content^jsos@foo', valid: true, category: 'target-jsos', html: '<div id="fuzz-test" data-m-ex:.text-content^jsos@foo></div>', exercise: async ({ document }) => {
+      const text = document.getElementById('fuzz-test').textContent
+      if (text !== '0') throw new Error('expected ^jsos to stringify signal value, got: ' + text)
+    }
+  }
+  yield {
     attr: 'data-m-ex:.text-content^append@foo', valid: true, category: 'target-append', html: '<div id="fuzz-test" data-m-ex:.text-content^append@foo>old</div>', exercise: async ({ document }) => {
       if (document.getElementById('fuzz-test').textContent !== 'old0') throw new Error('expected ^append string write')
     }

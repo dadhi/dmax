@@ -723,6 +723,22 @@
       return DM['foo'];
     }
     __assert(__tSubTarAppendFallback, [], 3, 'dmEx target ^append falls back to replace');
+    function __tSubTarJsos() {
+      __reset();
+      _dm.set('src', { a: 1, b: [2, 3] });
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out^jsos@src', 'val');
+      return DM['out'];
+    }
+    __assert(__tSubTarJsos, [], '{\n  "a": 1,\n  "b": [\n    2,\n    3\n  ]\n}', 'dmEx target ^jsos precomputed flag applies JSON stringify to output');
+    function __tSubTarWindowProp() {
+      __reset();
+      _dm.set('title', 'dmax-test');
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:_window.document.title@title', 'val');
+      return document.title;
+    }
+    __assert(__tSubTarWindowProp, [], 'dmax-test', 'dmEx target _window property written via precomputed _el');
     function __tSubTarIncDec() {
       __reset();
       _dm.set('n', 2);
@@ -1338,6 +1354,21 @@
       } finally { el.remove() }
     }
     __assert(__tDumpImmediate, [], 3, 'dmIt renders existing signal array on setup by default')
+    function __tDumpSingleItemGrowth() {
+      __reset()
+      const el = document.createElement('ul')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = '<li data-m-ex:.="$it"></li>'
+      el.appendChild(tpl)
+      document.body.appendChild(el)
+      try {
+        _dm.set('items', [])
+        dmIt(el, 'data-m-it@items')
+        setSiAndNotifySubs('t', { root: 'items', path: null }, ['x'])
+        return { count: el.children.length, text: el.firstElementChild?.textContent || '' }
+      } finally { el.remove() }
+    }
+    __assert(__tDumpSingleItemGrowth, [], { count: 1, text: 'x' }, 'dmIt single-item growth fast path renders one clone')
     function __tDumpNotImmediate() {
       __reset()
       const el = document.createElement('ul')
