@@ -30,7 +30,6 @@
 
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
     const ALL = [MOD, TARG, TRIG, ADD]
-    const MODS = [MOD]
 
     const DOT = '.', ID = '#', NOT = '!', BRACKET_OPEN = '[', BRACKET_CLOSE = ']'
     const NAME_DELIMS = [DOT, BRACKET_OPEN]
@@ -77,15 +76,15 @@
     })
     const ACT_METHODS = Object.freeze({ get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' }), DM_KEY = 'data-m-'
     const DM_NO = DM_KEY + 'no', DM_NO_SCAN = DM_NO + '^scan', DM_NO_MORPH = DM_NO + '^morph'
-    const E_RW_REQ = `dmEx ${MOD}${M_RW} requires an element/property trigger in:`
-    const E_RW_EL = `dmEx ${MOD}${M_RW} source element is not found in trigger:`
-    const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
-    const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
+    const E_RW_REQ = `dmEx ${MOD}${M_RW} requires element/property trigger:`
+    const E_RW_EL = `dmEx ${MOD}${M_RW} element not found:`
+    const E_RW_EV = `dmEx ${MOD}${M_RW} event not found:`
+    const E_TRIG_EL = 'element not found:', E_TRIG_EV = 'event not found:', E_FORM_EL = 'form element not found:'
     const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, sp: kind === SP ? SP_DEFS[root] || null : null, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isImmediate: null })
     const mkMod = (not, root, path) => ({ kind: MOD, not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOT_IMMEDIATE ? false : null })
-    const DEFAULT_PR_TA = Object.freeze(mkIt(EP, null, '', null)), RE_DIGITS = /^\d+$/
+    const RE_DIGITS = /^\d+$/
     const parseRef = (dKey, n, pos = 0) => {
       if (!n) return null
       let p = pos, l = n.length
@@ -281,7 +280,7 @@
 
     const VAL_CHANGE_DEPTH_MAX = 32
     const valChangedDeep = (before, after, depth = 0) => {
-      if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] Warning: too deep to compare for signal value change, consider it changed, stopped at:', VAL_CHANGE_DEPTH_MAX); return true }
+      if (depth >= VAL_CHANGE_DEPTH_MAX) { console.warn('[dmax] deep compare limit:', VAL_CHANGE_DEPTH_MAX); return true }
       const b = before, a = after
       if (Array.isArray(b)) { // means b is also an array
         if (!Array.isArray(a) || b.length != a.length) return true
@@ -302,7 +301,7 @@
       let obj = tar.isSp ? tar.root === SP_WIN ? window : tar.root === SP_DOC ? document : tar.root === SP_HISTORY ? window.history : null : tar.root ? getElById(tar.root, dKey) : el
       const path = tar.path; let prop = !path ? getDefaultPr(obj) : null
       if (path && path.length) ([obj] = getPrValAndDepth(obj, path, path.length - 1), prop = path.at(-1))
-      if (!obj || !prop) return logErr('Error setting non existing property for:', tar, 'in', dKey)
+      if (!obj || !prop) return logErr('setting non-existing prop:', tar, 'in', dKey)
       try {
         if (typeof obj[prop] === 'function') return Array.isArray(val) ? obj[prop](...val) : obj[prop](val)
         if (prop === 'style' && isPlainObj(val) && obj[prop]) for (const k in val) {
@@ -313,7 +312,7 @@
           const cssVar = prop[0] === '-' ? prop : '--' + camelToKebab(prop)
           if (obj.getPropertyValue(cssVar) !== '' + val) obj.setProperty(cssVar, val)
         } else if (valChangedDeep(obj[prop], val)) obj[prop] = val
-      } catch (e) { logErr('Error: Failed to set property:', e.message, '>>>', tar, 'on', el) }
+      } catch (e) { logErr('Failed to set property:', e.message, '>>>', tar, 'on', el) }
       return obj[prop]
     }
     const getComputedDisplay = (el) => (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el).display : ''
@@ -404,15 +403,15 @@
     }
     const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, usePrPath = true) => {
       const taEl = tr.root ? getElById(tr.root, dKey) : el
-      if (!taEl) return logErr('Error:', missElMsg, tr, 'in:', dKey), null
+      if (!taEl) return logErr(missElMsg, tr, 'in:', dKey), null
       let ev = tr.path ? tr.path[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = tr.path, ev = getDefaultEv(taEl)
       const readEl = (mod.s === MV_PR || mod.s === MV_ATTRS) && mod.r ? getElById(mod.r, dKey) : taEl
       const readPath = mod.s === MV_PR || mod.s === MV_EV ? mod.v.length ? mod.v : prPath : mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? mod.v : prPath
       if (usePrPath && mod.s === MV_PR && !mod.r && mod.v.length) prPath = mod.v
       ev = ev ?? getDefaultEv(taEl)
-      if (!ev) return logErr('Error:', missEvMsg, tr, 'in:', dKey), null
-      return readEl ? { taEl, readEl, ev, prPath, readPath, tar: mkIt(EP, null, tr.root, prPath, NIL) } : logErr('Error:', missElMsg, tr, 'in:', dKey)
+      if (!ev) return logErr(missEvMsg, tr, 'in:', dKey), null
+      return readEl ? { taEl, readEl, ev, prPath, readPath, tar: mkIt(EP, null, tr.root, prPath, NIL) } : logErr(missElMsg, tr, 'in:', dKey)
     }
     const addNonSiTrSub = (el, tr, mod, fn, elSubs, ran, prTa = null) => {
       const sp = tr.sp, isSp = !!sp
@@ -447,13 +446,6 @@
     }
 
     const dmJsos = (v, sp = 2) => typeof v === 'string' ? v : JSON.stringify(v, null, +(resolveMPathVal(sp) ?? 2) || 0)
-    const resolveHtmlSelector = (mPath) => {
-      const v = resolveMPathVal(mPath)
-      if (typeof v === 'string' && v) {
-        const c = v[0]; return SEL_LEADS.includes(c) ? v : '#' + v
-      }
-      return ''
-    }
     const mkOrStatSi = (mod, fallbackRoot) => {
       if (!mod) return null
       const p = mod.path
@@ -461,23 +453,17 @@
     }
     const mkStatTar = (root, path, key) => ({ root, path: path ? path.concat(key) : [key] })
     const STAT_KEYS_F = [M_BUSY, M_COMPLETE, M_SSE_OPEN, M_SSE_CLOSE], STAT_KEYS_N = [M_ERR, M_CODE, M_ABORT]
-    const defStatSi = (stat) => {
+    const mkActStats = (mod) => {
+      const stat = mkOrStatSi(mod, M_STAT)
       if (!stat) return null
-      let cur = _dm.get(stat.root)
-      if (!cur || typeof cur !== 'object') _dm.set(stat.root, cur = noProto())
-      let parent = cur
-      const path = stat.path
+      let cur = _dm.get(stat.root); if (!cur || typeof cur !== 'object') _dm.set(stat.root, cur = noProto())
+      let parent = cur; const path = stat.path
       if (path && path.length) for (let i = 0; i < path.length; ++i) parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
       for (const k of STAT_KEYS_F) if (!hasOwn(parent, k)) parent[k] = false
       for (const k of STAT_KEYS_N) if (!hasOwn(parent, k)) parent[k] = null
-      return stat
-    }
-    const mkActStats = (mod) => {
-      const stat = defStatSi(mkOrStatSi(mod, M_STAT))
-      if (!stat) return null
-      const { root, path } = stat, out = noProto()
-      for (const k of STAT_KEYS_F) out[k] = mkStatTar(root, path, k)
-      for (const k of STAT_KEYS_N) out[k] = mkStatTar(root, path, k)
+      const { root, path: sp } = stat, out = noProto()
+      for (const k of STAT_KEYS_F) out[k] = mkStatTar(root, sp, k)
+      for (const k of STAT_KEYS_N) out[k] = mkStatTar(root, sp, k)
       return out
     }
 
@@ -633,21 +619,6 @@
     }
     const getWriteMode = (mods) => { for (const m of mods || NIL) if (m.root === M_REPLACE || m.root === M_MERGE || m.root === M_APPEND || m.root === M_PREPEND || m.root === M_INC || m.root === M_DEC) return m.root; return M_REPLACE }
 
-    const patchMatchingSis = (dKey, payload, resultMode) => {
-      if (!isPlainObj(payload)) return
-      for (const key in payload) if (hasOwn(payload, key)) {
-        const root = kebabToCamel(key)
-        if (!_dm.has(root)) continue
-        setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), payload[key], resultMode))
-      }
-    }
-
-    const applyActPayload = (dKey, resultTa, payload, resultMode) => {
-      if (!resultTa) return
-      const prev = getSiValOrIt(resultTa)
-      setSiAndNotifySubsNDeep(dKey, resultTa, combineActResult(prev, payload, resultMode))
-    }
-
     const permitVal = (m, val, n = m.root, v = resolveMPathVal(m.path)) => n === M_AND ? !!v != !!m.not : n == M_EQ ? val == v : n == M_NE ? val != v : n == M_GT ? +val > +v : n == M_LT ? +val < +v : n == M_GE ? +val >= +v : +val <= +v
     const modsPermitVal = (mods, val) => !mods.push ? permitVal(mods, val) : !mods.some((m) => !permitVal(m, val))
 
@@ -719,7 +690,7 @@
         return sub.fn
       }
       if (sp.io) {
-        if (typeof IntersectionObserver === 'undefined') { warn('IntersectionObserver missing, skip _viewed:', el); return null }
+        if (typeof IntersectionObserver === 'undefined') { warn('no IntersectionObserver:', el); return null }
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, tr, mod, sub)
         const observer = new IntersectionObserver((entries) => {
@@ -735,7 +706,7 @@
       if (sp.init) return applyTrMs(fn, tr, mod)
       const taEl = sp.ta === SP_TA_WIN ? window : sp.ta === SP_TA_DOC ? document : sp.ta === SP_TA_FORM ? (el && el.closest ? el.closest('form') : null) : null
       const ev = tr.path?.[0] || sp.ev || null, readPath = mod.s === MV_PR ? mod.v.length ? mod.v : null : mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? mod.v : null
-      if (sp.ta === SP_TA_FORM && !taEl) return logErr('Error:', E_FORM_EL, tr, 'on:', el), null
+      if (sp.ta === SP_TA_FORM && !taEl) return logErr(E_FORM_EL, tr, 'on:', el), null
       if (!expected(taEl && ev, 'Expected event target/name in addSpSub:', tr, 'on:', el)) return null
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
@@ -856,16 +827,6 @@
       try { return setSiAndNotifySubs(dKey, tar, val) } finally { syncDepth-- }
     }
 
-    /**
-     * @typedef {(dm?: any, el?: any, trig?: any, trigVal?: any, detail?: any) => void} TriggerHandler
-     */
-
-    /**
-     * @param {TriggerHandler} fn
-     * @param {{ kind: string, root?: string, path?: any, not?: any }} trig
-     * @param {{ el?: any, trig: any, fn?: any, siChangeM?: any, ev?: { taEl: EventTarget, evName: string, opts: any } | null, clearId?: any } | undefined} [removeSub]
-     * @returns {TriggerHandler}
-     */
     const onRaf = (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(fn, 16)
     const getEvVal = (detail, dd = detail && detail.detail) => dd === undefined ? detail : dd && typeof dd === 'object' ? dd.value ?? dd.ms ?? dd : dd
     const applyTrMs = (fn, tr, mod, removeSub) => {
@@ -936,7 +897,7 @@
             if (tr.isSi) writeSiTrs.push([tr, getWriteMode(tr.mods)])
             continue
           }
-          if (!tr.isEv) return logErr('Error:', E_RW_REQ, dKey)
+          if (!tr.isEv) return logErr(E_RW_REQ, dKey)
           const prTa = getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV)
           if (!prTa) return
           writePrTrs.push({ tr, mod, w: getWriteMode(tr.mods), taEl: prTa.taEl, readEl: prTa.readEl, ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }) }
@@ -955,7 +916,7 @@
               const prTa = tr.isEv ? getTrPrTa(el, dKey, tr, mod, E_RW_EL, E_RW_EV) : null
               if (tr.isEv && !prTa) return
               if ((ran = addNonSiTrSub(el, tr, mod, (dm, _el, syncTr, trigVal, detail) => syncPrTas(dm, syncTr, trigVal, detail), elSubs, ran, prTa)) == null) return
-            } else return logErr('Error: unsupported trigger kind', tr.kind, 'in', dKey)
+            } else return logErr('bad trigger kind', tr.kind, 'in', dKey)
           }
           if (writeSiTrs.length) {
             for (const prTr of writePrTrs) {
@@ -976,7 +937,7 @@
         fn = (dm, el, trig, trigVal, detail) => {
           const exprVal = rawFn(dm, el, trig, trigVal, detail)
           try { for (const tar of tars) { const outVal = tar._j ? dmJsos(exprVal) : exprVal; const nextVal = tar.isSi ? combineActResult(getSiVal(tar), outVal, tar._m) : combineActResult(getElPrVal(tar._el || el, tar.path), outVal, tar._m); if (tar.isSi) setSiAndNotifySubsNDeep(dKey, tar, nextVal); else setPr(el, dKey, tar, nextVal) } }
-          catch (e) { logErr('Error: setting target in', dKey, 'ended with ex:', e) }
+          catch (e) { logErr('setting target in', dKey, 'ended with ex:', e) }
         }
       }
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return } let ran = false
@@ -987,7 +948,7 @@
           if (!ran && tr.isImmediate != false) ran = true, invokeBoundSub(sub)
           continue
         }
-        if (!tr.isEv && !tr.isSp) return logErr('Error: unsupported trigger kind', tr.kind, 'in', dKey)
+        if (!tr.isEv && !tr.isSp) return logErr('bad trigger kind', tr.kind, 'in', dKey)
         const prTa = tr.isEv && getTrPrTa(el, dKey, tr, mod, E_TRIG_EL, E_TRIG_EV, false)
         if (tr.isEv && !prTa) return
         if ((ran = addNonSiTrSub(el, tr, mod, fn, elSubs, ran, prTa)) == null) return
@@ -997,10 +958,10 @@
     // - data-m-cl+active+!inactive@is-active="dm.isActive"
     const dmCl = (el, dKey, dVal) => {
       const it = parseCached(dKey), adds = it[ADD], tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!adds.length) return logErr('Error: dmCl requires class names via + syntax in:', dKey)
-      if (!trigs.length) return logErr('Error: dmCl requires at least one trigger in:', dKey)
+      if (!adds.length) return logErr('dmCl needs class names via +:', dKey)
+      if (!trigs.length) return logErr('dmCl needs trigger:', dKey)
       const taEl = getTaFromTars(el, dKey, tars)
-      if (!taEl) return logErr('Error: dmCl target element not found in:', dKey)
+      if (!taEl) return logErr('dmCl target not found:', dKey)
       const fn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !fn) return
       const elSubs = upsert(_cleanupBoundSubs, el)
@@ -1020,9 +981,9 @@
     // - data-m-sh:.@is-visible="!dm.isVisible"
     const dmSh = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], globMods = it[MOD]
-      if (!trigs.length) return logErr('Error: dmSh requires at least one trigger in:', dKey)
+      if (!trigs.length) return logErr('dmSh needs trigger:', dKey)
       const taEl = getTaFromTars(el, dKey, tars)
-      if (!taEl) return logErr('Error: dmSh target element not found in:', dKey)
+      if (!taEl) return logErr('dmSh target not found:', dKey)
       const inline = (taEl.style && taEl.style.display) || ''
       const computed = getComputedDisplay(taEl)
       const origDisp = inline ? inline : (computed === 'none' || !computed ? 'block' : computed)
@@ -1092,11 +1053,11 @@
         for (const k in tar) if (hasOwn(tar, k)) dmSet(k, tar[k], dKey)
         return tar
       }
-      if (tar?.kind) { if (tar.kind !== SI) return logErr('dmSet signal target expected:', tar, dKey), null }
+      if (tar?.kind) { if (tar.kind !== SI) return logErr('dmSet target expected:', tar, dKey), null }
       else {
-        if (typeof tar !== 'string' || !tar) return logErr('dmSet signal target expected:', tar, dKey), null
+        if (typeof tar !== 'string' || !tar) return logErr('dmSet target expected:', tar, dKey), null
         tar = parseCached(getApiDKey(tar, tar[0] === ':' ? 'si' : 'si:'))[TARG][0]
-        if (tar?.kind !== SI) return logErr('dmSet signal target expected:', tar, dKey), null
+        if (tar?.kind !== SI) return logErr('dmSet target expected:', tar, dKey), null
       }
       setSiAndNotifySubsNDeep(dKey, tar, val)
       return val
@@ -1134,17 +1095,17 @@
     // - data-m-it+#tpl-post@posts
     const dmIt = (el, dKey) => {
       const it = parseCached(dKey), trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
-      if (!trigs.length) return logErr('Error: dmIt requires a signal trigger in:', dKey)
+      if (!trigs.length) return logErr('dmIt needs signal trigger:', dKey)
       const tr = trigs[0]
-      if (!tr.isSi) return logErr('Error: dmIt trigger must be a signal in:', dKey)
+      if (!tr.isSi) return logErr('dmIt trigger must be signal:', dKey)
       const mod = compileTrMods(tr, globMods)
       let tpl = null
       if (adds.length && adds[0].isEv && adds[0].root) tpl = getElById(adds[0].root, dKey)
       if (!tpl) tpl = el.querySelector('template')
       if (tpl && tpl.parentNode === el) tpl.parentNode.removeChild(tpl)
-      if (!tpl) return logErr('Error: dmIt template not found for:', dKey)
+      if (!tpl) return logErr('dmIt tpl not found:', dKey)
       const tplFirst = tpl.content && tpl.content.firstElementChild
-      if (!tplFirst) return logErr('Error: dmIt template root not found for:', dKey)
+      if (!tplFirst) return logErr('dmIt tpl root not found:', dKey)
       let itState = IT_STATES.get(el)
       if (!itState) IT_STATES.set(el, itState = { nodes: [], count: 0 })
       const itemRefBase = buildItRefBase(tr.root, tr.path)
@@ -1158,7 +1119,7 @@
     const dmAct = (el, dKey, dVal) => {
       const afterData = dKey.slice(DM_KEY.length), methodEnd = indexFirst(afterData, ALL, 0)
       const method = ACT_METHODS[methodEnd >= 0 ? afterData.slice(0, methodEnd) : afterData]
-      if (!method) return logErr('Error: dmAct: unrecognised method prefix in:', dKey)
+      if (!method) return logErr('dmAct bad method:', dKey)
       const it = parseCached(dKey), tars = it[TARG], trigs = it[TRIG], adds = it[ADD], globMods = it[MOD]
       const urlFn = dVal ? compileFn(dVal, dKey) : null
       if (dVal && !urlFn) return
@@ -1231,7 +1192,7 @@
       const hasAdds = adds.length > 0, hasRouteMods = actRouteMods.length > 0
       const doRequest = async () => {
         const url = urlFn ? urlFn(DM, el, null, null, null) : ''
-        if (!url) return logErr('Error: dmAct: URL is empty in:', dKey)
+        if (!url) return logErr('dmAct empty URL:', dKey)
         ss(M_BUSY, true), ss(M_COMPLETE, false), ss(M_ERR, null), ss(M_CODE, null)
         try {
           const queryParams = noProto(), bodyFields = noProto(), addDst = isGetOrDelete ? queryParams : bodyFields
@@ -1278,12 +1239,14 @@
             payload = await res.text()
             const mode = htmlDomMod?.root || M_OUTER
             const hp = htmlDomMod && htmlDomMod.path, elTaRoot = hp ? '' : (findFirstKind(tars, EP)?.root ?? '')
-            const selector = hp ? resolveHtmlSelector(hp) : (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '') : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '') : ''
+            let selector = ''
+            if (hp) { const v = resolveMPathVal(hp); if (typeof v === 'string' && v) { selector = SEL_LEADS.includes(v[0]) ? v : '#' + v } }
+            else selector = (mode === M_BEFORE || mode === M_AFTER) ? (el.id ? '#' + el.id : '') : (mode === M_APPEND || mode === M_PREPEND) ? (elTaRoot ? '#' + elTaRoot : '') : ''
             applyPatchEls({ [SSE_ELS]: payload, selector, mode })
           } else {
             payload = isJsonContentType(ct) ? await res.json() : await res.text()
-            applyActPayload(dKey, resultTa, payload, resultMode)
-            if (patchAll) patchMatchingSis(dKey, payload, resultMode)
+            if (resultTa) { const prev = getSiValOrIt(resultTa); setSiAndNotifySubsNDeep(dKey, resultTa, combineActResult(prev, payload, resultMode)) }
+            if (patchAll && isPlainObj(payload)) for (const key in payload) if (hasOwn(payload, key)) { const root = kebabToCamel(key); if (_dm.has(root)) setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), payload[key], resultMode)) }
           }
           ss(M_BUSY, false), ss(M_COMPLETE, true), ss(M_ERR, null), ss(M_CODE, Number.isFinite(res.status) ? res.status : null), ss(M_ABORT, null)
           activeAbort = null
@@ -1306,7 +1269,7 @@
       for (const tr of trigs) {
         if (!tr.isSi && !tr.isEv && !tr.isSp) return logErr('dmAct bad trigger:', tr.kind, dKey)
         if (tr.isSp) {
-          if (!tr.sp?.act) return logErr('Error: dmAct unsupported SP trigger', tr.root, 'in', dKey)
+          if (!tr.sp?.act) return logErr('dmAct unsupported SP', tr.root, 'in', dKey)
           if (!ran) ran = true, doRequest()
           continue
         }
@@ -1317,9 +1280,9 @@
           continue
         }
         const evTaEl = tr.root ? getElById(tr.root, dKey) : el
-        if (!evTaEl) return logErr('Error: dmAct element not found in trigger:', tr, 'in:', dKey)
+        if (!evTaEl) return logErr('dmAct el not found:', tr, 'in:', dKey)
         const ev = tr.path?.[0] ?? getDefaultEv(evTaEl)
-        if (!ev) return logErr('Error: dmAct event not found in trigger:', tr, 'in:', dKey)
+        if (!ev) return logErr('dmAct event not found:', tr, 'in:', dKey)
         const moddedHandler = addTrSub(el, tr, mod, doRequest, elSubs, evTaEl, ev, null, null, evTaEl)
         if (!ran && tr.isImmediate) ran = true, invokeSub(moddedHandler, null, getElPrVal(evTaEl, null), el, tr)
       }
@@ -1329,7 +1292,7 @@
     const dmActApi = (el, dKey, dVal) => bindAddedSubs(el, (host) => dmAct(host, getApiDKey(dKey, ''), dVal))
     const WC_TMPLS = new WeakSet(), WC_INITS = new WeakSet()
     const defWc = (tpl, name) => {
-      if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
+      if (!name || name.indexOf('-') < 0) return logErr('dmWc needs custom-element name:', name)
       if (customElements.get(name) || WC_TMPLS.has(tpl)) return
       WC_TMPLS.add(tpl)
       const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(/[^,\s]+/g) || NIL
@@ -1338,7 +1301,7 @@
       customElements.define(name, WC)
     }
     // - <template data-m-wc="my-card"><article>...</article></template>
-    const dmWc = (el, dKey, dVal) => el.tagName === 'TEMPLATE' ? defWc(el, dVal && dVal.trim()) : logErr('Error: dmWc is template-only; use data-m-ex for WC host props in:', dKey)
+    const dmWc = (el, dKey, dVal) => el.tagName === 'TEMPLATE' ? defWc(el, dVal && dVal.trim()) : logErr('dmWc template-only, use data-m-ex for host props:', dKey)
     const dmNo = () => {}
     globalThis.dmAct = dmActApi
     dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.wc = dmWc; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.no = dmNo
@@ -1509,13 +1472,6 @@
       return root ? Array.from(root.children) : []
     }
 
-    const insertFragRelative = (taEl, srcEls, mode) => {
-      if (!taEl || !srcEls || !srcEls.length) return
-      const frag = document.createDocumentFragment(), before = mode === M_PREPEND ? taEl.firstChild || null : mode === M_BEFORE ? taEl : taEl.nextSibling
-      for (const src of srcEls) frag.appendChild(src.cloneNode(true))
-      if (mode === M_APPEND) taEl.appendChild(frag)
-      else (mode === M_PREPEND ? taEl : taEl.parentNode)?.insertBefore(frag, before)
-    }
     const applyPatchPair = (taEl, srcEl, mode, reuse = false) => {
       if (!taEl || !srcEl) return
       if (mode === M_REPLACE) taEl.replaceWith(reuse ? srcEl : srcEl.cloneNode(true))
@@ -1537,12 +1493,16 @@
       const srcEls = parseSseEls(rawEls, ns)
       if (mode === M_REMOVE) {
         if (sel) for (const t of document.querySelectorAll(sel)) t.remove()
-        else for (const src of srcEls) src.id ? document.getElementById(src.id)?.remove() : warn('patch-elements remove needs ids without selector')
+        else for (const src of srcEls) src.id ? document.getElementById(src.id)?.remove() : warn('patch remove needs ids without selector')
         return
       }
       if (mode === M_APPEND || mode === M_PREPEND || mode === M_BEFORE || mode === M_AFTER) {
         if (!sel || !srcEls.length) return
-        for (const t of document.querySelectorAll(sel)) insertFragRelative(t, srcEls, mode)
+        for (const t of document.querySelectorAll(sel)) {
+          const frag = document.createDocumentFragment(), before = mode === M_PREPEND ? t.firstChild || null : mode === M_BEFORE ? t : t.nextSibling
+          for (const src of srcEls) frag.appendChild(src.cloneNode(true))
+          if (mode === M_APPEND) t.appendChild(frag); else (mode === M_PREPEND ? t : t.parentNode)?.insertBefore(frag, before)
+        }
         return
       }
 
@@ -1561,7 +1521,7 @@
       if (!srcEls.length) return
       for (const src of srcEls) {
         if (src.id) applyPatchPair(document.getElementById(src.id), src, mode, true)
-        else warn('patch-elements needs ids without selector')
+        else warn('patch needs ids without selector')
       }
     }
 
@@ -1581,7 +1541,7 @@
       const raw = args[SSE_SIS]
       if (!raw) return
       let patchObj = null
-      try { patchObj = JSON.parse(raw) } catch (_) { return logErr('Error: patch sigs in', dKey, 'expect JSON but found invalid format') }
+      try { patchObj = JSON.parse(raw) } catch (_) { return logErr('patch sigs in', dKey, 'expect JSON but found invalid format') }
       if (!isPlainObj(patchObj)) return
       const onlyIfMissing = (args.onlyIfMissing || '').toLowerCase() === 'true'
       for (const root in patchObj) if (hasOwn(patchObj, root)) {

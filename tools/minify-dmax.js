@@ -16,12 +16,26 @@ const OUT_BR = path.join(ROOT, 'dist', 'dmax.min.js.br')
   const src = fs.readFileSync(SRC, 'utf8')
   const out = await minify(src, {
     compress: {
-      passes: 2,
+      passes: 4,
       unsafe: true,
       unsafe_math: true,
-      pure_getters: true
+      pure_getters: true,
+      toplevel: true,
+      reduce_vars: true,
+      collapse_vars: true,
+      inline: 3,
+      join_vars: true,
+      hoist_funs: true,
+      dead_code: true,
+      sequences: true,
+      conditionals: true,
+      comparisons: true,
+      booleans: true,
+      loops: true,
+      if_return: true,
+      keep_fargs: false,
     },
-    mangle: true,
+    mangle: { toplevel: true },
     format: { comments: false }
   })
   if (!out.code) throw new Error('Minifier returned empty output')

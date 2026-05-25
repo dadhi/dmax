@@ -196,7 +196,7 @@ function* generateDataSubCombinations() {
   for (const special of SPECIAL_EVENTS)
     yield { attr: `data-m-ex:foo@${special}`, valid: true, category: 'special-trigger' }
   for (const special of SPECIAL_EVENTS_WITH_IO)
-    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'IntersectionObserver missing, skip _viewed' }
+    yield { attr: `data-m-ex:foo@${special}`, valid: false, category: 'special-trigger-no-io', expectedLog: 'warn', logPattern: 'no IntersectionObserver' }
 
   yield { attr: 'data-m-ex+extra@foo', valid: false, category: 'unsupported-add-warning', expectedLog: 'warn', logPattern: 'targets/triggers/mods only' }
 
@@ -247,14 +247,14 @@ function* generateDataClassCombinations() {
   yield { attr: 'data-m-cl:+active@is-active', valid: true, category: 'single-class' };
   yield { attr: 'data-m-cl+active+!inactive@is-active', valid: true, category: 'inverse-class' };
   yield { attr: 'data-m-cl:+foo:+bar@baz', valid: true, category: 'multi-class' };
-  yield { attr: 'data-m-cl:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dmCl requires class names via + syntax' };
+  yield { attr: 'data-m-cl:', valid: false, category: 'missing-class-error', expectedLog: 'warnOrError', logPattern: 'dmCl needs class names via +' };
 }
 
 function* generateDataDispCombinations() {
   // Valid
   yield { attr: 'data-m-sh@is-visible', valid: true, category: 'display-signal' };
   yield { attr: 'data-m-sh@flag', valid: true, category: 'display-flag' };
-  yield { attr: 'data-m-sh:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmSh requires at least one trigger' };
+  yield { attr: 'data-m-sh:', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmSh needs trigger' };
 }
 
 function* generateDataDumpCombinations() {
@@ -269,7 +269,7 @@ function* generateDataDumpCombinations() {
 
   // Valid - incremental growth (exercises single-item fast path)
   yield { attr: 'data-m-it+#tpl-item@items', valid: true, category: 'single-item-growth' };
-  yield { attr: 'data-m-it+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmIt requires a signal trigger' };
+  yield { attr: 'data-m-it+#tpl-post', valid: false, category: 'missing-trigger-error', expectedLog: 'warnOrError', logPattern: 'dmIt needs signal trigger' };
 }
 
 function* generateDataActionCombinations() {
