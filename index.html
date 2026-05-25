@@ -189,44 +189,44 @@
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last^jsos.2="dm.uplotLast ? val : 'click a point'" aria-label="uPlot point payload"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@user.name</code> · <code>data-m-ex:user.name@.input=&quot;val&quot;</code> · <code>data-m-ex@.^rw^num@user.age</code> · <code>data-m-ex:user.age@.input^num=&quot;val&quot;</code> Type in the inputs and look for the greeting and age text to update while you type.</div>
-      <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name data-m-ex:user.name@.input="val"></label>
+      <div class="page"><code>&lt;input type="text" data-m-ex@.^rw@user.name&gt;</code> · <code>&lt;input type="text" data-m-ex:user.name@.input&gt;</code> · <code>&lt;input type="number" data-m-ex@.^rw^num@user.age&gt;</code> · <code>&lt;input type="number" data-m-ex:user.age@.input^num&gt;</code> Type in the inputs and look for the greeting and age text to update while you type.</div>
+      <label>User Name: <input id="exUserNameInput" type="text" data-m-ex@.^rw@user.name data-m-ex:user.name@.input></label>
       <p>Hello, <strong data-m-ex:.@user.name></strong>!</p>
-      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw^num@user.age data-m-ex:user.age@.input^num="val"></label>
+      <label>Age: <input id="exUserAgeInput" type="number" data-m-ex@.^rw^num@user.age data-m-ex:user.age@.input^num></label>
       <p>Age: <span data-m-ex:.@user.age></span> years old</p>
       <h4>1.a data-m-ex Direction Examples</h4>
-      <div class="page"><code>data-m-ex:.@user.name</code> · <code>data-m-ex:user.name@.input=&quot;val&quot;</code> · <code>data-m-ex@.^rw@user.name</code> Compare one-way signal→element, one-way element→signal, and two-way sync side by side.</div>
+      <div class="page"><code>&lt;span data-m-ex:.@user.name&gt;</code> · <code>&lt;input type="text" data-m-ex:user.name@.input&gt;</code> · <code>&lt;input type="text" data-m-ex@.^rw@user.name&gt;</code> Compare one-way signal->element, one-way element->signal, and two-way sync side by side.</div>
       <label>Signal -> Element: <input id="sigToProp" data-m-ex:.@user.name></label>
-      <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-m-ex:user.name@.input="val"></label>
-      <label>Two-way: <input id="twoWay" data-m-ex@.^rw@user.name data-m-ex:user.name@.input="val"></label>
-      <div>Signal preview: <span data-m-ex:.@user.name="dm.user.name"></span></div>
+      <label>Element -> Signal (writes on key input): <input id="elToSig" value="Alice" data-m-ex:user.name@.input></label>
+      <label>Two-way: <input id="twoWay" data-m-ex@.^rw@user.name data-m-ex:user.name@.input></label>
+      <div>Signal preview: <span data-m-ex:.@user.name></span></div>
       <h4>2. Style &amp; Boolean Deep Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@user.ui.theme-color</code> · <code>data-m-ex:user.ui.theme-color@.input=&quot;val&quot;</code> · <code>data-m-ex:.style.color@user.ui.theme-color=&quot;dm.user.ui.themeColor&quot;</code> · <code>data-m-ex@.^rw^num@user.ui.font-size</code> · <code>data-m-ex:user.ui.font-size@.input^num=&quot;val&quot;</code> · <code>data-m-ex:.style.font-size@user.ui.font-size=&quot;val + 'px'&quot;</code> · <code>data-m-ex@.^rw@user.ui.is-active</code> Change the color, drag the font slider, and toggle the checkbox; style changes should apply immediately.</div>
-      <label>Theme Color: <input id="themeColorInput" type="color" data-m-ex@.^rw@user.ui.theme-color data-m-ex:user.ui.theme-color@.input="val"></label>
-      <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-m-ex:.style.color@user.ui.theme-color="dm.user.ui.themeColor">Color sync</div>
+      <div class="page"><code>&lt;input type="color" data-m-ex@.^rw@user.ui.theme-color&gt;</code> · <code>&lt;input type="color" data-m-ex:user.ui.theme-color@.input&gt;</code> · <code>&lt;div data-m-ex:.style.color@user.ui.theme-color&gt;</code> · <code>&lt;input type="range" data-m-ex@.^rw^num@user.ui.font-size&gt;</code> · <code>&lt;input type="range" data-m-ex:user.ui.font-size@.input^num&gt;</code> · <code>&lt;p data-m-ex:.style.font-size@user.ui.font-size=&quot;val + 'px'&quot;&gt;</code> · <code>&lt;input type="checkbox" data-m-ex@.^rw@user.ui.is-active&gt;</code> Change the color, drag the font slider, and toggle the checkbox; style changes should apply immediately.</div>
+      <label>Theme Color: <input id="themeColorInput" type="color" data-m-ex@.^rw@user.ui.theme-color data-m-ex:user.ui.theme-color@.input></label>
+      <div id="themeColorPreview" style="padding:8px;border:1px solid #ccc;margin:6px 0" data-m-ex:.style.color@user.ui.theme-color>Color sync</div>
       <label>Font Size: <span data-m-ex:.@user.ui.font-size></span>px</label>
-      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw^num@user.ui.font-size data-m-ex:user.ui.font-size@.input^num="val">
+      <input id="themeFontSlider" type="range" min="12" max="32" data-m-ex@.^rw^num@user.ui.font-size data-m-ex:user.ui.font-size@.input^num>
       <p id="themeFontPreview" data-m-ex:.style.font-size@user.ui.font-size="val + 'px'">Resizable text</p>
       <label><input id="themeActiveToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Active</label>
       <p>Status: <strong data-m-ex:.@user.ui.is-active="dm.user.ui.isActive ? '🟢 ONLINE' : '🔴 OFFLINE'"></strong></p>
       <h4>3. Multiple Triggers &amp; Targets</h4>
-      <div class="page"><code>data-m-ex:count^inc@.</code> · <code>data-m-ex:count^dec@.</code> · <code>data-m-ex:count@.=&quot;0&quot;</code><br><code>data-m-ex:.@count=&quot;dm.count&quot;</code> · <code>data-m-ex:.:doubled@count=&quot;dm.count * 2&quot;</code> · <code>data-m-ex:.@.=&quot;`${el.id || ''} ${detail &amp;&amp; detail.type ? detail.type : 'click'}`&quot;</code><br><code>data-m-ex^once:once-test^inc@.</code> · <code>data-m-ex^once:always-test^inc@.^always</code> · <code>data-m-ex:guard-val^inc@.</code> Click the buttons and look for count, doubled value, trigger probe, once-only behavior, and guard labels to change.</div>
+      <div class="page"><code>&lt;button data-m-ex:count^inc@.&gt;</code> · <code>&lt;button data-m-ex:count^dec@.&gt;</code> · <code>&lt;button data-m-ex:count@.=&quot;0&quot;&gt;</code><br><code>&lt;strong data-m-ex:.@count&gt;</code> · <code>&lt;span data-m-ex:.:doubled@count=&quot;dm.count * 2&quot;&gt;</code> · <code>&lt;button data-m-ex:.@.=&quot;`${el.id || ''} ${detail &amp;&amp; detail.type ? detail.type : 'click'}`&quot;&gt;</code><br><code>&lt;button data-m-ex^once:once-test^inc@.&gt;</code> · <code>&lt;button data-m-ex^once:always-test^inc@.^always&gt;</code> · <code>&lt;button data-m-ex:guard-val^inc@.&gt;</code> Click the buttons and look for count, doubled value, trigger probe, once-only behavior, and guard labels to change.</div>
       <button id="countPlusBtn" data-m-ex:count^inc@.>+1</button>
       <button id="countMinusBtn" data-m-ex:count^dec@.>-1</button>
       <button id="countResetBtn" data-m-ex:count@.="0">Reset</button>
-      <p>Count: <strong id="countDisplay" data-m-ex:.@count="dm.count"></strong></p>
+      <p>Count: <strong id="countDisplay" data-m-ex:.@count></strong></p>
       <p>Doubled: <span id="doubledDisplay" data-m-ex:.:doubled@count="dm.count * 2"></span></p>
       <button id="probeBtn" data-m-ex:.@.="`${el.id || ''} ${detail && detail.type ? detail.type : 'click'}`">Probe</button>
       <span id="probeOut" data-m-ex:.@count="trig ? trig.root : ''"></span>
       <div>
         <button id="gOnceBtn" data-m-ex^once:once-test^inc@.>Once +1</button>
-        <span data-m-ex:.@once-test="dm.onceTest"></span>
+        <span data-m-ex:.@once-test></span>
         <button id="gAlwaysBtn" data-m-ex^once:always-test^inc@.^always>Once+Always +1</button>
-        <span data-m-ex:.@always-test="dm.alwaysTest"></span>
+        <span data-m-ex:.@always-test></span>
       </div>
       <div>
         <button id="incGuard" data-m-ex:guard-val^inc@.>Inc Guard</button>
-        <span data-m-ex:.@guard-val="dm.guardVal"></span>
+        <span data-m-ex:.@guard-val></span>
         <span data-m-ex:.@guard-val^gt.5="dm.guardVal > 5 ? 'GT5' : ''"></span>
         <span data-m-ex:.@guard-val^eq.3="dm.guardVal == 3 ? 'EQ3' : ''"></span>
         <span data-m-ex^!and.other-flag:.@guard-val="dm.guardVal ? 'allowed' : ''"></span>
@@ -236,15 +236,15 @@
         <span id="timeoutOut" data-m-ex:.@_timeout.1500="(detail && detail.ms) ? ('timeout ' + detail.ms) : ''"></span>
       </div>
       <h4>4. Side Effects &amp; Multiple Triggers</h4>
-      <div class="page"><code>data-m-ex:.@count@#btn1@#btn2=&quot;console.log('Triggered!', dm.count) || '✓ Check console'&quot;</code> · <code>data-m-ex:.@count@#btn1@#btn2=&quot;({ btn1: 'Button 1', btn2: 'Button 2' }[(trig &amp;&amp; trig.root) || ''] || 'count') + ' → ' + dm.count&quot;</code> Click either button and look for both console side effects and visible trigger-source text.</div>
+      <div class="page"><code>data-m-ex:.@count@#btn1@#btn2=&quot;console.log('Triggered!', dm.count) || '✓ Check console'&quot;</code> · <code>data-m-ex:.@count@#btn1@#btn2=&quot;({ btn1: 'Button 1', btn2: 'Button 2' }[(trig &amp;&amp; trig.root) || ''] || 'count') + ' -> ' + dm.count&quot;</code> Click either button and look for both console side effects and visible trigger-source text.</div>
       <button id="btn1">Button 1</button><button id="btn2">Button 2</button>
       <p><span id="example4ConsoleOut" data-m-ex:.@count@#btn1@#btn2="console.log('Triggered!', dm.count) || '✓ Check console'"></span></p>
-      <p><strong id="example4VisibleOut" data-m-ex:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' → ' + dm.count"></strong></p>
+      <p><strong id="example4VisibleOut" data-m-ex:.@count@#btn1@#btn2="({ btn1: 'Button 1', btn2: 'Button 2' }[(trig && trig.root) || ''] || 'count') + ' -> ' + dm.count"></strong></p>
       <h4>5. Cross-Element Property Sync</h4>
-      <div class="page"><code>data-m-ex@.^rw@message</code> · <code>data-m-ex:message@.input=&quot;val&quot;</code> · <code>data-m-ex:.@#src.input=&quot;val&quot;</code> · <code>data-m-ex:.value@#src.input=&quot;val&quot;</code> Type in the source input and look for both the text preview and readonly mirror to track it while you type.</div>
-      <input id="src" placeholder="Type here..." data-m-ex@.^rw@message data-m-ex:message@.input="val">
-      <p id="srcPreview" data-m-ex:.@#src.input="val"></p>
-      <input id="mirror" readonly data-m-ex:.value@#src.input="val">
+      <div class="page"><code>&lt;input data-m-ex@.^rw@message&gt;</code> · <code>&lt;input data-m-ex:message@.input&gt;</code> · <code>&lt;p data-m-ex:.@#src.input&gt;</code> · <code>&lt;input readonly data-m-ex:.value@#src.input&gt;</code> Type in the source input and look for both the text preview and readonly mirror to track it while you type.</div>
+      <input id="src" placeholder="Type here..." data-m-ex@.^rw@message data-m-ex:message@.input>
+      <p id="srcPreview" data-m-ex:.@#src.input></p>
+      <input id="mirror" readonly data-m-ex:.value@#src.input>
       <h4>6. Window Events &amp; Intervals</h4>
       <div class="page"><code>data-m-ex:.@_window.resize=&quot;window.innerWidth + 'px'&quot;</code> · <code>data-m-ex:.@_interval.1000=&quot;new Date().toLocaleTimeString()&quot;</code> · <code>data-m-ex:.@_timeout.1500=&quot;(detail &amp;&amp; detail.ms) ? ('timeout ' + detail.ms) : ''&quot;</code> · <code>data-m-ex:.@_viewed^once=&quot;'✓ Viewed (ratio: ' + (detail &amp;&amp; detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'&quot;</code> · <code>data-m-ex:.@_init=&quot;'✓ Initialized (detail.type: ' + (detail &amp;&amp; detail.type) + ')'&quot;</code> Resize the window, wait for the timer labels, and scroll the viewed line into view to see each special trigger fire.</div>
       <p>Window width: <span id="windowWidthOut" data-m-ex:.@_window.resize="window.innerWidth + 'px'"></span></p>
@@ -259,36 +259,36 @@
       </p>
       <p>Current hash: <span id="hashOut" data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span></p>
       <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked="val.step"></mx-step>
-      <p>WC default <code>value</code> prop: <span data-m-ex:.@wc-step="val"></span></p>
-      <p>WC custom event detail: <span data-m-ex:.@wc-picked="val"></span></p>
+      <p>WC default <code>value</code> prop: <span data-m-ex:.@wc-step></span></p>
+      <p>WC custom event detail: <span data-m-ex:.@wc-picked></span></p>
       <ul><li class="sel-all-demo-item">alpha</li><li class="sel-all-demo-item">beta</li><li class="sel-all-demo-item">gamma</li></ul>
       <p>QSA count: <span id="qsaCount" data-m-ex:.@_init^sel-all..sel-all-demo-item="val.length"></span></p>
       <h4>7. Default Props &amp; Events</h4>
-      <div class="page"><code>data-m-ex:.@#inp1.input=&quot;val&quot;</code> · <code>data-m-ex:.@#btn3=&quot;'Clicked!'&quot;</code> Type in the input and click the button; the labels below should mirror the default prop/event behavior.</div>
+      <div class="page"><code>&lt;input data-m-ex:.@#inp1.input&gt;</code> · <code>&lt;button data-m-ex:.@#btn3=&quot;'Clicked!'&quot;&gt;</code> Type in the input and click the button; the labels below should mirror the default prop/event behavior.</div>
       <input id="inp1" placeholder="Mirrors on input">
-      <p><span id="inp1Preview" data-m-ex:.@#inp1.input="val"></span></p>
+      <p><span id="inp1Preview" data-m-ex:.@#inp1.input></span></p>
       <button id="btn3">Click me</button>
       <p><span id="btn3Preview" data-m-ex:.@#btn3="'Clicked!'"></span></p>
       <h4>7.a `^pr` / `^si` trigger picks</h4>
-      <div class="page"><code>data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num</code> · <code>data-m-ex:.@val-source^si.bar=&quot;val&quot;</code> · <code>data-m-ex:.@val-source^si.bar=&quot;val + 1&quot;</code> Type in the input and click the increment button; compare the picked property value with the picked signal child value.</div>
+      <div class="page"><code>&lt;input data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num&gt;</code> · <code>&lt;strong data-m-ex:.@val-source^si.bar&gt;</code> · <code>&lt;strong data-m-ex:.@val-source^si.bar=&quot;val + 1&quot;&gt;</code> Type in the input and click the increment button; compare the picked property value with the picked signal child value.</div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <label>Non-default event prop:
           <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num>
         </label>
-        <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input="val"></span></div>
-        <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked="dm.valPropPicked"></strong></div>
+        <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input></span></div>
+        <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked></strong></div>
       </div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <button id="valSignalStep" data-m-ex:val-source@.="({ bar: ((dm.valSource && dm.valSource.bar) || 0) + 1 })">Increment <code>valSource.bar</code></button>
-        <div>Signal child via <code>^si.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^si.bar="val"></strong></div>
+        <div>Signal child via <code>^si.bar</code>: <strong id="valSignalPicked" data-m-ex:.@val-source^si.bar></strong></div>
         <div>Expression on picked child: <strong id="valSignalPlusOne" data-m-ex:.@val-source^si.bar="val + 1"></strong></div>
       </div>
       <h4>8. Classes &amp; Display</h4>
-      <div class="page"><code>data-m-ex@.^rw@user.ui.is-active</code> · <code>data-m-cl+active+!inactive@user.ui.is-active=&quot;dm.user.ui.isActive&quot;</code> · <code>data-m-sh:.@user.ui.is-active</code> · <code>data-m-sh:.@user.ui.is-active=&quot;!dm.user.ui.isActive&quot;</code> Toggle the checkbox and look for classes plus positive/negative visibility changes.</div>
+      <div class="page"><code>&lt;input type="checkbox" data-m-ex@.^rw@user.ui.is-active&gt;</code> · <code>&lt;div data-m-cl+active+!inactive@user.ui.is-active&gt;</code> · <code>&lt;p data-m-sh:.@user.ui.is-active&gt;</code> · <code>&lt;p data-m-sh:.@!user.ui.is-active&gt;</code> Toggle the checkbox and look for classes plus positive/negative visibility changes.</div>
       <label><input id="classToggle" type="checkbox" data-m-ex@.^rw@user.ui.is-active> Toggle Active</label>
-      <div id="classBox" data-m-cl+active+!inactive@user.ui.is-active="dm.user.ui.isActive" style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
+      <div id="classBox" data-m-cl+active+!inactive@user.ui.is-active style="padding:8px;border:1px solid #ccc;margin:6px 0">Status Box</div>
       <p id="displayBox" data-m-sh:.@user.ui.is-active>Visible only when active</p>
-      <p id="displayNeg" data-m-sh:.@user.ui.is-active="!dm.user.ui.isActive">Visible only when NOT active</p>
+      <p id="displayNeg" data-m-sh:.@!user.ui.is-active>Visible only when NOT active</p>
       <h4>9. List Rendering (data-m-it)</h4>
       <div class="page"><code>data-m-it+#tpl-post@posts</code> · <code>data-m-cl+zebra-even+!zebra-odd@posts=&quot;$ix % 2 === 0&quot;</code> · <code>data-m-it@posts</code> · <code>data-m-it+#tpl-thread@threads</code><br><code>data-m-ex:posts@.</code> · <code>data-m-ex:posts@.</code> · <code>data-m-ex:posts@.</code> · <code>data-m-ex:posts@.</code> · <code>data-m-ex:threads@.</code> Use the list buttons and look for append/update/remove behavior plus stable zebra striping and nested thread refresh.</div>
         <template id="tpl-post">
@@ -328,14 +328,14 @@
       <h4>10. Modifiers demo</h4>
       <div class="page"><code>data-m-ex:mod-once^inc@.^once</code> · <code>data-m-ex:mod-deb^inc@.^debounce.120</code> · <code>data-m-ex:mod-thr^inc@.^throttle.120</code> · <code>data-m-ex:mod-and^inc@.^and.gate</code> Click repeatedly and compare once-only, debounced, throttled, and gated behavior.</div>
       <button id="onceBtn" data-m-ex:mod-once^inc@.^once>Once</button>
-      <span data-m-ex:.@mod-once="dm.modOnce"></span>
+      <span data-m-ex:.@mod-once></span>
       <button id="debBtn" data-m-ex:mod-deb^inc@.^debounce.120>Debounce</button>
-      <span data-m-ex:.@mod-deb="dm.modDeb"></span>
+      <span data-m-ex:.@mod-deb></span>
       <button id="thrBtn" data-m-ex:mod-thr^inc@.^throttle.120>Throttle</button>
-      <span data-m-ex:.@mod-thr="dm.modThr"></span>
+      <span data-m-ex:.@mod-thr></span>
       <label><input id="gate" type="checkbox" data-m-ex@.^rw@gate> Gate</label>
       <button id="andBtn" data-m-ex:mod-and^inc@.^and.gate>AND</button>
-      <span data-m-ex:.@mod-and="dm.modAnd"></span>
+      <span data-m-ex:.@mod-and></span>
       <h4>10.a Content vs Shape</h4>
       <div class="page"><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), child: ((dm.demoParent &amp;&amp; dm.demoParent.child) || 0) + 1 }&quot;</code><br><code>data-m-ex:demo-parent@.=&quot;{ ...(dm.demoParent || {}), addedAt: 'shape' }&quot;</code> · <code>data-m-ex:demo-parent@.=&quot;(({ addedAt, ...o }) =&gt; o)(dm.demoParent || {})&quot;</code> Compare content-only updates with shape changes; the shape subscriber should stay quiet until keys are added or removed.</div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
@@ -352,10 +352,10 @@
         </div>
       </div>
       <h4>10.b Constant Index Signals</h4>
-      <div class="page"><code>data-m-ex:.@post-objs[0].title=&quot;dm.postObjs[0].title&quot;</code> · <code>data-m-ex:.@post-objs[1].title=&quot;dm.postObjs[1].title&quot;</code> · <code>data-m-ex:post-objs[0].title@.=&quot;'NewP0Title'&quot;</code> · <code>data-m-ex:post-objs[1].title@.=&quot;'NewP1Title'&quot;</code> Click each setter and check that only the targeted indexed value changes.</div>
+      <div class="page"><code>&lt;strong data-m-ex:.@post-objs[0].title&gt;</code> · <code>&lt;strong data-m-ex:.@post-objs[1].title&gt;</code> · <code>&lt;button data-m-ex:post-objs[0].title@.=&quot;'NewP0Title'&quot;&gt;</code> · <code>&lt;button data-m-ex:post-objs[1].title@.=&quot;'NewP1Title'&quot;&gt;</code> Click each setter and check that only the targeted indexed value changes.</div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
-        <div>Post 0: <strong id="post0Title" data-m-ex:.@post-objs[0].title="dm.postObjs[0].title"></strong></div>
-        <div>Post 1: <strong id="post1Title" data-m-ex:.@post-objs[1].title="dm.postObjs[1].title"></strong></div>
+        <div>Post 0: <strong id="post0Title" data-m-ex:.@post-objs[0].title></strong></div>
+        <div>Post 1: <strong id="post1Title" data-m-ex:.@post-objs[1].title></strong></div>
         <div style="margin-top:6px">
           <button id="setPost0Title" data-m-ex:post-objs[0].title@.="'NewP0Title'">Set post 0 title</button>
           <button id="setPost1Title" data-m-ex:post-objs[1].title@.="'NewP1Title'">Set post 1 title</button>
@@ -369,23 +369,23 @@
         </div>
       </div>
       <h4>11. Actions demo + OOB HTML morph</h4>
-      <div class="page"><code>data-m-get^stat.req:post-result@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
-      <button id="loadPost" data-m-get^stat.req:post-result@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (GET)</button>
+      <div class="page"><code>&lt;button data-m-get^stat.req:post-result@.=&quot;(postId => `https://dummyjson.com/posts/${postId}`)(1)&quot;&gt;</code> Run the request and look for grouped status fields plus the JSON payload below.</div>
+      <button id="loadPost" data-m-get^stat.req:post-result@.="(postId => `https://dummyjson.com/posts/${postId}`)(1)">Load DummyJSON post #1 (GET)</button>
       <div>Busy: <span data-m-ex:.@req.busy></span> | Error: <span data-m-ex:.@req.err></span> | Code: <span data-m-ex:.@req.code></span></div>
       <pre style="background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result^jsos.2></pre>
       <div style="margin-top:8px;border:1px solid #dbeafe;padding:8px;border-radius:6px">
-        <div class="page"><code>data-m-get^stat.post-state:post-result-custom@.=&quot;'https://dummyjson.com/posts/1'&quot;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
-        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="'https://dummyjson.com/posts/1'">Load DummyJSON post #1 (custom grouped status)</button>
+        <div class="page"><code>&lt;button data-m-get^stat.post-state:post-result-custom@.=&quot;(postId => `https://dummyjson.com/posts/${postId}`)(1)&quot;&gt;</code> Same request, but read grouped custom status fields instead of the default ones.</div>
+        <button id="loadPostCustomBusy" data-m-get^stat.post-state:post-result-custom@.="(postId => `https://dummyjson.com/posts/${postId}`)(1)">Load DummyJSON post #1 (custom grouped status)</button>
         <strong style="margin-left:8px" data-m-sh:.@post-state.busy>Loading…</strong>
         <div>Error: <span data-m-ex:.@post-state.err></span> | Code: <span data-m-ex:.@post-state.code></span></div>
         <pre style="background:#eff6ff;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@post-result-custom^jsos.2></pre>
       </div>
       <div>
-        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>data-m-post^json^stat.req:created-post@.+draftPost^spread=&quot;'https://dummyjson.com/posts/add'&quot;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
+        <div class="page"><code>data-m-ex:draftPost@.=&quot;({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })&quot;</code><br><code>&lt;button data-m-post^json^stat.req:created-post@.+draftPost^spread=&quot;`https://dummyjson.com/posts/add`&quot;&gt;</code> Edit the fields and submit; the created-post JSON should echo the sent body with response data.</div>
         <input id="new-title" placeholder="DummyJSON title" value="I am in love with someone." />
         <input id="new-body" placeholder="DummyJSON body" value="This notebook now mirrors DummyJSON post payloads for deterministic action examples." />
         <input id="new-user-id" type="number" min="1" placeholder="User ID" value="5" />
-        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^stat.req:created-post@.+draftPost^spread="'https://dummyjson.com/posts/add'">Create DummyJSON post (POST ^json)</button>
+        <button id="create-post" data-m-ex:draftPost@.="({ title: dmEl('new-title').value, body: dmEl('new-body').value, userId: +dmEl('new-user-id').value||0 })" data-m-post^json^stat.req:created-post@.+draftPost^spread="`https://dummyjson.com/posts/add`">Create DummyJSON post (POST ^json)</button>
         <pre style="background:#fff8f0;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post^jsos.2></pre>
       </div>
       <div style="margin-top:8px;border:1px dashed #eab308;padding:8px">
@@ -394,14 +394,14 @@
         <pre style="background:#fffbeb;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@created-post^jsos.2></pre>
       </div>
         <div style="margin-top:8px;border:1px dashed #cbd5e1;padding:8px">
-        <div class="page"><code>data-m-get^html^stat.req@.=&quot;'/mock/oob'&quot;</code> Run it and watch the target block morph without a full replace.</div>
-        <button id="oobLoad" data-m-get^html^stat.req@.="'/mock/oob'">Load OOB HTML + morph</button>
+        <div class="page"><code>&lt;button data-m-get^html^stat.req@.="`/mock/oob`"&gt;</code> Run it and watch the target block morph without a full replace.</div>
+        <button id="oobLoad" data-m-get^html^stat.req@.="`/mock/oob`">Load OOB HTML + morph</button>
         <div id="oobTarget"><strong>Initial target content</strong></div>
       </div>
       <div style="margin-top:8px;border:1px dashed #94a3b8;padding:8px">
-        <div class="page"><code>data-m-get^sse^stat.sse-meta:sse-events@.=&quot;'/mock/dmax-sse'&quot;</code> Replays one short mocked SSE response through dmax's real SSE path, then closes. It updates signals and morphs the target once so the behavior is easy to inspect.</div>
-        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="'/mock/dmax-sse'">Replay one mocked SSE response</button>
-        <div>Message: <span data-m-ex:.@sse-message="dm.sseMessage"></span> | Count: <span data-m-ex:.@sse-count="dm.sseCount"></span></div>
+        <div class="page"><code>&lt;button data-m-get^sse^stat.sse-meta:sse-events@.="`/mock/dmax-sse`"&gt;</code> Replays one short mocked SSE response through dmax's real SSE path, then closes. It updates signals and morphs the target once so the behavior is easy to inspect.</div>
+        <button id="sseLoad" data-m-get^sse^stat.sse-meta:sse-events@.="`/mock/dmax-sse`">Replay one mocked SSE response</button>
+        <div>Message: <span data-m-ex:.@sse-message></span> | Count: <span data-m-ex:.@sse-count></span></div>
         <div>SSE status: <span data-m-ex:.@sse-meta="!val ? 'idle' : val.open ? 'open' : val.close ? 'closed' : val.busy ? 'loading' : val.complete ? 'complete' : 'ready'"></span></div>
         <div id="sseTarget"><strong>Initial SSE target</strong></div>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px" data-m-ex:.@sse-meta^jsos.2></pre>
