@@ -30,6 +30,7 @@ Connection: keep-alive
 
 dmax consumes these public SSE event names:
 - `dm-signals`
+- `dm-element`
 - `dm-elements`
 
 You may emit one, the other, or both in the same stream.
@@ -59,9 +60,27 @@ data: {"feed":{"items":[1,2,3]},"req":{"busy":false}}
 
 ```
 
+## `dm-element`
+
+Patch one default whole element by sending raw HTML only.
+
+```text
+event: dm-element
+data: <main id="app-shell"><h1>Orders</h1></main>
+
+```
+
+Default rules:
+- payload is raw HTML, not JSON
+- mode defaults to `outer`
+- the root element must have an `id`
+- dmax finds the live target by that id and morphs it
+
+This is the preferred default case for full-fragment or full-page-root morphs because it avoids JSON parsing and repeated `selector` / `mode` fields.
+
 ## `dm-elements`
 
-Patch DOM by selector.
+Patch DOM by selector or explicit mode JSON.
 
 ```text
 event: dm-elements
@@ -105,7 +124,7 @@ data: {"selector":"#rows","html":"<tr><td>new</td></tr>","mode":"append"}
 
 ### Fat page morph
 
-For a whole-page refresh that should preserve as much live DOM state as possible, send one large `outer` morph against a stable page root.
+For a whole-page refresh that should preserve as much live DOM state as possible, send one large default-root morph against a stable page root.
 
 Client markup:
 
@@ -116,8 +135,8 @@ Client markup:
 SSE frame:
 
 ```text
-event: dm-elements
-data: {"selector":"#app-shell","mode":"outer","html":"<main id=\"app-shell\">...full new page body...</main>"}
+event: dm-element
+data: <main id="app-shell">...full new page body...</main>
 
 ```
 
@@ -128,11 +147,11 @@ Use this when the server already knows the next full page shape and you want one
 If the main response is one large morph but a few extra targets should update separately, emit more `dm-elements` events after it.
 
 ```text
-event: dm-elements
-data: {"selector":"#app-shell","mode":"outer","html":"<main id=\"app-shell\">...full new page body...</main>"}
+event: dm-element
+data: <main id="app-shell">...full new page body...</main>
 
-event: dm-elements
-data: {"selector":"#toast","mode":"outer","html":"<aside id=\"toast\">saved</aside>"}
+event: dm-element
+data: <aside id="toast">saved</aside>
 
 event: dm-elements
 data: {"selector":"head title","mode":"outer","html":"<title>Orders · saved</title>"}
@@ -191,7 +210,7 @@ dmax actions already provide a compact request contract:
 - `^send-all` sends all signals
 - `^url.x` forces values into the query string
 - `^body.x` forces values into the body
-- `^header.x` copies values into headers
+- `^h.x` copies values into headers
 - `^hs.sig` copies a header object
 - `^auth.sig` sets authorization
 - `^stat.sig` exposes grouped lifecycle state on the client

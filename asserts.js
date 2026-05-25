@@ -1689,7 +1689,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^sse overrides generic accept from ^hs while ^header stays most specific', async () => {
+    __asyncAssert('^sse overrides generic accept from ^hs while ^h stays most specific', async () => {
       __reset()
       let capturedHs = null
       window.fetch = (_url, init) => {
@@ -1704,7 +1704,7 @@
         const btn = document.createElement('button')
         _dm.set('reqHs', { accept: 'application/json', authorization: 'Bearer old' })
         _dm.set('authorization', 'Bearer new')
-        dmAct(btn, 'data-m-get^sse^hs.req-hs^header.authorization:res@.click', '"https://api.test/sse"')
+        dmAct(btn, 'data-m-get^sse^hs.req-hs^h.authorization:res@.click', '"https://api.test/sse"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1797,7 +1797,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^header.X keeps kebab-case header names while reading camelCase signals', async () => {
+    __asyncAssert('^h.X keeps kebab-case header names while reading camelCase signals', async () => {
       __reset()
       let capturedHs = null
       window.fetch = (_url, init) => {
@@ -1812,7 +1812,7 @@
         const btn = document.createElement('button')
         _dm.set('authorization', 'Bearer tok-xyz')
         _dm.set('xTraceId', 'req-001')
-        dmAct(btn, 'data-m-get^header.authorization^header.x-trace-id:res@.click', '"https://api.test/secure"')
+        dmAct(btn, 'data-m-get^h.authorization^h.x-trace-id:res@.click', '"https://api.test/secure"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {
@@ -1825,7 +1825,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^url/^body/^header resolve latest signal values on every request', async () => {
+    __asyncAssert('^url/^body/^h resolve latest signal values on every request', async () => {
       __reset()
       const calls = []
       window.fetch = (url, init) => {
@@ -1841,7 +1841,7 @@
         _dm.set('page', '1')
         _dm.set('cursor', 'a')
         _dm.set('authorization', 'Bearer old')
-        dmAct(btn, 'data-m-post^url.page^body.cursor^header.authorization:res@.click', '"https://api.test/replay"')
+        dmAct(btn, 'data-m-post^url.page^body.cursor^h.authorization:res@.click', '"https://api.test/replay"')
         __fireEventSub(btn, 'click')
         await new Promise(r => setTimeout(r, 0))
         _dm.set('page', '2')
@@ -1948,9 +1948,8 @@
           'event: dm-signals',
           'data: dmSignals {"incrVal":99}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="sse-incr-tgt">streamed</div>',
+          'event: dm-element',
+          'data: <div id="sse-incr-tgt">streamed</div>',
           ''
         ].join('\n')
         const encoder = new TextEncoder()
@@ -2246,9 +2245,8 @@
           'event: dm-signals',
           'data: dmSignals {"sseVal":11}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="ds-target">new</div>',
+          'event: dm-element',
+          'data: <div id="ds-target">new</div>',
           '',
           'event: dm-elements',
           'data: mode remove',
@@ -2280,11 +2278,10 @@
       document.body.appendChild(root)
       try {
         const stream = [
-          'event: dm-elements',
-          'data: mode outer',
+          'event: dm-element',
           // Intentional line split: verifies multi-line SSE data fields survive CRLF parsing.
-          'data: dmElements <div id="ds-multi"><span>line1',
-          'data: dmElements line2</span></div>',
+          'data: <div id="ds-multi"><span>line1',
+          'data: line2</span></div>',
           ''
         ].join('\r\n')
         applySse(stream, 't')
@@ -2302,16 +2299,14 @@
           'event: dm-signals',
           'data: dmSignals {"burstVal":1}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="burst-a">A1</div>',
+          'event: dm-element',
+          'data: <div id="burst-a">A1</div>',
           '',
           'event: dm-signals',
           'data: dmSignals {"burstVal":2}',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="burst-b">B2</div>',
+          'event: dm-element',
+          'data: <div id="burst-b">B2</div>',
           '',
           'event: dm-elements',
           'data: mode remove',
@@ -2335,17 +2330,14 @@
       document.body.appendChild(root)
       try {
         const stream = [
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="same-id">one</div>',
+          'event: dm-element',
+          'data: <div id="same-id">one</div>',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="same-id">two</div>',
+          'event: dm-element',
+          'data: <div id="same-id">two</div>',
           '',
-          'event: dm-elements',
-          'data: mode outer',
-          'data: dmElements <div id="same-id">three</div>',
+          'event: dm-element',
+          'data: <div id="same-id">three</div>',
           ''
         ].join('\n')
         const applied = applySse(stream, 't')
@@ -2576,9 +2568,8 @@
       try {
         const mkBody = (html) => {
           const bytes = new TextEncoder().encode([
-            'event: dm-elements',
-            'data: mode outer',
-            'data: dmElements ' + html,
+            'event: dm-element',
+            'data: ' + html,
             ''
           ].join('\n'))
           let done = false
@@ -2620,9 +2611,8 @@
             text: async () => '<div id="combo-target">replaced</div>'
           })
           const bytes = new TextEncoder().encode([
-            'event: dm-elements',
-            'data: mode outer',
-            'data: dmElements <div id="combo-target">streamed</div>',
+            'event: dm-element',
+            'data: <div id="combo-target">streamed</div>',
             ''
           ].join('\n'))
           let done = false

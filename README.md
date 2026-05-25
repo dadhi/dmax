@@ -259,7 +259,7 @@ Event output stays on normal `data-m-ex` too:
 Action features include:
 - `^json`, `^text`, `^html`, `^form`
 - `^stat.<signal>` for grouped status fields `{busy, complete, err, code, open, close, abort}`
-- `^hs.<signal>`, `^header.<name>`, `^auth.<signal>`
+- `^hs.<signal>`, `^h.<name>`, `^auth.<signal>`
 - `^url.<path>`, `^body.<path>`
 - `^send-all`, `^patch-all`, `^sync-all`
 - `^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`
@@ -270,6 +270,7 @@ dmax supports `text/event-stream` action responses with incremental application.
 See `protocol.md` for exact wire shapes and no-SDK backend examples.
 
 Supported SSE events:
+- `dm-element`
 - `dm-elements`
 - `dm-signals`
 

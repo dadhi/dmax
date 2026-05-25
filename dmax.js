@@ -48,7 +48,7 @@
     const M_REPLACE='replace', M_MERGE='merge', M_APPEND='append', M_PREPEND='prepend', M_INC='inc', M_DEC='dec'
     const M_BEFORE = 'before', M_AFTER = 'after', M_INNER = 'inner', M_REMOVE = 'remove', M_OUTER = 'outer'
     const M_SSE_OPEN = 'open', M_SSE_CLOSE = 'close', M_RETRY = 'retry', M_ABORT = 'abort'
-    const M_URL = 'url', M_BODY = 'body', M_HDR = 'header'
+    const M_URL = 'url', M_BODY = 'body', M_HDR = 'h'
     const M_SPREAD = 'spread', M_SEND_ALL = 'sendAll', M_PATCH_ALL = 'patchAll', M_SYNC_ALL = 'syncAll'
     const M_DEBOUNCE_MS = 500, M_THROTTLE_MS = 500, M_RETRY_MS = 1000
     const H_ACCEPT = 'accept', H_ACCEPT_ENCODING = 'accept-encoding', H_AUTHORIZATION = 'authorization'
@@ -1536,8 +1536,8 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
-    const SSE_EV_PATCH_ELS = 'dm-elements', SSE_EV_PATCH_SIS = 'dm-signals'
-    const SSE_ELS = 'dmElements', SSE_SIS = 'dmSignals'
+    const SSE_EV_PATCH_EL = 'dm-element', SSE_EV_PATCH_ELS = 'dm-elements', SSE_EV_PATCH_SIS = 'dm-signals'
+    const SSE_EL = 'dmElement', SSE_ELS = 'dmElements', SSE_SIS = 'dmSignals'
 
     const parseSseEls = (html, ns) => {
       if (!html) return NIL
@@ -1579,7 +1579,7 @@
       const mode = (args.mode || M_OUTER).toLowerCase()
       const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
-      const rawEls = args[SSE_ELS] || ''
+      const rawEls = args[SSE_ELS] || args[SSE_EL] || ''
       if (mode === M_REPLACE && ns === 'html' && rawEls) {
         const tars = sel && getPatchTars(sel), m = !sel && /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(rawEls), tar = sel ? tars.length === 1 && tars[0] : document.getElementById(m && (m[1] || m[2] || ''))
         if (tar) return void (tar.outerHTML = '' + rawEls)
@@ -1649,10 +1649,10 @@
     const flushSse = (applied, st, dKey) => {
       const args = st[1], ev = st[0]
       if (st[2] && args) {
-        if (ev === SSE_EV_PATCH_ELS) applyPatchEls(args), applied.push({ event: ev, args })
+        if (ev === SSE_EV_PATCH_EL || ev === SSE_EV_PATCH_ELS) applyPatchEls(args), applied.push({ event: ev, args })
         else if (ev === SSE_EV_PATCH_SIS) applyPatchSigs(dKey, args), applied.push({ event: ev, args })
       }
-      st[0] = 'message', st[1] = null, st[2] = false
+      st[0] = 'message', st[1] = null, st[2] = false, st[3] = ''
     }
     const consumeSseLine = (raw, st, applied, dKey) => {
       const line = raw[raw.length - 1] === '\r' ? raw.slice(0, -1) : raw
@@ -1663,17 +1663,23 @@
       if (val[0] === ' ') val = val.slice(1)
       if (field === 'event') st[0] = val || 'message'
       else if (field === 'data') {
+        st[2] = true
+        if (st[0] === SSE_EV_PATCH_EL) {
+          const args = st[1] || (st[1] = noProto())
+          args[SSE_EL] = st[3] ? st[3] + '\n' + val : val
+          st[3] = args[SSE_EL]
+          return
+        }
         const si = val.indexOf(' ')
         if (si < 0) return
         const key = val.slice(0, si), value = val.slice(si + 1), args = st[1] || (st[1] = noProto())
-        st[2] = true
         if (!args[key]) args[key] = value
         else args[key] += '\n' + value
       }
     }
     const applySse = (raw, dKey = 'dmax-sse') => {
       if (!raw) return NIL
-      const applied = [], text = '' + raw, st = ['message', null, false]
+      const applied = [], text = '' + raw, st = ['message', null, false, '']
       let start = 0, nl
       while ((nl = text.indexOf('\n', start)) >= 0) {
         consumeSseLine(text.slice(start, nl), st, applied, dKey)
@@ -1693,7 +1699,7 @@
     const consumeSseStream = async (body, dKey, actStats) => {
       if (!body || typeof body.getReader !== 'function') return NIL
       const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
-      const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false]
+      const applied = [], reader = body.getReader(), decoder = new TextDecoder(), st = ['message', null, false, '']
       let buf = '', opened = false
       try {
         for (;;) {

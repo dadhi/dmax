@@ -299,12 +299,12 @@ function renderOobPatch(cells, row, col) {
 
 function makeSseOuter(html, selector = '') {
   const safeHtml = String(html).replace(/\r/g, '')
-  const lines = [
+  const lines = selector ? [
     'event: dm-elements',
-    'data: mode outer'
-  ]
-  if (selector) lines.push(`data: selector ${selector}`)
-  for (const line of safeHtml.split('\n')) lines.push(`data: dmElements ${line}`)
+    'data: mode outer',
+    `data: selector ${selector}`
+  ] : ['event: dm-element']
+  for (const line of safeHtml.split('\n')) lines.push(selector ? `data: dmElements ${line}` : `data: ${line}`)
   lines.push('')
   return lines.join('\n')
 }
