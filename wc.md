@@ -27,6 +27,20 @@ Current behavior:
 - clones template content into each instance once on connect
 - scans and wires the cloned content with dmax
 
+If the declaration lives in a separate file, use public `dmWc(...)`:
+
+```js
+dmWc('my-card', '<article>...</article>')
+```
+
+Also supported:
+
+```js
+const tpl = document.createElement('template')
+tpl.innerHTML = '<article>...</article>'
+dmWc(tpl, 'my-card')
+```
+
 Default stance:
 - light DOM first
 - shadow DOM only when style or library isolation is really needed

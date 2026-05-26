@@ -1375,21 +1375,26 @@
     // - const off = dmAct(btn, 'get^stat.req:data@go^not-immediate', "'/api/data'")
     // - dmSet('go', 1)
     const dmActApi = (el, dKey, dVal) => bindAddedSubs(el, (host) => dmAct(host, getApiDKey(dKey, ''), dVal))
-    const WC_TMPLS = new WeakSet(), WC_INITS = new WeakSet()
+    const WC_TMPLS = new WeakSet(), WC_INITS = new WeakSet(), WC_PROP_RE = /[^,\s]+/g
     const defWc = (tpl, name) => {
       if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
-      if (customElements.get(name) || WC_TMPLS.has(tpl)) return
+      if (customElements.get(name) || WC_TMPLS.has(tpl)) return tpl
       WC_TMPLS.add(tpl)
-      const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(/[^,\s]+/g) || NIL
+      const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(WC_PROP_RE) || NIL
       const WC = class extends HTMLElement { connectedCallback() { if (WC_INITS.has(this)) return; WC_INITS.add(this); if (!this.firstElementChild && tpl.content) this.appendChild(tpl.content.cloneNode(true)), wireItClone(this); for (const p of props) { let v = this['$' + p]; if (hasOwn(this, p)) v = this[p], delete this[p]; v !== undefined && (this[p] = v) } } }
-      for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v })), this.firstElementChild && this.firstElementChild.dispatchEvent(new CustomEvent(p, { detail: v })) } })
+      for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v })); for (let ch = this.firstElementChild; ch; ch = ch.nextElementSibling) ch.dispatchEvent(new CustomEvent(p, { detail: v })) } })
       customElements.define(name, WC)
+      return tpl
     }
+    const toWcTpl = (html, props, tpl = document.createElement('template')) => (props != null && tpl.setAttribute(DM_KEY + 'wc-props', Array.isArray(props) ? props.join(' ') : '' + props), tpl.innerHTML = html, tpl)
+    // - dmWc('my-card','<article><slot></slot></article>'), dmWc(tplEl,'my-card')
+    const dmWc = (nameOrTpl, htmlOrName, props) => nameOrTpl && nameOrTpl.tagName === 'TEMPLATE' ? defWc(nameOrTpl, htmlOrName && htmlOrName.trim()) : typeof htmlOrName === 'string' ? defWc(typeof nameOrTpl === 'string' ? toWcTpl(htmlOrName, props) : nameOrTpl, nameOrTpl && nameOrTpl.trim()) : logErr('dmWc expects (name, html[, props]) or (templateEl, name):', nameOrTpl)
     // - <template data-m-wc="my-card"><article>...</article></template>
-    const dmWc = (el, dKey, dVal) => el.tagName === 'TEMPLATE' ? defWc(el, dVal && dVal.trim()) : logErr('Error: dmWc is template-only; use data-m-ex for WC host props in:', dKey)
+    const dmWcAttr = (el, dKey, dVal) => el.tagName === 'TEMPLATE' ? dmWc(el, dVal) : logErr('Error: dmWc is template-only; use data-m-ex for WC host props in:', dKey)
     const dmNo = () => {}
     globalThis.dmAct = dmActApi
-    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.wc = dmWc; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.no = dmNo
+    globalThis.dmWc = dmWc
+    dataM.si = dmSi; dataM.ex = dmEx; dataM.it = dmIt; dataM.wc = dmWcAttr; dataM.cl = dmCl; dataM.sh = dmSh; dataM.dbg = dmDbg; dataM.no = dmNo
     dataM.get = dataM.post = dataM.put = dataM.patch = dataM.delete = dmAct
     const sameKind = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id && b.id ? a.id === b.id : a.tagName === b.tagName
     const sameSlot = (a, b) => a.nodeType !== b.nodeType ? false : a.nodeType !== ELEMENT_NODE ? true : a.id || b.id ? a.id === b.id : a.tagName === b.tagName

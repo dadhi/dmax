@@ -30,7 +30,7 @@ If you want reactive state, DOM updates, list rendering, actions, SSE, morphing,
 
 Backend note: dmax does not require a backend SDK. See `protocol.md` for the plain HTML/JSON/SSE contract.
 
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`.
+By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`, `dmWc(...)`.
 
 ## Distribution files
 
@@ -215,7 +215,11 @@ This maps to:
 
 ## `data-m-wc`
 
-`data-m-wc` is for **template declaration** only.
+There are now two recommended WC definition styles:
+- in-page template: `data-m-wc`
+- separate-file registration: `dmWc(...)`
+
+Use `data-m-wc` when the component definition should stay visible in the page markup.
 
 ```html
 <template data-m-wc="my-card">
@@ -224,6 +228,17 @@ This maps to:
 ```
 
 This registers a light-DOM custom element and clones the template into each instance on first connect.
+
+If you want the same pattern from a separate file, use public `dmWc(...)`:
+
+```html
+<script src="./my-card.js"></script>
+```
+
+```js
+// my-card.js
+dmWc('my-card', '<article>...</article>')
+```
 
 For host props, use normal `data-m-ex` on the custom element:
 
@@ -240,7 +255,7 @@ For attr-driven components that parse JSON from an attribute, prefer `^jsos`:
 <game-board data-m-ex:.state^jsos@board-state></game-board>
 ```
 
-That keeps WC usage smaller and clearer: define with `data-m-wc`, drive with `data-m-ex`.
+That keeps WC usage smaller and clearer: define with `data-m-wc` or `dmWc(...)`, drive with `data-m-ex`.
 
 Event output stays on normal `data-m-ex` too:
 
