@@ -1085,7 +1085,7 @@
           if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value)
           else deferred.push([n, a.name, a.value])
         }
-        const kids = n.children || NIL
+        const kids = n.tagName === 'TEMPLATE' ? NIL : n.children || NIL
         for (let j = 0; j < kids.length; ++j) nodes.push(kids[j])
       }
       for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
@@ -1775,5 +1775,5 @@
       observedCleanupRoots.add(root)
       observer.observe(root.nodeType === ELEMENT_NODE ? root : root === document ? document.body : root, { childList: true, subtree: true })
     }
-    const dmInit = () => document.body && (dmScan(), observeCleanupRoot(document.body))
+    const dmInit = () => document.body && (globalThis.__dmaxNoAutoScan || dmScan(), observeCleanupRoot(document.body))
     document.readyState === 'loading' ? addEventListener('load', dmInit, { once: true }) : dmInit()
