@@ -2266,6 +2266,26 @@
       } finally { root.remove() }
     }
     __assert(__tDmaxPatchElementsOuterMorphKeepsListener, [], { sameNode: true, clicks: 1, className: 'new', text: 'new' }, 'dmax: patch-elements outer uses morph and preserves listeners')
+    function __tDmaxSseElementsHtmlDefaultsById() {
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="ds-html-default">old</div>'
+      document.body.appendChild(root)
+      try {
+        applySse(['event: dm-elements', 'data: html <div id="ds-html-default">new</div>', ''].join('\n'), 't')
+        return root.querySelector('#ds-html-default')?.textContent || ''
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseElementsHtmlDefaultsById, [], 'new', 'dmax: dm-elements html field defaults selector-from-id and mode outer')
+    function __tDmaxSseElementsInnerDefaultSelector() {
+      const root = document.createElement('div')
+      root.innerHTML = '<div id="ds-inner-default"><span>old</span></div>'
+      document.body.appendChild(root)
+      try {
+        applySse(['event: dm-elements', 'data: mode inner', 'data: html <div id="ds-inner-default"><strong>new</strong></div>', ''].join('\n'), 't')
+        return root.querySelector('#ds-inner-default')?.innerHTML || ''
+      } finally { root.remove() }
+    }
+    __assert(__tDmaxSseElementsInnerDefaultSelector, [], '<strong>new</strong>', 'dmax: dm-elements can omit selector when html root id is present')
     function __tDmaxSseStreamAppliesBothEvents() {
       __reset()
       const root = document.createElement('div')

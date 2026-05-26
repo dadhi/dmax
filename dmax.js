@@ -1593,11 +1593,12 @@
     }
     const applyPatchEls = (args) => {
       const mode = (args.mode || M_OUTER).toLowerCase()
-      const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
-      const rawEls = args[SSE_ELS] || args[SSE_EL] || ''
+      const rawEls = args.html || args[SSE_ELS] || args[SSE_EL] || ''
+      const m = !args.selector && ns === 'html' && rawEls && /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(rawEls)
+      const sel = args.selector ? '' + args.selector : m ? '#' + (m[1] || m[2] || '') : ''
       if (mode === M_REPLACE && ns === 'html' && rawEls) {
-        const tars = sel && getPatchTars(sel), m = !sel && /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(rawEls), tar = sel ? tars.length === 1 && tars[0] : document.getElementById(m && (m[1] || m[2] || ''))
+        const tars = sel && getPatchTars(sel), tar = sel ? tars.length === 1 && tars[0] : null
         if (tar) return void (tar.outerHTML = '' + rawEls)
       }
       const srcEls = parseSseEls(rawEls, ns)

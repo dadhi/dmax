@@ -286,7 +286,7 @@ See `protocol.md` for exact wire shapes and no-SDK backend examples.
 
 Supported SSE events:
 - `dm-element`
-- `dm-elements`
+- `dm-elements` (`html` required; `selector` and `mode` optional)
 - `dm-signals`
 
 Lifecycle helpers:
