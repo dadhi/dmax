@@ -173,7 +173,7 @@
       <h4>0. uPlot host props and events</h4>
       <template data-m-wc="mx-uplot" data-m-wc-props="cfg"><div data-m-ex@.cfg="window.mxUplotRender(el, detail.detail)"></div></template>
       <div class="page">Edit the title or width and the chart should update immediately. Click Step data / Add point / Toggle points to change the first chart. Click Duplicate chart to create a second live instance. Click any point to inspect the emitted payload below.</div>
-      <p>This uses a small declarative custom-element shell: <code>data-m-wc</code> defines the host and normal <code>data-m-ex</code> drives host props/events.</p>
+      <p>This uses the in-page WC style: <code>data-m-wc</code> defines the host and normal <code>data-m-ex</code> drives host props/events. The same host could also be registered from JS with <code>dmWc(...)</code>; see <code>m-ex-cel</code> for the separate-file style.</p>
       <div class="wc-demo">
         <div>
           <label>Title <input id="uplot-title-input" value="Revenue vs Cost" data-m-ex:.value@uplot="dm.uplot.title" data-m-ex:uplot@#uplot-title-input.input="window.setUplotTitle(dm.uplot, val)"></label>
