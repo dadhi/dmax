@@ -1085,7 +1085,7 @@
           if (a.name.indexOf('data-m-si') === 0) wireNode(n, a.name, a.value)
           else deferred.push([n, a.name, a.value])
         }
-        const kids = n.children || NIL
+        const kids = n.tagName === 'TEMPLATE' ? NIL : n.children || NIL
         for (let j = 0; j < kids.length; ++j) nodes.push(kids[j])
       }
       for (let i = 0; i < deferred.length; ++i) wireNode(deferred[i][0], deferred[i][1], deferred[i][2])
@@ -1554,6 +1554,7 @@
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
     const SSE_EV_PATCH_EL = 'dm-element', SSE_EV_PATCH_ELS = 'dm-elements', SSE_EV_PATCH_SIS = 'dm-signals'
     const SSE_EL = 'dmElement', SSE_ELS = 'dmElements', SSE_SIS = 'dmSignals'
+    const HTML_ID_RE = /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i
 
     const parseSseEls = (html, ns) => {
       if (!html) return NIL
@@ -1593,11 +1594,12 @@
     }
     const applyPatchEls = (args) => {
       const mode = (args.mode || M_OUTER).toLowerCase()
-      const sel = args.selector ? '' + args.selector : ''
       const ns = args.namespace ? '' + args.namespace : 'html'
-      const rawEls = args[SSE_ELS] || args[SSE_EL] || ''
+      const rawEls = args.html || args[SSE_ELS] || args[SSE_EL] || ''
+      const m = !args.selector && ns === 'html' && rawEls && HTML_ID_RE.exec(rawEls)
+      const sel = args.selector ? '' + args.selector : m ? '#' + (m[1] || m[2] || '') : ''
       if (mode === M_REPLACE && ns === 'html' && rawEls) {
-        const tars = sel && getPatchTars(sel), m = !sel && /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i.exec(rawEls), tar = sel ? tars.length === 1 && tars[0] : document.getElementById(m && (m[1] || m[2] || ''))
+        const tars = sel && getPatchTars(sel), tar = sel ? tars.length === 1 && tars[0] : null
         if (tar) return void (tar.outerHTML = '' + rawEls)
       }
       const srcEls = parseSseEls(rawEls, ns)
@@ -1774,4 +1776,5 @@
       observedCleanupRoots.add(root)
       observer.observe(root.nodeType === ELEMENT_NODE ? root : root === document ? document.body : root, { childList: true, subtree: true })
     }
-    observeCleanupRoot(document.body)
+    const dmInit = () => document.body && (globalThis.dmNoAutoScan || dmScan(), observeCleanupRoot(document.body))
+    document.readyState === 'loading' ? addEventListener('load', dmInit, { once: true }) : dmInit()

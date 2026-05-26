@@ -589,7 +589,6 @@
       window.mExCelInit = () => enrichMx(clone(INIT_MX))
       window.mExCelPick = (mx, cell) => ({ ...enrichMx(mx), selectedId: cell.id, selectedLabel: `${cell.row} / ${cell.col}`, selectedValue: cell.value, selectedDelta: cell.delta, log: logMx(mx, `pick ${cell.row} / ${cell.col} = ${cell.value}`) })
       window.mExCelDelta = (n) => !n ? '±0' : (n > 0 ? '+' : '') + n
-      dmScan()
     })()
   </script>
 </body>

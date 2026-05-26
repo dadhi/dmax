@@ -80,18 +80,20 @@ This is the preferred default case for full-fragment or full-page-root morphs be
 
 ## `dm-elements`
 
-Patch DOM by selector or explicit mode JSON.
+Patch DOM with named `data:` fields.
 
 ```text
 event: dm-elements
-data: {"selector":"#list","html":"<ul><li>A</li></ul>","mode":"inner"}
+data: selector #list
+data: html <ul><li>A</li></ul>
+data: mode inner
 
 ```
 
-Payload fields:
-- `selector`: CSS selector string
-- `html`: HTML string
-- `mode`: one of:
+Fields:
+- `selector`: optional CSS selector string
+- `html`: optional HTML string
+- `mode`: optional; one of:
   - `outer`
   - `inner`
   - `replace`
@@ -102,23 +104,27 @@ Payload fields:
   - `prepend`
 
 Notes:
+- missing `mode` defaults to `outer`
+- missing `selector` falls back to `#<root-id>` when `html` has a single root element with an `id`
 - `outer` morphs the matched element itself
 - `inner` morphs children only
 - `replace` replaces the matched node
 - `remove` ignores `html`
-- relative modes insert around or inside each match
+- relative modes insert around or inside each match; for those, explicit `selector` is still clearer
 
 Examples:
 
 ```text
 event: dm-elements
-data: {"selector":"#status","html":"<span id=\"status\">ok</span>","mode":"outer"}
+data: html <span id="status">ok</span>
 
 ```
 
 ```text
 event: dm-elements
-data: {"selector":"#rows","html":"<tr><td>new</td></tr>","mode":"append"}
+data: selector #rows
+data: html <tr><td>new</td></tr>
+data: mode append
 
 ```
 
