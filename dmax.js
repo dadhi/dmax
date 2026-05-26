@@ -1775,5 +1775,5 @@
       observedCleanupRoots.add(root)
       observer.observe(root.nodeType === ELEMENT_NODE ? root : root === document ? document.body : root, { childList: true, subtree: true })
     }
-    const dmInit = () => document.body && (globalThis.__dmaxNoAutoScan || dmScan(), observeCleanupRoot(document.body))
+    const dmInit = () => document.body && (globalThis.dmNoAutoScan || dmScan(), observeCleanupRoot(document.body))
     document.readyState === 'loading' ? addEventListener('load', dmInit, { once: true }) : dmInit()
