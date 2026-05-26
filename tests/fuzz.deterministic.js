@@ -394,10 +394,6 @@ class FuzzTestRunner {
         dom.window.addEventListener('load', () => resolve(), { once: true });
         setTimeout(resolve, 1000);
       });
-      const allNodes = Array.from(dom.window.document.querySelectorAll('*'));
-      for (const node of allNodes)
-        for (const attribute of Array.from(node.attributes || []))
-          if (attribute.name.indexOf('data-') === 0 && typeof dom.window.wireNode === 'function') dom.window.wireNode(node, attribute.name, attribute.value)
       await new Promise(r => setTimeout(r, 100));
 
       if (exercise) {
