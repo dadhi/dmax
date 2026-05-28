@@ -122,11 +122,12 @@
       }
       & .field-accent small { color: var(--muted); }
       & .field-accent input[type='color'] {
-        inline-size: 2.75rem;
+        inline-size: 3rem;
         block-size: 2.25rem;
         padding: 0;
-        border: 0;
-        background: transparent;
+        border: var(--line-1) solid var(--line-strong);
+        border-radius: var(--radius-1);
+        background: var(--accent);
       }
       & .field-accent input[type='text'] { inline-size: min(18rem, 100%); }
       & button,
@@ -339,26 +340,19 @@
     mx-style-panel .tone { display: grid; gap: 6px; }
     mx-style-panel .tone-row {
       display: grid;
-      grid-template-columns: 2rem minmax(0, 1fr);
+      grid-template-columns: 2.25rem minmax(0, 1fr);
       gap: 6px;
       align-items: center;
     }
-    mx-style-panel .oklch-tools {
-      display: flex;
-      gap: 6px;
-      color: #475569;
-      font-size: 11px;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
-    mx-style-panel .oklch-tools span {
-      padding: 2px 5px;
+    mx-style-panel input { inline-size: 100%; font: inherit; }
+    mx-style-panel input[type='color'] {
+      inline-size: 2.25rem;
+      block-size: 2rem;
+      padding: 0;
       border: 1px solid #cbd5e1;
-      border-radius: 999px;
+      border-radius: 8px;
       background: #fff;
     }
-    mx-style-panel input { inline-size: 100%; font: inherit; }
-    mx-style-panel input[type='color'] { inline-size: 2rem; block-size: 2rem; padding: 0; border: 1px solid #cbd5e1; border-radius: 999px; background: transparent; }
     mx-style-panel input[type='text'] { padding: 6px 7px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
     mx-style-panel input[type='range'] { accent-color: #2563eb; }
     mx-style-panel input:focus-visible,
@@ -420,7 +414,7 @@
         </label>
         <label class="field field-accent"><span>Accent</span>
           <div>
-            <input type="color" aria-label="Accent color" data-m-ex:.value@mx.style.tone-accent="window.mExCelOklchToHex(val) || '#5d74ff'" data-m-ex:mx.style.tone-accent@.input="window.mExCelHexToOklch(val)">
+            <input type="color" aria-label="Accent color" data-m-ex:.value@mx.style.tone-accent="window.mExCelOklchToHex(val) || '#5d74ff'" data-m-ex:mx.style.tone-accent@.input="window.mExCelHexToOklch(val)" data-m-ex:.style.background-color@mx.style.tone-accent="window.mExCelOklchToHex(val) || '#5d74ff'" data-m-ex:.style.border-color@mx.style.tone-accent="window.mExCelOklchToHex(val) || '#94a3b8'">
             <input type="text" aria-label="Accent OKLCH" data-m-ex:.value@mx.style.tone-accent data-m-ex:mx.style.tone-accent@.input>
           </div>
           <small><code data-m-ex:.@mx.style.tone-accent></code></small>

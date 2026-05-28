@@ -416,7 +416,9 @@
   <script>
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
     const toTop = () => {
-      if (location.hash) return
+      const hash = location.hash
+      if (hash && !document.getElementById(hash.slice(1))) history.replaceState(null, '', location.pathname + location.search)
+      else if (location.hash) return
       scrollTo(0, 0)
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
