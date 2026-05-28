@@ -415,7 +415,15 @@
   </main>
   <script>
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
-    addEventListener('load', () => !location.hash && scrollTo(0, 0), { once: true })
+    const toTop = () => {
+      if (location.hash) return
+      scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+    toTop()
+    addEventListener('load', toTop, { once: true })
+    addEventListener('pageshow', toTop, { once: true })
   </script>
   <script>
     // Mirror console to <pre>, count tests

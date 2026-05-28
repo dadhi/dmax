@@ -8,9 +8,9 @@
     ['space4', '--space-4', 'Space 4', '.5', '2.5', '.125', 1],
     ['space5', '--space-5', 'Space 5', '.75', '3', '.125', 1.5],
     ['space6', '--space-6', 'Space 6', '1', '4', '.125', 2],
-    ['radius1', '--radius-1', 'Radius 1', '.125', '1.5', '.125', .5],
-    ['radius2', '--radius-2', 'Radius 2', '.25', '2', '.125', .875],
-    ['radius3', '--radius-3', 'Radius 3', '.375', '2.5', '.125', 1.25],
+    ['radius1', '--radius-1', 'Radius 1', '0', '1.5', '.125', .5],
+    ['radius2', '--radius-2', 'Radius 2', '0', '2', '.125', .875],
+    ['radius3', '--radius-3', 'Radius 3', '0', '2.5', '.125', 1.25],
     ['line1', '--line-1', 'Line 1', '1', '3', '1', 1],
     ['line2', '--line-2', 'Line 2', '1', '4', '1', 2],
     ['sizeCell', '--size-cell', 'Cell size', '3', '7', '.125', 4.5],
@@ -28,7 +28,7 @@
   const resetDefs = [...styleDefs, ...toneDefs]
   window.mExCelStyleReset = () => Object.fromEntries(resetDefs.map((d) => [d.key, d.val]))
   const range = ([key, css, label, min, max, step], path = 'mx.style.' + kebab(key)) => `<div class="r"><dt><code title="${label}">${css}</code></dt><dd><input type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}" data-m-ex:.value@${path} data-m-ex:${path}@.input^num data-m-ex:.title@${path}="'${label}: ' + val"></dd></div>`
-  const tone = ([key, css, label], path = 'mx.style.' + kebab(key)) => `<div class="r"><dt><code title="${label}">${css}</code></dt><dd><div class="tone"><input type="text" aria-label="${label}" data-m-ex:.value@${path} data-m-ex:${path}@.input data-m-ex:.title@${path}="'${label}: ' + val"></div></dd></div>`
+  const tone = ([key, css, label], path = 'mx.style.' + kebab(key), colorLabel = label + ' color') => `<div class="r"><dt><code title="${label}">${css}</code></dt><dd><div class="tone"><div class="oklch-tools" data-m-ex:.title@mx.oklch-help><span>L</span><span>C</span><span>H</span></div><div class="tone-row"><input type="color" aria-label="${colorLabel}" data-m-ex:.value@${path}="window.mExCelOklchToHex(val) || '#ffffff'" data-m-ex:${path}@.input="window.mExCelHexToOklch(val)" data-m-ex:.title@mx.oklch-help><input type="text" aria-label="${label}" data-m-ex:.value@${path} data-m-ex:${path}@.input data-m-ex:.title@mx.oklch-help></div></div></dd></div>`
   dmWc('mx-style-panel', `<details data-m-ex@.^rw@mx.style-panel.open>
     <summary class="fab" aria-controls="mx-style-panel">◐</summary>
     <section class="panel" id="mx-style-panel">
