@@ -4,6 +4,7 @@ A small declarative frontend runtime driven by `data-*` attributes.
 
 - Notebook / examples: <https://dadhi.github.io/dmax/>
 - `m-ex-cel` example: <https://dadhi.github.io/dmax/examples/m-ex-cel.html>
+- `style-starter` example: <https://dadhi.github.io/dmax/examples/style-starter.html>
 
 dmax aims to stay:
 - tiny
@@ -408,11 +409,13 @@ Choose Fixi if you want:
 | `dmax.js` | main runtime |
 | `dist/dmax.min.js` | minified build |
 | `index.html` | notebook + live examples |
-| `examples/m-ex-cel.html` | single-file semantic SSE/grid example |
+| `examples/m-ex-cel.html` | single-file semantic SSE/grid example, dogfooding `dm-style.js` |
+| `examples/style-starter.html` | smallest reusable style-panel starter |
+| `dm-style.js` | tiny style helper + generic style panel package |
 | `asserts.js` | inline assert helpers used by notebook tests |
 | `protocol.md` | backend wire contract: HTML, JSON, SSE, `dm-signals`, `dm-elements` |
 | `wc.md` | `data-m-wc` design sketch |
-| `style.md` | style-system principles for examples |
+| `style.md` | style-system principles, gaps, and starter direction |
 
 ## Development
 

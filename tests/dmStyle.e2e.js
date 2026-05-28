@@ -1,0 +1,95 @@
+const assert = require('assert')
+const fs = require('fs')
+const path = require('path')
+const { JSDOM } = require('jsdom')
+
+function waitFor(conditionFn, timeout = 5000, interval = 20) {
+  const start = Date.now()
+  return new Promise((resolve, reject) => {
+    ;(function poll() {
+      try {
+        const value = conditionFn()
+        if (value) return resolve(value)
+      } catch (err) { return reject(err) }
+      if (Date.now() - start > timeout) return reject(new Error('timeout'))
+      setTimeout(poll, interval)
+    })()
+  })
+}
+
+;(async () => {
+  const dmax = fs.readFileSync(path.join(process.cwd(), 'dmax.js'), 'utf8')
+  const dmStyle = fs.readFileSync(path.join(process.cwd(), 'dm-style.js'), 'utf8')
+  const html = `<!doctype html><body><div id="app" data-m-si='{"stylePanel":{"open":true},"oklchHelp":"oklch help text","style":{"space1":.25,"space2":.5,"space3":.75,"space4":1,"space5":1.5,"space6":2,"radius1":.5,"radius2":.875,"radius3":1.25,"line1":1,"line2":2,"sizeCell":4.5,"sizeWrap":72,"toneBg":"oklch(98% .008 250)","toneInk":"oklch(28% .03 255)","toneAccent":"oklch(62% .18 257)","toneGood":"oklch(68% .17 148)","toneBad":"oklch(62% .19 25)"}}' data-m-ex:.style@style="dmStyle.valsToVars(val, dmStyle.defs)"><dm-style-panel></dm-style-panel></div><script>${dmax}</script><script>${dmStyle}</script><script>dmStyle.panel('dm-style-panel', dmStyle.defs, { signal: 'style', open: 'style-panel.open', help: 'oklch-help' }); navigator.clipboard = { last: '', writeText(v) { this.last = v } }; prompt = () => '{"radius3":0,"toneBg":"oklch(96% .01 240)"}'</script></body>`
+  const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true })
+  const { window } = dom
+  const { document } = window
+
+  window.dispatchEvent(new window.Event('load'))
+  await waitFor(() => window.dmStyle && document.querySelector('dm-style-panel input[type=color]'))
+  assert.strictEqual(typeof window.dmStyle.exportCss, 'function', 'dmStyle export helper exists')
+  assert.strictEqual(typeof window.dmStyle.importVals, 'function', 'dmStyle import helper exists')
+  assert.strictEqual(document.querySelectorAll('dm-style-panel input[type=color]').length >= 5, true, 'style panel renders tone color pickers')
+  assert.notStrictEqual(window.dmStyle.initVals(), window.dmStyle.initVals(), 'initVals returns a fresh object each time')
+  const cssImport = window.dmStyle.importVals({ keep: 1, radius3: 1 }, ':root { --radius-3: 0rem; --tone-bg: oklch(96% .01 240); }')
+  assert.strictEqual(cssImport.keep, 1, 'importVals preserves unrelated keys')
+  assert.strictEqual(cssImport.radius3, 0, 'importVals parses numeric CSS vars')
+  assert.strictEqual(cssImport.toneBg, 'oklch(96% .01 240)', 'importVals parses tone CSS vars')
+
+  const root = document.getElementById('app')
+  assert.strictEqual(root.style.getPropertyValue('--tone-accent'), 'oklch(62% .18 257)', 'root custom props applied from style signal')
+
+  const radius = [...document.querySelectorAll('dm-style-panel input[type=range]')].find((i) => i.getAttribute('aria-label') === 'Radius 3')
+  radius.value = '0'
+  radius.dispatchEvent(new window.Event('input', { bubbles: true }))
+  await waitFor(() => window.dm.style.radius3 === 0)
+  assert.strictEqual(root.style.getPropertyValue('--radius-3'), '0rem', 'range writes mapped css vars')
+
+  const toneTxt = document.querySelector('dm-style-panel input[type=text][aria-label="Tone bg"]')
+  const toneColor = document.querySelector('dm-style-panel input[type=color][aria-label="Tone bg color"]')
+  const prevToneBg = window.dm.style.toneBg
+  toneColor.value = '#112233'
+  toneColor.dispatchEvent(new window.Event('input', { bubbles: true }))
+  await waitFor(() => window.dm.style.toneBg !== prevToneBg)
+  assert.strictEqual(root.style.getPropertyValue('--tone-bg'), window.dm.style.toneBg, 'color picker updates signal and root var')
+  toneTxt.value = 'oklch(95% .02 200)'
+  toneTxt.dispatchEvent(new window.Event('input', { bubbles: true }))
+  await waitFor(() => window.dm.style.toneBg === 'oklch(95% .02 200)')
+  assert.strictEqual(toneColor.title, 'oklch help text', 'shared help tooltip bound to panel inputs')
+
+  const copyBtn = [...document.querySelectorAll('dm-style-panel button')].find((b) => b.textContent === 'copy styles')
+  copyBtn.click()
+  await waitFor(() => window.navigator.clipboard.last.includes('--tone-bg'))
+  assert(window.navigator.clipboard.last.includes(':root {'), 'copy exports css block')
+
+  const importBtn = [...document.querySelectorAll('dm-style-panel button')].find((b) => b.textContent === 'import')
+  importBtn.click()
+  await waitFor(() => window.dm.style.radius3 === 0 && window.dm.style.toneBg === 'oklch(96% .01 240)')
+
+  const customDefs = [
+    { type: 'range', key: 'gap1', css: '--gap-1', label: 'Gap 1', min: '0', max: '4', step: '.5', val: 1, unit: 'rem' },
+    { type: 'tone', key: 'toneAlt', css: '--tone-alt', label: 'Tone alt', val: 'oklch(90% .02 200)' },
+  ]
+  window.dmStyle.panel('dm-style-mini', customDefs, { signal: 'mini', open: 'mini-panel.open', help: 'mini-help', title: 'Mini props' })
+  const wrap = document.createElement('div')
+  wrap.innerHTML = `<div id="mini" data-m-si='{"miniPanel":{"open":true},"miniHelp":"mini help","mini":{"gap1":1,"toneAlt":"oklch(90% .02 200)"}}' data-m-ex:.style@mini="dmStyle.valsToVars(val, dmStyle.panels['dm-style-mini'])"><dm-style-mini></dm-style-mini></div>`
+  const host = wrap.firstElementChild
+  document.body.appendChild(host)
+  window.dmScan(host)
+  await waitFor(() => host.querySelector('dm-style-mini input[type=range]'))
+  const miniRange = host.querySelector('dm-style-mini input[type=range][aria-label="Gap 1"]')
+  const miniTone = host.querySelector('dm-style-mini input[type=text][aria-label="Tone alt"]')
+  miniRange.value = '2'
+  miniRange.dispatchEvent(new window.Event('input', { bubbles: true }))
+  miniTone.value = 'oklch(88% .03 180)'
+  miniTone.dispatchEvent(new window.Event('input', { bubbles: true }))
+  await waitFor(() => window.dm.mini.gap1 === 2 && window.dm.mini.toneAlt === 'oklch(88% .03 180)')
+  assert.strictEqual(host.style.getPropertyValue('--gap-1'), '2rem', 'custom panel range updates root vars through custom defs')
+  assert.strictEqual(host.style.getPropertyValue('--tone-alt'), 'oklch(88% .03 180)', 'custom panel tone updates root vars through custom defs')
+  assert.strictEqual(host.querySelector('dm-style-mini .panel h2').textContent, 'Mini props', 'custom panel title renders')
+
+  console.log('dmStyle smoke test passed')
+})().catch((err) => {
+  console.error(err && err.stack ? err.stack : err)
+  process.exit(1)
+})

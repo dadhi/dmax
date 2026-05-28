@@ -1,6 +1,6 @@
 # Style WC notes
 
-This file is a hands-off memory for the current `mx-style-panel` direction, what it proves, and what is still missing.
+This file is a hands-off memory for the current `dm-style.js` direction, what is now done, and what should stay intentionally small.
 
 ## Current shape
 
@@ -16,6 +16,21 @@ That keeps the rule consistent with the rest of dmax:
 - HTML/CSS first
 - dmax for dataflow
 - imperative JS only for setup/helpers
+
+## 5 minute path
+
+1. load `dmax.js`
+2. load `dm-style.js`
+3. put one `style` signal object on the page root
+4. bind that object once with `data-m-ex:.style@style="dmStyle.valsToVars(val, dmStyle.defs)"`
+5. place `<dm-style-panel></dm-style-panel>` on the page
+6. call:
+
+```html
+<script>dmStyle.panel('dm-style-panel', dmStyle.defs, { signal: 'style', open: 'style-panel.open', help: 'oklch-help' })</script>
+```
+
+If the page already uses CSS vars, that is enough to make the live editor work.
 
 ## Current recipe
 
@@ -47,9 +62,9 @@ The important part is:
 
 If a token does not visibly change the page, first check that the token is actually consumed by CSS.
 
-### 3. Register the style panel with `dmWc(...)`
+### 3. Register the style panel with `dmStyle.panel(...)`
 
-`examples/mx-style-panel.js` does this.
+`dm-style.js` does this on top of public `dmWc(...)`.
 
 The WC is intentionally narrow:
 
@@ -71,8 +86,8 @@ and for color inputs:
 ```html
 <input
   type="color"
-  data-m-ex:.value@mx.style.tone-bg="window.mExCelOklchToHex(val) || '#ffffff'"
-  data-m-ex:mx.style.tone-bg@.input="window.mExCelHexToOklch(val)">
+  data-m-ex:.value@mx.style.tone-bg="dmStyle.oklchToHex(val) || '#ffffff'"
+  data-m-ex:mx.style.tone-bg@.input="dmStyle.hexToOklch(val)">
 ```
 
 So:
@@ -86,7 +101,7 @@ So:
 `m-ex-cel` now proves:
 
 - a page can expose a small live token system with plain dmax
-- a separate-file WC can host the controls cleanly
+- one tiny shared helper can host the controls cleanly
 - OKLCH text and native color pickers can round-trip through the same signal
 - root CSS vars can be applied from one signal object
 - spacing/radius/line/tone tokens can all flow through the same mechanism
@@ -100,58 +115,38 @@ It matches the main dmax rule:
 The style panel is not a special mini-framework.
 It is just:
 
-- `dmWc(...)` for packaging UI
+- `dmStyle.panel(...)` / `dmWc(...)` for packaging UI
 - `data-m-ex` for reads/writes
 - CSS vars for presentation
 
 That is better than introducing a separate styling DSL too early.
 
-## Current gaps
+## Current status
 
-### 1. No built-in token helpers
+Completed in the current small plan:
 
-Users still write the object that maps signal values to CSS vars manually.
-Current page code is readable, but repetitive.
+- generic `dm-style.js` helper exists
+- generic `dmStyle.panel(...)` exists
+- `dmStyle.valsToVars(...)` removes the repetitive token->CSS-var mapping
+- `dmStyle.copy(...)` / `dmStyle.importVals(...)` / `dmStyle.promptImport(...)` exist
+- `dmStyle.oklchToHex(...)` / `dmStyle.hexToOklch(...)` exist
+- `examples/style-starter.html` is the smallest starter
+- `examples/m-ex-cel.html` now dogfoods the same helper instead of page-specific style plumbing
 
-Possible future help:
+Still intentionally missing:
 
-- docs-only helper recipe
-- tiny public helper that turns `{ toneBg: '...' }` into `{ '--tone-bg': '...' }`
+- no extra runtime features in `dmax.js`
+- no big styling DSL
+- no widget-owned style store
+- no pre-themed design system beyond the token defaults
 
-But only if it clearly improves real pages.
-
-### 2. No batteries-included style panel package
-
-Right now `mx-style-panel` is an example-specific WC.
-A user can copy it, but there is no generic reusable package yet.
-
-### 3. Color conversion helpers are example JS
-
-`mExCelOklchToHex(...)` and `mExCelHexToOklch(...)` are still imperative helpers.
-That is acceptable today, but it is still outside dmax proper.
-
-### 4. No opinionated token schema beyond examples
-
-We have a useful pattern:
+Recommended house token shape is now:
 
 - `--space-*`
 - `--radius-*`
 - `--line-*`
 - `--size-*`
 - `--tone-*`
-
-But this is not yet published as a compact recommended house style.
-
-### 5. No importable style starter for user pages
-
-A user still needs to copy:
-
-- token CSS
-- the root binding
-- the WC file
-- the helper functions
-
-That can become shorter.
 
 ## Compare with Datastar Stellar CSS and Rocket
 
@@ -199,36 +194,61 @@ A customer should be able to style a page with dmax using mostly existing web pl
 
 ### Phase 1: document the pattern better
 
-Ship the documented recipe:
-
-1. define tokens on `:root` or page root
-2. put live style values in one signal object
-3. bind that signal object to `.style`
-4. optionally mount a `dmWc(...)` style panel
-5. use small helper JS only for color conversion
-
-This is the current best path.
+Done.
 
 ### Phase 2: extract a copy-paste starter
 
-Provide a minimal starter example with:
-
-- token CSS
-- root `data-m-si`
-- root `data-m-ex:.style@...`
-- separate `dmWc(...)` file
-- optional tone pickers
-
-This gives users a short path without adding runtime features.
+Done.
 
 ### Phase 3: only then consider tiny helpers
 
-Only if repeated user pain is obvious, consider tiny helpers such as:
+Done at the small end only:
 
-- a token-object to CSS-var-object helper
-- a small reusable style-panel package
+- token-object to CSS-var-object helper
+- small reusable style-panel package
+- import/export helpers
+- OKLCH bridge helpers
 
-Not a full styling subsystem.
+Still not a full styling subsystem.
+
+## Compared to Datastar Stellar CSS and Rocket
+
+### Where dmax is intentionally different
+
+- CSS-first, not style-system-first
+- normal CSS vars and modern CSS features first
+- dmax as dataflow glue, not a parallel styling DSL
+- thin WC packaging, not a larger component runtime
+- page-owned state, not widget-owned shadow state by default
+
+### What Stellar / Rocket likely give sooner
+
+- a more pre-shaped styling system
+- stronger defaults and ready-made design language
+- faster drop-in theming
+- more packaged reusable interactive pieces
+- less manual glue between token state, UI controls, and page application
+
+### What dmax is still missing relative to that
+
+- stronger pre-baked design defaults
+- more packaged component skins
+- more opinionated ready-made themes
+
+Those are intentionally out of scope for now.
+
+### Dmax direction
+
+Do the smallest 20% that gives 80% of the value:
+
+1. document one recommended token schema
+2. provide one tiny style starter
+3. provide one generic style panel package
+4. provide one tiny helper layer for export/import and token->CSS-var application
+
+That slice is now complete.
+
+Stop before turning this into a second framework.
 
 ## Recommended rule
 

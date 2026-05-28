@@ -72,7 +72,7 @@ Feed component events back into signals with `data-m-ex`.
 
 ```html
 <mx-uplot data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
-<mx-style-panel data-m-ex:panel@.toggle="detail"></mx-style-panel>
+<my-style-panel data-m-ex:panel@.toggle="detail"></my-style-panel>
 ```
 
 That keeps the event path the same as normal dmax event wiring.
@@ -115,7 +115,7 @@ This maps to:
 ## Current dogfood targets
 
 Current practical targets:
-- `mx-style-panel` in `m-ex-cel`
+- generic `dmStyle.panel(...)` in `m-ex-cel`
 - vendored `uPlot` through `mx-uplot`
 
 Current compromise:

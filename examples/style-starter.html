@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dmax — style starter</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root {
+      --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem;
+      --radius-1: .5rem; --radius-2: .875rem; --radius-3: 1.25rem;
+      --line-1: 1px; --line-2: 2px;
+      --size-wrap: 72rem;
+      --tone-bg: oklch(98% .008 250); --tone-ink: oklch(28% .03 255); --tone-accent: oklch(62% .18 257); --tone-good: oklch(68% .17 148); --tone-bad: oklch(62% .19 25);
+      --bg: color-mix(in oklab, var(--tone-bg) 96%, white);
+      --panel: color-mix(in oklab, white 92%, var(--tone-bg));
+      --ink: var(--tone-ink);
+      --muted: color-mix(in oklab, var(--tone-ink) 68%, var(--tone-bg));
+      --line: color-mix(in oklab, var(--tone-ink) 14%, var(--tone-bg));
+      --accent-soft: color-mix(in oklab, var(--tone-accent) 18%, white);
+      --good-soft: color-mix(in oklab, var(--tone-good) 14%, white);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    #style-starter { min-block-size: 100dvb; }
+    #style-starter > header, #style-starter > main, #style-starter > footer { inline-size: min(calc(100% - var(--space-6)), var(--size-wrap)); margin-inline: auto; padding: var(--space-4); }
+    #style-starter > main { display: grid; gap: var(--space-4); }
+    .panel { background: var(--panel); border: var(--line-1) solid var(--line); border-radius: var(--radius-3); padding: var(--space-4); }
+    .hero { background: radial-gradient(circle at top, color-mix(in oklab, var(--tone-accent) 12%, var(--bg)), var(--bg) 28rem); }
+    .hero p, .panel p { color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-3); }
+    .card { border: var(--line-1) solid var(--line); border-radius: var(--radius-2); padding: var(--space-4); background: color-mix(in oklab, var(--panel) 82%, white); }
+    .badge { display: inline-block; padding: var(--space-1) var(--space-2); border-radius: 999px; background: var(--accent-soft); }
+    .good { background: var(--good-soft); }
+    pre { margin: 0; padding: var(--space-3); border-radius: var(--radius-1); background: color-mix(in oklab, var(--tone-ink) 4%, white); overflow: auto; }
+  </style>
+</head>
+<body>
+  <div id="style-starter" class="hero" data-m-si='{"stylePanel":{"open":false},"oklchHelp":"OKLCH: L = lightness from 0% to 100%, C = chroma or color strength, H = hue angle from 0 to 360 degrees.","style":{"space1":.25,"space2":.5,"space3":.75,"space4":1,"space5":1.5,"space6":2,"radius1":.5,"radius2":.875,"radius3":1.25,"line1":1,"line2":2,"sizeCell":4.5,"sizeWrap":72,"toneBg":"oklch(98% .008 250)","toneInk":"oklch(28% .03 255)","toneAccent":"oklch(62% .18 257)","toneGood":"oklch(68% .17 148)","toneBad":"oklch(62% .19 25)"}}' data-m-ex:.style@style="dmStyle.valsToVars(val, dmStyle.defs)">
+    <dm-style-panel></dm-style-panel>
+    <header>
+      <p><a href="../index.html">← back to index.html</a></p>
+      <h1>Style starter</h1>
+      <p>Minimal dmax style setup: one signal object, one root style binding, one optional reusable WC panel.</p>
+    </header>
+    <main>
+      <section class="panel">
+        <span class="badge">5 minute path</span>
+        <h2>What this page uses</h2>
+        <ol>
+          <li>a root <code>data-m-si</code> object</li>
+          <li>a root <code>data-m-ex:.style@style</code> binding</li>
+          <li><code>dm-style.js</code> helper + panel</li>
+        </ol>
+      </section>
+      <section class="cards">
+        <article class="card"><span class="badge">Accent</span><h3>Cards stay semantic</h3><p>Use normal HTML and CSS vars first. Let dmax move values, not presentation logic.</p></article>
+        <article class="card"><span class="badge good">Good</span><h3>Tokens stay inspectable</h3><p>The panel writes real CSS vars on the root, so you can copy and reuse the result elsewhere.</p></article>
+      </section>
+      <section class="panel">
+        <h2>Starter binding</h2>
+        <pre data-m-ex:.="'<div data-m-si=\'' + JSON.stringify({ stylePanel: { open: false }, oklchHelp: dm.oklchHelp, style: dm.style }) + '\' data-m-ex:.style@style=\"dmStyle.valsToVars(val, dmStyle.defs)\">'">loading…</pre>
+      </section>
+    </main>
+    <footer>
+      <p>Try the style panel: change tone or radius, then copy the generated <code>:root</code> block.</p>
+    </footer>
+  </div>
+  <script src="../dmax.js"></script>
+  <script src="../dm-style.js"></script>
+  <script>dmStyle.panel('dm-style-panel', dmStyle.defs, { signal: 'style', open: 'style-panel.open', help: 'oklch-help' })</script>
+</body>
+</html>
