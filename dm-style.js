@@ -47,6 +47,11 @@
     for (const d of defs) out[d.css] = '' + (vals && vals[d.key] != null ? vals[d.key] : d.val) + (d.unit || '')
     return out
   }
+  const applyVars = (root, vars) => {
+    const s = root && root.style
+    if (!s) return
+    for (const k in vars) s.setProperty(k, vars[k])
+  }
   const exportCss = (vals, defs = dmStyle.defs) => ':root {\n' + defs.map((d) => `  ${d.css}: ${(vals && vals[d.key] != null ? vals[d.key] : d.val)}${d.unit || ''};`).join('\n') + '\n}'
   const importVals = (prev, txt, defs = dmStyle.defs) => {
     const next = { ...(prev || {}) }
@@ -92,5 +97,55 @@
     const tone = (d, path = signal + '.' + kebab(d.key), colorLabel = d.label + ' color') => `<div class="r"><dt><code title="${d.label}">${d.css}</code></dt><dd><div class="tone"><div class="tone-row"><input type="color" aria-label="${colorLabel}" data-m-ex:.value@${path}="dmStyle.oklchToHex(val) || '#ffffff'" data-m-ex:${path}@.input="dmStyle.hexToOklch(val)" data-m-ex:.style.background-color@${path}="dmStyle.oklchToHex(val) || '#ffffff'" data-m-ex:.style.border-color@${path}="dmStyle.oklchToHex(val) || '#cbd5e1'"${helpAttr}><input type="text" aria-label="${d.label}" data-m-ex:.value@${path} data-m-ex:${path}@.input${helpAttr}></div></div></dd></div>`
     return dmWc(name, `<style>${panelCss(name)}</style><details data-m-ex@.^rw@${open}><summary class="fab" aria-controls="${name}-panel">◐</summary><section class="panel" id="${name}-panel"><h2>${opts.title || 'Style props'}</h2><p>${opts.note || 'Compact live tokens for this page. Copy styles writes the current values as a :root block.'}</p><div class="tools"><button type="button" data-m-ex:${signal}@.click="(dmStyle.copy(${sigJs}, dmStyle.panels['${name}']), ${sigJs})">copy styles</button><button type="button" data-m-ex:${signal}@.click="dmStyle.promptImport(${sigJs}, dmStyle.panels['${name}'])">import</button><button type="button" data-m-ex:${signal}@.click="dmStyle.initVals(dmStyle.panels['${name}'])">reset</button></div><section class="group"><h3>Layout</h3><div class="defs">${parts.range.map((d) => range(d)).join('')}</div></section><section class="group"><h3>Tones</h3><div class="defs">${parts.tone.map((d) => tone(d)).join('')}</div></section></section></details>`)
   }
-  const dmStyle = globalThis.dmStyle = { defs, panels: {}, initVals, valsToVars, exportCss, importVals, copy, promptImport, oklchToHex, hexToOklch, panel }
+  const findPanelEl = (root, name) => root && root.querySelector(name)
+  const getVal = (path) => {
+    if (!globalThis.dm || !path) return
+    const segs = path.split('.')
+    let cur = globalThis.dm
+    for (const s of segs) cur = cur && cur[camel(s)]
+    return cur
+  }
+  const setVal = (path, v) => {
+    if (!globalThis.dm || !path) return
+    const segs = path.split('.')
+    let cur = globalThis.dm
+    for (let i = 0; i < segs.length - 1; i++) {
+      const k = camel(segs[i])
+      if (cur[k] == null || typeof cur[k] !== 'object') cur[k] = {}
+      cur = cur[k]
+    }
+    cur[camel(segs[segs.length - 1])] = v
+  }
+  const pin = (root, opts = {}) => {
+    if (!root) return
+    const signal = opts.signal || 'style'
+    const open = opts.open || 'stylePanel.open'
+    const help = opts.help || 'oklchHelp'
+    const panelName = opts.panel || 'dm-style-panel'
+    const defs = opts.defs || dmStyle.defs
+    if (!dmStyle.panels[panelName]) panel(panelName, defs, { signal, open, help, title: opts.title, note: opts.note })
+    let panelEl = findPanelEl(root, panelName)
+    const created = !panelEl
+    if (!panelEl) {
+      panelEl = document.createElement(panelName)
+      root.appendChild(panelEl)
+    }
+    if (created && typeof globalThis.dmScan === 'function') {
+      if (root._dmScanned) globalThis.dmScan(panelEl)
+      else globalThis.dmScan(root)
+    }
+    if (!created && !panelEl._dmScanned && typeof globalThis.dmScan === 'function') globalThis.dmScan(panelEl)
+    if (!root._dmStylePinned) {
+      root._dmStylePinned = true
+      const apply = () => applyVars(root, valsToVars(getVal(signal), defs))
+      apply()
+      if (typeof globalThis.dmSub === 'function') {
+        globalThis.dmSub(signal, apply)
+      } else {
+        setTimeout(apply, 0)
+      }
+    }
+    return { root, panel: panelEl, signal, open, help, panelName, defs }
+  }
+  const dmStyle = globalThis.dmStyle = { defs, panels: {}, initVals, valsToVars, exportCss, importVals, copy, promptImport, oklchToHex, hexToOklch, panel, pin }
 })()

@@ -88,6 +88,18 @@ function waitFor(conditionFn, timeout = 5000, interval = 20) {
   assert.strictEqual(host.style.getPropertyValue('--tone-alt'), 'oklch(88% .03 180)', 'custom panel tone updates root vars through custom defs')
   assert.strictEqual(host.querySelector('dm-style-mini .panel h2').textContent, 'Mini props', 'custom panel title renders')
 
+  const pinHost = document.createElement('div')
+  pinHost.id = 'pin'
+  pinHost.setAttribute('data-m-si', '{"stylePanel":{"open":true},"oklchHelp":"pin help","style":{"toneAccent":"oklch(60% .2 200)"}}')
+  document.body.appendChild(pinHost)
+  window.dmStyle.pin(pinHost)
+  await waitFor(() => pinHost.querySelector('dm-style-panel input[type=color]'))
+  assert.strictEqual(pinHost.style.getPropertyValue('--tone-accent'), 'oklch(60% .2 200)', 'pin wires root style binding from signal')
+  assert(pinHost.querySelector('dm-style-panel input'), 'pin finds or creates panel element')
+  window.dmSet('style.toneAccent', 'oklch(70% .15 120)')
+  await waitFor(() => pinHost.style.getPropertyValue('--tone-accent') === 'oklch(70% .15 120)')
+  assert.strictEqual(pinHost.style.getPropertyValue('--tone-accent'), 'oklch(70% .15 120)', 'pin subscribes to signal changes and updates root vars')
+
   console.log('dmStyle smoke test passed')
 })().catch((err) => {
   console.error(err && err.stack ? err.stack : err)

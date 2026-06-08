@@ -35,12 +35,12 @@
   </style>
 </head>
 <body>
-  <div id="style-starter" class="hero" data-m-si='{"stylePanel":{"open":false},"oklchHelp":"OKLCH: L = lightness from 0% to 100%, C = chroma or color strength, H = hue angle from 0 to 360 degrees.","style":{"space1":.25,"space2":.5,"space3":.75,"space4":1,"space5":1.5,"space6":2,"radius1":.5,"radius2":.875,"radius3":1.25,"line1":1,"line2":2,"sizeCell":4.5,"sizeWrap":72,"toneBg":"oklch(98% .008 250)","toneInk":"oklch(28% .03 255)","toneAccent":"oklch(62% .18 257)","toneGood":"oklch(68% .17 148)","toneBad":"oklch(62% .19 25)"}}' data-m-ex:.style@style="dmStyle.valsToVars(val, dmStyle.defs)">
+  <div id="style-starter" class="hero" data-m-si='{"stylePanel":{"open":false},"oklchHelp":"OKLCH: L = lightness from 0% to 100%, C = chroma or color strength, H = hue angle from 0 to 360 degrees.","style":{"space1":.25,"space2":.5,"space3":.75,"space4":1,"space5":1.5,"space6":2,"radius1":.5,"radius2":.875,"radius3":1.25,"line1":1,"line2":2,"sizeCell":4.5,"sizeWrap":72,"toneBg":"oklch(98% .008 250)","toneInk":"oklch(28% .03 255)","toneAccent":"oklch(62% .18 257)","toneGood":"oklch(68% .17 148)","toneBad":"oklch(62% .19 25)"}}'>
     <dm-style-panel></dm-style-panel>
     <header>
       <p><a href="../index.html">← back to index.html</a></p>
       <h1>Style starter</h1>
-      <p>Minimal dmax style setup: one signal object, one root style binding, one optional reusable WC panel.</p>
+      <p>Minimal dmax style setup: one signal object, one tiny <code>dmStyle.pin(...)</code> call, one optional reusable WC panel.</p>
     </header>
     <main>
       <section class="panel">
@@ -48,7 +48,7 @@
         <h2>What this page uses</h2>
         <ol>
           <li>a root <code>data-m-si</code> object</li>
-          <li>a root <code>data-m-ex:.style@style</code> binding</li>
+          <li>one <code>dmStyle.pin(...)</code> call</li>
           <li><code>dm-style.js</code> helper + panel</li>
         </ol>
       </section>
@@ -58,7 +58,7 @@
       </section>
       <section class="panel">
         <h2>Starter binding</h2>
-        <pre data-m-ex:.="'<div data-m-si=\'' + JSON.stringify({ stylePanel: { open: false }, oklchHelp: dm.oklchHelp, style: dm.style }) + '\' data-m-ex:.style@style=\"dmStyle.valsToVars(val, dmStyle.defs)\">'">loading…</pre>
+        <pre data-m-ex:.="'<div data-m-si=\'' + JSON.stringify({ stylePanel: { open: false }, oklchHelp: dm.oklchHelp, style: dm.style }) + '\'>'">loading…</pre>
       </section>
     </main>
     <footer>
@@ -67,6 +67,6 @@
   </div>
   <script src="../dmax.js"></script>
   <script src="../dm-style.js"></script>
-  <script>dmStyle.panel('dm-style-panel', dmStyle.defs, { signal: 'style', open: 'style-panel.open', help: 'oklch-help' })</script>
+  <script>dmStyle.pin(document.getElementById('style-starter'))</script>
 </body>
 </html>

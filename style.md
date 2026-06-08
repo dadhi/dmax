@@ -22,15 +22,54 @@ That keeps the rule consistent with the rest of dmax:
 1. load `dmax.js`
 2. load `dm-style.js`
 3. put one `style` signal object on the page root
-4. bind that object once with `data-m-ex:.style@style="dmStyle.valsToVars(val, dmStyle.defs)"`
-5. place `<dm-style-panel></dm-style-panel>` on the page
-6. call:
+4. place `<dm-style-panel></dm-style-panel>` on the page
+5. call one `pin`:
 
 ```html
-<script>dmStyle.panel('dm-style-panel', dmStyle.defs, { signal: 'style', open: 'style-panel.open', help: 'oklch-help' })</script>
+<script>dmStyle.pin(document.getElementById('app'))</script>
+```
+
+`pin(root, opts?)` does the wiring for you:
+- subscribes to the style signal
+- applies CSS vars to the root
+- finds or creates the panel element
+- binds the panel open/help signals
+
+Defaults are designed for the common case:
+- `signal: 'style'`
+- `open: 'stylePanel.open'`
+- `help: 'oklchHelp'`
+- `panel: 'dm-style-panel'`
+- `defs: dmStyle.defs`
+
+If your signal lives under a nested path, pass it:
+
+```html
+<script>dmStyle.pin(document.getElementById('app'), {
+  signal: 'mx.style',
+  open: 'mx.stylePanel.open',
+  help: 'mx.oklch-help',
+  panel: 'mx-style-panel',
+})</script>
 ```
 
 If the page already uses CSS vars, that is enough to make the live editor work.
+
+### Multiple style roots on one page
+
+`pin` is per-root. Call it once per root:
+
+```js
+dmStyle.pin(document.getElementById('a'), { signal: 'a.style' })
+dmStyle.pin(document.getElementById('b'), { signal: 'b.style' })
+```
+
+The page still owns state.
+`pin` just wires the dataflow.
+
+### Lower-level: `dmStyle.panel(...)`
+
+If you want to keep wiring fully declarative, you can still use `dmStyle.panel(...)` plus an explicit root binding. `pin` exists for the simpler case.
 
 ## Current recipe
 
