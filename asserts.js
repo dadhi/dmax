@@ -762,6 +762,16 @@
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
     __assert(__tSubSignalSiModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^si path feeds raw and expression values');
+    function __tPrNoPathRejected() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@.click^pr', 'val');
+      const btn = document.createElement('button');
+      document.body.appendChild(btn);
+      btn.dispatchEvent(mkEv('click'));
+      return { out: DM['out'] };
+    }
+    __assert(__tPrNoPathRejected, [], { out: undefined }, 'dmEx ^pr without path is rejected as redundant');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'

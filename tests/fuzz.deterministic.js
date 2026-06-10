@@ -149,7 +149,7 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex:result@foo^si.', valid: true, category: 'si-default-path' }
   yield { attr: 'data-m-ex:result@.input^ev.detail.value', valid: true, category: 'ev-event-path' }
   yield { attr: 'data-m-ex:result@.input^ev.', valid: true, category: 'ev-default-path' }
-  yield { attr: 'data-m-ex:result@.input^pr.', valid: true, category: 'pr-default-path' }
+  yield { attr: 'data-m-ex:result@.input^pr.', valid: false, category: 'pr-default-path', expectedLog: 'error', logPattern: '^pr requires a property path' }
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }

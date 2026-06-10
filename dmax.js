@@ -40,7 +40,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOT_IMMEDIATE = 'notImmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_RAF = 'raf', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_VAL = 'val', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code', M_STAT = 'stat'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -370,9 +370,13 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4, MV_SEL = 5, MV_SEL_ALL = 6
+    const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4, MV_SEL = 5, MV_SEL_ALL = 6, MV_VAL = 7
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16, MF_RAF = 32
-    const compileTrMods = (tr, globMods) => compileMods(tr, tr.mods.length ? tr.mods : globMods)
+    const compileTrMods = (tr, globMods) => {
+      const mod = compileMods(tr, tr.mods.length ? tr.mods : globMods)
+      if (mod.s === MV_PR && (!mod.v || !mod.v.length)) return logErr('Error: ^pr requires a property path:', tr), null
+      return mod
+    }
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
@@ -389,6 +393,7 @@
         else if (r === M_SEL_ALL) s = MV_SEL_ALL, v = m.path || ''
         else if (r === M_SI_V) s = MV_SI, v = modPath(m.path)
         else if (r === M_EV_V) s = MV_EV, v = modPath(m.path)
+        else if (r === M_VAL) s = MV_VAL, v = modPath(m.path)
         else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
@@ -718,7 +723,7 @@
     const dmSel = (sel, root = document) => root.querySelector(sel || '')
     const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
     const getReadVal = (readEl, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(readEl, readPath) : mod.s === MV_SEL ? dmSel(readPath, getQueryRoot(readEl)) : mod.s === MV_SEL_ALL ? dmSelAll(readPath, getQueryRoot(readEl)) : getElPrVal(readEl, readPath)
-    const getTrVal = (detail, readEl, mod, readPath) => mod.s === MV_EV ? readPath?.length ? getElPrVal(detail, readPath) : getEvVal(detail) : getReadVal(readEl, mod, readPath)
+    const getTrVal = (detail, readEl, mod, readPath) => mod.s === MV_EV ? readPath?.length ? getElPrVal(detail, readPath) : getEvVal(detail) : mod.s === MV_VAL ? (readPath?.length ? getElPrVal(detail, readPath) : detail) : getReadVal(readEl, mod, readPath)
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
@@ -751,7 +756,7 @@
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, mod.s === MV_PR || mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL || mod.s === MV_EV ? getTrVal(detail, taEl, mod, readPath) : detail?.type ?? null, el, tr)
+      sub.fn = (detail) => invokeSub(modded, detail, mod.s === MV_PR || mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL || mod.s === MV_EV || mod.s === MV_VAL ? getTrVal(detail, taEl, mod, readPath) : detail?.type ?? null, el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -880,7 +885,7 @@
     const onRaf = (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(fn, 16)
     const getEvVal = (detail, dd = detail && detail.detail) => dd === undefined ? detail : dd && typeof dd === 'object' ? dd.value ?? dd.ms ?? dd : dd
     const applyTrMs = (fn, tr, mod, removeSub) => {
-      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, raf = f & MF_RAF, readM = mod.s, useVal = (readM === MV_SI && isSig || readM === MV_EV && !isSig) && valPath.length, useNum = f & MF_NUM, jsos = mod.j
+      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, raf = f & MF_RAF, readM = mod.s, useVal = (readM === MV_SI && isSig || readM === MV_EV && !isSig || readM === MV_VAL) && valPath.length, useNum = f & MF_NUM, jsos = mod.j
       if (!(once || prevent || deb || thr || raf || permitMods || tr.not || useVal || useNum || jsos != null) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false, inRaf = false, rafPending = false
       let debDm = null, debEl = null, debVal = null, debDetail = null, rafDm = null, rafEl = null, rafVal = null, rafDetail = null
@@ -917,7 +922,7 @@
             return
           }
         }
-        let trVal = isSig ? (providedVal ?? getSiVal(trIt)) : readM === MV_EV ? valPath.length ? detail : getEvVal(detail) : providedVal ?? getEvVal(detail)
+        let trVal = isSig ? (providedVal ?? getSiVal(trIt)) : readM === MV_EV ? valPath.length ? detail : getEvVal(detail) : readM === MV_VAL ? detail : providedVal ?? getEvVal(detail)
         if (useVal) trVal = getPrValAndDepth(trVal, valPath)[0]
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
@@ -942,6 +947,7 @@
         const readTrs = [], writePrTrs = [], writeSiTrs = []
         for (const tr of trigs) {
           const mod = compileTrMods(tr, globMods)
+          if (!mod) continue
           if(!(mod.f&MF_RW)){
             readTrs.push({ tr, mod })
             if (tr.isSi) writeSiTrs.push([tr, getWriteMode(tr.mods)])
@@ -1005,7 +1011,9 @@
       if (!trigs.length) { if (hasExpr) fn(DM, el, null, null, null); return } let ran = false
       for (const tr of trigs) {
         const mod = compileTrMods(tr, globMods)
+        if (!mod) continue
         if (tr.isSi) {
+
           const sub = addTrSub(el, tr, mod, fn, elSubs)
           if (!ran && tr.isImmediate != false) ran = true, invokeBoundSub(sub)
           continue
@@ -1133,7 +1141,9 @@
         if (!trigs.length || it[TARG].length || it[ADD].length) return logErr('dmSub triggers/mods only:', dKey)
         let ran = false
         for (const tr of trigs) {
-          const mod = compileTrMods(tr, globMods), cb = (dm, _el, trig, trigVal, detail) => fn(trigVal, detail, trig, dm, host)
+          const mod = compileTrMods(tr, globMods)
+          if (!mod) continue
+          const cb = (dm, _el, trig, trigVal, detail) => fn(trigVal, detail, trig, dm, host)
           if (tr.isSi) {
             const sub = addTrSub(host, tr, mod, cb, elSubs)
             if (tr.isImmediate != false) invokeBoundSub(sub)
