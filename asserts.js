@@ -940,9 +940,9 @@
       const wc = document.createElement('x-assert-value');
       dmEx(wc, 'data-m-ex:.@foo', 'val');
       dmSet('foo', 9);
-      dmEx(wc, 'data-m-ex:pick@.pick', 'val');
+      dmEx(wc, 'data-m-ex:pick@.pick^ev', 'val');
       wc.dispatchEvent(new CustomEvent('pick', { detail: { value: 7 } }));
-      dmEx(wc, 'data-m-ex:pickObj@.pick-obj', 'val && val.a');
+      dmEx(wc, 'data-m-ex:pickObj@.pick-obj^ev', 'val && val.a');
       wc.dispatchEvent(new CustomEvent('pick-obj', { detail: { a: 3 } }));
       return { prop: wc.value, pick: DM['pick'], pickObj: DM['pickObj'], def: getDefaultPr(wc) };
     }

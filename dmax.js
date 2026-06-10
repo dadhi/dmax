@@ -773,8 +773,8 @@
       if (!expected(taEl && evName, 'Expected event target/name in addTrSub:', tr, 'on:', el)) return null
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS, customEv = taEl?.tagName && taEl.tagName.indexOf('-') >= 0, ev = customEv ? camelToKebab(evName) : evName
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
-      const modded = applyTrMs(fn, tr, mod, sub), useEv = !mod.s && !readPath && customEv
-      sub.fn = (detail) => invokeSub(modded, detail, useEv ? getEvVal(detail) : getTrVal(detail, readEl, mod, readPath), el, tr)
+      const modded = applyTrMs(fn, tr, mod, sub)
+      sub.fn = (detail) => invokeSub(modded, detail, getTrVal(detail, readEl, mod, readPath), el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
       return modded

@@ -184,8 +184,8 @@
           <button id="uplot-dup" data-m-ex:uplot2@#uplot-dup.click="window.cloneUplot(dm.uplot)">Duplicate chart</button>
         </div>
         <p data-m-ex:.@uplot@uplot2="'title: ' + dm.uplot.title + ' · width: ' + dm.uplot.w + ' · points: ' + (dm.uplot.points ? 'on' : 'off') + ' · second chart: ' + (dm.uplot2 ? 'on' : 'off')"></p>
-        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point="{ from: 'uplot-1', ...val }"></mx-uplot>
-        <mx-uplot id="uplotDemo2" style="display:none" data-m-ex:.style.display@uplot2="dm.uplot2 ? '' : 'none'" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point="{ from: 'uplot-2', ...val }"></mx-uplot>
+        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point^ev="{ from: 'uplot-1', ...val }"></mx-uplot>
+        <mx-uplot id="uplotDemo2" style="display:none" data-m-ex:.style.display@uplot2="dm.uplot2 ? '' : 'none'" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point^ev="{ from: 'uplot-2', ...val }"></mx-uplot>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last^jsos.2="dm.uplotLast ? val : 'click a point'" aria-label="uPlot point payload"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
@@ -258,7 +258,7 @@
         <button id="replaceHash" data-m-ex:_history.replace-state@.="[null, '', '#demo-replace']">Replace #demo-replace</button>
       </p>
       <p>Current hash: <span id="hashOut" data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span></p>
-      <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked="val.step"></mx-step>
+      <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked^ev="val.step"></mx-step>
       <p>WC default <code>value</code> prop: <span data-m-ex:.@wc-step></span></p>
       <p>WC custom event detail: <span data-m-ex:.@wc-picked></span></p>
       <ul><li class="sel-all-demo-item">alpha</li><li class="sel-all-demo-item">beta</li><li class="sel-all-demo-item">gamma</li></ul>
