@@ -143,13 +143,13 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex:.style.color@user.name', valid: true, category: 'nested-signal-prop' }
   yield { attr: 'data-m-ex:.style.font-size@posts[0]', valid: true, category: 'indexed-signal-prop' }
   yield { attr: 'data-m-ex:#dest.style.color@#src.input', valid: true, category: 'id-prop-to-id-event' }
-  yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: true, category: 'pr-prop-path' }
-  yield { attr: 'data-m-ex:result@.input^pr.#other.value', valid: true, category: 'pr-other-el-path' }
+  yield { attr: 'data-m-ex:result@.input^.style.color', valid: true, category: 'val-prop-path' }
+  yield { attr: 'data-m-ex:result@.input^el.#other^', valid: true, category: 'el-other-univ' }
   yield { attr: 'data-m-ex:result@foo^si.user.name', valid: true, category: 'si-signal-path' }
   yield { attr: 'data-m-ex:result@foo^si.', valid: true, category: 'si-default-path' }
   yield { attr: 'data-m-ex:result@.input^ev.detail.value', valid: true, category: 'ev-event-path' }
   yield { attr: 'data-m-ex:result@.input^ev.', valid: true, category: 'ev-default-path' }
-  yield { attr: 'data-m-ex:result@.input^pr.', valid: false, category: 'pr-default-path', expectedLog: 'error', logPattern: '^pr requires a property path' }
+  yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: true, category: 'pr-silently-ignored' }
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
@@ -171,7 +171,7 @@ function* generateDataSubCombinations() {
     }
   }
   yield {
-    attr: 'data-m-ex:.value@.input^pr.#input.value^ev.detail', valid: true, category: 'last-read-mod-wins', html: '<input id="fuzz-test" data-m-ex:.value@.input^pr.#input.value^ev.detail>', exercise: async ({ document, window }) => {
+    attr: 'data-m-ex:.value@.input^el.#input^^ev.detail', valid: true, category: 'last-read-mod-wins', html: '<input id="fuzz-test" data-m-ex:.value@.input^el.#input^^ev.detail>', exercise: async ({ document, window }) => {
       const el = document.getElementById('fuzz-test')
       el.dispatchEvent(new window.CustomEvent('input', { bubbles: true, detail: 'Alice' }))
       await new Promise(r => setTimeout(r, 0))
@@ -204,8 +204,6 @@ function* generateDataSubCombinations() {
     yield { attr, valid: true, category: 'discard-bad-parts' }
   for (const attr of ['data-m-ex@!xxx@!', 'data-m-ex@!!!!'])
     yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error', logPattern: 'bare !:' }
-  for (const attr of ['data-m-ex:^!', 'data-m-ex^!'])
-    yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error' }
 }
 
 function* generateDataSubRwCombinations() {
@@ -228,9 +226,9 @@ function* generateDataSubRwCombinations() {
     yield { attr: `data-m-ex:${sig}@.open`, valid: true, category: 'one-way-details-open' };
   }
   
-  // 4. Two-way with explicit ^pr path
+  // 4. Two-way with explicit ^ path
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-m-ex@.^pr.value^rw@${sig}`, valid: true, category: 'two-way-pr-path' };
+    yield { attr: `data-m-ex@.^.value^rw@${sig}`, valid: true, category: 'two-way-val-path' };
   }
   
   // 5. Signal to signal
@@ -239,7 +237,7 @@ function* generateDataSubRwCombinations() {
   
   // 6. With modifiers
   yield { attr: 'data-m-ex@.^not-immediate^rw@foo', valid: true, category: 'with-mod' };
-  yield { attr: 'data-m-ex@.^rw^pr.open@foo', valid: true, category: 'two-way-details-pr-open' };
+  yield { attr: 'data-m-ex@.^rw^.open@foo', valid: true, category: 'two-way-details-val-open' };
 }
 
 function* generateDataClassCombinations() {

@@ -40,7 +40,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOT_IMMEDIATE = 'notImmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_RAF = 'raf', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_PR = 'pr', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_VAL = 'val', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_UNIV = '', M_EL = 'el', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code', M_STAT = 'stat'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -137,7 +137,6 @@
       const d = indexFirst(name, NAME_DELIMS, p)
       let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
       if (root) root = kebabToCamel(root)
-      if (!root) { logErr('empty mod:', name, dKey); return null }
       if (root === M_ATTRS) {
         if (d < 0 || d + 1 >= l) return mkMod(not, root, { r: '', v: '' })
         const rest = name.slice(d + 1)
@@ -370,30 +369,27 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    const MV_PR = 1, MV_SI = 2, MV_EV = 3, MV_ATTRS = 4, MV_SEL = 5, MV_SEL_ALL = 6, MV_VAL = 7
+    const MV_UNIV = 0, MV_SI = 1, MV_EV = 2, MV_ATTRS = 3, MV_SEL = 4, MV_SEL_ALL = 5, MV_EL = 6
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16, MF_RAF = 32
-    const compileTrMods = (tr, globMods) => {
-      const mod = compileMods(tr, tr.mods.length ? tr.mods : globMods)
-      if (mod.s === MV_PR && (!mod.v || !mod.v.length)) return logErr('Error: ^pr requires a property path:', tr), null
-      return mod
-    }
+    const compileTrMods = (tr, globMods) => compileMods(tr, tr.mods.length ? tr.mods : globMods)
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
-      let f = 0, d = 0, t = 0, p = null, v = NIL, c = SIG_CHANGED_ANY, s = 0, r0 = '', j = null
+      let f = 0, d = 0, t = 0, p = null, c = SIG_CHANGED_ANY, j = null
+      const rm = []
       for (const m of mods) {
         const r = m.root
         if (r === M_WITH_SHAPE) c = SIG_CHANGED_WITH_SHAPE
         else if (r === M_SHAPE_ONLY) c = SIG_CHANGED_SHAPE_ONLY
-        else if (r === M_PR) {
+        else if (r === M_EL) {
           const x = m.path
-          s = MV_PR, r0 = x?.isEv && x.root || '', v = x?.isEv ? x.path || NIL : modPath(x)
-        } else if (r === M_ATTRS) s = MV_ATTRS, r0 = m.path?.r || '', v = m.path?.v || ''
-        else if (r === M_SEL) s = MV_SEL, v = m.path || ''
-        else if (r === M_SEL_ALL) s = MV_SEL_ALL, v = m.path || ''
-        else if (r === M_SI_V) s = MV_SI, v = modPath(m.path)
-        else if (r === M_EV_V) s = MV_EV, v = modPath(m.path)
-        else if (r === M_VAL) s = MV_VAL, v = modPath(m.path)
+          rm.push({ s: MV_EL, r: x?.root || '', v: x?.path || NIL })
+        } else if (r === M_ATTRS) rm.push({ s: MV_ATTRS, r: m.path?.r || '', v: m.path?.v || '' })
+        else if (r === M_SEL) rm.push({ s: MV_SEL, r: '', v: m.path || '' })
+        else if (r === M_SEL_ALL) rm.push({ s: MV_SEL_ALL, r: '', v: m.path || '' })
+        else if (r === M_SI_V) rm.push({ s: MV_SI, r: '', v: modPath(m.path) })
+        else if (r === M_EV_V) rm.push({ s: MV_EV, r: '', v: modPath(m.path) })
+        else if (r === M_UNIV) rm.push({ s: MV_UNIV, r: '', v: modPath(m.path) })
         else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
@@ -405,16 +401,20 @@
         else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (r in PERMIT_MODS) p = p ? p.push ? (p.push(m), p) : [p, m] : m
       }
-      return { f, d, t, p, v, c, s, r: r0, j }
+      return { f, d, t, p, rm, c, r: rm.length ? rm[rm.length - 1].r : '', j }
     }
     const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, usePrPath = true) => {
       const taEl = tr.root ? getElById(tr.root, dKey) : el
       if (!taEl) return logErr('Error:', missElMsg, tr, 'in:', dKey), null
       let ev = tr.path ? tr.path[0] : null, prPath = null
       if (ev && isDefaultPrName(taEl, ev)) prPath = tr.path, ev = getDefaultEv(taEl)
-      const readEl = (mod.s === MV_PR || mod.s === MV_ATTRS) && mod.r ? getElById(mod.r, dKey) : taEl
-      const readPath = mod.s === MV_PR || mod.s === MV_EV ? mod.v.length ? mod.v : prPath : mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? mod.v : prPath
-      if (usePrPath && mod.s === MV_PR && !mod.r && mod.v.length) prPath = mod.v
+      const elRm = mod.rm.find(r => r.s === MV_EL && r.r)
+      const readEl = elRm ? (getElById(elRm.r, dKey) || taEl) : taEl
+      const valRm = mod.rm.find(r => r.s === MV_UNIV && r.v.length)
+      const attrsRm = mod.rm.find(r => r.s === MV_ATTRS)
+      const selRm = mod.rm.find(r => r.s === MV_SEL || r.s === MV_SEL_ALL)
+      const readPath = valRm ? valRm.v : attrsRm ? attrsRm.v : selRm ? selRm.v : prPath
+      if (usePrPath && valRm && !elRm && valRm.v.length) prPath = valRm.v
       ev = ev ?? getDefaultEv(taEl)
       if (!ev) return logErr('Error:', missEvMsg, tr, 'in:', dKey), null
       return readEl ? { taEl, readEl, ev, prPath, readPath, tar: mkIt(EP, null, tr.root, prPath, NIL) } : logErr('Error:', missElMsg, tr, 'in:', dKey)
@@ -423,7 +423,7 @@
       const sp = tr.sp, isSp = !!sp
       if (!isSp && !expected(prTa, 'Expected non-SP trigger target in addNonSiTrSub:', tr, 'on:', el)) return null
       const modded = addTrSub(el, tr, mod, fn, elSubs, isSp ? null : prTa.taEl, isSp ? (tr.path?.[0] || sp?.ev || null) : prTa.ev, isSp ? null : prTa.prPath, isSp ? null : prTa.readPath, isSp ? null : prTa.readEl)
-      if (sp?.init) return modded && !ran && invokeSub(modded, { type: SP_INIT }, mod.s === MV_PR || mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? getReadVal(mod.r ? getElById(mod.r) : el, mod, mod.s === MV_PR ? mod.v.length ? mod.v : null : mod.v) : SP_INIT, el, tr), true
+      if (sp?.init) return modded && !ran && invokeSub(modded, { type: SP_INIT }, mod.rm.length ? getReadVal(el, mod, null) : SP_INIT, el, tr), true
       if (modded && !ran && tr.isImmediate && (!sp || sp.immediate)) return invokeSub(modded, null, isSp ? null : getReadVal(prTa.readEl, mod, prTa.readPath), el, tr), true
       return ran
     }
@@ -722,13 +722,60 @@
     const getQueryRoot = (el, root = el?.getRootNode?.() || el?.ownerDocument || document) => ((root === el && el?.ownerDocument && (root = el.ownerDocument)), root && typeof root.querySelectorAll === 'function' ? root : document)
     const dmSel = (sel, root = document) => root.querySelector(sel || '')
     const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
-    const getReadVal = (readEl, mod, readPath) => mod.s === MV_ATTRS ? getAttrs(readEl, readPath) : mod.s === MV_SEL ? dmSel(readPath, getQueryRoot(readEl)) : mod.s === MV_SEL_ALL ? dmSelAll(readPath, getQueryRoot(readEl)) : getElPrVal(readEl, readPath)
-    const getTrVal = (detail, readEl, mod, readPath) => mod.s === MV_EV ? readPath?.length ? getElPrVal(detail, readPath) : getEvVal(detail) : mod.s === MV_VAL ? (readPath?.length ? getElPrVal(detail, readPath) : detail) : getReadVal(readEl, mod, readPath)
+    const dmEl = (id, root = document) => id ? root.getElementById(id) : null
+    const getReadVal = (readEl, mod, readPath) => {
+      if (!mod.rm.length) return getElPrVal(readEl, readPath)
+      let val = readEl
+      for (const rm of mod.rm) {
+        if (rm.s === MV_ATTRS) {
+          val = Array.isArray(val) ? val.map(e => getAttrs(e, rm.v)) : getAttrs(val, rm.v)
+        } else if (rm.s === MV_SEL) {
+          val = dmSel(rm.v, getQueryRoot(readEl))
+        } else if (rm.s === MV_SEL_ALL) {
+          val = dmSelAll(rm.v, getQueryRoot(readEl))
+        } else if (rm.s === MV_EL) {
+          const el = rm.r ? (dmEl(rm.r) || readEl) : readEl
+          val = rm.v.length ? getElPrVal(el, rm.v) : el
+        } else if (rm.s === MV_UNIV) {
+          if (rm.v.length) {
+            const first = getElPrVal(val, [rm.v[0]])
+            val = rm.v.length > 1 ? getPrValAndDepth(first, rm.v, rm.v.length - 1, 1)[0] : first
+          }
+        }
+      }
+      return val
+    }
+    const getTrVal = (detail, readEl, mod, readPath) => {
+      if (!mod.rm.length) return getElPrVal(readEl, readPath)
+      let val = readEl
+      for (const rm of mod.rm) {
+        if (rm.s === MV_EV) {
+          val = rm.v.length ? getElPrVal(detail, rm.v) : getEvVal(detail)
+        } else if (rm.s === MV_UNIV) {
+          if (rm.v.length) {
+            const first = getElPrVal(val, [rm.v[0]])
+            val = rm.v.length > 1 ? getPrValAndDepth(first, rm.v, rm.v.length - 1, 1)[0] : first
+          }
+        } else if (rm.s === MV_EL) {
+          const el = rm.r ? (dmEl(rm.r) || readEl) : readEl
+          val = rm.v.length ? getElPrVal(el, rm.v) : el
+        } else if (rm.s === MV_SI) {
+          val = rm.v.length ? getPrValAndDepth(val, rm.v)[0] : val
+        } else if (rm.s === MV_SEL) {
+          val = dmSel(rm.v, getQueryRoot(readEl))
+        } else if (rm.s === MV_SEL_ALL) {
+          val = dmSelAll(rm.v, getQueryRoot(readEl))
+        } else if (rm.s === MV_ATTRS) {
+          val = Array.isArray(val) ? val.map(e => getAttrs(e, rm.v)) : getAttrs(val, rm.v)
+        }
+      }
+      return val
+    }
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null, ms, tick: 0 }
-        sub.fn = applyTrMs(fn, tr, mod, sub)
+        sub.fn = applyTrMs(fn, tr, mod, sub, el)
         if (sp.repeat) sub.clearId = setInterval(onIntervalSub, ms, sub)
         else sub.clearId = setTimeout(onTimeoutSub, ms, sub)
         elSubs.push(sub)
@@ -737,7 +784,7 @@
       if (sp.io) {
         if (typeof IntersectionObserver === 'undefined') { warn('IntersectionObserver missing, skip _viewed:', el); return null }
         const sub = { el, trig: tr, fn: null, siChangeM: null, ev: null, clearId: null }
-        sub.fn = applyTrMs(fn, tr, mod, sub)
+        sub.fn = applyTrMs(fn, tr, mod, sub, el)
         const observer = new IntersectionObserver((entries) => {
           for (const entry of entries) if (entry.isIntersecting)
             try { invokeSub(sub.fn, { ratio: entry.intersectionRatio, type: SP_VIEWED }, entry.intersectionRatio, el, tr) }
@@ -748,15 +795,15 @@
         elSubs.push(sub)
         return sub.fn
       }
-      if (sp.init) return applyTrMs(fn, tr, mod)
+      if (sp.init) return applyTrMs(fn, tr, mod, null, el)
       const taEl = sp.ta === SP_TA_WIN ? window : sp.ta === SP_TA_DOC ? document : sp.ta === SP_TA_FORM ? (el && el.closest ? el.closest('form') : null) : null
-      const ev = tr.path?.[0] || sp.ev || null, readPath = mod.s === MV_PR ? mod.v.length ? mod.v : null : mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL ? mod.v : null
+      const ev = tr.path?.[0] || sp.ev || null
       if (sp.ta === SP_TA_FORM && !taEl) return logErr('Error:', E_FORM_EL, tr, 'on:', el), null
       if (!expected(taEl && ev, 'Expected event target/name in addSpSub:', tr, 'on:', el)) return null
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
-      const modded = applyTrMs(fn, tr, mod, sub)
-      sub.fn = (detail) => invokeSub(modded, detail, mod.s === MV_PR || mod.s === MV_ATTRS || mod.s === MV_SEL || mod.s === MV_SEL_ALL || mod.s === MV_EV || mod.s === MV_VAL ? getTrVal(detail, taEl, mod, readPath) : detail?.type ?? null, el, tr)
+      const modded = applyTrMs(fn, tr, mod, sub, taEl)
+      sub.fn = (detail) => invokeSub(modded, detail, mod.rm.length ? getTrVal(detail, taEl, mod, null) : detail?.type ?? null, el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
       return modded
@@ -764,7 +811,7 @@
     const addTrSub = (el, tr, mod, fn, elSubs, taEl, evName, prPath, readPath = prPath, readEl = taEl) => {
       if (tr.isSi) {
         const sub = { el, trig: tr, fn, siChangeM: mod.c, ev: null, clearId: null }
-        sub.fn = applyTrMs(fn, tr, mod, sub)
+        sub.fn = applyTrMs(fn, tr, mod, sub, el)
         upsert(_subs, tr.root).push(sub), (elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
@@ -773,7 +820,7 @@
       if (!expected(taEl && evName, 'Expected event target/name in addTrSub:', tr, 'on:', el)) return null
       const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS, customEv = taEl?.tagName && taEl.tagName.indexOf('-') >= 0, ev = customEv ? camelToKebab(evName) : evName
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
-      const modded = applyTrMs(fn, tr, mod, sub)
+      const modded = applyTrMs(fn, tr, mod, sub, taEl)
       sub.fn = (detail) => invokeSub(modded, detail, getTrVal(detail, readEl, mod, readPath), el, tr)
       taEl.addEventListener(ev, sub.fn, opts)
       elSubs.push(sub)
@@ -884,9 +931,10 @@
      */
     const onRaf = (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(fn, 16)
     const getEvVal = (detail, dd = detail && detail.detail) => dd === undefined ? detail : dd && typeof dd === 'object' ? dd.value ?? dd.ms ?? dd : dd
-    const applyTrMs = (fn, tr, mod, removeSub) => {
-      const isSig = tr.isSi, valPath = mod.v, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, raf = f & MF_RAF, readM = mod.s, useVal = (readM === MV_SI && isSig || readM === MV_EV && !isSig || readM === MV_VAL) && valPath.length, useNum = f & MF_NUM, jsos = mod.j
-      if (!(once || prevent || deb || thr || raf || permitMods || tr.not || useVal || useNum || jsos != null) && (isSig || removeSub || tr.sp?.init)) return fn
+    const applyTrMs = (fn, tr, mod, removeSub, readEl = null) => {
+      const isSig = tr.isSi, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, raf = f & MF_RAF, useNum = f & MF_NUM, jsos = mod.j
+      const hasPipeline = mod.rm.length > 0
+      if (!(once || prevent || deb || thr || raf || permitMods || tr.not || useNum || jsos != null || hasPipeline) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false, inRaf = false, rafPending = false
       let debDm = null, debEl = null, debVal = null, debDetail = null, rafDm = null, rafEl = null, rafVal = null, rafDetail = null
       let onDebounce = null, rafRun = null
@@ -922,8 +970,18 @@
             return
           }
         }
-        let trVal = isSig ? (providedVal ?? getSiVal(trIt)) : readM === MV_EV ? valPath.length ? detail : getEvVal(detail) : readM === MV_VAL ? detail : providedVal ?? getEvVal(detail)
-        if (useVal) trVal = getPrValAndDepth(trVal, valPath)[0]
+        let trVal
+        if (isSig) {
+          trVal = providedVal ?? getSiVal(trIt)
+          if (hasPipeline) {
+            for (const rm of mod.rm) {
+              if (rm.s === MV_SI) trVal = rm.v.length ? getPrValAndDepth(trVal, rm.v)[0] : trVal
+              else if (rm.s === MV_UNIV) trVal = rm.v.length ? getPrValAndDepth(trVal, rm.v)[0] : trVal
+            }
+          }
+        } else {
+          trVal = hasPipeline ? getTrVal(detail, readEl || el, mod, null) : (providedVal ?? getEvVal(detail))
+        }
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
         if (trIt.not) trVal = !trVal
         if (permitMods && !modsPermitVal(permitMods, trVal)) return
@@ -1161,7 +1219,7 @@
     globalThis.dmScan = dmScan
     globalThis.dmSet = dmSet
     globalThis.dmSub = dmSub
-    globalThis.dmSel = dmSel, globalThis.dmSelAll = dmSelAll
+    globalThis.dmSel = dmSel, globalThis.dmSelAll = dmSelAll, globalThis.dmEl = dmEl
 
     // - data-m-it@posts
     // - data-m-it+#tpl-post@posts

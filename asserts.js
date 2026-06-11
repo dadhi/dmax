@@ -169,12 +169,12 @@
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
     __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { kind: MOD, not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
-    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_SEL_ALL, path: '.sel-probe-item' }]], { f: 0, d: 0, t: 0, p: null, v: '.sel-probe-item', c: SIG_CHANGED_ANY, s: MV_SEL_ALL, r: '', j: null }, 'compileMods sel-all keeps raw selector')
-    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
+    __assert(() => compileMods(__ev(), NIL).rm.length === 0, [], true, 'compileMods uses empty rm when no read mod exists')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_UNIV, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_UNIV, r: '', v: ['style', 'color'] }], c: SIG_CHANGED_ANY, r: '', j: null }, 'compileMods parsed val path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_EL, path: null }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_EL, r: '', v: NIL }], c: SIG_CHANGED_ANY, r: '', j: null }, 'compileMods parsed el path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_ATTRS, r: 'foo', v: 'data-m-' }], c: SIG_CHANGED_ANY, r: 'foo', j: null }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_SEL_ALL, path: '.sel-probe-item' }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_SEL_ALL, r: '', v: '.sel-probe-item' }], c: SIG_CHANGED_ANY, r: '', j: null }, 'compileMods sel-all keeps raw selector')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, rm: [], c: SIG_CHANGED_WITH_SHAPE, r: '', j: null }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).f, [[{ root: M_RAF, path: null }]], MF_RAF, 'compileMods raf flag')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => compileMods(__ev(), [{ root: M_JSOS, path: '4' }]).j, [], '4', 'compileMods jsos keeps raw arg')
@@ -185,13 +185,13 @@
     }, [], { ev: 'change', prPath: ['value'], readPath: ['value'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa default prop path')
     __assert(() => {
       const el = document.createElement('input')
-      const mods = compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }])
+      const mods = compileMods(__ev('', ['value']), [{ root: M_UNIV, path: __si('style', ['color']) }])
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), mods, E_TRIG_EL, E_TRIG_EV, false)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
     }, [], { ev: 'change', prPath: ['value'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa keeps prop path but changes read path')
     __assert(() => {
       const el = document.createElement('input')
-      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_UNIV, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
     }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies pr path when enabled')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
@@ -641,7 +641,7 @@
         const inp = document.createElement('input');
         inp.value = 'Zed';
         inp.setAttribute('data-foo-bar', '33');
-        dmEx(inp, 'data-m-ex:out@.^pr.data-foo-bar', 'val');
+        dmEx(inp, 'data-m-ex:out@.^.data-foo-bar', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -650,7 +650,7 @@
         return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    __assert(__tSubEventPrModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^pr selects non-default event property');
+    __assert(__tSubEventPrModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^ selects non-default event property');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
@@ -762,16 +762,6 @@
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
     __assert(__tSubSignalSiModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^si path feeds raw and expression values');
-    function __tPrNoPathRejected() {
-      __reset();
-      const el = document.createElement('div');
-      dmEx(el, 'data-m-ex:out@.click^pr', 'val');
-      const btn = document.createElement('button');
-      document.body.appendChild(btn);
-      btn.dispatchEvent(mkEv('click'));
-      return { out: DM['out'] };
-    }
-    __assert(__tPrNoPathRejected, [], { out: undefined }, 'dmEx ^pr without path is rejected as redundant');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
@@ -917,12 +907,12 @@
     function __tSubWindowHashPr() {
       __reset();
       const host = document.createElement('div');
-      dmEx(host, 'data-m-ex:urlHash@_window.hashchange^pr.location.hash', 'val');
+      dmEx(host, 'data-m-ex:urlHash@_window.hashchange^.location.hash', 'val');
       window.location.hash = '#pop-a';
       window.dispatchEvent(new Event('hashchange'));
       return DM['urlHash'];
     }
-    __assert(__tSubWindowHashPr, [], '#pop-a', 'dmEx _window.hashchange ^pr reads current hash');
+    __assert(__tSubWindowHashPr, [], '#pop-a', 'dmEx _window.hashchange ^ reads current hash');
     function __tSubHistoryPushStateTar() {
       __reset();
       _dm.set('navUrl', '/next');
@@ -1110,7 +1100,7 @@
       const sel = document.createElement('select')
       sel.innerHTML = '<option>Alpha</option><option>Beta</option><option>Gamma</option>'
       _dm.set('selIx', 1)
-      dmEx(sel, 'data-m-ex@.^pr.selected-index^rw^num@sel-ix')
+      dmEx(sel, 'data-m-ex@.^.selected-index^rw^num@sel-ix')
       const before = sel.selectedIndex
       sel.selectedIndex = 2
       sel.dispatchEvent(mkEv('change'))
@@ -1118,13 +1108,13 @@
       setSiAndNotifySubs('t', { root: 'selIx', path: null }, 0)
       return { before, sigAfterWrite, afterSignal: sel.selectedIndex }
     }
-    __assert(__tSubRwSelectSelectedIndexPrNum, [], { before: 1, sigAfterWrite: 2, afterSignal: 0 }, 'dmEx ^pr.selected-index^rw^num syncs select selectedIndex');
+    __assert(__tSubRwSelectSelectedIndexPrNum, [], { before: 1, sigAfterWrite: 2, afterSignal: 0 }, 'dmEx ^.selected-index^rw^num syncs select selectedIndex');
     function __tSubRwPrPathBothWays() {
       __reset();
       const inp = document.createElement('input')
       inp.val = { value: 'Initial' }
       _dm.set('name', 'Ada')
-      dmEx(inp, 'data-m-ex@.^pr.val.value^rw@name')
+      dmEx(inp, 'data-m-ex@.^.val.value^rw@name')
       const before = inp.val.value
       inp.val.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -1132,7 +1122,7 @@
       setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, afterSignal: inp.val.value }
     }
-    __assert(__tSubRwPrPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^pr path both ways');
+    __assert(__tSubRwPrPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^ path both ways');
     function __tSubRwDetailsOpen() {
       __reset();
       const det = document.createElement('details')
