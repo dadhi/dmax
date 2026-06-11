@@ -40,7 +40,7 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOT_IMMEDIATE = 'notImmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_RAF = 'raf', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_UNIV = '', M_EL = 'el', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_JSOS = 'jsos'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_UNIV = '', M_CONST = 'const', M_NULL = 'null', M_TRUE = 'true', M_FALSE = 'false', M_UNDEFINED = 'undefined', M_EL = 'el', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_STR = 'str', M_BOOL = 'bool', M_JSOS = 'jsos'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code', M_STAT = 'stat'
     const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
@@ -85,7 +85,7 @@
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, sp: kind === SP ? SP_DEFS[root] || null : null, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isImmediate: null })
     const mkMod = (not, root, path) => ({ kind: MOD, not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOT_IMMEDIATE ? false : null })
-    const DEFAULT_PR_TA = Object.freeze(mkIt(EP, null, '', null)), RE_DIGITS = /^\d+$/
+    const RE_DIGITS = /^\d+$/
     const parseRef = (dKey, n, pos = 0) => {
       if (!n) return null
       let p = pos, l = n.length
@@ -137,6 +137,7 @@
       const d = indexFirst(name, NAME_DELIMS, p)
       let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
       if (root) root = kebabToCamel(root)
+      if (root === M_CONST) return mkMod(not, root, d < 0 || d + 1 >= l ? '' : name.slice(d + 1))
       if (root === M_ATTRS) {
         if (d < 0 || d + 1 >= l) return mkMod(not, root, { r: '', v: '' })
         const rest = name.slice(d + 1)
@@ -369,8 +370,8 @@
     }
 
     const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
-    const MV_UNIV = 0, MV_SI = 1, MV_EV = 2, MV_ATTRS = 3, MV_SEL = 4, MV_SEL_ALL = 5, MV_EL = 6
-    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16, MF_RAF = 32
+    const MV_UNIV = 0, MV_SI = 1, MV_EV = 2, MV_ATTRS = 3, MV_SEL = 4, MV_SEL_ALL = 5, MV_EL = 6, MV_CONST = 7
+    const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16, MF_RAF = 32, MF_STR = 64, MF_BOOL = 128
     const compileTrMods = (tr, globMods) => compileMods(tr, tr.mods.length ? tr.mods : globMods)
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
@@ -390,10 +391,17 @@
         else if (r === M_SI_V) rm.push({ s: MV_SI, r: '', v: modPath(m.path) })
         else if (r === M_EV_V) rm.push({ s: MV_EV, r: '', v: modPath(m.path) })
         else if (r === M_UNIV) rm.push({ s: MV_UNIV, r: '', v: modPath(m.path) })
+        else if (r === M_CONST) { const raw = m.path == null ? '' : (typeof m.path === 'string' ? m.path : String(m.path)); let val; if (raw === '') val = ''; else if (raw === 'true') val = true; else if (raw === 'false') val = false; else if (raw === 'null') val = null; else if (raw === 'undefined') val = undefined; else if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(raw)) val = +raw; else val = String(raw); rm.push({ s: MV_CONST, r: '', v: val }) }
+        else if (r === M_NULL) rm.push({ s: MV_CONST, r: '', v: null })
+        else if (r === M_TRUE) rm.push({ s: MV_CONST, r: '', v: true })
+        else if (r === M_FALSE) rm.push({ s: MV_CONST, r: '', v: false })
+        else if (r === M_UNDEFINED) rm.push({ s: MV_CONST, r: '', v: undefined })
         else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
         else if (r === M_NUM) f |= MF_NUM
+        else if (r === M_STR) f |= MF_STR
+        else if (r === M_BOOL) f |= MF_BOOL
         else if (r === M_RAF) f |= MF_RAF
         else if (r === M_JSOS) j = m.path ?? 2
         else if (r === M_RW) f |= MF_RW
@@ -719,58 +727,25 @@
       }
       return out
     }
-    const getQueryRoot = (el, root = el?.getRootNode?.() || el?.ownerDocument || document) => ((root === el && el?.ownerDocument && (root = el.ownerDocument)), root && typeof root.querySelectorAll === 'function' ? root : document)
+    const getQueryRoot = (el) => { let r = el?.getRootNode?.(); if (!r || r === el) r = el?.ownerDocument || document; return r && typeof r.querySelectorAll === 'function' ? r : document }
     const dmSel = (sel, root = document) => root.querySelector(sel || '')
     const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
     const dmEl = (id, root = document) => id ? root.getElementById(id) : null
-    const getReadVal = (readEl, mod, readPath) => {
-      if (!mod.rm.length) return getElPrVal(readEl, readPath)
-      let val = readEl
+    const runRm = (val, readEl, mod, detail) => {
       for (const rm of mod.rm) {
-        if (rm.s === MV_ATTRS) {
-          val = Array.isArray(val) ? val.map(e => getAttrs(e, rm.v)) : getAttrs(val, rm.v)
-        } else if (rm.s === MV_SEL) {
-          val = dmSel(rm.v, getQueryRoot(readEl))
-        } else if (rm.s === MV_SEL_ALL) {
-          val = dmSelAll(rm.v, getQueryRoot(readEl))
-        } else if (rm.s === MV_EL) {
-          const el = rm.r ? (dmEl(rm.r) || readEl) : readEl
-          val = rm.v.length ? getElPrVal(el, rm.v) : el
-        } else if (rm.s === MV_UNIV) {
-          if (rm.v.length) {
-            const first = getElPrVal(val, [rm.v[0]])
-            val = rm.v.length > 1 ? getPrValAndDepth(first, rm.v, rm.v.length - 1, 1)[0] : first
-          }
-        }
+        if (rm.s === MV_CONST) val = rm.v
+        else if (rm.s === MV_EV) val = rm.v.length ? getElPrVal(detail, rm.v) : getEvVal(detail)
+        else if (rm.s === MV_SI) val = rm.v.length ? getPrValAndDepth(val, rm.v)[0] : val
+        else if (rm.s === MV_SEL) val = dmSel(rm.v, getQueryRoot(readEl))
+        else if (rm.s === MV_SEL_ALL) val = dmSelAll(rm.v, getQueryRoot(readEl))
+        else if (rm.s === MV_EL) { const el = rm.r ? (dmEl(rm.r) || readEl) : readEl; val = rm.v.length ? getElPrVal(el, rm.v) : el }
+        else if (rm.s === MV_ATTRS) val = Array.isArray(val) ? val.map(e => getAttrs(e, rm.v)) : getAttrs(val, rm.v)
+        else if (rm.s === MV_UNIV && rm.v.length) { const first = getElPrVal(val, [rm.v[0]]); val = rm.v.length > 1 ? getPrValAndDepth(first, rm.v, rm.v.length - 1, 1)[0] : first }
       }
       return val
     }
-    const getTrVal = (detail, readEl, mod, readPath) => {
-      if (!mod.rm.length) return getElPrVal(readEl, readPath)
-      let val = readEl
-      for (const rm of mod.rm) {
-        if (rm.s === MV_EV) {
-          val = rm.v.length ? getElPrVal(detail, rm.v) : getEvVal(detail)
-        } else if (rm.s === MV_UNIV) {
-          if (rm.v.length) {
-            const first = getElPrVal(val, [rm.v[0]])
-            val = rm.v.length > 1 ? getPrValAndDepth(first, rm.v, rm.v.length - 1, 1)[0] : first
-          }
-        } else if (rm.s === MV_EL) {
-          const el = rm.r ? (dmEl(rm.r) || readEl) : readEl
-          val = rm.v.length ? getElPrVal(el, rm.v) : el
-        } else if (rm.s === MV_SI) {
-          val = rm.v.length ? getPrValAndDepth(val, rm.v)[0] : val
-        } else if (rm.s === MV_SEL) {
-          val = dmSel(rm.v, getQueryRoot(readEl))
-        } else if (rm.s === MV_SEL_ALL) {
-          val = dmSelAll(rm.v, getQueryRoot(readEl))
-        } else if (rm.s === MV_ATTRS) {
-          val = Array.isArray(val) ? val.map(e => getAttrs(e, rm.v)) : getAttrs(val, rm.v)
-        }
-      }
-      return val
-    }
+    const getReadVal = (readEl, mod, readPath) => mod.rm.length ? runRm(readEl, readEl, mod, null) : getElPrVal(readEl, readPath)
+    const getTrVal = (detail, readEl, mod, readPath) => mod.rm.length ? runRm(readEl, readEl, mod, detail) : getElPrVal(readEl, readPath)
     const addSpSub = (el, tr, sp, mod, fn, elSubs, evName) => {
       if (sp.ms != null) {
         const ms = +evName || sp.ms
@@ -932,9 +907,9 @@
     const onRaf = (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(fn, 16)
     const getEvVal = (detail, dd = detail && detail.detail) => dd === undefined ? detail : dd && typeof dd === 'object' ? dd.value ?? dd.ms ?? dd : dd
     const applyTrMs = (fn, tr, mod, removeSub, readEl = null) => {
-      const isSig = tr.isSi, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, raf = f & MF_RAF, useNum = f & MF_NUM, jsos = mod.j
+      const isSig = tr.isSi, deb = mod.d, thr = mod.t, permitMods = mod.p, f = mod.f, once = f & MF_ONCE && !(f & MF_ALWAYS) && removeSub, prevent = !isSig && f & MF_PREVENT, raf = f & MF_RAF, useNum = f & MF_NUM, useStr = f & MF_STR, useBool = f & MF_BOOL, jsos = mod.j
       const hasPipeline = mod.rm.length > 0
-      if (!(once || prevent || deb || thr || raf || permitMods || tr.not || useNum || jsos != null || hasPipeline) && (isSig || removeSub || tr.sp?.init)) return fn
+      if (!(once || prevent || deb || thr || raf || permitMods || tr.not || useNum || useStr || useBool || jsos != null || hasPipeline) && (isSig || removeSub || tr.sp?.init)) return fn
       let tm = 0, last = 0, inDebounce = false, inRaf = false, rafPending = false
       let debDm = null, debEl = null, debVal = null, debDetail = null, rafDm = null, rafEl = null, rafVal = null, rafDetail = null
       let onDebounce = null, rafRun = null
@@ -973,16 +948,13 @@
         let trVal
         if (isSig) {
           trVal = providedVal ?? getSiVal(trIt)
-          if (hasPipeline) {
-            for (const rm of mod.rm) {
-              if (rm.s === MV_SI) trVal = rm.v.length ? getPrValAndDepth(trVal, rm.v)[0] : trVal
-              else if (rm.s === MV_UNIV) trVal = rm.v.length ? getPrValAndDepth(trVal, rm.v)[0] : trVal
-            }
-          }
+          if (hasPipeline) trVal = runRm(trVal, el, mod, null)
         } else {
           trVal = hasPipeline ? getTrVal(detail, readEl || el, mod, null) : (providedVal ?? getEvVal(detail))
         }
         if (useNum) trVal = trVal == null || trVal === '' ? null : +trVal
+        if (f & MF_STR) trVal = trVal == null ? '' : '' + trVal
+        if (f & MF_BOOL) trVal = !!trVal
         if (trIt.not) trVal = !trVal
         if (permitMods && !modsPermitVal(permitMods, trVal)) return
         if (jsos != null) trVal = dmJsos(trVal, jsos)

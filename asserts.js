@@ -762,6 +762,81 @@
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
     __assert(__tSubSignalSiModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^si path feeds raw and expression values');
+    function __tConstNumber() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.42', '');
+      return DM['out'];
+    }
+    __assert(__tConstNumber, [], 42, '^const.42 produces number 42');
+    function __tConstFloat() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.3.14', '');
+      return DM['out'];
+    }
+    __assert(__tConstFloat, [], 3.14, '^const.3.14 produces float 3.14');
+    function __tConstString() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.hello', '');
+      return DM['out'];
+    }
+    __assert(__tConstString, [], 'hello', '^const.hello produces string "hello"');
+    function __tConstBool() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^const.true', '');
+      dmEx(el, 'data-m-ex:b@_init^const.false', '');
+      return { a: DM['a'], b: DM['b'] };
+    }
+    __assert(__tConstBool, [], { a: true, b: false }, '^const.true/false produce booleans');
+    function __tConstNullUndefined() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^const.null', '');
+      dmEx(el, 'data-m-ex:b@_init^const.undefined', '');
+      return { a: DM['a'], b: DM['b'] };
+    }
+    __assert(__tConstNullUndefined, [], { a: null, b: undefined }, '^const.null/undefined produce null/undefined');
+    function __tNullShorthand() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^null', '');
+      return DM['out'];
+    }
+    __assert(__tNullShorthand, [], null, '^null shorthand produces null');
+    function __tTrueFalseShorthand() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^true', '');
+      dmEx(el, 'data-m-ex:b@_init^false', '');
+      return { a: DM['a'], b: DM['b'] };
+    }
+    __assert(__tTrueFalseShorthand, [], { a: true, b: false }, '^true/^false shorthand');
+    function __tUndefinedShorthand() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^undefined', '');
+      return DM['out'];
+    }
+    __assert(__tUndefinedShorthand, [], undefined, '^undefined shorthand');
+    function __tConstWithStr() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.42^str', '');
+      return DM['out'];
+    }
+    __assert(__tConstWithStr, [], '42', '^const.42^str coerces number to string');
+    function __tConstWithBool() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^const.1^bool', '');
+      dmEx(el, 'data-m-ex:b@_init^const.0^bool', '');
+      dmEx(el, 'data-m-ex:c@_init^const.null^bool', '');
+      return { a: DM['a'], b: DM['b'], c: DM['c'] };
+    }
+    __assert(__tConstWithBool, [], { a: true, b: false, c: false }, '^const.X^bool coerces to boolean');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'

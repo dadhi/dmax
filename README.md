@@ -28,21 +28,16 @@ Design bias:
 - when modifiers repeat, use simple deterministic rules
 - if you learn one dmax thing, you should mostly know the rest
 - prefer consistent naming and behavior over one-off shorthand exceptions
-- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`, `^sel`, `^sel-all`) use last-wins
+- read-source mods compose as a **pipeline** (left-to-right): selectors (`^el`, `^sel`, `^sel-all`) pick a value source, transforms (`^attrs`) map it, and `^` extracts a sub-path or array index
 - write modes (`^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`) fall back to replace when a mode does not fit the target values
 
 Backend note: dmax does not require a backend SDK. See `protocol.md` for the plain HTML/JSON/SSE contract.
 
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`, `dmWc(...)`.
+By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmEl(id)`, `dmSel(...)`, `dmSelAll(...)`, `dmWc(...)`, `dmJsos(val)`, `dmAct(...)`.
 
 ## Distribution files
 
-- `dmax.js`: 86,336 bytes
-- `dist/dmax.min.js`: 46,677 bytes
-- `dist/dmax.min.js.gz`: 16,663 bytes
-- `dist/dmax.min.js.br`: 14,982 bytes
-
-Build/update them with:
+Build distribution files with:
 
 ```sh
 npm run build:min
@@ -179,35 +174,61 @@ Use `^jsos` when a target expects JSON as a string, such as an observed attribut
 
 This is shorthand for writing `JSON.stringify(val)` yourself. The helper is also exposed as `dmJsos(val)` for custom expressions.
 
-### Read modifiers × trigger kinds
+### Read modifiers
 
-Six read modifiers, each with a clear source:
+Read mods form a **pipeline** (applied left-to-right). The first selector mod picks a value source; transforms map it; the last `^` extracts a sub-path or array index.
 
-| Mod | Source | Valid triggers | Notes |
-| --- | --- | --- | --- |
-| `^pr.foo` | property of trigger target element | any event/special | reads named prop; path required |
-| `^attrs.data-` | attribute list of trigger target element | any event/special | filters by prefix |
-| `^sel#x` | DOM query (relative to trigger target's root) | any | reads default prop of first match |
-| `^sel-all..x` | DOM query | any | reads default props of all matches |
-| `^si.foo` | signal value | **signal triggers only** | sub-path of signal value |
-| `^ev.foo` | event detail | **event triggers only** | sub-path of event detail |
+| Mod | Source | Notes |
+| --- | --- | --- |
+| `^.foo` | sub-path of trigger value | universal: works on any trigger kind |
+| `^.[0]` / `^.[-1]` | array index | first / last element after `^sel-all` or `^attrs` |
+| `^ev.foo` | event detail | event triggers only |
+| `^si.root.path` | arbitrary signal | reads from any signal, not just trigger |
+| `^el.id` | element selector | `^el` = trigger element, `^el.id` = element by id |
+| `^sel.x` | DOM query | first match, reads default prop |
+| `^sel-all.x` | DOM query | all matches, reads default props of all |
+| `^attrs.prefix` | attribute list | filters by prefix; with `^sel-all` returns array of attr arrays |
+| `^const.X` | constant value | type inferred: `^const.42` = 42, `^const.hello` = "hello", `^const.true` = true |
+| `^null` / `^true` / `^false` / `^undefined` | shorthand constants | no path needed |
 
-Matrix of valid combinations:
+Coercion mods (applied after the pipeline):
+- `^num` — coerce to number
+- `^str` — coerce to string
+- `^bool` — coerce to boolean
+- `^jsos` — JSON.stringify
 
-| Trigger | `^pr` | `^attrs` | `^sel` | `^sel-all` | `^si` | `^ev` |
-| --- | --- | --- | --- | --- | --- | --- |
-| `@sig` (signal) | — | — | ✅ | ✅ | ✅ | — |
-| `@.E` (bare event) | ✅ host | ✅ host | ✅ | ✅ | — | ✅ |
-| `@#id.E` | ✅ `#id` | ✅ `#id` | ✅ | ✅ | — | ✅ |
-| `@_window.E` | ✅ window | ✅ window | ✅ | ✅ | — | ✅ |
-| `@_document.E` | ✅ document | ✅ document | ✅ | ✅ | — | ✅ |
-| `@_form.E` | ✅ form | ✅ form | ✅ | ✅ | — | ✅ |
-| `@_init` | ✅ host | ✅ host | ✅ | ✅ | — | — |
-| `@_viewed` | ✅ host | ✅ host | ✅ | ✅ | — | — |
-| `@_interval.N` | ✅ host | ✅ host | ✅ | ✅ | — | — |
-| `@_timeout.N` | ✅ host | ✅ host | ✅ | ✅ | — | — |
+Examples:
+```html
+<span data-m-ex:.@user.name>              <!-- default: sub-path of signal value -->
+<span data-m-ex:.@.input^.target.value>  <!-- element prop via universal path -->
+<span data-m-ex:.@.click^ev.detail.msg>   <!-- event detail sub-path -->
+<span data-m-ex:out@^const.42>            <!-- constant 42 -->
+<span data-m-ex:out@_init^true>           <!-- boolean shorthand -->
+<span data-m-ex:out@_init^const.null^bool> <!-- constant null coerced to false -->
+```
 
-`^pr` and `^attrs` read from the **trigger target** (the element the trigger fires on, or the host element for bare/eventless triggers). `^sel` and `^sel-all` query the DOM relative to the trigger target's root. `^si` and `^ev` are trigger-kind-coupled and validated at wire-up — invalid combinations produce a clear error and the trigger is skipped.
+**Default value source per trigger kind:**
+- Signal trigger (`@foo`): the signal value
+- Event trigger (`@.click`): the trigger element (reads its default prop unless you specify a path with `^`)
+- Special trigger (`@_init`, `@_window.E`, etc.): the trigger element or window/document/form
+
+### Pipeline composition
+
+Read mods compose left-to-right. Each selector replaces the current value; transforms map it; `^` extracts.
+
+```html
+<!-- 1. Select element with id "other", read its default prop -->
+<span data-m-ex:out@.click^el.other></span>
+
+<!-- 2. Query all `.item` elements, then extract .length -->
+<span data-m-ex:count@_init^sel-all..item^.length></span>
+
+<!-- 3. Query all `.item`, get their data-* attributes, count the first -->
+<span data-m-ex:out@_init^sel-all..item^attrs.data-m-^.[0]></span>
+
+<!-- 4. Constant, then sub-path (useful for typed defaults) -->
+<span data-m-ex:out@_init^const.{a:1, b:2}^.b></span>
+```
 
 ### Query-read helpers
 
@@ -376,20 +397,6 @@ SSE lifecycle helpers:
 - `^stat.<signal>` — track `open` / `close` lifecycle
 - `^retry.N` — set reconnect delay in ms
 
-### SSE
-
-dmax supports `text/event-stream` action responses with incremental application.
-See `protocol.md` for exact wire shapes and no-SDK backend examples.
-
-Supported SSE events:
-- `dm-element`
-- `dm-elements` (`html` required; `selector` and `mode` optional)
-- `dm-signals`
-
-Lifecycle helpers:
-- `^stat.<signal>`
-- `^retry.N`
-
 Grouped status example:
 
 ```html
@@ -408,6 +415,26 @@ dmax uses `fetch` + `ReadableStream`, so it supports:
 - request bodies
 - non-GET methods
 - explicit reconnect behavior
+
+## Style helper (`dm-style.js`)
+
+`dm-style.js` is an optional companion package for editable design tokens. It wires a single signal to CSS custom properties and provides a reusable panel with range/color inputs, copy/import/reset tools, and help binding.
+
+```html
+<script src="./dm-style.js"></script>
+<dm-style-panel data-m-si='{"style":{},"stylePanel":{},"oklchHelp":{}}'></dm-style-panel>
+<script>
+  dmStyle.pin(document.getElementById('app'), {
+    signal: 'style',        // signal path for token values
+    open: 'stylePanel.open', // signal path for panel open/close
+    help: 'oklchHelp'       // signal path for help text
+  })
+</script>
+```
+
+The `pin(root, opts?)` helper subscribes to the style signal, applies CSS vars to `root`, finds or creates the panel element, and binds open/help signals. Defaults: `signal: 'style'`, `open: 'style-panel.open'`, `help: 'oklch-help'`, `panel: 'dm-style-panel'`.
+
+See `style.md` for the full API and `examples/style-starter.html` for a 5-minute setup.
 
 ## Special triggers
 
@@ -432,7 +459,7 @@ History writes usually pair well with window reads:
 
 ```html
 <button data-m-ex:_history.push-state@.click="[null, '', '#demo']">Push</button>
-<span data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span>
+<span data-m-ex:.@_init@_window.hashchange^.location.hash="val || '#'"></span>
 ```
 
 ## Ignore controls

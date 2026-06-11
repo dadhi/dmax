@@ -149,6 +149,43 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex:result@foo^si.', valid: true, category: 'si-default-path' }
   yield { attr: 'data-m-ex:result@.input^ev.detail.value', valid: true, category: 'ev-event-path' }
   yield { attr: 'data-m-ex:result@.input^ev.', valid: true, category: 'ev-default-path' }
+
+  // ^const: type-inferred literal values
+  yield { attr: 'data-m-ex:result@_init^const.42', valid: true, category: 'const-number' }
+  yield { attr: 'data-m-ex:result@_init^const.3.14', valid: true, category: 'const-float' }
+  yield { attr: 'data-m-ex:result@_init^const.-5', valid: true, category: 'const-negative' }
+  yield { attr: 'data-m-ex:result@_init^const.1e3', valid: true, category: 'const-scientific' }
+  yield { attr: 'data-m-ex:result@_init^const.hello', valid: true, category: 'const-string' }
+  yield { attr: 'data-m-ex:result@_init^const.foo.bar', valid: true, category: 'const-string-dots' }
+  yield { attr: 'data-m-ex:result@_init^const.true', valid: true, category: 'const-true' }
+  yield { attr: 'data-m-ex:result@_init^const.false', valid: true, category: 'const-false' }
+  yield { attr: 'data-m-ex:result@_init^const.null', valid: true, category: 'const-null' }
+  yield { attr: 'data-m-ex:result@_init^const.undefined', valid: true, category: 'const-undefined' }
+  yield { attr: 'data-m-ex:result@_init^const.', valid: true, category: 'const-empty-string' }
+
+  // ^null, ^true, ^false, ^undefined: shorthand constants
+  yield { attr: 'data-m-ex:result@_init^null', valid: true, category: 'null-shorthand' }
+  yield { attr: 'data-m-ex:result@_init^true', valid: true, category: 'true-shorthand' }
+  yield { attr: 'data-m-ex:result@_init^false', valid: true, category: 'false-shorthand' }
+  yield { attr: 'data-m-ex:result@_init^undefined', valid: true, category: 'undefined-shorthand' }
+
+  // ^str, ^bool: coercion mods
+  yield { attr: 'data-m-ex:result@_init^const.42^str', valid: true, category: 'const-str-coerce' }
+  yield { attr: 'data-m-ex:result@_init^const.1^bool', valid: true, category: 'const-bool-coerce-true' }
+  yield { attr: 'data-m-ex:result@_init^const.0^bool', valid: true, category: 'const-bool-coerce-false' }
+  yield { attr: 'data-m-ex:result@_init^const.null^bool', valid: true, category: 'const-bool-coerce-null' }
+  yield { attr: 'data-m-ex:result@_init^str', valid: true, category: 'trigger-str-coerce' }
+  yield { attr: 'data-m-ex:result@_init^bool', valid: true, category: 'trigger-bool-coerce' }
+  yield { attr: 'data-m-ex:result@foo^num^str', valid: true, category: 'num-then-str' }
+  yield { attr: 'data-m-ex:result@foo^str^num', valid: true, category: 'str-then-num' }
+
+  // Mod combinations: pipeline
+  yield { attr: 'data-m-ex:result@_init^const.42^.foo', valid: true, category: 'const-then-univ' }
+  yield { attr: 'data-m-ex:result@_init^.foo^const.42', valid: true, category: 'univ-then-const' }
+  yield { attr: 'data-m-ex:result@_init^const.42^el.#other^', valid: true, category: 'const-then-el-then-univ' }
+  yield { attr: 'data-m-ex:result@_init^sel..foo^.length', valid: true, category: 'sel-then-length' }
+  yield { attr: 'data-m-ex:result@_init^sel-all..foo^.[0]', valid: true, category: 'sel-all-then-first' }
+  yield { attr: 'data-m-ex:result@_init^sel-all..foo^.[-1]', valid: true, category: 'sel-all-then-last' }
   yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: true, category: 'pr-silently-ignored' }
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
