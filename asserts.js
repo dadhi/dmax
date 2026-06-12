@@ -77,9 +77,9 @@
     let not = p == 0 ? null : p % 2 != 0
     const d = indexFirst(n, NAME_DELIMS, p)
     let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
-    if (root) root = kebabToCamel(root)
+    if (root) root = toName(root)
     if (!root) return null
-    return mkMod(not, root, d < 0 || d + 1 >= n.length ? null : n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseRef(dKey, n, p))
+    return mkMod(not, root, d < 0 || d + 1 >= n.length ? null : n.indexOf(DOT, p = d + 1) < 0 ? toName(n.slice(p)) : parseRef(dKey, n, p))
   })()
   const applyTrMsMods = (fn, tr, mods, removeSub) => applyTrMs(fn, tr, compileMods(tr, mods), removeSub)
   const __assert = (fn, args, expected, label) => {
@@ -115,19 +115,21 @@
     __assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
     __assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
     __assert(indexFirst, ['abcdefg', ['a'], 10], -1, 'pos out of range');
-    __assert(kebabToCamel, ['foo-bar'], 'fooBar', 'basic case');
-    __assert(kebabToCamel, ['-bar'], 'Bar', 'lead single');
-    __assert(kebabToCamel, ['bar-'], 'bar', 'trail single');
-    __assert(kebabToCamel, ['bar---'], 'bar', 'trail multi');
-    __assert(kebabToCamel, ['multi-part-key'], 'multiPartKey', 'multi part');
-    __assert(kebabToCamel, ['-'], '', 'single dash');
-    __assert(kebabToCamel, ['--'], '', 'multi dashes only');
-    __assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
-    __assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
-    __assert(kebabToCamel, ['trailing--dashes---'], 'trailingDashes', 'trailing multi dashes');
-    __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
-    __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
-    __assert((s) => camelToKebab(kebabToCamel(s)), ['data-foo-bar'], 'data-foo-bar', 'camel/kebab roundtrip keeps original kebab');
+    __assert(toName, ['foo-bar'], 'fooBar', 'basic case');
+    __assert(toName, ['-bar'], 'Bar', 'lead single');
+    __assert(toName, ['bar-'], 'bar', 'trail single');
+    __assert(toName, ['bar---'], 'bar', 'trail multi');
+    __assert(toName, ['multi-part-key'], 'multiPartKey', 'multi part');
+    __assert(toName, ['-'], '', 'single dash');
+    __assert(toName, ['--'], '', 'multi dashes only');
+    __assert(toName, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
+    __assert(toName, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
+    __assert(toName, ['trailing--dashes---'], 'trailingDashes', 'trailing multi dashes');
+    __assert((s) => toName(s, 0), ['fooBar'], 'foo-bar', 'camel to kebab');
+    __assert((s) => toName(s, 0), ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
+    __assert((s) => toName(s, 0), ['dataFooBar'], 'data-foo-bar', 'camel to kebab basic');
+    __assert((s) => toName(s), ['data-foo-bar'], 'dataFooBar', 'kebab to camel basic');
+    __assert((s) => toName(toName(s, 0)), ['dataFooBar'], 'dataFooBar', 'camel/kebab roundtrip');
     __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
     __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SI, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
     __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');

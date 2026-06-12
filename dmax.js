@@ -6,26 +6,17 @@
     }
 
     const NIL = Object.freeze([])
-    const CAMEL_NAMES = new Map(), KEBAB_NAMES = new Map()
-    const kebabToCamel = (s) => {
+    const _NAMES = new Map()
+    const toName = (s, k = 1) => {
       if (!s) return s
-      if (s.indexOf('-') < 0) { CAMEL_NAMES.set(s, s); return s }
-      let res = CAMEL_NAMES.get(s)
-      if (res) return res
-      res=s.replace(/-+([a-zA-Z]?)/g,(_,c)=>c?c.toUpperCase():'')
-      CAMEL_NAMES.set(s, res)
-      KEBAB_NAMES.set(res, s)
-      return res
-    }
-
-    const camelToKebab = (s) => {
-      if (!s) return s
-      let res = KEBAB_NAMES.get(s)
-      if (res) return res
-      res = s.replace(/[A-Z]/g, c => '-' + c.toLowerCase())
-      KEBAB_NAMES.set(s, res)
-      CAMEL_NAMES.set(res, s)
-      return res
+      const cached = _NAMES.get(s)
+      if (cached) return k ? cached[0] : cached[1]
+      const c = s.replace(/-+([a-zA-Z]?)/g, (_, ch) => ch ? ch.toUpperCase() : '')
+      const kb = s.replace(/[A-Z]/g, ch => '-' + ch.toLowerCase())
+      const pair = [c, kb]
+      _NAMES.set(c, pair)
+      _NAMES.set(kb, pair)
+      return k ? c : kb
     }
 
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
@@ -101,7 +92,7 @@
           if (!root) { logErr('empty', kind + ':', n, dKey); return null }
         } else {
           kind = SI
-          root = kebabToCamel(root)
+          root = toName(root)
         }
       }
       if (d < 0 && !root && not !== null) { logErr('bare', NOT + ':', n); return null }
@@ -114,7 +105,7 @@
           d = indexFirst(n, NAME_DELIMS, p)
           const part = n.slice(partStart, p = d < 0 ? l : d)
           if (!part) { logErr('empty path part:', n, dKey); return null }
-          path.push(kebabToCamel(part))
+          path.push(toName(part))
         } else if (c === BRACKET_OPEN) {
           d = n.indexOf(BRACKET_CLOSE, p + 1)
           if (d < 0) { logErr('missing ]:', n, dKey); return null }
@@ -136,7 +127,7 @@
       let not = p == 0 ? null : p % 2 != 0
       const d = indexFirst(name, NAME_DELIMS, p)
       let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
-      if (root) root = kebabToCamel(root)
+      if (root) root = toName(root)
       if (root === M_CONST) return mkMod(not, root, d < 0 || d + 1 >= l ? '' : name.slice(d + 1))
       if (root === M_ATTRS) {
         if (d < 0 || d + 1 >= l) return mkMod(not, root, { r: '', v: '' })
@@ -147,7 +138,7 @@
         return mkMod(not, root, { r, v: d2 < 0 ? '' : rest.slice(d2 + 1) })
       }
       if (root === M_SEL || root === M_SEL_ALL) return mkMod(not, root, d < 0 || d + 1 >= l ? '' : name.slice(d + 1))
-      return mkMod(not, root, d < 0 || d + 1 >= l ? null : name.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(name.slice(p)) : parseRef(dKey, name, p))
+      return mkMod(not, root, d < 0 || d + 1 >= l ? null : name.indexOf(DOT, p = d + 1) < 0 ? toName(name.slice(p)) : parseRef(dKey, name, p))
     }
     const parse = (dKey, p) => { p ??= 'data-'.length
       const n = dKey.length, items = noProto(); items[MOD] = items[TARG] = items[TRIG] = items[ADD] = NIL
@@ -231,7 +222,7 @@
       let val = dVal ? fn(DM, el, null) : null
       if (!tars.length) {
         if (!(val && typeof val === 'object')) return logErr('object value expected:', dKey, dVal)
-        for (const t in val) _dm.set(kebabToCamel(t), val[t])
+        for (const t in val) _dm.set(toName(t), val[t])
         return
       }
       for (const t of tars) {
@@ -254,7 +245,7 @@
       if (!el) return null
       const prop = prPath && prPath.length ? prPath[0] : getDefaultPr(el)
       let val = el[prop]
-      if (val === undefined && el.getAttribute) val = el.getAttribute(camelToKebab(prop))
+      if (val === undefined && el.getAttribute) val = el.getAttribute(toName(prop, 0))
       return prPath && prPath.length > 1 ? getPrValAndDepth(val, prPath, -1, 1)[0] : val
     }
 
@@ -306,11 +297,11 @@
       try {
         if (typeof obj[prop] === 'function') return Array.isArray(val) ? obj[prop](...val) : obj[prop](val)
         if (prop === 'style' && isPlainObj(val) && obj[prop]) for (const k in val) {
-          const st = obj[prop], v = val[k], cssVar = k[0] === '-' ? k : '--' + camelToKebab(k)
+          const st = obj[prop], v = val[k], cssVar = k[0] === '-' ? k : '--' + toName(k, 0)
           if (k in st) { if (valChangedDeep(st[k], v)) st[k] = v }
           else if (st.getPropertyValue(cssVar) !== '' + v) st.setProperty(cssVar, v)
         } else if (obj && typeof obj.setProperty === 'function' && !(prop in obj)) {
-          const cssVar = prop[0] === '-' ? prop : '--' + camelToKebab(prop)
+          const cssVar = prop[0] === '-' ? prop : '--' + toName(prop, 0)
           if (obj.getPropertyValue(cssVar) !== '' + val) obj.setProperty(cssVar, val)
         } else if (valChangedDeep(obj[prop], val)) obj[prop] = val
       } catch (e) { logErr('Error: Failed to set property:', e.message, '>>>', tar, 'on', el) }
@@ -320,7 +311,7 @@
 
     const applyClVal = (adds, taEl, val) => {
       for (const add of adds) {
-        const name = add.kb || (add.kb = camelToKebab(add.root))
+        const name = add.kb || (add.kb = toName(add.root, 0))
         if (add.not ? !val : !!val) taEl.classList.add(name)
         else taEl.classList.remove(name)
       }
@@ -660,7 +651,7 @@
     const patchMatchingSis = (dKey, payload, resultMode) => {
       if (!isPlainObj(payload)) return
       for (const key in payload) if (hasOwn(payload, key)) {
-        const root = kebabToCamel(key)
+        const root = toName(key)
         if (!_dm.has(root)) continue
         setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), payload[key], resultMode))
       }
@@ -793,7 +784,7 @@
       const sp = tr.sp
       if (sp) return addSpSub(el, tr, sp, mod, fn, elSubs, evName)
       if (!expected(taEl && evName, 'Expected event target/name in addTrSub:', tr, 'on:', el)) return null
-      const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS, customEv = taEl?.tagName && taEl.tagName.indexOf('-') >= 0, ev = customEv ? camelToKebab(evName) : evName
+      const opts = mod.f & MF_PREVENT ? false : PASSIVE_LISTENER_OPTS, customEv = taEl?.tagName && taEl.tagName.indexOf('-') >= 0, ev = customEv ? toName(evName, 0) : evName
       const sub = { el, trig: tr, fn: null, siChangeM: null, ev: { taEl, evName: ev, opts }, clearId: null }
       const modded = applyTrMs(fn, tr, mod, sub, taEl)
       sub.fn = (detail) => invokeSub(modded, detail, getTrVal(detail, readEl, mod, readPath), el, tr)
@@ -1266,11 +1257,7 @@
       const actStats = mkActStats(statMod)
       const hdrsPath = hdrsMod?.path, authPath = authMod?.path
       const retryDelay = retryMod ? (+(resolveMPathVal(retryMod.path) ?? M_RETRY_MS) || M_RETRY_MS) : 0
-      let enc = ''
-      if (encBr) enc = 'br'
-      if (encGzip) enc += (enc ? ', ' : '') + 'gzip'
-      if (encDeflate) enc += (enc ? ', ' : '') + 'deflate'
-      if (encCompress) enc += (enc ? ', ' : '') + 'compress'
+      const enc = [encBr && 'br', encGzip && 'gzip', encDeflate && 'deflate', encCompress && 'compress'].filter(Boolean).join(', ')
       const baseHs = buildActBaseHs(isJson, isText, isHtml, isForm, isSse, noCache, enc)
       const isGetOrDelete = method === 'GET' || method === 'DELETE'
       let activeAbort = null
@@ -1287,8 +1274,8 @@
       }
       const actHdrMods = []
       for (const m of hdrMods) { const p = m.path
-        if (typeof p === 'string') actHdrMods.push([camelToKebab(p), p, null])
-        else if (p && p.isSi) actHdrMods.push([camelToKebab(p.path ? p.path.at(-1) : p.root), null, p])
+        if (typeof p === 'string') actHdrMods.push([toName(p, 0), p, null])
+        else if (p && p.isSi) actHdrMods.push([toName(p.path ? p.path.at(-1) : p.root, 0), null, p])
       }
       const ss = (k, v) => actStats && setSiAndNotifySubsNDeep(dKey, actStats[k], v)
       const doRequest = async () => {
@@ -1314,7 +1301,7 @@
             if (isPlainObj(hdrObj)) {
               hs = noProto()
               sharedHs = 0
-              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : camelToKebab(hk)] = '' + hdrObj[hk]
+              for (const hk in hdrObj) if (hasOwn(hdrObj, hk)) hs[hsNoKebab ? hk : toName(hk, 0)] = '' + hdrObj[hk]
             }
           }
           if (baseHs !== ACT_HS_EMPTY) {
