@@ -7,7 +7,7 @@
 
     const NIL = Object.freeze([])
     const _NAMES = new Map()
-    const toName = (s, k = 1) => {
+    const toName = (s, k) => {
       if (!s) return s
       const cached = _NAMES.get(s)
       if (cached) return k ? cached[0] : cached[1]
@@ -31,10 +31,10 @@
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
     const M_IMMEDIATE = 'immediate', M_NOT_IMMEDIATE = 'notImmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_RAF = 'raf', M_PREVENT = 'prevent'
-    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_UNIV = '', M_CONST = 'const', M_NULL = 'null', M_TRUE = 'true', M_FALSE = 'false', M_UNDEFINED = 'undefined', M_EL = 'el', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI_V = 'si', M_EV_V = 'ev', M_RW = 'rw', M_NUM = 'num', M_STR = 'str', M_BOOL = 'bool', M_JSOS = 'jsos'
+    const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_UNIV = '', M_CONST = 'const', M_NULL = 'null', M_TRUE = 'true', M_FALSE = 'false', M_UNDEFINED = 'undefined', M_EL = 'el', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI = 'si', M_EV = 'ev', M_RW = 'rw', M_NUM = 'num', M_STR = 'str', M_BOOL = 'bool', M_JSOS = 'jsos'
     const M_JSON = 'json', M_TEXT = 'text', M_HTML = 'html', M_FORM = 'form', M_SSE = 'sse'
     const M_BUSY = 'busy', M_COMPLETE = 'complete', M_ERR = 'err', M_CODE = 'code', M_STAT = 'stat'
-    const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_NO_KEBAB = 'hsNoKebab', M_AUTH = 'auth'
+    const M_NO_CACHE = 'noCache', M_HS = 'hs', M_HS_RAW = 'hsRaw', M_AUTH = 'auth'
     const M_BROTLI = 'brotli', M_BR = 'br', M_GZIP = 'gzip', M_DEFLATE = 'deflate', M_COMPRESS = 'compress'
     const M_REPLACE='replace', M_MERGE='merge', M_APPEND='append', M_PREPEND='prepend', M_INC='inc', M_DEC='dec'
     const M_BEFORE = 'before', M_AFTER = 'after', M_INNER = 'inner', M_REMOVE = 'remove', M_OUTER = 'outer'
@@ -75,7 +75,7 @@
     const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, sp: kind === SP ? SP_DEFS[root] || null : null, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isImmediate: null })
-    const mkMod = (not, root, path) => ({ kind: MOD, not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOT_IMMEDIATE ? false : null })
+    const mkMod = (not, root, path) => ({ not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOT_IMMEDIATE ? false : null })
     const RE_DIGITS = /^\d+$/
     const parseRef = (dKey, n, pos = 0) => {
       if (!n) return null
@@ -92,7 +92,7 @@
           if (!root) { logErr('empty', kind + ':', n, dKey); return null }
         } else {
           kind = SI
-          root = toName(root)
+          root = toName(root, 1)
         }
       }
       if (d < 0 && !root && not !== null) { logErr('bare', NOT + ':', n); return null }
@@ -105,7 +105,7 @@
           d = indexFirst(n, NAME_DELIMS, p)
           const part = n.slice(partStart, p = d < 0 ? l : d)
           if (!part) { logErr('empty path part:', n, dKey); return null }
-          path.push(toName(part))
+          path.push(toName(part, 1))
         } else if (c === BRACKET_OPEN) {
           d = n.indexOf(BRACKET_CLOSE, p + 1)
           if (d < 0) { logErr('missing ]:', n, dKey); return null }
@@ -127,7 +127,7 @@
       let not = p == 0 ? null : p % 2 != 0
       const d = indexFirst(name, NAME_DELIMS, p)
       let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
-      if (root) root = toName(root)
+      if (root) root = toName(root, 1)
       if (root === M_CONST) return mkMod(not, root, d < 0 || d + 1 >= l ? '' : name.slice(d + 1))
       if (root === M_ATTRS) {
         if (d < 0 || d + 1 >= l) return mkMod(not, root, { r: '', v: '' })
@@ -138,7 +138,7 @@
         return mkMod(not, root, { r, v: d2 < 0 ? '' : rest.slice(d2 + 1) })
       }
       if (root === M_SEL || root === M_SEL_ALL) return mkMod(not, root, d < 0 || d + 1 >= l ? '' : name.slice(d + 1))
-      return mkMod(not, root, d < 0 || d + 1 >= l ? null : name.indexOf(DOT, p = d + 1) < 0 ? toName(name.slice(p)) : parseRef(dKey, name, p))
+      return mkMod(not, root, d < 0 || d + 1 >= l ? null : name.indexOf(DOT, p = d + 1) < 0 ? toName(name.slice(p), 1) : parseRef(dKey, name, p))
     }
     const parse = (dKey, p) => { p ??= 'data-'.length
       const n = dKey.length, items = noProto(); items[MOD] = items[TARG] = items[TRIG] = items[ADD] = NIL
@@ -222,7 +222,7 @@
       let val = dVal ? fn(DM, el, null) : null
       if (!tars.length) {
         if (!(val && typeof val === 'object')) return logErr('object value expected:', dKey, dVal)
-        for (const t in val) _dm.set(toName(t), val[t])
+        for (const t in val) _dm.set(toName(t, 1), val[t])
         return
       }
       for (const t of tars) {
@@ -360,33 +360,33 @@
       return true
     }
 
-    const SIG_CHANGED_ANY = 0, SIG_CHANGED_WITH_SHAPE = 1, SIG_CHANGED_SHAPE_ONLY = 2
+    const SI_CHANGED_ANY = 0, SI_CHANGED_WITH_SHAPE = 1, SI_CHANGED_SHAPE_ONLY = 2
     const MV_UNIV = 0, MV_SI = 1, MV_EV = 2, MV_ATTRS = 3, MV_SEL = 4, MV_SEL_ALL = 5, MV_EL = 6, MV_CONST = 7
     const MF_ONCE = 1, MF_ALWAYS = 2, MF_PREVENT = 4, MF_NUM = 8, MF_RW = 16, MF_RAF = 32, MF_STR = 64, MF_BOOL = 128
     const compileTrMods = (tr, globMods) => compileMods(tr, tr.mods.length ? tr.mods : globMods)
     const modPath = (x) => x == null ? NIL : x.kind ? x.root ? x.path?.length ? [x.root, ...x.path] : [x.root] : x.path || NIL : Array.isArray(x) ? x : typeof x == 'string' ? [x] : [x]
     const compileMods = (tr, mods) => {
       const isTimer = tr.sp?.ms != null
-      let f = 0, d = 0, t = 0, p = null, c = SIG_CHANGED_ANY, j = null
+      let f = 0, d = 0, t = 0, p = null, c = SI_CHANGED_ANY, j = null
       const rm = []
       for (const m of mods) {
         const r = m.root
-        if (r === M_WITH_SHAPE) c = SIG_CHANGED_WITH_SHAPE
-        else if (r === M_SHAPE_ONLY) c = SIG_CHANGED_SHAPE_ONLY
+        if (r === M_WITH_SHAPE) c = SI_CHANGED_WITH_SHAPE
+        else if (r === M_SHAPE_ONLY) c = SI_CHANGED_SHAPE_ONLY
         else if (r === M_EL) {
           const x = m.path
           rm.push({ s: MV_EL, r: x?.root || '', v: x?.path || NIL })
         } else if (r === M_ATTRS) rm.push({ s: MV_ATTRS, r: m.path?.r || '', v: m.path?.v || '' })
-        else if (r === M_SEL) rm.push({ s: MV_SEL, r: '', v: m.path || '' })
-        else if (r === M_SEL_ALL) rm.push({ s: MV_SEL_ALL, r: '', v: m.path || '' })
-        else if (r === M_SI_V) rm.push({ s: MV_SI, r: '', v: modPath(m.path) })
-        else if (r === M_EV_V) rm.push({ s: MV_EV, r: '', v: modPath(m.path) })
-        else if (r === M_UNIV) rm.push({ s: MV_UNIV, r: '', v: modPath(m.path) })
-        else if (r === M_CONST) { const raw = m.path == null ? '' : (typeof m.path === 'string' ? m.path : String(m.path)); let val; if (raw === '') val = ''; else if (raw === 'true') val = true; else if (raw === 'false') val = false; else if (raw === 'null') val = null; else if (raw === 'undefined') val = undefined; else if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(raw)) val = +raw; else val = String(raw); rm.push({ s: MV_CONST, r: '', v: val }) }
-        else if (r === M_NULL) rm.push({ s: MV_CONST, r: '', v: null })
-        else if (r === M_TRUE) rm.push({ s: MV_CONST, r: '', v: true })
-        else if (r === M_FALSE) rm.push({ s: MV_CONST, r: '', v: false })
-        else if (r === M_UNDEFINED) rm.push({ s: MV_CONST, r: '', v: undefined })
+        else if (r === M_SEL) rm.push({ s: MV_SEL, v: m.path || '' })
+        else if (r === M_SEL_ALL) rm.push({ s: MV_SEL_ALL, v: m.path || '' })
+        else if (r === M_SI) rm.push({ s: MV_SI, v: modPath(m.path) })
+        else if (r === M_EV) rm.push({ s: MV_EV, v: modPath(m.path) })
+        else if (r === M_UNIV) rm.push({ s: MV_UNIV, v: modPath(m.path) })
+        else if (r === M_CONST) { const raw = m.path == null ? '' : (typeof m.path === 'string' ? m.path : String(m.path)); let val; if (raw === '') val = ''; else if (raw === 'true') val = true; else if (raw === 'false') val = false; else if (raw === 'null') val = null; else if (raw === 'undefined') val = undefined; else if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(raw)) val = +raw; else val = String(raw); rm.push({ s: MV_CONST, v: val }) }
+        else if (r === M_NULL) rm.push({ s: MV_CONST, v: null })
+        else if (r === M_TRUE) rm.push({ s: MV_CONST, v: true })
+        else if (r === M_FALSE) rm.push({ s: MV_CONST, v: false })
+        else if (r === M_UNDEFINED) rm.push({ s: MV_CONST, v: undefined })
         else if (r === M_ONCE) f |= MF_ONCE
         else if (r === M_ALWAYS) f |= MF_ALWAYS
         else if (r === M_PREVENT) f |= MF_PREVENT
@@ -400,7 +400,7 @@
         else if (!isTimer && r === M_THROTTLE) t = +(resolveMPathVal(m.path) ?? M_THROTTLE_MS) || M_THROTTLE_MS
         else if (r in PERMIT_MODS) p = p ? p.push ? (p.push(m), p) : [p, m] : m
       }
-      return { f, d, t, p, rm, c, r: rm.length ? rm[rm.length - 1].r : '', j }
+      return { f, d, t, p, rm, c, j }
     }
     const getTrPrTa = (el, dKey, tr, mod, missElMsg, missEvMsg, usePrPath = true) => {
       const taEl = tr.root ? getElById(tr.root, dKey) : el
@@ -651,7 +651,7 @@
     const patchMatchingSis = (dKey, payload, resultMode) => {
       if (!isPlainObj(payload)) return
       for (const key in payload) if (hasOwn(payload, key)) {
-        const root = toName(key)
+        const root = toName(key, 1)
         if (!_dm.has(root)) continue
         setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, root, null), combineActResult(_dm.get(root), payload[key], resultMode))
       }
@@ -833,8 +833,8 @@
       for (const h of handlers) {
         const hp = h.trig.path, changeMod = h.siChangeM
         if (!hp) {
-          if (!path && !diffed && changeMod !== SIG_CHANGED_ANY) diffed = true, diff = diffShapeShallow(curVal, val)
-          if (path || changeMod !== SIG_CHANGED_SHAPE_ONLY || diff) collected.push([h, path ? null : diff])
+          if (!path && !diffed && changeMod !== SI_CHANGED_ANY) diffed = true, diff = diffShapeShallow(curVal, val)
+          if (path || changeMod !== SI_CHANGED_SHAPE_ONLY || diff) collected.push([h, path ? null : diff])
           continue
         }
         if (path) {
@@ -844,8 +844,8 @@
           if (i < minLen) continue
           if (hl < pl) { collected.push([h, null]); continue }
           if (pl == hl) {
-            if (!diffed && changeMod !== SIG_CHANGED_ANY) diffed = true, diff = diffShapeShallow(curVal, val)
-            if (changeMod !== SIG_CHANGED_SHAPE_ONLY || diff) collected.push([h, diff])
+            if (!diffed && changeMod !== SI_CHANGED_ANY) diffed = true, diff = diffShapeShallow(curVal, val)
+            if (changeMod !== SI_CHANGED_SHAPE_ONLY || diff) collected.push([h, diff])
             continue
           }
         }
@@ -859,13 +859,13 @@
           pathVal = getPrValAndDepth(val, hp)[0]
           if (!valChangedDeep(pathCur, pathVal)) continue
         }
-        if (changeMod != SIG_CHANGED_ANY) {
+        if (changeMod != SI_CHANGED_ANY) {
           let pd = null
           for (const x of pathDiffs) if (samePath(x[0], hp)) { pd = x; break }
           if (pd) pathDiff = pd[1]
           else pathDiffs.push([hp, pathDiff = diffShapeShallow(pathCur, pathVal)])
         }
-        if (changeMod !== SIG_CHANGED_SHAPE_ONLY || pathDiff) collected.push([h, pathDiff, pathVal])
+        if (changeMod !== SI_CHANGED_SHAPE_ONLY || pathDiff) collected.push([h, pathDiff, pathVal])
       }
 
       if (!path) _dm.set(root, val)
@@ -873,7 +873,7 @@
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        invokeBoundSub(h, h.siChangeM === SIG_CHANGED_ANY ? null : col[1])
+        invokeBoundSub(h, h.siChangeM === SI_CHANGED_ANY ? null : col[1])
       }
 
       updateDebug()
@@ -1239,7 +1239,7 @@
         else if (mr === M_DEFLATE) encDeflate = true
         else if (mr === M_COMPRESS) encCompress = true
         else if (mr === M_HS && !hdrsMod) hdrsMod = m
-        else if (mr === M_HS_NO_KEBAB) hsNoKebab = true
+        else if (mr === M_HS_RAW) hsNoKebab = true
         else if (mr === M_AUTH && !authMod) authMod = m
         else if (mr === M_REPLACE || mr === M_MERGE || mr === M_APPEND || mr === M_PREPEND || mr === M_BEFORE || mr === M_AFTER || mr === M_INNER || mr === M_REMOVE) {
           resultMode = mr
@@ -1579,7 +1579,7 @@
     }
 
     const JSON_MERGE_DELETE = Symbol('json_merge_delete')
-    const SSE_EV_PATCH_EL = 'dm-element', SSE_EV_PATCH_ELS = 'dm-elements', SSE_EV_PATCH_SIS = 'dm-signals'
+    const SSE_EVT_EL = 'dm-element', SSE_EVT_ELS = 'dm-elements', SSE_EVT_SIS = 'dm-signals'
     const SSE_EL = 'dmElement', SSE_ELS = 'dmElements', SSE_SIS = 'dmSignals'
     const HTML_ID_RE = /^\s*<[^>]*\sid\s*=\s*(?:"([^"]+)"|'([^']+)')/i
 
@@ -1694,8 +1694,8 @@
     const flushSse = (applied, st, dKey) => {
       const args = st[1], ev = st[0]
       if (st[2] && args) {
-        if (ev === SSE_EV_PATCH_EL || ev === SSE_EV_PATCH_ELS) applyPatchEls(args), applied.push({ event: ev, args })
-        else if (ev === SSE_EV_PATCH_SIS) applyPatchSigs(dKey, args), applied.push({ event: ev, args })
+        if (ev === SSE_EVT_EL || ev === SSE_EVT_ELS) applyPatchEls(args), applied.push({ event: ev, args })
+        else if (ev === SSE_EVT_SIS) applyPatchSigs(dKey, args), applied.push({ event: ev, args })
       }
       st[0] = 'message', st[1] = null, st[2] = false, st[3] = ''
     }
@@ -1709,7 +1709,7 @@
       if (field === 'event') st[0] = val || 'message'
       else if (field === 'data') {
         st[2] = true
-        if (st[0] === SSE_EV_PATCH_EL) {
+        if (st[0] === SSE_EVT_EL) {
           const args = st[1] || (st[1] = noProto())
           args[SSE_EL] = st[3] ? st[3] + '\n' + val : val
           st[3] = args[SSE_EL]

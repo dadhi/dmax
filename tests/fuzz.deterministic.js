@@ -320,7 +320,7 @@ function* generateDataActionCombinations() {
     yield { attr: `data-m-${method}^stat.req-state:result@.click`, valid: true, category: `${method}-state-modes` };
     yield { attr: `data-m-${method}^stat.status:result@.click`, valid: true, category: `${method}-state-all` };
     yield { attr: `data-m-${method}^hs.req-hs:result@.click`, valid: true, category: `${method}-headers-modifier` };
-    yield { attr: `data-m-${method}^hs.raw-hs^hs-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
+    yield { attr: `data-m-${method}^hs.raw-hs^hs-raw:result@.click`, valid: true, category: `${method}-headers-raw-modifier` };
     yield { attr: `data-m-${method}^h.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
     yield { attr: `data-m-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
     if (method !== 'get') yield { attr: `data-m-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
@@ -621,10 +621,10 @@ async function runRegressionTests(runner) {
       }
     },
     {
-      attr: 'data-m-get^hs.raw-hs^hs-no-kebab:result@.click',
+      attr: 'data-m-get^hs.raw-hs^hs-raw:result@.click',
       expr: '"https://api.test/headers-raw"',
       valid: true,
-      desc: '^hs-no-kebab preserves exact copied header keys',
+      desc: '^hs-raw preserves exact copied header keys',
       exercise: async ({ element, window, requests }) => {
         element.dispatchEvent(new window.Event('click', { bubbles: true }));
         await new Promise(r => setTimeout(r, 50));
