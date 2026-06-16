@@ -69,7 +69,8 @@ function waitFor(conditionFn, timeout = 5000, interval = 20) {
   await waitFor(() => window.navigator.clipboard.last.includes('--tone-bg'))
   assert(window.navigator.clipboard.last.includes(':root {'), 'copy exports css block')
   window.navigator.clipboard.writeText = () => Promise.reject(new Error('denied'))
-  assert.doesNotThrow(() => window.dmStyle.copy(window.dm.style, window.dmStyle.defs), 'copy tolerates clipboard write rejections')
+  const rejectedCopy = window.dmStyle.copy(window.dm.style, window.dmStyle.defs)
+  assert(rejectedCopy.includes('--tone-bg'), 'copy still returns css when clipboard write rejects')
 
   const importBtn = [...document.querySelectorAll('dm-style-panel button')].find((b) => b.textContent === 'import')
   importBtn.click()
