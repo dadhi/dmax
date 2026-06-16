@@ -6,17 +6,14 @@
     }
 
     const NIL = Object.freeze([])
-    const _NAMES = new Map()
+    const _NAMES = [new Map(), new Map()]
     const toName = (s, k) => {
       if (!s) return s
-      const cached = _NAMES.get(s)
-      if (cached) return k ? cached[0] : cached[1]
-      const c = s.replace(/-+([a-zA-Z]?)/g, (_, ch) => ch ? ch.toUpperCase() : '')
-      const kb = s.replace(/[A-Z]/g, ch => '-' + ch.toLowerCase())
-      const pair = [c, kb]
-      _NAMES.set(c, pair)
-      _NAMES.set(kb, pair)
-      return k ? c : kb
+      const m = _NAMES[k ? 1 : 0], cached = m.get(s)
+      if (cached !== undefined) return cached
+      const out = k ? s.replace(/-+([a-zA-Z]?)/g, (_, ch) => ch ? ch.toUpperCase() : '') : s.replace(/[A-Z]/g, ch => '-' + ch.toLowerCase())
+      m.set(s, out)
+      return out
     }
 
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
