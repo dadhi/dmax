@@ -186,7 +186,7 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex:result@_init^sel..foo^.length', valid: true, category: 'sel-then-length' }
   yield { attr: 'data-m-ex:result@_init^sel-all..foo^.[0]', valid: true, category: 'sel-all-then-first' }
   yield { attr: 'data-m-ex:result@_init^sel-all..foo^.[-1]', valid: true, category: 'sel-all-then-last' }
-  yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: true, category: 'pr-silently-ignored' }
+  yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: false, category: 'pr-removed', expectedLog: 'error', logPattern: 'legacy ^pr removed' }
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }

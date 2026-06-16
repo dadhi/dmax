@@ -335,13 +335,13 @@ const FETCH_FAILURE_RE = /dmAct fail/;
       ['valSignalPicked', valSignalPicked],
       ['valSignalPlusOne', valSignalPlusOne]
     ].filter(([, el]) => !el).map(([id]) => id);
-    if (missingValEls.length) fail('Section7.a ^pr/^si elements missing: ' + missingValEls.join(', '));
+    if (missingValEls.length) fail('Section7.a read-mod/signal elements missing: ' + missingValEls.join(', '));
     if (valSignalPicked.textContent.trim() === '7' && valSignalPlusOne.textContent.trim() === '8') pass('Section7.a signal ^si renders initial nested values'); else fail('Section7.a signal ^si initial render wrong');
     valPickInput.value = 'typed text';
     fire(valPickInput, 'input');
     await sleep(60);
     if (valPickTyped.textContent.includes('typed text')) pass('Section7.a typed preview follows the input event'); else fail('Section7.a typed preview did not update');
-    if (valPropPicked.textContent.trim() === '33') pass('Section7.a event ^pr picks data-foo-bar instead of the typed value'); else fail('Section7.a event ^pr did not pick data-foo-bar');
+    if (valPropPicked.textContent.trim() === '33') pass('Section7.a event ^ path picks data-foo-bar instead of the typed value'); else fail('Section7.a event ^ path did not pick data-foo-bar');
     fire(valSignalStep, 'click');
     await sleep(60);
     if (valSignalPicked.textContent.trim() === '8') pass('Section7.a signal ^si tracks the nested child value'); else fail('Section7.a signal ^si did not track nested child value');
