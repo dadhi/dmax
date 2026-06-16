@@ -6,10 +6,10 @@
     }
 
     const NIL = Object.freeze([])
-    const _NAMES = [new Map(), new Map()]
+    const _KEBABS = new Map(), _CAMELS = new Map()
     const toName = (s, k) => {
       if (!s) return s
-      const m = _NAMES[k ? 1 : 0], cached = m.get(s)
+      const m = k ? _CAMELS : _KEBABS, cached = m.get(s)
       if (cached !== undefined) return cached
       const out = k ? s.replace(/-+([a-zA-Z]?)/g, (_, ch) => ch ? ch.toUpperCase() : '') : s.replace(/[A-Z]/g, ch => '-' + ch.toLowerCase())
       m.set(s, out)
