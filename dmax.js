@@ -6,17 +6,14 @@
     }
 
     const NIL = Object.freeze([])
-    const _NAMES = new Map()
+    const _KEBABS = new Map(), _CAMELS = new Map()
     const toName = (s, k) => {
       if (!s) return s
-      const cached = _NAMES.get(s)
-      if (cached) return k ? cached[0] : cached[1]
-      const c = s.replace(/-+([a-zA-Z]?)/g, (_, ch) => ch ? ch.toUpperCase() : '')
-      const kb = s.replace(/[A-Z]/g, ch => '-' + ch.toLowerCase())
-      const pair = [c, kb]
-      _NAMES.set(c, pair)
-      _NAMES.set(kb, pair)
-      return k ? c : kb
+      const m = k ? _CAMELS : _KEBABS, cached = m.get(s)
+      if (cached !== undefined) return cached
+      const out = k ? s.replace(/-+([a-zA-Z]?)/g, (_, ch) => ch ? ch.toUpperCase() : '') : s.replace(/[A-Z]/g, ch => '-' + ch.toLowerCase())
+      m.set(s, out)
+      return out
     }
 
     const MOD = '^', TARG = ':', TRIG = '@', ADD = '+'
@@ -129,6 +126,7 @@
       let root = d < 0 ? (p == 0 ? name : name.slice(p)) : name.slice(p, d)
       if (root) root = toName(root, 1)
       if (root === M_CONST) return mkMod(not, root, d < 0 || d + 1 >= l ? '' : name.slice(d + 1))
+      if (root === 'pr') return logErr('legacy ^pr removed, use ^ / ^ev / ^el / ^si:', name, dKey), null
       if (root === M_ATTRS) {
         if (d < 0 || d + 1 >= l) return mkMod(not, root, { r: '', v: '' })
         const rest = name.slice(d + 1)
@@ -719,9 +717,22 @@
       return out
     }
     const getQueryRoot = (el) => { let r = el?.getRootNode?.(); if (!r || r === el) r = el?.ownerDocument || document; return r && typeof r.querySelectorAll === 'function' ? r : document }
+    const escIdSel = (id) => {
+      const s = String(id || '')
+      if (!s) return ''
+      if (typeof CSS !== 'undefined' && CSS?.escape) return CSS.escape(s)
+      return s.replace(/["\\]/g, '\\$&')
+    }
     const dmSel = (sel, root = document) => root.querySelector(sel || '')
     const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
-    const dmEl = (id, root = document) => id ? root.getElementById(id) : null
+    const dmEl = (id, root = document) => {
+      if (!id) return null
+      const rid = String(id)[0] === '#' ? String(id).slice(1) : String(id)
+      if (!rid) return null
+      if (root && typeof root.getElementById === 'function') return root.getElementById(rid)
+      const qRoot = root && typeof root.querySelector === 'function' ? root : getQueryRoot(root)
+      return qRoot && typeof qRoot.querySelector === 'function' ? qRoot.querySelector('#' + escIdSel(rid)) : null
+    }
     const runRm = (val, readEl, mod, detail) => {
       for (const rm of mod.rm) {
         if (rm.s === MV_CONST) val = rm.v

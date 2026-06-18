@@ -49,27 +49,65 @@
   }
   const applyVars = (root, vars) => {
     const s = root && root.style
-    if (!s) return
-    for (const k in vars) s.setProperty(k, vars[k])
+    if (!s || !vars) return vars
+    let prev = root._dmStyleApplied
+    if (!prev) root._dmStyleApplied = prev = {}
+    for (const k in vars) {
+      const v = vars[k]
+      if (prev[k] !== v) s.setProperty(k, prev[k] = v)
+    }
+    for (const k in prev) if (!(k in vars)) {
+      s.removeProperty(k)
+      delete prev[k]
+    }
+    return vars
+  }
+  const reconcileVars = (root, vals, defs = dmStyle.defs) => {
+    const next = valsToVars(vals, defs)
+    const prev = root && root._dmStyleVars
+    if (prev) {
+      let changed = false
+      for (const k in next) if (prev[k] !== next[k]) { changed = true; break }
+      if (!changed) return prev
+    }
+    if (root) root._dmStyleVars = next
+    return next
   }
   const exportCss = (vals, defs = dmStyle.defs) => ':root {\n' + defs.map((d) => `  ${d.css}: ${(vals && vals[d.key] != null ? vals[d.key] : d.val)}${d.unit || ''};`).join('\n') + '\n}'
+  const asFiniteNum = (v) => {
+    const n = typeof v === 'number' ? v : parseFloat(v)
+    return Number.isFinite(n) ? n : null
+  }
+  const applyImported = (next, d, raw) => {
+    if (!d) return
+    if (d.type === 'tone') {
+      const txt = String(raw == null ? '' : raw).trim()
+      if (txt) next[d.key] = txt
+      return
+    }
+    const n = asFiniteNum(raw)
+    if (n != null) next[d.key] = n
+  }
   const importVals = (prev, txt, defs = dmStyle.defs) => {
     const next = { ...(prev || {}) }
     try {
       const obj = JSON.parse(txt)
-      for (const d of defs) if (obj && obj[d.key] != null) next[d.key] = d.type === 'tone' ? '' + obj[d.key] : +obj[d.key]
+      for (const d of defs) if (obj && obj[d.key] != null) applyImported(next, d, obj[d.key])
       return next
     } catch (_) {}
     const css = byCss(defs)
-    for (const m of String(txt || '').matchAll(/(--[\w-]+)\s*:\s*([^;}{]+)\s*;?/g)) {
-      const d = css[m[1]]
-      if (d) next[d.key] = d.type === 'tone' ? m[2].trim() : parseFloat(m[2])
-    }
+    for (const m of String(txt || '').matchAll(/(--[\w-]+)\s*:\s*([^;}{]+)\s*;?/g)) applyImported(next, css[m[1]], m[2])
     return next
   }
   const copy = (vals, defs = dmStyle.defs) => {
     const css = exportCss(vals, defs)
-    navigator.clipboard && navigator.clipboard.writeText(css)
+    const writeText = navigator.clipboard && navigator.clipboard.writeText
+    if (typeof writeText === 'function') {
+      try {
+        const p = writeText.call(navigator.clipboard, css)
+        if (p && typeof p.catch === 'function') p.catch(() => {})
+      } catch (_) {}
+    }
     return css
   }
   const promptImport = (prev, defs = dmStyle.defs, promptFn = globalThis.prompt) => {
@@ -90,62 +128,66 @@
     const L = .2104542553 * Math.cbrt(l) + .793617785 * Math.cbrt(m) - .0040720468 * Math.cbrt(s), a = 1.9779984951 * Math.cbrt(l) - 2.428592205 * Math.cbrt(m) + .4505937099 * Math.cbrt(s), bb = .0259040371 * Math.cbrt(l) + .7827717662 * Math.cbrt(m) - .808675766 * Math.cbrt(s)
     return `oklch(${(L * 100).toFixed(1)}% ${Math.hypot(a, bb).toFixed(3)} ${((Math.atan2(bb, a) * 180 / Math.PI + 360) % 360) | 0})`
   }
-  const panel = (name = 'dm-style-panel', defs = dmStyle.defs, opts = {}) => {
-    const signal = opts.signal || 'style', open = opts.open || 'style-panel.open', help = opts.help || 'oklch-help', sigJs = pathJs(signal), helpAttr = help ? ` data-m-ex:.title@${help}` : '', parts = partitionDefs(defs)
+  const defaults = Object.freeze({ signal: 'style', open: 'style-panel.open', help: 'oklch-help', panelName: 'dm-style-panel' })
+  const resolveOpts = (opts = {}) => ({
+    signal: opts.signal || defaults.signal,
+    open: opts.open || defaults.open,
+    help: opts.help || defaults.help,
+    panelName: opts.panelName || opts.panel || defaults.panelName,
+    defs: opts.defs || dmStyle.defs,
+    title: opts.title,
+    note: opts.note,
+  })
+  const panel = (name = defaults.panelName, defs = dmStyle.defs, opts = {}) => {
+    const signal = opts.signal || defaults.signal, open = opts.open || defaults.open, help = opts.help || defaults.help, sigJs = pathJs(signal), helpAttr = help ? ` data-m-ex:.title@${help}` : '', parts = partitionDefs(defs)
     dmStyle.panels[name] = defs
     const range = (d, path = signal + '.' + kebab(d.key)) => `<div class="r"><dt><code title="${d.label}">${d.css}</code></dt><dd><input type="range" min="${d.min}" max="${d.max}" step="${d.step}" aria-label="${d.label}" data-m-ex:.value@${path} data-m-ex:${path}@.input^num data-m-ex:.title@${path}="'${d.label}: ' + val"></dd></div>`
     const tone = (d, path = signal + '.' + kebab(d.key), colorLabel = d.label + ' color') => `<div class="r"><dt><code title="${d.label}">${d.css}</code></dt><dd><div class="tone"><div class="tone-row"><input type="color" aria-label="${colorLabel}" data-m-ex:.value@${path}="dmStyle.oklchToHex(val) || '#ffffff'" data-m-ex:${path}@.input="dmStyle.hexToOklch(val)" data-m-ex:.style.background-color@${path}="dmStyle.oklchToHex(val) || '#ffffff'" data-m-ex:.style.border-color@${path}="dmStyle.oklchToHex(val) || '#cbd5e1'"${helpAttr}><input type="text" aria-label="${d.label}" data-m-ex:.value@${path} data-m-ex:${path}@.input${helpAttr}></div></div></dd></div>`
     return dmWc(name, `<style>${panelCss(name)}</style><details data-m-ex@.^rw@${open}><summary class="fab" aria-controls="${name}-panel">◐</summary><section class="panel" id="${name}-panel"><h2>${opts.title || 'Style props'}</h2><p>${opts.note || 'Compact live tokens for this page. Copy styles writes the current values as a :root block.'}</p><div class="tools"><button type="button" data-m-ex:${signal}@.click="(dmStyle.copy(${sigJs}, dmStyle.panels['${name}']), ${sigJs})">copy styles</button><button type="button" data-m-ex:${signal}@.click="dmStyle.promptImport(${sigJs}, dmStyle.panels['${name}'])">import</button><button type="button" data-m-ex:${signal}@.click="dmStyle.initVals(dmStyle.panels['${name}'])">reset</button></div><section class="group"><h3>Layout</h3><div class="defs">${parts.range.map((d) => range(d)).join('')}</div></section><section class="group"><h3>Tones</h3><div class="defs">${parts.tone.map((d) => tone(d)).join('')}</div></section></section></details>`)
   }
   const findPanelEl = (root, name) => root && root.querySelector(name)
-  const getVal = (path) => {
-    if (!globalThis.dm || !path) return
-    const segs = path.split('.')
-    let cur = globalThis.dm
-    for (const s of segs) cur = cur && cur[camel(s)]
-    return cur
-  }
-  const setVal = (path, v) => {
-    if (!globalThis.dm || !path) return
-    const segs = path.split('.')
-    let cur = globalThis.dm
-    for (let i = 0; i < segs.length - 1; i++) {
-      const k = camel(segs[i])
-      if (cur[k] == null || typeof cur[k] !== 'object') cur[k] = {}
-      cur = cur[k]
-    }
-    cur[camel(segs[segs.length - 1])] = v
+  const pinExpr = (panelName) => `dmStyle.applyVars(el._dmStyleRoot,dmStyle.reconcileVars(el._dmStyleRoot,val,dmStyle.panels['${panelName}']))`
+  const pinMarkup = (signal, panelName) => `<i hidden data-dm-style-bind=\"1\" data-m-ex:.text-content@${signal}=\"${pinExpr(panelName)}\"></i>`
+  const ensurePinBinding = (root, signal, panelName) => {
+    let bindEl = root.querySelector('[data-dm-style-bind]')
+    if (bindEl && bindEl._dmStyleSignal === signal && bindEl._dmStylePanelName === panelName) return { bindEl, changed: false }
+    if (bindEl) bindEl.remove()
+    const box = document.createElement('div')
+    box.innerHTML = pinMarkup(signal, panelName)
+    bindEl = box.firstElementChild
+    if (!bindEl) return { bindEl: null, changed: false }
+    bindEl._dmStyleRoot = root
+    bindEl._dmStyleSignal = signal
+    bindEl._dmStylePanelName = panelName
+    root.appendChild(bindEl)
+    return { bindEl, changed: true }
   }
   const pin = (root, opts = {}) => {
     if (!root) return
-    const signal = opts.signal || 'style'
-    const open = opts.open || 'stylePanel.open'
-    const help = opts.help || 'oklchHelp'
-    const panelName = opts.panel || 'dm-style-panel'
-    const defs = opts.defs || dmStyle.defs
-    if (!dmStyle.panels[panelName]) panel(panelName, defs, { signal, open, help, title: opts.title, note: opts.note })
+    const conf = resolveOpts(opts)
+    const { signal, open, help, panelName, defs } = conf
+    if (!dmStyle.panels[panelName]) panel(panelName, defs, conf)
     let panelEl = findPanelEl(root, panelName)
     const created = !panelEl
     if (!panelEl) {
       panelEl = document.createElement(panelName)
       root.appendChild(panelEl)
     }
-    if (created && typeof globalThis.dmScan === 'function') {
-      if (root._dmScanned) globalThis.dmScan(panelEl)
-      else globalThis.dmScan(root)
-    }
-    if (!created && !panelEl._dmScanned && typeof globalThis.dmScan === 'function') globalThis.dmScan(panelEl)
-    if (!root._dmStylePinned) {
-      root._dmStylePinned = true
-      const apply = () => applyVars(root, valsToVars(getVal(signal), defs))
-      apply()
-      if (typeof globalThis.dmSub === 'function') {
-        globalThis.dmSub(signal, apply)
+    const { bindEl, changed: bindingChanged } = ensurePinBinding(root, signal, panelName)
+    const scan = typeof globalThis.dmScan === 'function'
+    if (scan) {
+      if (!root._dmScanned) {
+        if (created) globalThis.dmScan(root)
+        else {
+          if (!panelEl._dmScanned) globalThis.dmScan(panelEl)
+          if (bindingChanged && bindEl && !bindEl._dmScanned) globalThis.dmScan(bindEl)
+        }
       } else {
-        setTimeout(apply, 0)
+        if ((created || !panelEl._dmScanned)) globalThis.dmScan(panelEl)
+        if (bindingChanged && bindEl && !bindEl._dmScanned) globalThis.dmScan(bindEl)
       }
     }
     return { root, panel: panelEl, signal, open, help, panelName, defs }
   }
-  const dmStyle = globalThis.dmStyle = { defs, panels: {}, initVals, valsToVars, exportCss, importVals, copy, promptImport, oklchToHex, hexToOklch, panel, pin }
+  const dmStyle = globalThis.dmStyle = { defs, panels: {}, initVals, valsToVars, applyVars, reconcileVars, exportCss, importVals, copy, promptImport, oklchToHex, hexToOklch, panel, pin }
 })()

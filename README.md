@@ -303,14 +303,15 @@ Ignore controls: `data-m-no` (skip scan + morph), `data-m-no^scan` (scan only), 
 <dm-style-panel data-m-si='{"style":{},"stylePanel":{},"oklchHelp":{}}'></dm-style-panel>
 <script>
   dmStyle.pin(document.getElementById('app'), {
-    signal: 'style',         // signal path for token values
-    open: 'stylePanel.open', // signal path for panel open/close
-    help: 'oklchHelp'        // signal path for help text
+    signal: 'style',            // signal path for token values
+    open: 'style-panel.open',   // html-facing path (maps to dm.stylePanel.open)
+    help: 'oklch-help',         // html-facing path (maps to dm.oklchHelp)
+    panelName: 'dm-style-panel' // js-facing option name for custom element tag
   })
 </script>
 ```
 
-`pin(root, opts?)` subscribes to the style signal, applies CSS vars to `root`, finds or creates the panel, binds open/help. Defaults: `signal: 'style'`, `open: 'style-panel.open'`, `help: 'oklch-help'`, `panel: 'dm-style-panel'`.
+`pin(root, opts?)` adds declarative `data-m-ex` style wiring on `root`, applies reconciled CSS vars via the style signal, finds or creates the panel, and binds open/help. Defaults: `signal: 'style'`, `open: 'style-panel.open'`, `help: 'oklch-help'`, `panelName: 'dm-style-panel'`.
 
 See `style.md` for the full API and `examples/style-starter.html` for a 5-minute setup.
 
