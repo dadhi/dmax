@@ -18,7 +18,8 @@
     "test:wc": "node tests/dmWc.e2e.js",
     "test:auto-scan": "node tests/dmax.autoscan.e2e.js",
     "test:m-ex-cel": "node tests/m-ex-cel.e2e.js",
-    "test": "npm run test:actions && npm run test:fuzz && npm run test:headless && npm run test:size && npm run test:naming && npm run test:notebook && npm run test:wc && npm run test:auto-scan && npm run test:m-ex-cel",
+    "test:style": "node tests/dmStyle.e2e.js",
+    "test": "npm run test:actions && npm run test:fuzz && npm run test:headless && npm run test:size && npm run test:naming && npm run test:notebook && npm run test:wc && npm run test:auto-scan && npm run test:m-ex-cel && npm run test:style",
     "serve": "npx http-server -c-1 -p 8080"
   },
   "name": "dmax",

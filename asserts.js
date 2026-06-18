@@ -77,9 +77,9 @@
     let not = p == 0 ? null : p % 2 != 0
     const d = indexFirst(n, NAME_DELIMS, p)
     let root = d < 0 ? (p == 0 ? n : n.slice(p)) : n.slice(p, d)
-    if (root) root = kebabToCamel(root)
+    if (root) root = toName(root, 1)
     if (!root) return null
-    return mkMod(not, root, d < 0 || d + 1 >= n.length ? null : n.indexOf(DOT, p = d + 1) < 0 ? kebabToCamel(n.slice(p)) : parseRef(dKey, n, p))
+    return mkMod(not, root, d < 0 || d + 1 >= n.length ? null : n.indexOf(DOT, p = d + 1) < 0 ? toName(n.slice(p), 1) : parseRef(dKey, n, p))
   })()
   const applyTrMsMods = (fn, tr, mods, removeSub) => applyTrMs(fn, tr, compileMods(tr, mods), removeSub)
   const __assert = (fn, args, expected, label) => {
@@ -115,19 +115,21 @@
     __assert(indexFirst, ['abcdefg', ['x', 'c', 'z']], 2, 'one found');
     __assert(indexFirst, ['abcdefgabc', ['a', 'b', 'c'], 3], 7, 'multiple found with pos');
     __assert(indexFirst, ['abcdefg', ['a'], 10], -1, 'pos out of range');
-    __assert(kebabToCamel, ['foo-bar'], 'fooBar', 'basic case');
-    __assert(kebabToCamel, ['-bar'], 'Bar', 'lead single');
-    __assert(kebabToCamel, ['bar-'], 'bar', 'trail single');
-    __assert(kebabToCamel, ['bar---'], 'bar', 'trail multi');
-    __assert(kebabToCamel, ['multi-part-key'], 'multiPartKey', 'multi part');
-    __assert(kebabToCamel, ['-'], '', 'single dash');
-    __assert(kebabToCamel, ['--'], '', 'multi dashes only');
-    __assert(kebabToCamel, ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
-    __assert(kebabToCamel, ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
-    __assert(kebabToCamel, ['trailing--dashes---'], 'trailingDashes', 'trailing multi dashes');
-    __assert(camelToKebab, ['fooBar'], 'foo-bar', 'camel to kebab');
-    __assert(camelToKebab, ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
-    __assert((s) => camelToKebab(kebabToCamel(s)), ['data-foo-bar'], 'data-foo-bar', 'camel/kebab roundtrip keeps original kebab');
+    __assert((s) => toName(s, 1), ['foo-bar'], 'fooBar', 'basic case');
+    __assert((s) => toName(s, 1), ['-bar'], 'Bar', 'lead single');
+    __assert((s) => toName(s, 1), ['bar-'], 'bar', 'trail single');
+    __assert((s) => toName(s, 1), ['bar---'], 'bar', 'trail multi');
+    __assert((s) => toName(s, 1), ['multi-part-key'], 'multiPartKey', 'multi part');
+    __assert((s) => toName(s, 1), ['-'], '', 'single dash');
+    __assert((s) => toName(s, 1), ['--'], '', 'multi dashes only');
+    __assert((s) => toName(s, 1), ['--leading--dashes'], 'LeadingDashes', 'leading dashes');
+    __assert((s) => toName(s, 1), ['trailing--dashes-'], 'trailingDashes', 'trailing dashes');
+    __assert((s) => toName(s, 1), ['trailing--dashes---'], 'trailingDashes', 'trailing multi dashes');
+    __assert((s) => toName(s, 0), ['fooBar'], 'foo-bar', 'camel to kebab');
+    __assert((s) => toName(s, 0), ['HTTPRequest'], '-h-t-t-p-request', 'camel to kebab capitals');
+    __assert((s) => toName(s, 0), ['dataFooBar'], 'data-foo-bar', 'camel to kebab basic');
+    __assert((s) => toName(s, 1), ['data-foo-bar'], 'dataFooBar', 'kebab to camel basic');
+    __assert((s) => toName(toName(s, 0), 1), ['dataFooBar'], 'dataFooBar', 'camel/kebab roundtrip');
     __assert(parseItem, ['XXX', TRIG, '#hey.foo.bar-baz'], { "kind": EP, "not": null, "path": ["foo", "barBaz"], "root": "hey" }, 'trigger #id.prop.prop')
     __assert(parseItem, ['XXX', TARG, 'foo-bar'], { "kind": SI, "not": null, "path": null, "root": "fooBar" }, 'target kebab to camel');
     __assert(parseItem, ['XXX', TRIG, '#el.some.prop'], { "kind": EP, "not": null, "path": ["some", "prop"], "root": "el" }, 'trigger id and path');
@@ -140,27 +142,27 @@
     __assert(parseItem, ['XXX', TARG, 'post-objs[1].title'], { "kind": SI, "not": null, "path": ["1", "title"], "root": "postObjs" }, 'constant bracket index with dotted tail');
     __assert(parseItem, ['XXX', TARG, 'posts[idx]'], null, 'error: variable bracket index rejected');
     __assert(parseItem, ['XXX', TARG, 'posts[0'], null, 'error: missing closing bracket rejected');
-    __assert(parseItem, ['XXX', MOD, '!eq.3'], { "kind": MOD, "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
-    __assert(parseItem, ['XXX', MOD, '!eq.'], { "kind": MOD, "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
+    __assert(parseItem, ['XXX', MOD, '!eq.3'], { "not": true, "path": "3", "root": "eq" }, 'mod with negation and numeric path');
+    __assert(parseItem, ['XXX', MOD, '!eq.'], { "not": true, "path": null, "root": "eq" }, 'mod with negation and dot at the end permitted');
     __assert(parseItem, ['XXX', TARG, ''], null, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '.'], { "kind": EP, "not": null, "path": null, "root": "" }, 'error: empty name returns nulls');
     __assert(parseItem, ['YYY', TARG, '!'], null, 'error: exclamation mark alone');
     __assert(parse, ['data-m-si'], [__parseIt({}), 9], 'empty')
     __assert(parse, ['data-m-ex:'], [__parseIt({}), 10], 'single empty')
     __assert(parse, ['data-m-ex:.'], [__parseIt({ ":": [{ "kind": EP, "mods": NIL, "not": null, "path": null, "root": "" }] }), 11], 'default prop')
-    __assert(parse, ['data-m-ex^mod'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 13], 'global mod')
-    __assert(parse, ['data-m-ex^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "kind": MOD, "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "kind": MOD, "not": true, "path": "3", "root": "eq" }] }), 34], '2 global mods')
-    __assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "foo" }, { "kind": MOD, "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "mod" }] }), 26], '2 global mods and item with mod with item')
+    __assert(parse, ['data-m-ex^mod'], [__parseIt({ "^": [{ "not": null, "path": null, "root": "mod" }] }), 13], 'global mod')
+    __assert(parse, ['data-m-ex^mod.some-foo.value^!eq.3'], [__parseIt({ "^": [{ "not": null, "path": { "kind": "s", "not": false, "path": ["value"], "root": "someFoo" }, "root": "mod" }, { "not": true, "path": "3", "root": "eq" }] }), 34], '2 global mods')
+    __assert(parse, ['data-m-ex^mod^@hey^foo:bar'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "foo" }, { "not": null, "path": null, "root": "mod" }], "not": null, "path": null, "root": "hey" }], "^": [{ "not": null, "path": null, "root": "mod" }] }), 26], '2 global mods and item with mod with item')
     __assert(parse, ['data-m-ex@!xxx@!'], [__parseIt({ "@": [{ "kind": SI, "mods": NIL, "not": true, "path": null, "root": "xxx" }] }), 16], 'not name and not empty')
     __assert(parse, ['data-m-ex:xxx:'], [__parseIt({ ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "xxx" }] }), 14], 'single name')
     __assert(parse, ['data-m-ex::'], [__parseIt({}), 11], '2 empties')
     __assert(parse, ['data-m-ex:foo^'], [__parseIt({ ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 14], 'name+empty mod')
     __assert(parse, ['data-m-ex:foo^^'], [__parseIt({ ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "foo" }] }), 15], 'name+2 empty mods')
-    __assert(parse, ['data-m-ex:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 23], 'item^mod')
-    __assert(parse, ['data-m-ex:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 39], 'item^mod@item2^mod')
-    __assert(parse, ['data-m-ex^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": "4", "root": "le" }, { "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": "2", "root": "ge" }, { "kind": MOD, "not": null, "path": "5", "root": "le" }] }), 28], 'combine global+local mods and keep repeats')
-    __assert(parse, ['data-m-ex^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "kind": MOD, "not": null, "path": null, "root": "hey" }] }), 25], 'push all global mods to items')
-    __assert(parse, ['data-m-post+profile^spread'], [__parseIt({ "+": [{ "kind": SI, "mods": [{ "kind": MOD, "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 26], 'add item local spread mod')
+    __assert(parse, ['data-m-ex:foo-bar^bax.3'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }] }), 23], 'item^mod')
+    __assert(parse, ['data-m-ex:foo-bar^bax.3@!something^nice'], [__parseIt({ ":": [{ "kind": SI, "mods": [{ "not": null, "path": "3", "root": "bax" }], "not": null, "path": null, "root": "fooBar" }], "@": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "nice" }], "not": true, "path": null, "root": "something" }] }), 39], 'item^mod@item2^mod')
+    __assert(parse, ['data-m-ex^ge.2^le.5@foo^le.4'], [__parseIt({ "@": [{ "kind": SI, "mods": [{ "not": null, "path": "4", "root": "le" }, { "not": null, "path": "2", "root": "ge" }, { "not": null, "path": "5", "root": "le" }], "not": null, "path": null, "root": "foo" }], "^": [{ "not": null, "path": "2", "root": "ge" }, { "not": null, "path": "5", "root": "le" }] }), 28], 'combine global+local mods and keep repeats')
+    __assert(parse, ['data-m-ex^hey@foo:bar+bax'], [__parseIt({ "+": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bax" }], ":": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "bar" }], "@": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "hey" }], "not": null, "path": null, "root": "foo" }], "^": [{ "not": null, "path": null, "root": "hey" }] }), 25], 'push all global mods to items')
+    __assert(parse, ['data-m-post+profile^spread'], [__parseIt({ "+": [{ "kind": SI, "mods": [{ "not": null, "path": null, "root": "spread" }], "not": null, "path": null, "root": "profile" }] }), 26], 'add item local spread mod')
     __assert(parse, ['data-m-ex:result@post-objs[1].title'], [__parseIt({
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }],
       "@": [{ "kind": SI, "mods": NIL, "not": null, "path": ["1", "title"], "root": "postObjs" }]
@@ -168,13 +170,13 @@
     __assert(parse, ['data-m-ex:result@post-objs[idx].title'], [__parseIt({
       ":": [{ "kind": SI, "mods": NIL, "not": null, "path": null, "root": "result" }]
     }), 37], 'parse rejects variable bracket index trigger')
-    __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { kind: MOD, not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
-    __assert(() => compileMods(__ev(), NIL).v === NIL, [], true, 'compileMods uses NIL when no read mod exists')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, v: ['style', 'color'], c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods parsed pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_PR, path: null }]], { f: 0, d: 0, t: 0, p: null, v: NIL, c: SIG_CHANGED_ANY, s: MV_PR, r: '', j: null }, 'compileMods null pr path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, v: 'data-m-', c: SIG_CHANGED_ANY, s: MV_ATTRS, r: 'foo', j: null }, 'compileMods attrs path')
-    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_SEL_ALL, path: '.sel-probe-item' }]], { f: 0, d: 0, t: 0, p: null, v: '.sel-probe-item', c: SIG_CHANGED_ANY, s: MV_SEL_ALL, r: '', j: null }, 'compileMods sel-all keeps raw selector')
-    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, v: NIL, c: SIG_CHANGED_WITH_SHAPE, s: 0, r: '', j: null }, 'compileMods flags/change mode')
+    __assert(parseMod, ['XXX', 'attrs.#foo.data-m-'], { not: null, root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }, 'parseMod attrs keeps raw prefix')
+    __assert(() => compileMods(__ev(), NIL).rm.length === 0, [], true, 'compileMods uses empty rm when no read mod exists')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_UNIV, path: __si('style', ['color']) }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_UNIV, v: ['style', 'color'] }], c: SI_CHANGED_ANY, j: null }, 'compileMods parsed val path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_EL, path: null }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_EL, r: '', v: NIL }], c: SI_CHANGED_ANY, j: null }, 'compileMods parsed el path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_ATTRS, path: { r: 'foo', v: 'data-m-' } }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_ATTRS, r: 'foo', v: 'data-m-' }], c: SI_CHANGED_ANY, j: null }, 'compileMods attrs path')
+    __assert((mods) => compileMods(__ev(), mods), [[{ root: M_SEL_ALL, path: '.sel-probe-item' }]], { f: 0, d: 0, t: 0, p: null, rm: [{ s: MV_SEL_ALL, v: '.sel-probe-item' }], c: SI_CHANGED_ANY, j: null }, 'compileMods sel-all keeps raw selector')
+    __assert((mods) => compileMods(__si('posts'), mods), [[{ root: M_WITH_SHAPE, path: null }, { root: M_ONCE, path: null }, { root: M_THROTTLE, path: 9 }]], { f: MF_ONCE, d: 0, t: 9, p: null, rm: [], c: SI_CHANGED_WITH_SHAPE, j: null }, 'compileMods flags/change mode')
     __assert((mods) => compileMods(__ev(), mods).f, [[{ root: M_RAF, path: null }]], MF_RAF, 'compileMods raf flag')
     __assert((mods) => compileMods(__ev(), mods).p, [[{ root: M_EQ, path: '5' }]], { root: M_EQ, path: '5' }, 'compileMods single permit stays scalar')
     __assert(() => compileMods(__ev(), [{ root: M_JSOS, path: '4' }]).j, [], '4', 'compileMods jsos keeps raw arg')
@@ -185,13 +187,13 @@
     }, [], { ev: 'change', prPath: ['value'], readPath: ['value'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa default prop path')
     __assert(() => {
       const el = document.createElement('input')
-      const mods = compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }])
+      const mods = compileMods(__ev('', ['value']), [{ root: M_UNIV, path: __si('style', ['color']) }])
       const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), mods, E_TRIG_EL, E_TRIG_EV, false)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
     }, [], { ev: 'change', prPath: ['value'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['value'] } }, 'getTrPrTa keeps prop path but changes read path')
     __assert(() => {
       const el = document.createElement('input')
-      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_PR, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
+      const prTa = getTrPrTa(el, 'XXX', __ev('', ['value']), compileMods(__ev('', ['value']), [{ root: M_UNIV, path: __si('style', ['color']) }]), E_TRIG_EL, E_TRIG_EV)
       return { ev: prTa.ev, prPath: prTa.prPath, readPath: prTa.readPath, tar: prTa.tar }
     }, [], { ev: 'change', prPath: ['style', 'color'], readPath: ['style', 'color'], tar: { kind: EP, not: null, root: '', path: ['style', 'color'] } }, 'getTrPrTa applies pr path when enabled')
     __assert(__sign, ['data-m-si', '{foo: {bar: "hey"}, baz: 1}'], { "baz": 1, "foo": { "bar": "hey" } }, '2 value signals')
@@ -401,10 +403,10 @@
       __reset();
       _dm.set('user', { name: 'Alice', age: 30 });
       const sh = [], nm = [], age = [], deep = [];
-      __reg('user', null, SIG_CHANGED_WITH_SHAPE, sh);
-      __reg('user', ['name'], SIG_CHANGED_WITH_SHAPE, nm);
-      __reg('user', ['age'], SIG_CHANGED_WITH_SHAPE, age);
-      __reg('user', ['name', 'first'], SIG_CHANGED_WITH_SHAPE, deep);
+      __reg('user', null, SI_CHANGED_WITH_SHAPE, sh);
+      __reg('user', ['name'], SI_CHANGED_WITH_SHAPE, nm);
+      __reg('user', ['age'], SI_CHANGED_WITH_SHAPE, age);
+      __reg('user', ['name', 'first'], SI_CHANGED_WITH_SHAPE, deep);
       setSiAndNotifySubs('t', { root: 'user', path: ['name'] }, 'Bob');
       return { r: sh.length, nm: nm.length, age: age.length, deep: deep.length, val: _dm.get('user')?.name ?? null };
     }
@@ -413,9 +415,9 @@
       __reset();
       _dm.set('user', { children: [1, 2] });
       const c0 = [], c1 = [], c2 = [];
-      __reg('user', ['children'], SIG_CHANGED_ANY, c0);
-      __reg('user', ['children'], SIG_CHANGED_WITH_SHAPE, c1);
-      __reg('user', ['children'], SIG_CHANGED_SHAPE_ONLY, c2);
+      __reg('user', ['children'], SI_CHANGED_ANY, c0);
+      __reg('user', ['children'], SI_CHANGED_WITH_SHAPE, c1);
+      __reg('user', ['children'], SI_CHANGED_SHAPE_ONLY, c2);
       setSiAndNotifySubs('t', { root: 'user', path: ['children'] }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
@@ -433,9 +435,9 @@
       __reset();
       _dm.set('sg', 'a');
       const c0 = [], c1 = [], c2 = [];
-      __reg('sg', null, SIG_CHANGED_ANY, c0);
-      __reg('sg', null, SIG_CHANGED_WITH_SHAPE, c1);
-      __reg('sg', null, SIG_CHANGED_SHAPE_ONLY, c2);
+      __reg('sg', null, SI_CHANGED_ANY, c0);
+      __reg('sg', null, SI_CHANGED_WITH_SHAPE, c1);
+      __reg('sg', null, SI_CHANGED_SHAPE_ONLY, c2);
       setSiAndNotifySubs('t', { root: 'sg', path: null }, 'b');
       return { c0: c0.length, c1: c1.length, c2: c2.length, val: _dm.get('sg') };
     }
@@ -444,9 +446,9 @@
       __reset();
       _dm.set('sg', [1, 2]);
       const c0 = [], c1 = [], c2 = [];
-      __reg('sg', null, SIG_CHANGED_ANY, c0);
-      __reg('sg', null, SIG_CHANGED_WITH_SHAPE, c1);
-      __reg('sg', null, SIG_CHANGED_SHAPE_ONLY, c2);
+      __reg('sg', null, SI_CHANGED_ANY, c0);
+      __reg('sg', null, SI_CHANGED_WITH_SHAPE, c1);
+      __reg('sg', null, SI_CHANGED_SHAPE_ONLY, c2);
       setSiAndNotifySubs('t', { root: 'sg', path: null }, [1, 2, 3, 4]);
       const d1 = c1.length ? c1[c1.length - 1] : null;
       const d2 = c2.length ? c2[c2.length - 1] : null;
@@ -641,7 +643,7 @@
         const inp = document.createElement('input');
         inp.value = 'Zed';
         inp.setAttribute('data-foo-bar', '33');
-        dmEx(inp, 'data-m-ex:out@.^pr.data-foo-bar', 'val');
+        dmEx(inp, 'data-m-ex:out@.^.data-foo-bar', 'val');
         const h = __getEventSub(inp)
         if (h?.fn) h.fn({ type: 'change', detail: null, preventDefault() { } })
         else inp.dispatchEvent(mkEv('change'));
@@ -650,7 +652,7 @@
         return { out: DM['out'], diag: 'error:' + (e && e.message ? e.message : String(e)) }
       }
     }
-    __assert(__tSubEventPrModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^pr selects non-default event property');
+    __assert(__tSubEventPrModPropToSignal, [], { out: '33', diag: 'direct-handler' }, 'dmEx ^ selects non-default event property');
     function __tSubSignalImmediateAndChange() {
       __reset();
       _dm.set('foo', 7);
@@ -762,6 +764,81 @@
       return { initial, after: { bar: DM['bar'], baz: DM['baz'] } };
     }
     __assert(__tSubSignalSiModPathAndExpr, [], { initial: { bar: 7, baz: 8 }, after: { bar: 8, baz: 9 } }, 'dmEx signal ^si path feeds raw and expression values');
+    function __tConstNumber() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.42', '');
+      return DM['out'];
+    }
+    __assert(__tConstNumber, [], 42, '^const.42 produces number 42');
+    function __tConstFloat() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.3.14', '');
+      return DM['out'];
+    }
+    __assert(__tConstFloat, [], 3.14, '^const.3.14 produces float 3.14');
+    function __tConstString() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.hello', '');
+      return DM['out'];
+    }
+    __assert(__tConstString, [], 'hello', '^const.hello produces string "hello"');
+    function __tConstBool() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^const.true', '');
+      dmEx(el, 'data-m-ex:b@_init^const.false', '');
+      return { a: DM['a'], b: DM['b'] };
+    }
+    __assert(__tConstBool, [], { a: true, b: false }, '^const.true/false produce booleans');
+    function __tConstNullUndefined() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^const.null', '');
+      dmEx(el, 'data-m-ex:b@_init^const.undefined', '');
+      return { a: DM['a'], b: DM['b'] };
+    }
+    __assert(__tConstNullUndefined, [], { a: null, b: undefined }, '^const.null/undefined produce null/undefined');
+    function __tNullShorthand() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^null', '');
+      return DM['out'];
+    }
+    __assert(__tNullShorthand, [], null, '^null shorthand produces null');
+    function __tTrueFalseShorthand() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^true', '');
+      dmEx(el, 'data-m-ex:b@_init^false', '');
+      return { a: DM['a'], b: DM['b'] };
+    }
+    __assert(__tTrueFalseShorthand, [], { a: true, b: false }, '^true/^false shorthand');
+    function __tUndefinedShorthand() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^undefined', '');
+      return DM['out'];
+    }
+    __assert(__tUndefinedShorthand, [], undefined, '^undefined shorthand');
+    function __tConstWithStr() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:out@_init^const.42^str', '');
+      return DM['out'];
+    }
+    __assert(__tConstWithStr, [], '42', '^const.42^str coerces number to string');
+    function __tConstWithBool() {
+      __reset();
+      const el = document.createElement('div');
+      dmEx(el, 'data-m-ex:a@_init^const.1^bool', '');
+      dmEx(el, 'data-m-ex:b@_init^const.0^bool', '');
+      dmEx(el, 'data-m-ex:c@_init^const.null^bool', '');
+      return { a: DM['a'], b: DM['b'], c: DM['c'] };
+    }
+    __assert(__tConstWithBool, [], { a: true, b: false, c: false }, '^const.X^bool coerces to boolean');
     function __tSubExplicitIdEventPath() {
       __reset();
       const id = 'evtbtnexplicit'
@@ -907,12 +984,12 @@
     function __tSubWindowHashPr() {
       __reset();
       const host = document.createElement('div');
-      dmEx(host, 'data-m-ex:urlHash@_window.hashchange^pr.location.hash', 'val');
+      dmEx(host, 'data-m-ex:urlHash@_window.hashchange^.location.hash', 'val');
       window.location.hash = '#pop-a';
       window.dispatchEvent(new Event('hashchange'));
       return DM['urlHash'];
     }
-    __assert(__tSubWindowHashPr, [], '#pop-a', 'dmEx _window.hashchange ^pr reads current hash');
+    __assert(__tSubWindowHashPr, [], '#pop-a', 'dmEx _window.hashchange ^ reads current hash');
     function __tSubHistoryPushStateTar() {
       __reset();
       _dm.set('navUrl', '/next');
@@ -930,9 +1007,9 @@
       const wc = document.createElement('x-assert-value');
       dmEx(wc, 'data-m-ex:.@foo', 'val');
       dmSet('foo', 9);
-      dmEx(wc, 'data-m-ex:pick@.pick', 'val');
+      dmEx(wc, 'data-m-ex:pick@.pick^ev', 'val');
       wc.dispatchEvent(new CustomEvent('pick', { detail: { value: 7 } }));
-      dmEx(wc, 'data-m-ex:pickObj@.pick-obj', 'val && val.a');
+      dmEx(wc, 'data-m-ex:pickObj@.pick-obj^ev', 'val && val.a');
       wc.dispatchEvent(new CustomEvent('pick-obj', { detail: { a: 3 } }));
       return { prop: wc.value, pick: DM['pick'], pickObj: DM['pickObj'], def: getDefaultPr(wc) };
     }
@@ -1100,7 +1177,7 @@
       const sel = document.createElement('select')
       sel.innerHTML = '<option>Alpha</option><option>Beta</option><option>Gamma</option>'
       _dm.set('selIx', 1)
-      dmEx(sel, 'data-m-ex@.^pr.selected-index^rw^num@sel-ix')
+      dmEx(sel, 'data-m-ex@.^.selected-index^rw^num@sel-ix')
       const before = sel.selectedIndex
       sel.selectedIndex = 2
       sel.dispatchEvent(mkEv('change'))
@@ -1108,13 +1185,13 @@
       setSiAndNotifySubs('t', { root: 'selIx', path: null }, 0)
       return { before, sigAfterWrite, afterSignal: sel.selectedIndex }
     }
-    __assert(__tSubRwSelectSelectedIndexPrNum, [], { before: 1, sigAfterWrite: 2, afterSignal: 0 }, 'dmEx ^pr.selected-index^rw^num syncs select selectedIndex');
+    __assert(__tSubRwSelectSelectedIndexPrNum, [], { before: 1, sigAfterWrite: 2, afterSignal: 0 }, 'dmEx ^.selected-index^rw^num syncs select selectedIndex');
     function __tSubRwPrPathBothWays() {
       __reset();
       const inp = document.createElement('input')
       inp.val = { value: 'Initial' }
       _dm.set('name', 'Ada')
-      dmEx(inp, 'data-m-ex@.^pr.val.value^rw@name')
+      dmEx(inp, 'data-m-ex@.^.val.value^rw@name')
       const before = inp.val.value
       inp.val.value = 'Bob'
       inp.dispatchEvent(mkEv('change'))
@@ -1122,7 +1199,7 @@
       setSiAndNotifySubs('t', { root: 'name', path: null }, 'Eve')
       return { before, sigAfterWrite, afterSignal: inp.val.value }
     }
-    __assert(__tSubRwPrPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^pr path both ways');
+    __assert(__tSubRwPrPathBothWays, [], { before: 'Ada', sigAfterWrite: 'Bob', afterSignal: 'Eve' }, 'dmEx ^rw honors ^ path both ways');
     function __tSubRwDetailsOpen() {
       __reset();
       const det = document.createElement('details')
@@ -1744,7 +1821,7 @@
         }
       } finally { delete window.fetch }
     })
-    __asyncAssert('^hs kebab-cases object fields by default while ^hs-no-kebab preserves exact keys', async () => {
+    __asyncAssert('^hs kebab-cases object fields by default while ^hs-raw preserves exact keys', async () => {
       __reset()
       let firstHs = null, secondHs = null
       window.fetch = (_url, init) => {
@@ -1764,7 +1841,7 @@
         await new Promise(r => setTimeout(r, 0))
         const btn2 = document.createElement('button')
         _dm.set('rawHs', { 'X-Trace-Id': 'req-raw' })
-        dmAct(btn2, 'data-m-get^hs.raw-hs^hs-no-kebab:res@.click', '"https://api.test/hs-raw"')
+        dmAct(btn2, 'data-m-get^hs.raw-hs^hs-raw:res@.click', '"https://api.test/hs-raw"')
         __fireEventSub(btn2, 'click')
         await new Promise(r => setTimeout(r, 0))
         return {

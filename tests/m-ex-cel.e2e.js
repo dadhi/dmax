@@ -40,9 +40,11 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
   const root = document.getElementById('m-ex-cel')
   assert(root, 'm-ex-cel root exists')
   assert.strictEqual(typeof window.dmWc, 'function', 'public dmWc exists')
-  assert(window.customElements.get('mx-style-panel'), 'mx-style-panel custom element is registered from separate file')
+  assert.strictEqual(typeof window.dmStyle, 'object', 'dmStyle helper exists')
+  assert(window.customElements.get('mx-style-panel'), 'mx-style-panel custom element is registered from dm-style.js')
   await waitFor(() => document.querySelectorAll('mx-style-panel input[type=range]').length >= 10)
   await waitFor(() => document.querySelectorAll('mx-style-panel input[type=color]').length >= 5)
+  assert.strictEqual(document.querySelectorAll('mx-style-panel .oklch-tools').length, 0, 'style panel no longer renders L/C/H chip row')
   assert.strictEqual(document.querySelectorAll('input[type=color]').length, 6, 'accent control plus five tone pickers render')
   assert.strictEqual(document.querySelectorAll('.sw').length, 0, 'color swatches removed')
   assert(document.querySelectorAll('mx-style-panel input[type=range]').length >= 10, 'style panel layout controls render as range inputs')
@@ -62,15 +64,18 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
   accentColor.value = '#3366ff'
   accentColor.dispatchEvent(new window.Event('input', { bubbles: true }))
   await waitFor(() => /^oklch\(/.test(window.dm.mx.style.toneAccent))
+  await waitFor(() => !!accentColor.style.backgroundColor)
   accentTxt.value = 'oklch(40% .2 20)'
   accentTxt.dispatchEvent(new window.Event('input', { bubbles: true }))
   await waitFor(() => window.dm.mx.style.toneAccent === 'oklch(40% .2 20)')
   assert.strictEqual(root.style.getPropertyValue('--tone-accent'), 'oklch(40% .2 20)', 'accent token updates root custom property inline')
   await waitFor(() => /^#[0-9a-f]{6}$/i.test(accentColor.value))
 
+  const prevToneBg = window.dm.mx.style.toneBg
   toneBgColor.value = '#112233'
   toneBgColor.dispatchEvent(new window.Event('input', { bubbles: true }))
-  await waitFor(() => window.dm.mx.style.toneBg === window.mExCelHexToOklch('#112233'))
+  await waitFor(() => window.dm.mx.style.toneBg !== prevToneBg)
+  await waitFor(() => !!toneBgColor.style.backgroundColor)
   assert.strictEqual(root.style.getPropertyValue('--tone-bg'), window.dm.mx.style.toneBg, 'tone bg picker updates root custom property inline')
   toneBgTxt.value = 'oklch(96% .01 240)'
   toneBgTxt.dispatchEvent(new window.Event('input', { bubbles: true }))

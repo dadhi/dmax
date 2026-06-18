@@ -1,80 +1,30 @@
 # dmax
 
-A small declarative frontend runtime driven by `data-*` attributes.
+A tiny declarative frontend runtime driven by `data-*` attributes.
 
-- Notebook / examples: <https://dadhi.github.io/dmax/>
+- similar to: Datastar-like declarative runtime, but with a stronger client-side signal model and one coherent grammar
+- better at: signal/property sync, two-way sync, list rendering, declarative actions, SSE, morphing, and small web-component hosting in one consistent attribute language
+- no build step, no required backend SDK, runs in any modern browser
+
+Links:
+- Notebook: <https://dadhi.github.io/dmax/>
 - `m-ex-cel` example: <https://dadhi.github.io/dmax/examples/m-ex-cel.html>
+- `style-starter` example: <https://dadhi.github.io/dmax/examples/style-starter.html>
 
-dmax aims to stay:
-- tiny
-- HTML-first
-- signal-driven
-- batteries-included
-- usable without a build step
+## Design
 
-Working order:
-1. use semantic HTML
-2. use CSS for layout and presentation
-3. use dmax for dataflow
-4. use imperative JS only at foreign-library boundaries
+- tiny, HTML-first, signal-driven, batteries-included, no build step
+- working order: semantic HTML, then CSS, then dmax for dataflow, then imperative JS only at foreign-library boundaries
+- few small orthogonal features over many special cases
+- read-source mods compose as a pipeline (left-to-right): selectors (`^el`, `^sel`, `^sel-all`) pick a value source, transforms (`^attrs`) map it, `^` extracts a sub-path or array index
+- write modes (`^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`) fall back to `^replace` when a mode does not fit the target values
+- no backend SDK required; see `protocol.md` for the plain HTML/JSON/SSE contract
 
-Design bias:
-- prefer a few small orthogonal features over many special cases
-- when modifiers repeat, use simple deterministic rules
-- if you learn one dmax thing, you should mostly know the rest
-- prefer consistent naming and behavior over one-off shorthand exceptions
-- read-source mods (`^pr`, `^si`, `^ev`, `^attrs`, `^sel`, `^sel-all`) use last-wins
-- write modes (`^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`) fall back to replace when a mode does not fit the target values
-
-If you want reactive state, DOM updates, list rendering, actions, SSE, morphing, and a small custom-element story in one coherent attribute grammar, dmax is the pitch.
-
-Backend note: dmax does not require a backend SDK. See `protocol.md` for the plain HTML/JSON/SSE contract.
-
-By default, dmax auto-scans `document.body` on page load. Call `dmScan(root)` yourself only when you add fresh markup later. `root` may be an element or a `ShadowRoot`. Small imperative helpers also exist for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmSel(...)`, `dmSelAll(...)`, `dmWc(...)`.
-
-## Distribution files
-
-- `dmax.js`: 86,336 bytes
-- `dist/dmax.min.js`: 46,677 bytes
-- `dist/dmax.min.js.gz`: 16,663 bytes
-- `dist/dmax.min.js.br`: 14,982 bytes
-
-Build/update them with:
-
-```sh
-npm run build:min
-```
-
-## Why pick dmax
-
-Choose dmax when you want:
-- **more structure than ad-hoc inline JS**
-- **more client-side state than Datastar-style server-first flows**
-- **one integrated runtime** instead of composing several tiny libraries
-- **fine-grained signal/property sync** rather than only request/HTML swapping
-- **declarative SSE + declarative DOM/signal patching**
-- **no build tooling requirement**
-
-## What dmax includes
-
-| Area | dmax |
-| --- | --- |
-| Signal store | `data-m-si` |
-| Signal/prop sync | `data-m-ex` |
-| Two-way sync | `^rw` |
-| Class toggling | `data-m-cl` |
-| Show/hide | `data-m-sh` |
-| List rendering | `data-m-it` |
-| Web component templates | `data-m-wc` + `data-m-ex` |
-| HTTP actions | `data-m-get|post|put|patch|delete` |
-| SSE streaming | `^sse` + `dmax-patch-*` events |
-| DOM morphing | built in |
-| Ignore subtrees | `data-m-no*` |
-| CSS custom property binding | via `style.*` targets |
-
-## Quick example
+## Quick start
 
 ```html
+<script src="./dmax.js"></script>
+
 <div data-m-si='{"count":0,"user":{"name":"Ada"},"theme":{"cellSize":4.5}}'></div>
 
 <button data-m-ex:count^inc@.click>+1</button>
@@ -90,176 +40,152 @@ Choose dmax when you want:
 </ul>
 
 <button data-m-get^json^stat.req:result@.click="'/api/data'">Load</button>
-<span data-m-sh@req.busy>Loading…</span>
-
-<template data-m-wc="my-style-panel"><div>...</div></template>
-<my-style-panel data-m-ex:.open@panel.open></my-style-panel>
-
-<mx-uplot data-m-ex:.cfg@chart data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
+<span data-m-sh@req.busy>Loading</span>
 ```
 
-## Core directives
+## Directives
 
 | Directive | Purpose |
 | --- | --- |
-| `data-m-si` | define initial signal state |
+| `data-m-si` | initial signal state (JSON on root) |
 | `data-m-ex` | read/write signals and DOM props through expressions |
 | `data-m-cl` | toggle classes from signals |
 | `data-m-sh` | show/hide elements |
 | `data-m-it` | render array items from templates |
 | `data-m-wc` | declare web components from templates |
 | `data-m-no` | skip scanning and/or morphing |
-| `data-m-get|post|put|patch|delete` | declarative actions |
+| `data-m-get` / `data-m-post` / `data-m-put` / `data-m-patch` / `data-m-delete` | declarative actions |
 | `data-m-dbg` | debug-render current signal state |
 
 ## Grammar
 
-| Token | Meaning |
-| --- | --- |
-| `:target` | signal/prop target |
-| `@trigger` | signal/event/prop trigger |
-| `+input` | action input |
-| `^mod` | modifier |
-| `!name` | negation |
-| `$it` | current item in `data-m-it` template |
-| `$ix` | current index in `data-m-it` template |
+```
+data-m-<verb>[^mods][:target][@trigger][+input][=expression]
+```
+
+Tokens:
+- `:target` -- signal/prop target
+- `@trigger` -- signal/event/special trigger
+- `+input` -- action input
+- `^mod` -- modifier
+- `!name` -- negation
+- `$it` / `$ix` -- current item/index in `data-m-it` template
+
+`data-m-ex:.@count` is shorthand for `data-m-ex:.@count="val"`.
+
+## Helpers
+
+dmax auto-scans `document.body` on page load. Call `dmScan(root)` for fresh markup (`root` may be an element or `ShadowRoot`).
+
+Imperative helpers for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(...)`, `dmEl(id)`, `dmSel(...)`, `dmSelAll(...)`, `dmWc(...)`, `dmJsos(val)`, `dmAct(...)`.
 
 ## Common patterns
 
-### One-way signal -> element
-
 ```html
+<!-- one-way signal -> element -->
 <input data-m-ex:.@user.name>
-```
 
-When `data-m-ex` only needs to forward the trigger value, omit the expression entirely. `data-m-ex:.@count` is shorthand for `data-m-ex:.@count="val"`.
-
-### One-way element -> signal
-
-```html
+<!-- one-way element -> signal -->
 <input data-m-ex:user.name@.input="val">
-```
 
-### Two-way sync
-
-```html
+<!-- two-way sync -->
 <input data-m-ex@.^rw@user.name>
-```
 
-### Class toggling
-
-```html
+<!-- class toggling -->
 <div data-m-cl+active+!inactive@is-active="dm.isActive"></div>
-```
 
-### Show / hide
-
-```html
+<!-- show/hide -->
 <p data-m-sh:.@is-visible></p>
-```
 
-### List rendering
-
-```html
+<!-- list rendering -->
 <ul data-m-it@posts>
   <template><li data-m-ex:.="$it.title"></li></template>
 </ul>
-```
 
-### JSON-string output for attr-driven components
-
-Use `^jsos` when a target expects JSON as a string, such as an observed attribute on a custom element:
-
-```html
+<!-- ^jsos for JSON-as-attr on custom elements -->
 <game-board data-m-ex:.state^jsos@board-state></game-board>
-```
 
-This is shorthand for writing `JSON.stringify(val)` yourself. The helper is also exposed as `dmJsos(val)` for custom expressions.
-
-### Query-read helpers
-
-Use `^sel` / `^sel-all` when the trigger should read queried nodes instead of a default prop:
-
-```html
-<span data-m-ex:.@_init^sel.#status="val && val.textContent"></span>
-<span data-m-ex:.@_init^sel-all..todo-item="val.length"></span>
-```
-
-`^sel` returns the first matching node. `^sel-all` returns an array of matching nodes.
-The matching imperative helpers are `dmSel(sel, root)` and `dmSelAll(sel, root)`.
-
-### Frame-deferral helper
-
-Use `^raf` when a trigger should coalesce to the next animation frame:
-
-```html
+<!-- ^raf: coalesce to next frame -->
 <input data-m-ex:preview@.input^raf="val">
 ```
 
-Repeated trigger firings in the same frame collapse to the latest one.
+CSS custom property binding: any `style.*` target that doesn't match a known CSS prop falls through to `style.setProperty('--<kebab>', val)`.
 
-### CSS custom property binding
+## Read modifiers (pipeline)
 
-Unknown `style.*` writes fall through to CSS custom properties:
+Read mods compose left-to-right. The first selector picks a value source; transforms map it; `^` extracts a sub-path or array index.
+
+| Mod | Source |
+| --- | --- |
+| `^.foo` | sub-path of trigger value (universal) |
+| `^.[0]` / `^.[-1]` | array index after `^sel-all` or `^attrs` |
+| `^ev.foo` | event detail (event triggers only) |
+| `^si.root.path` | arbitrary signal (not just trigger) |
+| `^el.id` | element selector (trigger element, or by id) |
+| `^sel.x` | DOM query, first match |
+| `^sel-all.x` | DOM query, all matches (array) |
+| `^attrs.prefix` | attribute list (array; with `^sel-all`, array of arrays) |
+| `^const.X` | constant: `^const.42`=42, `^const.hello`="hello", `^const.true`=true |
+| `^null` / `^true` / `^false` / `^undefined` | shorthand constants |
+
+Coercion mods (applied after pipeline): `^num`, `^str`, `^bool`, `^jsos`.
+
+Default value source per trigger:
+- signal trigger (`@foo`): signal value
+- event trigger (`@.click`): trigger element (default prop)
+- special trigger (`@_init`, `@_window.E`, etc.): trigger element or window/document/form
 
 ```html
-<div
-  data-m-ex:.style.size-cell@theme.cell-size="val + 'rem'"
-  data-m-ex:.style.tone-accent@theme.tone-accent>
-</div>
+<!-- sub-path of signal value -->
+<span data-m-ex:.@user.name>
+
+<!-- element prop via universal path -->
+<span data-m-ex:.@.input^.target.value>
+
+<!-- event detail sub-path -->
+<span data-m-ex:.@.click^ev.detail.msg>
+
+<!-- constants -->
+<span data-m-ex:out@^const.42>
+<span data-m-ex:out@_init^true>
+<span data-m-ex:out@_init^const.null^bool>
+
+<!-- pipeline: select element by id, read default prop -->
+<span data-m-ex:out@.click^el.other>
+
+<!-- pipeline: query all, get .length -->
+<span data-m-ex:count@_init^sel-all..item^.length>
+
+<!-- pipeline: query, get attrs, take first -->
+<span data-m-ex:out@_init^sel-all..item^attrs.data-m-^.[0]>
 ```
 
-This maps to:
-- `style.size-cell` -> `style.setProperty('--size-cell', ... )`
-- `style.tone-accent` -> `style.setProperty('--tone-accent', ... )`
+## Web components
 
-## `data-m-wc`
-
-There are now two recommended WC definition styles:
-- in-page template: `data-m-wc`
-- separate-file registration: `dmWc(...)`
-
-Use `data-m-wc` when the component definition should stay visible in the page markup.
+Two ways to define a custom element:
 
 ```html
+<!-- in-page template -->
 <template data-m-wc="my-card">
   <article><slot></slot></article>
 </template>
 ```
 
-This registers a light-DOM custom element and clones the template into each instance on first connect.
-
-If you want the same pattern from a separate file, use public `dmWc(...)`:
-
-```html
-<script src="./my-card.js"></script>
-```
-
 ```js
-// my-card.js
+// separate file
 dmWc('my-card', '<article>...</article>')
+// or with a template element
+dmWc(tplElement, 'my-card')
 ```
 
-For host props, use normal `data-m-ex` on the custom element:
+Drive host props with normal `data-m-ex`:
 
 ```html
 <my-style-panel
   data-m-ex:.open@panel.open
   data-m-ex:.root-selector@panel.root-selector>
 </my-style-panel>
-```
 
-For attr-driven components that parse JSON from an attribute, prefer `^jsos`:
-
-```html
-<game-board data-m-ex:.state^jsos@board-state></game-board>
-```
-
-That keeps WC usage smaller and clearer: define with `data-m-wc` or `dmWc(...)`, drive with `data-m-ex`.
-
-Event output stays on normal `data-m-ex` too:
-
-```html
 <mx-uplot data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
 ```
 
@@ -271,48 +197,80 @@ Event output stays on normal `data-m-ex` too:
 <button data-m-post^json:result@.click+title="'/api/posts'">Save</button>
 ```
 
-Action features include:
-- `^json`, `^text`, `^html`, `^form`
-- `^stat.<signal>` for grouped status fields `{busy, complete, err, code, open, close, abort}`
-- `^hs.<signal>`, `^h.<name>`, `^auth.<signal>`
-- `^url.<path>`, `^body.<path>`
-- `^send-all`, `^patch-all`, `^sync-all`
-- `^replace`, `^merge`, `^append`, `^prepend`, `^inc`, `^dec`
+All five verbs (`get`, `post`, `put`, `patch`, `delete`) share the grammar above.
+
+Request body / content-type:
+- `^json` -- `Content-Type: application/json`
+- `^text` -- `Content-Type: text/plain`
+- `^html` -- `Content-Type: text/html`
+- `^form` -- `Content-Type: application/x-www-form-urlencoded`
+- default -- body-less GET/DELETE, or raw body for POST/PUT/PATCH
+
+Response handling:
+- `^replace` (default) -- replace signal value
+- `^merge` -- merge (objects merge, arrays/strings concat)
+- `^append` / `^prepend` -- append/prepend to signal value
+- `^inc` / `^dec` -- increment/decrement numeric by one
+
+Headers:
+- `^h.<name>` -- set header from named signal (kebab to header-canonical)
+- `^hs.<signal>` -- spread a signal object as headers (kebab-cased)
+- `^hs-no-kebab` -- like `^hs`, preserves exact names
+- `^auth.<signal>` -- set `Authorization` from signal
+- `^brotli` / `^br` / `^gzip` / `^deflate` / `^compress` -- add to `Accept-Encoding`
+
+URL / body routing:
+- `^url.<path>` -- send named signal as query string
+- `^body.<path>` -- send named signal as body
+
+Payload:
+- `^send-all` -- include all root signals in body
+- `^patch-all` -- apply matching root signals from response
+- `^sync-all` -- combine both
+- `+path` + `^spread` -- spread a signal object into payload
+
+Status:
+- `^stat.<signal>` -- group lifecycle into `{busy, complete, err, code, open, close, abort}`
+
+Trigger mods: `^once`, `^always`, `^debounce`, `^throttle`, `^raf`, `^prevent`.
 
 ### SSE
 
-dmax supports `text/event-stream` action responses with incremental application.
-See `protocol.md` for exact wire shapes and no-SDK backend examples.
-
-Supported SSE events:
-- `dm-element`
-- `dm-elements` (`html` required; `selector` and `mode` optional)
-- `dm-signals`
-
-Lifecycle helpers:
-- `^stat.<signal>`
-- `^retry.N`
-
-Grouped status example:
+Add `^sse` to switch an action into SSE mode. See `protocol.md` for wire shapes.
 
 ```html
 <div data-m-get^sse^stat.feed@_init="'/stream'"></div>
 <pre data-m-ex:.@feed^jsos.2></pre>
 ```
 
-This keeps all action lifecycle fields under one signal:
+SSE events:
+- `dm-element` -- raw HTML, default mode `outer`, target from root `id`
+- `dm-elements` -- JSON patch (`html` required, `selector` and `mode` optional)
+- `dm-signals` -- JSON signal patch
 
-```json
-{"busy":false,"complete":true,"err":null,"code":200,"open":false,"close":true,"abort":null}
+SSE lifecycle: `^stat.<signal>` for `open`/`close`, `^retry.N` for reconnect delay.
+
+Uses `fetch` + `ReadableStream`: custom headers, request bodies, non-GET, explicit reconnect.
+
+### CQRS pattern: SSE on load, POST for commands
+
+A clean CQRS split where the read model arrives over SSE and writes are POSTed as commands:
+
+```html
+<!-- read: full state stream on page load, morphs via dm-element -->
+<div data-m-get^sse@_init="'/api/state'"></div>
+
+<!-- write: forms and buttons POST commands -->
+<form data-m-post:cmd@.submit+payload="'/api/cmd'">
+  <input name="title">
+  <button>Save</button>
+</form>
+<button data-m-post:cmd@.click+payload="'/api/cmd'">Delete</button>
 ```
 
-dmax uses `fetch` + `ReadableStream`, so it supports:
-- custom headers
-- request bodies
-- non-GET methods
-- explicit reconnect behavior
+Works for dashboards refreshed via SSE, collaborative editors (server is source of truth), and hypermedia apps where the server renders. Local-only state (form drafts, UI toggles) can still live in `data-m-si` and never touch the server.
 
-## Special triggers
+## Special triggers and targets
 
 | Trigger | Meaning |
 | --- | --- |
@@ -324,59 +282,55 @@ dmax uses `fetch` + `ReadableStream`, so it supports:
 | `@_timeout.<ms>` | one-shot timer |
 | `@_viewed` | fire when element enters viewport |
 
-## Special targets
-
 | Target | Meaning |
 | --- | --- |
-| `:_history.push-state` | call `history.pushState(...)` with the expression result |
-| `:_history.replace-state` | call `history.replaceState(...)` with the expression result |
-
-History writes usually pair well with window reads:
+| `:_history.push-state` | call `history.pushState(...)` with expression result |
+| `:_history.replace-state` | call `history.replaceState(...)` with expression result |
 
 ```html
 <button data-m-ex:_history.push-state@.click="[null, '', '#demo']">Push</button>
-<span data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span>
+<span data-m-ex:.@_init@_window.hashchange^.location.hash="val || '#'"></span>
 ```
 
-## Ignore controls
+Ignore controls: `data-m-no` (skip scan + morph), `data-m-no^scan` (scan only), `data-m-no^morph` (morph only).
 
-| Attribute | Effect |
-| --- | --- |
-| `data-m-no` | skip scan + morph |
-| `data-m-no^scan` | skip scan only |
-| `data-m-no^morph` | skip morph only |
+## Style helper (`dm-style.js`)
 
-## Comparison: dmax vs Datastar
+`dm-style.js` is an optional companion for editable design tokens. It wires a single signal to CSS custom properties and provides a reusable panel with range/color inputs, copy/import/reset tools, and help binding.
 
-Use this as the casual selection guide.
+```html
+<script src="./dm-style.js"></script>
+<dm-style-panel data-m-si='{"style":{},"stylePanel":{},"oklchHelp":{}}'></dm-style-panel>
+<script>
+  dmStyle.pin(document.getElementById('app'), {
+    signal: 'style',         // signal path for token values
+    open: 'stylePanel.open', // signal path for panel open/close
+    help: 'oklchHelp'        // signal path for help text
+  })
+</script>
+```
+
+`pin(root, opts?)` subscribes to the style signal, applies CSS vars to `root`, finds or creates the panel, binds open/help. Defaults: `signal: 'style'`, `open: 'style-panel.open'`, `help: 'oklch-help'`, `panel: 'dm-style-panel'`.
+
+See `style.md` for the full API and `examples/style-starter.html` for a 5-minute setup.
+
+## Comparison
+
+### dmax vs Datastar
 
 | Topic | dmax | Datastar |
 | --- | --- | --- |
-| Main bias | signal-first client runtime | server-first HTML/SSE flow |
-| Local state | first-class via `data-m-si` | lighter / more server-centric |
+| Local state | first-class via `data-m-si` | lighter, more server-centric |
 | Signal/property sync | strong | weaker emphasis |
 | Two-way sync | built in | less central |
 | List rendering | built in via `data-m-it` | different approach |
-| Web components | template declaration via `data-m-wc`, host props via `data-m-ex` | Rocket-style component ideas are further along conceptually |
+| Web components | template declaration via `data-m-wc`, host props via `data-m-ex` | further along conceptually |
 | SSE | strong | strong |
 | DOM morphing | built in | built in |
 | Client payload control | explicit (`+x`, `^send-all`, `^url`, `^body`) | broader server-driven conventions |
-| Best fit | richer client-side UI with declarative state | hypermedia/server-led apps |
+| CQRS / server-first | supported (SSE on load + POST commands) | native |
 
-### Why choose dmax over Datastar
-
-Choose dmax if you want:
-- a stronger **client-side signal model**
-- explicit **signal/property synchronization**
-- a more **integrated batteries-included runtime**
-- more control over what requests send and what responses patch
-- a path toward declarative style tokens and WC hosting inside the same grammar
-
-Choose Datastar if you want:
-- a more strongly **server-led** mental model
-- HTML/SSE-first workflows with less client-side state focus
-
-## Comparison: dmax vs Fixi
+### dmax vs Fixi
 
 | Topic | dmax | Fixi stack |
 | --- | --- | --- |
@@ -386,20 +340,7 @@ Choose Datastar if you want:
 | Actions | built in | `fixi.js` |
 | SSE | built in | `ssexi.js` |
 | Morphing | built in | `paxi.js` |
-| Imperative escape hatch | plain JS | dedicated helper libs like `moxi` / `rexi` |
-| Best fit | one coherent declarative runtime | pick-and-mix micro-libraries |
-
-### Why choose dmax over Fixi
-
-Choose dmax if you want:
-- one consistent grammar
-- one signal store
-- less library composition overhead
-- richer stateful reactivity out of the box
-
-Choose Fixi if you want:
-- a modular toolkit
-- stronger separation between request, morph, SSE, and imperative helpers
+| Imperative escape | plain JS | dedicated helper libs |
 
 ## Files
 
@@ -408,24 +349,17 @@ Choose Fixi if you want:
 | `dmax.js` | main runtime |
 | `dist/dmax.min.js` | minified build |
 | `index.html` | notebook + live examples |
-| `examples/m-ex-cel.html` | single-file semantic SSE/grid example |
-| `asserts.js` | inline assert helpers used by notebook tests |
-| `protocol.md` | backend wire contract: HTML, JSON, SSE, `dm-signals`, `dm-elements` |
+| `examples/m-ex-cel.html` | single-file SSE/grid example |
+| `examples/style-starter.html` | style-panel starter |
+| `dm-style.js` | style helper + generic style panel |
+| `asserts.js` | inline assert helpers for notebook tests |
+| `protocol.md` | backend wire contract |
 | `wc.md` | `data-m-wc` design sketch |
-| `style.md` | style-system principles for examples |
+| `style.md` | style-system principles |
 
 ## Development
 
-```bash
-npm run test:headless
-npm run test:fuzz
-npm run test:size
-npm run test:min
+```sh
+npm run build:min
+npm run test
 ```
-
-## Current build sizes
-
-- `dmax.js` — 84,241 bytes
-- `dist/dmax.min.js` — 45,889 bytes
-- `dist/dmax.min.js.gz` — 16,407 bytes
-- `dist/dmax.min.js.br` — 14,770 bytes

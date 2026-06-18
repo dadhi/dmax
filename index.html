@@ -184,8 +184,8 @@
           <button id="uplot-dup" data-m-ex:uplot2@#uplot-dup.click="window.cloneUplot(dm.uplot)">Duplicate chart</button>
         </div>
         <p data-m-ex:.@uplot@uplot2="'title: ' + dm.uplot.title + ' · width: ' + dm.uplot.w + ' · points: ' + (dm.uplot.points ? 'on' : 'off') + ' · second chart: ' + (dm.uplot2 ? 'on' : 'off')"></p>
-        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point="{ from: 'uplot-1', ...val }"></mx-uplot>
-        <mx-uplot id="uplotDemo2" style="display:none" data-m-ex:.style.display@uplot2="dm.uplot2 ? '' : 'none'" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point="{ from: 'uplot-2', ...val }"></mx-uplot>
+        <mx-uplot id="uplotdemo" data-m-ex:.cfg@uplot data-m-ex:uplot-last^merge@.point^ev="{ from: 'uplot-1', ...val }"></mx-uplot>
+        <mx-uplot id="uplotDemo2" style="display:none" data-m-ex:.style.display@uplot2="dm.uplot2 ? '' : 'none'" data-m-ex:.cfg@uplot2 data-m-ex:uplot-last^merge@.point^ev="{ from: 'uplot-2', ...val }"></mx-uplot>
         <pre style="background:#f8fafc;padding:8px;border-radius:6px;margin:0" data-m-ex:.@uplot-last^jsos.2="dm.uplotLast ? val : 'click a point'" aria-label="uPlot point payload"></pre>
       </div>
       <h4>1. Deep Nested Signal Sync</h4>
@@ -252,13 +252,13 @@
       <p>Scroll into view: <span id="viewedOut" data-m-ex:.@_viewed^once="'✓ Viewed (ratio: ' + (detail && detail.ratio != null ? detail.ratio.toFixed(2) : '?') + ')'"></span></p>
       <p>On init: <span id="initOut" data-m-ex:.@_init="'✓ Initialized (detail.type: ' + (detail && detail.type) + ')'"></span></p>
       <h4>6.a URL, history, WC defaults, and <code>^sel-all</code></h4>
-      <div class="page"><code>data-m-ex:_history.push-state@.</code> · <code>data-m-ex:.@_window.hashchange^pr.location.hash</code> · <code>data-m-ex:.@wc-step</code> · <code>data-m-ex:wc-picked@.step-picked</code> · <code>data-m-ex:.@_init^sel-all..sel-all-demo-item</code> Push/replace the hash, watch the current hash react, then compare default WC prop/event behavior and selector-query reads.</div>
+      <div class="page"><code>data-m-ex:_history.push-state@.</code> · <code>data-m-ex:.@_window.hashchange^.location.hash</code> · <code>data-m-ex:.@wc-step</code> · <code>data-m-ex:wc-picked@.step-picked^ev</code> · <code>data-m-ex:.@_init^sel-all..sel-all-demo-item</code> Push/replace the hash, watch the current hash react, then compare default WC prop/event behavior and selector-query reads.</div>
       <p>
         <button id="pushHash" data-m-ex:_history.push-state@.="[null, '', '#demo-push']">Push #demo-push</button>
         <button id="replaceHash" data-m-ex:_history.replace-state@.="[null, '', '#demo-replace']">Replace #demo-replace</button>
       </p>
-      <p>Current hash: <span id="hashOut" data-m-ex:.@_init@_window.hashchange^pr.location.hash="val || '#'"></span></p>
-      <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked="val.step"></mx-step>
+      <p>Current hash: <span id="hashOut" data-m-ex:.@_init@_window.hashchange^.location.hash="val || '#'"></span></p>
+      <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked^ev="val.step"></mx-step>
       <p>WC default <code>value</code> prop: <span data-m-ex:.@wc-step></span></p>
       <p>WC custom event detail: <span data-m-ex:.@wc-picked></span></p>
       <ul><li class="sel-all-demo-item">alpha</li><li class="sel-all-demo-item">beta</li><li class="sel-all-demo-item">gamma</li></ul>
@@ -269,11 +269,11 @@
       <p><span id="inp1Preview" data-m-ex:.@#inp1.input></span></p>
       <button id="btn3">Click me</button>
       <p><span id="btn3Preview" data-m-ex:.@#btn3="'Clicked!'"></span></p>
-      <h4>7.a `^pr` / `^si` trigger picks</h4>
-      <div class="page"><code>&lt;input data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num&gt;</code> · <code>&lt;strong data-m-ex:.@val-source^si.bar&gt;</code> · <code>&lt;strong data-m-ex:.@val-source^si.bar=&quot;val + 1&quot;&gt;</code> Type in the input and click the increment button; compare the picked property value with the picked signal child value.</div>
+      <h4>7.a `^` / `^si` trigger picks</h4>
+      <div class="page"><code>&lt;input data-m-ex:val-prop-picked@.input^.data-foo-bar^num&gt;</code> · <code>&lt;strong data-m-ex:.@val-source^si.bar&gt;</code> · <code>&lt;strong data-m-ex:.@val-source^si.bar=&quot;val + 1&quot;&gt;</code> Type in the input and click the increment button; compare the picked property value with the picked signal child value.</div>
       <div style="margin:8px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
         <label>Non-default event prop:
-          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^pr.data-foo-bar^num>
+          <input id="valpickinput" data-foo-bar="33" placeholder="Typing keeps val=data-foo-bar" data-m-ex:val-prop-picked@.input^.data-foo-bar^num>
         </label>
         <div>Typed text: <span id="valPickTyped" data-m-ex:.@#valpickinput.input></span></div>
         <div>Picked <code>data-foo-bar</code>: <strong id="valPropPicked" data-m-ex:.@val-prop-picked></strong></div>
@@ -416,7 +416,9 @@
   <script>
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
     const toTop = () => {
-      if (location.hash) return
+      const hash = location.hash
+      if (hash && !document.getElementById(hash.slice(1))) history.replaceState(null, '', location.pathname + location.search)
+      else if (location.hash) return
       scrollTo(0, 0)
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0

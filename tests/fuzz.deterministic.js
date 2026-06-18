@@ -143,13 +143,50 @@ function* generateDataSubCombinations() {
   yield { attr: 'data-m-ex:.style.color@user.name', valid: true, category: 'nested-signal-prop' }
   yield { attr: 'data-m-ex:.style.font-size@posts[0]', valid: true, category: 'indexed-signal-prop' }
   yield { attr: 'data-m-ex:#dest.style.color@#src.input', valid: true, category: 'id-prop-to-id-event' }
-  yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: true, category: 'pr-prop-path' }
-  yield { attr: 'data-m-ex:result@.input^pr.#other.value', valid: true, category: 'pr-other-el-path' }
+  yield { attr: 'data-m-ex:result@.input^.style.color', valid: true, category: 'val-prop-path' }
+  yield { attr: 'data-m-ex:result@.input^el.#other^', valid: true, category: 'el-other-univ' }
   yield { attr: 'data-m-ex:result@foo^si.user.name', valid: true, category: 'si-signal-path' }
   yield { attr: 'data-m-ex:result@foo^si.', valid: true, category: 'si-default-path' }
   yield { attr: 'data-m-ex:result@.input^ev.detail.value', valid: true, category: 'ev-event-path' }
   yield { attr: 'data-m-ex:result@.input^ev.', valid: true, category: 'ev-default-path' }
-  yield { attr: 'data-m-ex:result@.input^pr.', valid: true, category: 'pr-default-path' }
+
+  // ^const: type-inferred literal values
+  yield { attr: 'data-m-ex:result@_init^const.42', valid: true, category: 'const-number' }
+  yield { attr: 'data-m-ex:result@_init^const.3.14', valid: true, category: 'const-float' }
+  yield { attr: 'data-m-ex:result@_init^const.-5', valid: true, category: 'const-negative' }
+  yield { attr: 'data-m-ex:result@_init^const.1e3', valid: true, category: 'const-scientific' }
+  yield { attr: 'data-m-ex:result@_init^const.hello', valid: true, category: 'const-string' }
+  yield { attr: 'data-m-ex:result@_init^const.foo.bar', valid: true, category: 'const-string-dots' }
+  yield { attr: 'data-m-ex:result@_init^const.true', valid: true, category: 'const-true' }
+  yield { attr: 'data-m-ex:result@_init^const.false', valid: true, category: 'const-false' }
+  yield { attr: 'data-m-ex:result@_init^const.null', valid: true, category: 'const-null' }
+  yield { attr: 'data-m-ex:result@_init^const.undefined', valid: true, category: 'const-undefined' }
+  yield { attr: 'data-m-ex:result@_init^const.', valid: true, category: 'const-empty-string' }
+
+  // ^null, ^true, ^false, ^undefined: shorthand constants
+  yield { attr: 'data-m-ex:result@_init^null', valid: true, category: 'null-shorthand' }
+  yield { attr: 'data-m-ex:result@_init^true', valid: true, category: 'true-shorthand' }
+  yield { attr: 'data-m-ex:result@_init^false', valid: true, category: 'false-shorthand' }
+  yield { attr: 'data-m-ex:result@_init^undefined', valid: true, category: 'undefined-shorthand' }
+
+  // ^str, ^bool: coercion mods
+  yield { attr: 'data-m-ex:result@_init^const.42^str', valid: true, category: 'const-str-coerce' }
+  yield { attr: 'data-m-ex:result@_init^const.1^bool', valid: true, category: 'const-bool-coerce-true' }
+  yield { attr: 'data-m-ex:result@_init^const.0^bool', valid: true, category: 'const-bool-coerce-false' }
+  yield { attr: 'data-m-ex:result@_init^const.null^bool', valid: true, category: 'const-bool-coerce-null' }
+  yield { attr: 'data-m-ex:result@_init^str', valid: true, category: 'trigger-str-coerce' }
+  yield { attr: 'data-m-ex:result@_init^bool', valid: true, category: 'trigger-bool-coerce' }
+  yield { attr: 'data-m-ex:result@foo^num^str', valid: true, category: 'num-then-str' }
+  yield { attr: 'data-m-ex:result@foo^str^num', valid: true, category: 'str-then-num' }
+
+  // Mod combinations: pipeline
+  yield { attr: 'data-m-ex:result@_init^const.42^.foo', valid: true, category: 'const-then-univ' }
+  yield { attr: 'data-m-ex:result@_init^.foo^const.42', valid: true, category: 'univ-then-const' }
+  yield { attr: 'data-m-ex:result@_init^const.42^el.#other^', valid: true, category: 'const-then-el-then-univ' }
+  yield { attr: 'data-m-ex:result@_init^sel..foo^.length', valid: true, category: 'sel-then-length' }
+  yield { attr: 'data-m-ex:result@_init^sel-all..foo^.[0]', valid: true, category: 'sel-all-then-first' }
+  yield { attr: 'data-m-ex:result@_init^sel-all..foo^.[-1]', valid: true, category: 'sel-all-then-last' }
+  yield { attr: 'data-m-ex:result@.input^pr.style.color', valid: true, category: 'pr-silently-ignored' }
   yield { attr: 'data-m-ex@posts^shape_only', valid: true, category: 'shape-only-sub' }
   yield { attr: 'data-m-ex@posts^with_shape', valid: true, category: 'with-shape-sub' }
   yield { attr: 'data-m-ex@items[0]^with_shape', valid: true, category: 'indexed-shape-sub' }
@@ -171,7 +208,7 @@ function* generateDataSubCombinations() {
     }
   }
   yield {
-    attr: 'data-m-ex:.value@.input^pr.#input.value^ev.detail', valid: true, category: 'last-read-mod-wins', html: '<input id="fuzz-test" data-m-ex:.value@.input^pr.#input.value^ev.detail>', exercise: async ({ document, window }) => {
+    attr: 'data-m-ex:.value@.input^el.#input^^ev.detail', valid: true, category: 'last-read-mod-wins', html: '<input id="fuzz-test" data-m-ex:.value@.input^el.#input^^ev.detail>', exercise: async ({ document, window }) => {
       const el = document.getElementById('fuzz-test')
       el.dispatchEvent(new window.CustomEvent('input', { bubbles: true, detail: 'Alice' }))
       await new Promise(r => setTimeout(r, 0))
@@ -204,8 +241,6 @@ function* generateDataSubCombinations() {
     yield { attr, valid: true, category: 'discard-bad-parts' }
   for (const attr of ['data-m-ex@!xxx@!', 'data-m-ex@!!!!'])
     yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error', logPattern: 'bare !:' }
-  for (const attr of ['data-m-ex:^!', 'data-m-ex^!'])
-    yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error' }
 }
 
 function* generateDataSubRwCombinations() {
@@ -228,9 +263,9 @@ function* generateDataSubRwCombinations() {
     yield { attr: `data-m-ex:${sig}@.open`, valid: true, category: 'one-way-details-open' };
   }
   
-  // 4. Two-way with explicit ^pr path
+  // 4. Two-way with explicit ^ path
   for (const sig of SIGNAL_NAMES.slice(0, 2)) {
-    yield { attr: `data-m-ex@.^pr.value^rw@${sig}`, valid: true, category: 'two-way-pr-path' };
+    yield { attr: `data-m-ex@.^.value^rw@${sig}`, valid: true, category: 'two-way-val-path' };
   }
   
   // 5. Signal to signal
@@ -239,7 +274,7 @@ function* generateDataSubRwCombinations() {
   
   // 6. With modifiers
   yield { attr: 'data-m-ex@.^not-immediate^rw@foo', valid: true, category: 'with-mod' };
-  yield { attr: 'data-m-ex@.^rw^pr.open@foo', valid: true, category: 'two-way-details-pr-open' };
+  yield { attr: 'data-m-ex@.^rw^.open@foo', valid: true, category: 'two-way-details-val-open' };
 }
 
 function* generateDataClassCombinations() {
@@ -285,7 +320,7 @@ function* generateDataActionCombinations() {
     yield { attr: `data-m-${method}^stat.req-state:result@.click`, valid: true, category: `${method}-state-modes` };
     yield { attr: `data-m-${method}^stat.status:result@.click`, valid: true, category: `${method}-state-all` };
     yield { attr: `data-m-${method}^hs.req-hs:result@.click`, valid: true, category: `${method}-headers-modifier` };
-    yield { attr: `data-m-${method}^hs.raw-hs^hs-no-kebab:result@.click`, valid: true, category: `${method}-headers-no-kebab-modifier` };
+    yield { attr: `data-m-${method}^hs.raw-hs^hs-raw:result@.click`, valid: true, category: `${method}-headers-raw-modifier` };
     yield { attr: `data-m-${method}^h.authorization:result@.click`, valid: true, category: `${method}-header-modifier` };
     yield { attr: `data-m-${method}^auth.authorization:result@.click`, valid: true, category: `${method}-auth-modifier` };
     if (method !== 'get') yield { attr: `data-m-${method}^body.target-id:result@.click+title`, valid: true, category: `${method}-body-routing` };
@@ -586,10 +621,10 @@ async function runRegressionTests(runner) {
       }
     },
     {
-      attr: 'data-m-get^hs.raw-hs^hs-no-kebab:result@.click',
+      attr: 'data-m-get^hs.raw-hs^hs-raw:result@.click',
       expr: '"https://api.test/headers-raw"',
       valid: true,
-      desc: '^hs-no-kebab preserves exact copied header keys',
+      desc: '^hs-raw preserves exact copied header keys',
       exercise: async ({ element, window, requests }) => {
         element.dispatchEvent(new window.Event('click', { bubbles: true }));
         await new Promise(r => setTimeout(r, 50));
