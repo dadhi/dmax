@@ -25,7 +25,9 @@
     const SEL_LEADS = '#.[*:', SSE_COMMENT = ':'
     const SI = 's', EP = DOT, SP = '_'
 
-    const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only'
+    const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only', M_DOM = 'dom'
+    const M_DOM_OPEN = 'open', M_DOM_CLOSED = 'closed'
+    const WC_HOST_ROOT = '_wc'
     const M_IMMEDIATE = 'immediate', M_NOT_IMMEDIATE = 'notImmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_RAF = 'raf', M_PREVENT = 'prevent'
     const M_AND = 'and', M_EQ = 'eq', M_NE = 'ne', M_LT = 'lt', M_GT = 'gt', M_LE = 'le', M_GE = 'ge', M_UNIV = '', M_CONST = 'const', M_NULL = 'null', M_TRUE = 'true', M_FALSE = 'false', M_UNDEFINED = 'undefined', M_EL = 'el', M_ATTRS = 'attrs', M_SEL = 'sel', M_SEL_ALL = 'selAll', M_SI = 'si', M_EV = 'ev', M_RW = 'rw', M_NUM = 'num', M_STR = 'str', M_BOOL = 'bool', M_JSOS = 'jsos'
@@ -70,10 +72,6 @@
     const E_RW_EV = `dmEx ${MOD}${M_RW} event is not found in trigger:`
     const E_TRIG_EL = 'Element is not found in trigger:', E_TRIG_EV = 'Event is not found in trigger:', E_FORM_EL = 'Form element is not found for trigger:'
     const IT_STATES = new WeakMap(), IT_ATTRS = new WeakMap()
-    const WC_ROOT = '_wc'
-    const _wcSubs = new WeakMap() // per-host subscriptions for :_wc signals
-    const getWcHost = (el) => { let n = el; while (n) { if (n._wc !== undefined || (n.tagName && n.tagName.indexOf('-') >= 0)) return n; n = n.parentNode && n.parentNode.nodeType === 11 ? n.parentNode.host : n.parentNode } return el }
-    const getWcStore = (host) => host._wc || (host._wc = Object.create(null))
     const isSp = (n) => { if (n.startsWith(SP)) for (const s of SPS) if (n.startsWith(s, 1)) return true; return false }
     const mkIt = (kind, not, root, path, mods = NIL) => ({ kind, not, root, path, mods, sp: kind === SP ? SP_DEFS[root] || null : null, isSi: kind === SI, isEv: kind === EP, isSp: kind === SP, isImmediate: null })
     const mkMod = (not, root, path) => ({ not, root, path, isImmediate: root === M_IMMEDIATE ? true : root === M_NOT_IMMEDIATE ? false : null })
@@ -106,7 +104,7 @@
           d = indexFirst(n, NAME_DELIMS, p)
           const part = n.slice(partStart, p = d < 0 ? l : d)
           if (!part) { logErr('empty path part:', n, dKey); return null }
-          path.push(toName(part, 1))
+          path.push(part[0] === '-' ? part : toName(part, 1))
         } else if (c === BRACKET_OPEN) {
           d = n.indexOf(BRACKET_CLOSE, p + 1)
           if (d < 0) { logErr('missing ]:', n, dKey); return null }
@@ -203,6 +201,61 @@
     }
 
     const _dm = new Map()
+    const _wcSubs = new WeakMap()
+    const isWcRoot = (root) => root === WC_HOST_ROOT
+    // Walk up the DOM (including shadow host) to find the nearest ancestor
+    // whose _wc has been initialized. Falls back to lazily creating one
+    // on the binding's element when no scope owner is found.
+    const resolveWcHost = (el) => {
+      if (!el) return null
+      let cur = el
+      while (cur) {
+        if (cur._wc && typeof cur._wc === 'object') return cur
+        let parent = cur.parentNode
+        if (!parent && cur.host) parent = cur.host
+        cur = parent
+      }
+      return el
+    }
+    // Collect all signal subscriptions that are scoped to any element
+    // between (and including) the binding element and an ancestor with _wc.
+    // A binding registered on `el` lives in _wcSubs.get(el), and we walk
+    // up to ancestor hosts to notify on writes. We also walk DOWN the host's
+    // subtree to catch bindings that were registered before the host's _wc
+    // was initialized (so they ended up keyed on themselves).
+    const getWcSubsFor = (host) => {
+      const out = []
+      const seen = new Set()
+      let cur = host
+      while (cur) {
+        const subs = _wcSubs.get(cur)
+        if (subs && subs.length) for (const s of subs) if (!seen.has(s)) { seen.add(s); out.push(s) }
+        let parent = cur.parentNode
+        if (!parent && cur.host) parent = cur.host
+        cur = parent
+      }
+      const walkDescendants = (root) => {
+        const stack = [root.firstElementChild]
+        while (stack.length) {
+          const el = stack.pop()
+          if (!el) continue
+          const subs = _wcSubs.get(el)
+          if (subs && subs.length) for (const s of subs) if (!seen.has(s)) { seen.add(s); out.push(s) }
+          // Skip into shadow roots
+          if (el.shadowRoot) for (let ch = el.shadowRoot.firstElementChild; ch; ch = ch.nextElementSibling) stack.push(ch)
+          for (let ch = el.lastElementChild; ch; ch = ch.previousElementSibling) stack.push(ch)
+        }
+      }
+      walkDescendants(host)
+      return out
+    }
+    const getHostStore = (host) => {
+      const h = resolveWcHost(host)
+      if (!h) return null
+      if (!h._wc || typeof h._wc !== 'object') h._wc = noProto()
+      return h._wc
+    }
+    const getHostEl = (host) => resolveWcHost(host)
     const DM = new Proxy({}, {
       get: (_, key) => _dm.get(key),
       set: (_, key, val) => { _dm.set(key, val); return true; },
@@ -216,7 +269,32 @@
     // - data-m-si:foo='{bar: "hey"}' // foo signal
     // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
-    // - data-m-si:_wc='{"count": 0}' // per-host state
+    const setSiRaw = (root, path, val, host) => {
+      if (isWcRoot(root)) {
+        if (!host) return null
+        if (!path || !path.length) {
+          host._wc = val && typeof val === 'object' ? val : noProto()
+          return host._wc
+        }
+        if (!host._wc || typeof host._wc !== 'object') host._wc = noProto()
+        let parent = host._wc
+        for (let i = 0; i < path.length - 1; ++i) {
+          parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
+        }
+        parent[path.at(-1)] = val
+        return host._wc
+      }
+      if (!path || !path.length) { _dm.set(root, val); return val }
+      let cur = _dm.get(root)
+      if (!cur || typeof cur !== 'object') _dm.set(root, cur = noProto())
+      let parent = cur
+      for (let i = 0; i < path.length - 1; ++i) {
+        parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
+      }
+      parent[path.at(-1)] = val
+      return cur
+    }
+
     const dmSi = (el, dKey, dVal) => {
       const it = parseCached(dKey), tars = it[TARG]
       if (it[MOD].length || it[TRIG].length || it[ADD].length) warn('targets only:', dKey)
@@ -225,17 +303,14 @@
       let val = dVal ? fn(DM, el, null) : null
       if (!tars.length) {
         if (!(val && typeof val === 'object')) return logErr('object value expected:', dKey, dVal)
-        for (const t in val) _dm.set(toName(t, 1), val[t])
+        for (const t in val) setSiAndNotifySubsNDeep(dKey, mkIt(SI, null, toName(t, 1), null), val[t], el)
         return
       }
       for (const t of tars) {
         if (t.kind != SI) { logErr('signal targets only:', t, dKey); continue }
         if (t.mods.length) warn('mods ignored:', t.mods, dKey)
-        if (t.root === WC_ROOT) {
-          const store = getWcStore(el)
-          if (val && typeof val === 'object') Object.assign(store, val)
-          else el._wc = val
-        } else _dm.set(t.root, val)
+        if (isWcRoot(t.root)) { if (!el) { logErr('dmSi :_wc needs a host element:', dKey); continue } setSiRaw(t.root, t.path, val, el) }
+        else _dm.set(t.root, val)
       }
     }
 
@@ -436,31 +511,25 @@
 
     const PERMIT_MODS = Object.assign(noProto(), { [M_AND]: 1, [M_EQ]: 1, [M_NE]: 1, [M_LT]: 1, [M_GT]: 1, [M_LE]: 1, [M_GE]: 1 })
 
-    const getSiVal = (it, el) => {
-      const root = it.root
-      if (root === WC_ROOT) {
-        const host = el ? getWcHost(el) : null
-        const sig = host ? host._wc : undefined
-        return it.path ? getPrValAndDepth(sig, it.path)[0] : sig
-      }
-      const sig = _dm.get(root)
+    const getSiVal = (it, host) => {
+      const sig = isWcRoot(it.root) ? getHostStore(host) : _dm.get(it.root)
       const path = it.path
       return path ? getPrValAndDepth(sig, path)[0] : sig
     }
-    const getSiValOrIt = (it) => {
+    const getSiValOrIt = (it, host) => {
       if (!it.kind) return it
-      const val = getSiVal(it)
+      const val = getSiVal(it, host)
       return it.not ? !val : val
     }
 
-    const resolveMPathVal = (v) => {
-      if (v && v.kind) return getSiValOrIt(v)
+    const resolveMPathVal = (v, host) => {
+      if (v && v.kind) return getSiValOrIt(v, host)
       if (typeof v !== 'string') return v
-      if (_dm.has(v)) return _dm.get(v)
+      if (!isWcRoot(v) && _dm.has(v)) return _dm.get(v)
       const parsed = parseRef('mod', v)
       if (!parsed || !parsed.kind) return v
-      if (parsed.isSi && !parsed.path && !_dm.has(parsed.root)) return v
-      return getSiValOrIt(parsed)
+      if (parsed.isSi && !parsed.path && !isWcRoot(parsed.root) && !_dm.has(parsed.root)) return v
+      return getSiValOrIt(parsed, host)
     }
 
     const dmJsos = (v, sp = 2) => typeof v === 'string' ? v : JSON.stringify(v, null, +(resolveMPathVal(sp) ?? 2) || 0)
@@ -590,7 +659,7 @@
       const stack = [node]
       while (stack.length) {
         const el = stack.pop()
-        if (noScan(el)) continue
+        if (!el || noScan(el)) continue
         const itAttrs = IT_ATTRS.get(el)
         if (itAttrs && itAttrs.length) {
           for (let i = 0; i < itAttrs.length; ++i) globalThis.wireNode(el, itAttrs[i][0], itAttrs[i][1])
@@ -602,7 +671,7 @@
           }
         }
         const children = el.children
-        if (children) for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
+        for (let i = children.length - 1; i >= 0; --i) stack.push(children[i])
       }
     }
     const expected = (v, ...msg) => v || (warn(...msg), null)
@@ -670,10 +739,10 @@
       }
     }
 
-    const applyActPayload = (dKey, resultTa, payload, resultMode) => {
+    const applyActPayload = (dKey, resultTa, payload, resultMode, host) => {
       if (!resultTa) return
-      const prev = getSiValOrIt(resultTa)
-      setSiAndNotifySubsNDeep(dKey, resultTa, combineActResult(prev, payload, resultMode))
+      const prev = getSiValOrIt(resultTa, host)
+      setSiAndNotifySubsNDeep(dKey, resultTa, combineActResult(prev, payload, resultMode), host)
     }
 
     const permitVal = (m, val, n = m.root, v = resolveMPathVal(m.path)) => n === M_AND ? !!v != !!m.not : n == M_EQ ? val == v : n == M_NE ? val != v : n == M_GT ? +val > +v : n == M_LT ? +val < +v : n == M_GE ? +val >= +v : +val <= +v
@@ -688,14 +757,14 @@
       return list
     }
     const removeSiSub = (sub) => {
-      if (sub.trig.root === WC_ROOT) {
-        const host = getWcHost(sub.el)
-        const subs = _wcSubs.get(host)
+      const root = sub.trig.root
+      if (isWcRoot(root)) {
+        const subs = sub.wcHost && _wcSubs.get(sub.wcHost)
         if (!subs || !subs.length) return
         for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
         return
       }
-      const subs = _subs.get(sub.trig.root)
+      const subs = _subs.get(root)
       if (!subs || !subs.length) return
       for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
@@ -717,8 +786,8 @@
     }
     const PASSIVE_LISTENER_OPTS = Object.freeze({ passive: true })
     const ELEMENT_NODE = 1
-    const invokeSub = (fn, detail, trVal, el, tr) => fn(DM, el, tr, tr.isSi ? getSiVal(tr, el) : trVal, detail)
-    const invokeBoundSub = (sub, detail = null) => sub.fn(DM, sub.el, sub.trig, sub.trig.isSi ? getSiVal(sub.trig, sub.el) : null, detail)
+    const invokeSub = (fn, detail, trVal, el, tr, host) => fn(DM, el, tr, tr.isSi ? getSiVal(tr, host || el) : trVal, detail)
+    const invokeBoundSub = (sub, detail = null, host) => sub.fn(DM, sub.el, sub.trig, sub.trig.isSi ? getSiVal(sub.trig, host || sub.el) : null, detail)
     const onIntervalSub = (sub) => {
       const detail = { tick: sub.tick++, ms: sub.ms, type: SP_INTERVAL }
       try { invokeSub(sub.fn, detail, sub.ms, sub.el, sub.trig) }
@@ -745,8 +814,33 @@
       if (typeof CSS !== 'undefined' && CSS?.escape) return CSS.escape(s)
       return s.replace(/["\\]/g, '\\$&')
     }
-    const dmSel = (sel, root = document) => root.querySelector(sel || '')
-    const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
+    const dmSel = (sel, root = document) => {
+      const found = root.querySelector(sel || '')
+      if (found) return found
+      const all = root.querySelectorAll('*')
+      for (let i = 0; i < all.length; ++i) if (all[i].shadowRoot) {
+        const deep = dmSel(sel, all[i].shadowRoot)
+        if (deep) return deep
+      }
+      return null
+    }
+    const splitCompound = (sel) => {
+      const s = sel || '', i = s.indexOf(' ')
+      return i < 0 ? [s, null] : [s.slice(0, i), s.slice(i + 1)]
+    }
+    const dmSelAll = (sel, root = document) => {
+      const out = Array.from(root.querySelectorAll(sel || ''))
+      const [head, tail] = splitCompound(sel)
+      const all = root.querySelectorAll('*')
+      for (let i = 0; i < all.length; ++i) {
+        const el = all[i]
+        if (el.shadowRoot) {
+          if (tail && el.matches && el.matches(head)) out.push(...dmSelAll(tail, el.shadowRoot))
+          else if (!tail) out.push(...dmSelAll(sel, el.shadowRoot))
+        }
+      }
+      return out
+    }
     const dmEl = (id, root = document) => {
       if (!id) return null
       const rid = String(id)[0] === '#' ? String(id).slice(1) : String(id)
@@ -811,12 +905,12 @@
       if (tr.isSi) {
         const sub = { el, trig: tr, fn, siChangeM: mod.c, ev: null, clearId: null }
         sub.fn = applyTrMs(fn, tr, mod, sub, el)
-        if (tr.root === WC_ROOT) {
-          const host = getWcHost(el)
-          upsert(_wcSubs, host).push(sub)
-        } else {
-          upsert(_subs, tr.root).push(sub)
+        if (isWcRoot(tr.root)) {
+          const actualHost = resolveWcHost(el) || el
+          sub.wcHost = actualHost
+          upsert(_wcSubs, actualHost).push(sub)
         }
+        else upsert(_subs, tr.root).push(sub)
         ;(elSubs || upsert(_cleanupBoundSubs, el)).push(sub)
         return sub
       }
@@ -847,54 +941,26 @@
       })
     }
 
-    const setSiAndNotifySubs = (dKey, tar, val, wcEl) => {
+    const setSiAndNotifySubs = (dKey, tar, val, host) => {
       const root = tar?.root, path = tar?.path
       if (!root) return null
-
-      // Per-host _wc signal
-      if (root === WC_ROOT) {
-        const host = wcEl ? getWcHost(wcEl) : null
-        if (!host) return null
-        const store = getWcStore(host)
-        let siVal = store, curVal = siVal, parent = siVal, d = 0, last = null
-        if (path) {
-          if (!path.length) return null
-          for (; d < path.length - 1; ++d) parent = parent[path[d]] && typeof parent[path[d]] === 'object' ? parent[path[d]] : (parent[path[d]] = {})
-          curVal = parent[last = path[d]]
-        }
-        if (!valChangedDeep(curVal, val)) return
-        const handlers = _wcSubs.get(host)
-        if (!handlers) {
-          if (!path) host._wc = val
-          else parent[last] = val
-          return
-        }
-        let collected = []
-        for (const h of handlers) {
-          const hp = h.trig.path
-          if (!hp) { collected.push([h, null]); continue }
-          if (path) {
-            const pl = path.length, hl = hp.length, minLen = hl < pl ? hl : pl
-            let i = 0
-            for (; i < minLen && path[i] == hp[i]; ++i);
-            if (i < minLen) continue
-            if (hl < pl || pl == hl) { collected.push([h, null]); continue }
-          }
-          const pathCur = getPrValAndDepth(siVal, hp)[0]
-          const pathVal = getPrValAndDepth(val, hp)?.[0] ?? getPrValAndDepth(path ? val : store, hp)?.[0]
-          if (pathCur !== undefined && !valChangedDeep(pathCur, pathVal)) continue
-          collected.push([h, null])
-        }
-        if (!path) host._wc = val
-        else parent[last] = val
-        for (const col of collected) invokeBoundSub(col[0], null)
-        return
+      const wc = isWcRoot(root)
+      let actualHost, siVal
+      if (wc) {
+        actualHost = getHostEl(host)
+        if (!actualHost) return null
+        if (!actualHost._wc || typeof actualHost._wc !== 'object') actualHost._wc = noProto()
+        siVal = actualHost._wc
+      } else {
+        siVal = _dm.get(root)
       }
-
-      let siVal = _dm.get(root), curVal = siVal, parent = siVal, d = 0, last = null
+      let curVal = siVal, parent = siVal, d = 0, last = null
       if (path) {
         if (!path.length) return null
-        if (!parent || typeof parent !== 'object') _dm.set(root, parent = siVal = {})
+        if (!parent || typeof parent !== 'object') {
+          if (wc) actualHost._wc = siVal = parent = noProto()
+          else _dm.set(root, parent = siVal = {})
+        }
         for (; d < path.length - 1; ++d) parent = parent[path[d]] && typeof parent[path[d]] === 'object' ? parent[path[d]] : (parent[path[d]] = {})
         curVal = parent[last = path[d]]
       }
@@ -902,9 +968,12 @@
       // if change detected it means ALL parents of cur  and SOME of children changed
       if (!valChangedDeep(curVal, val)) return;
 
-      const handlers = _subs.get(root);
-      if (!handlers) {
-        if (!path) _dm.set(root, val)
+      const handlers = wc ? getWcSubsFor(actualHost) : (() => { const h = _subs.get(root); return h && h.length ? h : NIL })();
+      if (!handlers || !handlers.length) {
+        if (!path) {
+          if (wc) actualHost._wc = val && typeof val === 'object' ? val : noProto()
+          else _dm.set(root, val)
+        }
         else parent[last] = val
         return
       }
@@ -948,21 +1017,24 @@
         if (changeMod !== SI_CHANGED_SHAPE_ONLY || pathDiff) collected.push([h, pathDiff, pathVal])
       }
 
-      if (!path) _dm.set(root, val)
+      if (!path) {
+        if (wc) actualHost._wc = val && typeof val === 'object' ? val : noProto()
+        else _dm.set(root, val)
+      }
       else parent[last] = val
 
       for (const col of collected) { // notify with new values and diff if asked for
         const h = col[0]
-        invokeBoundSub(h, h.siChangeM === SI_CHANGED_ANY ? null : col[1])
+        invokeBoundSub(h, h.siChangeM === SI_CHANGED_ANY ? null : col[1], actualHost)
       }
 
       updateDebug()
     }
 
     let syncDepth=0,MAX_SYNC_DEPTH=32;
-    const setSiAndNotifySubsNDeep = (dKey, tar, val, wcEl) => {
+    const setSiAndNotifySubsNDeep = (dKey, tar, val, host) => {
       if (syncDepth++ > MAX_SYNC_DEPTH) return logErr(`Error: Infinite loop detected for signal: ${tar} (depth > ${MAX_SYNC_DEPTH}) in ${dKey}`)
-      try { return setSiAndNotifySubs(dKey, tar, val, wcEl) } finally { syncDepth-- }
+      try { return setSiAndNotifySubs(dKey, tar, val, host) } finally { syncDepth-- }
     }
 
     /**
@@ -1230,6 +1302,7 @@
         tar = parseCached(getApiDKey(tar, tar[0] === ':' ? 'si' : 'si:'))[TARG][0]
         if (tar?.kind !== SI) return logErr('dmSet signal target expected:', tar, dKey), null
       }
+      if (isWcRoot(tar.root)) return logErr('dmSet cannot target _wc (per-host) signal; use dmSetHost(host, path, val) in:', dKey), null
       setSiAndNotifySubsNDeep(dKey, tar, val)
       return val
     }
@@ -1263,20 +1336,48 @@
     globalThis.dmSet = dmSet
     globalThis.dmSub = dmSub
     globalThis.dmSel = dmSel, globalThis.dmSelAll = dmSelAll, globalThis.dmEl = dmEl
-    globalThis.dmGetHost = (host, path) => {
-      if (!host || !host._wc) return undefined
-      if (!path) return host._wc
-      const parts = typeof path === 'string' ? path.split('.') : path
-      return getPrValAndDepth(host._wc, parts)[0]
+    // - dmGetHost(host, 'x')  / dmSetHost(host, 'x', 1)
+    //   Per-host (per-element) state under the special _wc signal root.
+    //   Stored on host._wc. Writes notify bindings scoped to that host.
+    const parseWcPath = (path) => {
+      const s = String(path || '')
+      let root, parts
+      if (!s) {
+        root = WC_HOST_ROOT
+        parts = null
+      } else {
+        const cleaned = s.replace(/^_wc\.?/, '')
+        if (cleaned === s && !s.startsWith('.')) {
+          // bare path like "count" or "obj.deep" — implicit _wc root
+          root = WC_HOST_ROOT
+          parts = cleaned ? cleaned.split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1)) : null
+        } else {
+          const parsed = parseRef('dmHost', s)
+          if (!parsed || !parsed.isSi) return null
+          root = parsed.root === '_wc' || parsed.root === 'wc' ? WC_HOST_ROOT : parsed.root
+          if (root !== WC_HOST_ROOT) return null
+          parts = parsed.path || null
+        }
+      }
+      return { root, path: parts }
     }
-    globalThis.dmSetHost = (host, path, val) => {
-      if (!host) return val
-      const store = getWcStore(host)
-      const parts = typeof path === 'string' ? path.split('.') : path
-      if (!parts || !parts.length) { host._wc = val; return val }
-      setSiAndNotifySubs('dmSetHost', { root: WC_ROOT, path: parts }, val, host)
+    const dmGetHost = (host, path) => {
+      if (!host) return undefined
+      const p = parseWcPath(path)
+      if (!p) return undefined
+      const sig = host._wc
+      return p.path ? getPrValAndDepth(sig, p.path)[0] : sig
+    }
+    const dmSetHost = (host, path, val) => {
+      if (!host) return logErr('dmSetHost: host required'), null
+      const p = parseWcPath(path)
+      if (!p) return logErr('dmSetHost: path must target _wc.* signal, got:', path), null
+      const tar = mkIt(SI, null, p.root, p.path)
+      setSiAndNotifySubsNDeep('dmSetHost', tar, val, host)
       return val
     }
+    globalThis.dmGetHost = dmGetHost
+    globalThis.dmSetHost = dmSetHost
 
     // - data-m-it@posts
     // - data-m-it+#tpl-post@posts
@@ -1380,13 +1481,13 @@
           const queryParams = noProto(), bodyFields = noProto(), addDst = isGetOrDelete ? queryParams : bodyFields
           if (sendAll) for (const [siName, siVal] of _dm.entries()) bodyFields[siName] = siVal
           for (const add of adds) {
-            const val = add.isEv ? getElPrVal(add.taEl || el, add.path) : getSiValOrIt(add)
+            const val = add.isEv ? getElPrVal(add.taEl || el, add.path) : getSiValOrIt(add, el)
             if (add.spread) {
               if (val && typeof val === 'object') for (const k in val) if (hasOwn(val, k)) addDst[k] = val[k]
               else addDst.value = val
             } else addDst[add.key] = val
           }
-          for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref) : _dm.get(path)
+          for (const [isBody, key, path, ref] of actRouteMods) (isBody ? bodyFields : queryParams)[key] = ref ? getSiValOrIt(ref, el) : _dm.get(path)
           let finalUrl = url, hasQ = finalUrl.includes('?')
           for (const k in queryParams) finalUrl += (hasQ ? '&' : '?') + encodeURIComponent(k) + '=' + encodeURIComponent('' + (queryParams[k] ?? '')), hasQ = true
           let hs = ACT_HS_EMPTY, sharedHs = 1
@@ -1411,7 +1512,7 @@
           }
           for (const [kebabKey, path, ref] of actHdrMods) {
             if (sharedHs) hs = cloneOwnProps(hs), sharedHs = 0
-            const v = ref ? getSiValOrIt(ref) : _dm.get(path)
+            const v = ref ? getSiValOrIt(ref, el) : _dm.get(path)
             hs[kebabKey] = v != null ? '' + v : ''
           }
           let bodyCount = 0, firstBodyKey = null
@@ -1451,7 +1552,7 @@
             applyPatchEls({ [SSE_ELS]: payload, selector, mode })
           } else {
             payload = isJsonContentType(ct) ? await res.json() : await res.text()
-            applyActPayload(dKey, resultTa, payload, resultMode)
+            applyActPayload(dKey, resultTa, payload, resultMode, el)
             if (patchAll) patchMatchingSis(dKey, payload, resultMode)
           }
           ss(M_BUSY, false), ss(M_COMPLETE, true), ss(M_ERR, null), ss(M_CODE, Number.isFinite(res.status) ? res.status : null), ss(M_ABORT, null)
@@ -1497,70 +1598,75 @@
     // - dmSet('go', 1)
     const dmActApi = (el, dKey, dVal) => bindAddedSubs(el, (host) => dmAct(host, getApiDKey(dKey, ''), dVal))
     const WC_TMPLS = new WeakSet(), WC_INITS = new WeakSet(), WC_PROP_RE = /[^,\s]+/g
-    const WC_DOM_OPEN = 'dom.open', WC_DOM_CLOSED = 'dom.closed'
-    const projectSlots = (host, target) => {
-      const slots = target.querySelectorAll('slot')
+    const projectSlots = (host, contentFrag) => {
+      const slots = contentFrag.querySelectorAll('slot')
       if (!slots.length) return
-      const children = Array.from(host.childNodes)
-      for (const slot of Array.from(slots)) {
-        const name = slot.getAttribute('name')
-        let projected = false
-        for (let i = children.length - 1; i >= 0; --i) {
-          const ch = children[i]
-          if (name ? (ch.getAttribute && ch.getAttribute('slot') === name) : (ch.nodeType === 1 ? !ch.hasAttribute('slot') : ch.nodeType === 3)) {
-            slot.parentNode.insertBefore(ch, slot)
-            children.splice(i, 1)
-            projected = true
-          }
-        }
-        if (projected) slot.parentNode.removeChild(slot)
+      const hostChildren = []
+      for (let i = host.children.length - 1; i >= 0; --i) hostChildren.push(host.children[i])
+      const defaultSlot = [], namedSlots = noProto()
+      for (const ch of hostChildren) {
+        const slotName = ch.getAttribute && ch.getAttribute('slot')
+        if (slotName) (namedSlots[slotName] || (namedSlots[slotName] = [])).push(ch)
+        else defaultSlot.push(ch)
       }
+      for (const slot of slots) {
+        const slotName = slot.getAttribute('name') || ''
+        const projected = slotName ? namedSlots[slotName] : defaultSlot
+        if (projected && projected.length) {
+          const parent = slot.parentNode
+          if (!parent) continue
+          for (const child of projected) parent.insertBefore(child, slot)
+          parent.removeChild(slot)
+        }
+      }
+    }
+    const resolveWcMods = (mods) => {
+      let shadowMode = null
+      if (mods) for (const m of mods) {
+        if (m.root === M_DOM && m.path && m.path[0] === M_DOM_OPEN) shadowMode = 'open'
+        else if (m.root === M_DOM && m.path && m.path[0] === M_DOM_CLOSED) shadowMode = 'closed'
+      }
+      return shadowMode
     }
     const defWc = (tpl, name, mods) => {
       if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
       if (customElements.get(name) || WC_TMPLS.has(tpl)) return tpl
       WC_TMPLS.add(tpl)
-      const useShadow = mods && (mods.has(WC_DOM_OPEN) || mods.has(WC_DOM_CLOSED))
-      const shadowMode = useShadow ? (mods.has(WC_DOM_CLOSED) ? 'closed' : 'open') : null
-      const hasSlots = !shadowMode && tpl.content && tpl.content.querySelector('slot')
       const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(WC_PROP_RE) || NIL
+      const shadowMode = resolveWcMods(mods)
       const WC = class extends HTMLElement { connectedCallback() {
-        if (WC_INITS.has(this)) return; WC_INITS.add(this)
-        const target = shadowMode ? this.attachShadow({ mode: shadowMode }) : this
-        if ((shadowMode || hasSlots || !this.firstElementChild) && tpl.content) {
-          const clone = tpl.content.cloneNode(true)
-          if (hasSlots) {
-            const wrapper = document.createElement('div')
-            wrapper.appendChild(clone)
-            projectSlots(this, wrapper)
-            while (wrapper.firstChild) target.appendChild(wrapper.firstChild)
-          } else target.appendChild(clone)
+        if (WC_INITS.has(this)) return
+        WC_INITS.add(this)
+        let target
+        if (shadowMode) target = this.shadowRoot || this.attachShadow({ mode: shadowMode })
+        else target = this
+        if (tpl.content) {
+          const frag = tpl.content.cloneNode(true)
+          if (!shadowMode) projectSlots(this, frag)
+          target.appendChild(frag)
           wireItClone(target)
         }
-        for (const p of props) { let v = this['$' + p]; if (hasOwn(this, p)) v = this[p], delete this[p]; v !== undefined && (this[p] = v) }
+        if (shadowMode) wireItClone(this)
+        for (const p of props) {
+          let v = this['$' + p]
+          if (hasOwn(this, p)) v = this[p], delete this[p]
+          v !== undefined && (this[p] = v)
+        }
       } }
-      for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v })); const root = this.shadowRoot || this; for (let ch = root.firstElementChild; ch; ch = ch.nextElementSibling) ch.dispatchEvent(new CustomEvent(p, { detail: v })) } })
+      for (const p of props) Object.defineProperty(WC.prototype, p, { get() { return this['$' + p] }, set(v) { this['$' + p] = v, this.dispatchEvent(new CustomEvent(p, { detail: v, bubbles: true, composed: true })); for (let ch = this.firstElementChild; ch; ch = ch.nextElementSibling) ch.dispatchEvent(new CustomEvent(p, { detail: v, bubbles: true, composed: true })) } })
       customElements.define(name, WC)
       return tpl
     }
     const toWcTpl = (html, props, tpl = document.createElement('template')) => (props != null && tpl.setAttribute(DM_KEY + 'wc-props', Array.isArray(props) ? props.join(' ') : '' + props), tpl.innerHTML = html, tpl)
-    const parseWcMods = (dKey) => {
-      const mods = new Set()
-      const rest = dKey.slice(DM_KEY.length)
-      let p = rest.indexOf('^')
-      while (p >= 0) {
-        const end = indexFirst(rest, ['^', ':', '@'], p + 1)
-        const mod = rest.slice(p + 1, end < 0 ? rest.length : end)
-        if (mod) mods.add(mod)
-        p = end < 0 ? -1 : rest[end] === '^' ? end : -1
-      }
-      return mods.size ? mods : null
-    }
     // - dmWc('my-card','<article><slot></slot></article>'), dmWc(tplEl,'my-card')
-    const dmWc = (nameOrTpl, htmlOrName, props, mods) => nameOrTpl && nameOrTpl.tagName === 'TEMPLATE' ? defWc(nameOrTpl, htmlOrName && htmlOrName.trim(), mods) : typeof htmlOrName === 'string' ? defWc(typeof nameOrTpl === 'string' ? toWcTpl(htmlOrName, props) : nameOrTpl, nameOrTpl && nameOrTpl.trim(), mods) : logErr('dmWc expects (name, html[, props]) or (templateEl, name):', nameOrTpl)
-    // - <template data-m-wc="my-card"><article>...</article></template>
-    // - <template data-m-wc^dom.open="my-card"><article>...</article></template>
-    const dmWcAttr = (el, dKey, dVal) => el.tagName === 'TEMPLATE' ? dmWc(el, dVal, null, parseWcMods(dKey)) : logErr('Error: dmWc is template-only; use data-m-ex for WC host props in:', dKey)
+    const dmWc = (nameOrTpl, htmlOrName, props, mods) => nameOrTpl && nameOrTpl.tagName === 'TEMPLATE' ? defWc(nameOrTpl, htmlOrName && htmlOrName.trim(), mods) : typeof htmlOrName === 'string' ? defWc(typeof nameOrTpl === 'string' ? toWcTpl(htmlOrName, props) : nameOrTpl, nameOrTpl && nameOrTpl.trim(), mods) : logErr('dmWc expects (name, html[, props, mods]) or (templateEl, name[, mods]):', nameOrTpl)
+    // - <template data-m-wc="my-card">...</template>
+    // - <template data-m-wc^dom.open="my-card">...</template>
+    const dmWcAttr = (el, dKey, dVal) => {
+      if (el.tagName !== 'TEMPLATE') return logErr('Error: dmWc is template-only; use data-m-ex for WC host props in:', dKey)
+      const it = parseCached(dKey), mods = it[MOD]
+      return dmWc(el, dVal, undefined, mods)
+    }
     const dmNo = () => {}
     globalThis.dmAct = dmActApi
     globalThis.dmWc = dmWc

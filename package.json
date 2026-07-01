@@ -16,11 +16,11 @@
     "test:naming": "node tests/dmax.naming.js",
     "test:notebook": "node tests/notebook.asserts.e2e.js",
     "test:wc": "node tests/dmWc.e2e.js",
-    "test:wc-v2": "node tests/dmWcV2.e2e.js",
+    "test:host-scope": "node tests/dmHostScope.e2e.js",
     "test:auto-scan": "node tests/dmax.autoscan.e2e.js",
     "test:m-ex-cel": "node tests/m-ex-cel.e2e.js",
     "test:style": "node tests/dmStyle.e2e.js",
-    "test": "npm run test:actions && npm run test:fuzz && npm run test:headless && npm run test:size && npm run test:naming && npm run test:notebook && npm run test:wc && npm run test:wc-v2 && npm run test:auto-scan && npm run test:m-ex-cel && npm run test:style",
+    "test": "npm run test:actions && npm run test:fuzz && npm run test:headless && npm run test:size && npm run test:naming && npm run test:notebook && npm run test:wc && npm run test:host-scope && npm run test:auto-scan && npm run test:m-ex-cel && npm run test:style",
     "serve": "npx http-server -c-1 -p 8080"
   },
   "name": "dmax",
