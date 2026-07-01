@@ -226,36 +226,19 @@
     const getWcSubsFor = (host) => {
       const out = []
       const seen = new Set()
-      let cur = host
-      while (cur) {
-        const subs = _wcSubs.get(cur)
-        if (subs && subs.length) for (const s of subs) if (!seen.has(s)) { seen.add(s); out.push(s) }
-        let parent = cur.parentNode
-        if (!parent && cur.host) parent = cur.host
-        cur = parent
+      const subs = _wcSubs.get(host)
+      if (subs && subs.length) for (const s of subs) { seen.add(s); out.push(s) }
+      const stack = [host.firstElementChild]
+      while (stack.length) {
+        const el = stack.pop()
+        if (!el) continue
+        const s = _wcSubs.get(el)
+        if (s && s.length) for (const sub of s) if (!seen.has(sub)) { seen.add(sub); out.push(sub) }
+        if (el.shadowRoot) for (let ch = el.shadowRoot.firstElementChild; ch; ch = ch.nextElementSibling) stack.push(ch)
+        for (let ch = el.lastElementChild; ch; ch = ch.previousElementSibling) stack.push(ch)
       }
-      const walkDescendants = (root) => {
-        const stack = [root.firstElementChild]
-        while (stack.length) {
-          const el = stack.pop()
-          if (!el) continue
-          const subs = _wcSubs.get(el)
-          if (subs && subs.length) for (const s of subs) if (!seen.has(s)) { seen.add(s); out.push(s) }
-          // Skip into shadow roots
-          if (el.shadowRoot) for (let ch = el.shadowRoot.firstElementChild; ch; ch = ch.nextElementSibling) stack.push(ch)
-          for (let ch = el.lastElementChild; ch; ch = ch.previousElementSibling) stack.push(ch)
-        }
-      }
-      walkDescendants(host)
       return out
     }
-    const getHostStore = (host) => {
-      const h = resolveWcHost(host)
-      if (!h) return null
-      if (!h._wc || typeof h._wc !== 'object') h._wc = noProto()
-      return h._wc
-    }
-    const getHostEl = (host) => resolveWcHost(host)
     const DM = new Proxy({}, {
       get: (_, key) => _dm.get(key),
       set: (_, key, val) => { _dm.set(key, val); return true; },
@@ -512,7 +495,9 @@
     const PERMIT_MODS = Object.assign(noProto(), { [M_AND]: 1, [M_EQ]: 1, [M_NE]: 1, [M_LT]: 1, [M_GT]: 1, [M_LE]: 1, [M_GE]: 1 })
 
     const getSiVal = (it, host) => {
-      const sig = isWcRoot(it.root) ? getHostStore(host) : _dm.get(it.root)
+      let sig
+      if (isWcRoot(it.root)) { const h = resolveWcHost(host); sig = h ? (h._wc || (h._wc = noProto())) : null }
+      else sig = _dm.get(it.root)
       const path = it.path
       return path ? getPrValAndDepth(sig, path)[0] : sig
     }
@@ -757,16 +742,8 @@
       return list
     }
     const removeSiSub = (sub) => {
-      const root = sub.trig.root
-      if (isWcRoot(root)) {
-        const subs = sub.wcHost && _wcSubs.get(sub.wcHost)
-        if (!subs || !subs.length) return
-        for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
-        return
-      }
-      const subs = _subs.get(root)
-      if (!subs || !subs.length) return
-      for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
+      const subs = isWcRoot(sub.trig.root) ? (sub.wcHost && _wcSubs.get(sub.wcHost)) : _subs.get(sub.trig.root)
+      if (subs) for (let i = 0; i < subs.length; ++i) if (subs[i] === sub) { subs.splice(i, 1); return }
     }
     const clearSubId = (sub) => {
       const sp = sub.trig.sp
@@ -947,7 +924,7 @@
       const wc = isWcRoot(root)
       let actualHost, siVal
       if (wc) {
-        actualHost = getHostEl(host)
+        actualHost = resolveWcHost(host)
         if (!actualHost) return null
         if (!actualHost._wc || typeof actualHost._wc !== 'object') actualHost._wc = noProto()
         siVal = actualHost._wc
@@ -1339,41 +1316,18 @@
     // - dmGetHost(host, 'x')  / dmSetHost(host, 'x', 1)
     //   Per-host (per-element) state under the special _wc signal root.
     //   Stored on host._wc. Writes notify bindings scoped to that host.
-    const parseWcPath = (path) => {
-      const s = String(path || '')
-      let root, parts
-      if (!s) {
-        root = WC_HOST_ROOT
-        parts = null
-      } else {
-        const cleaned = s.replace(/^_wc\.?/, '')
-        if (cleaned === s && !s.startsWith('.')) {
-          // bare path like "count" or "obj.deep" — implicit _wc root
-          root = WC_HOST_ROOT
-          parts = cleaned ? cleaned.split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1)) : null
-        } else {
-          const parsed = parseRef('dmHost', s)
-          if (!parsed || !parsed.isSi) return null
-          root = parsed.root === '_wc' || parsed.root === 'wc' ? WC_HOST_ROOT : parsed.root
-          if (root !== WC_HOST_ROOT) return null
-          parts = parsed.path || null
-        }
-      }
-      return { root, path: parts }
-    }
     const dmGetHost = (host, path) => {
       if (!host) return undefined
-      const p = parseWcPath(path)
-      if (!p) return undefined
       const sig = host._wc
-      return p.path ? getPrValAndDepth(sig, p.path)[0] : sig
+      if (!path) return sig
+      const parts = String(path).replace(/^_wc\.?/, '').split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1))
+      return parts.length ? getPrValAndDepth(sig, parts)[0] : sig
     }
     const dmSetHost = (host, path, val) => {
       if (!host) return logErr('dmSetHost: host required'), null
-      const p = parseWcPath(path)
-      if (!p) return logErr('dmSetHost: path must target _wc.* signal, got:', path), null
-      const tar = mkIt(SI, null, p.root, p.path)
-      setSiAndNotifySubsNDeep('dmSetHost', tar, val, host)
+      const s = path ? String(path).replace(/^_wc\.?/, '') : ''
+      const parts = s ? s.split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1)) : null
+      setSiAndNotifySubsNDeep('dmSetHost', mkIt(SI, null, WC_HOST_ROOT, parts), val, host)
       return val
     }
     globalThis.dmGetHost = dmGetHost
@@ -1620,20 +1574,16 @@
         }
       }
     }
-    const resolveWcMods = (mods) => {
-      let shadowMode = null
-      if (mods) for (const m of mods) {
-        if (m.root === M_DOM && m.path && m.path[0] === M_DOM_OPEN) shadowMode = 'open'
-        else if (m.root === M_DOM && m.path && m.path[0] === M_DOM_CLOSED) shadowMode = 'closed'
-      }
-      return shadowMode
-    }
     const defWc = (tpl, name, mods) => {
       if (!name || name.indexOf('-') < 0) return logErr('dmWc template expects custom-element name value:', name)
       if (customElements.get(name) || WC_TMPLS.has(tpl)) return tpl
       WC_TMPLS.add(tpl)
       const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(WC_PROP_RE) || NIL
-      const shadowMode = resolveWcMods(mods)
+      let shadowMode = null
+      if (mods) for (const m of mods) {
+        if (m.root === M_DOM && m.path && m.path[0] === M_DOM_OPEN) shadowMode = 'open'
+        else if (m.root === M_DOM && m.path && m.path[0] === M_DOM_CLOSED) shadowMode = 'closed'
+      }
       const WC = class extends HTMLElement { connectedCallback() {
         if (WC_INITS.has(this)) return
         WC_INITS.add(this)
