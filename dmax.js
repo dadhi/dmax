@@ -1822,8 +1822,9 @@
       const mode = (args.mode || M_OUTER).toLowerCase()
       const ns = args.namespace ? '' + args.namespace : 'html'
       const rawEls = args.html || args[SSE_ELS] || args[SSE_EL] || ''
-      const m = !args.selector && ns === 'html' && rawEls && HTML_ID_RE.exec(rawEls)
-      const sel = args.selector ? '' + args.selector : m ? '#' + (m[1] || m[2] || '') : ''
+      const userSel = args.selector ? '' + args.selector : ''
+      const m = !userSel && ns === 'html' && rawEls && HTML_ID_RE.exec(rawEls)
+      const sel = userSel || (m ? '#' + (m[1] || m[2] || '') : '')
       if (mode === M_REPLACE && ns === 'html' && rawEls) {
         const tars = sel && getPatchTars(sel), tar = sel ? tars.length === 1 && tars[0] : null
         if (tar) return void (tar.outerHTML = '' + rawEls)
@@ -1840,9 +1841,9 @@
         return
       }
 
-      if (sel) {
+      if (userSel) {
         if (!srcEls.length) return
-        const tars = getPatchTars(sel)
+        const tars = getPatchTars(userSel)
         if (tars.length === 1 && srcEls.length === 1) {
           applyPatchPair(tars[0], srcEls[0], mode, true)
           return
