@@ -69,12 +69,13 @@ Slots work automatically:
 
 Use `:_wc` as a signal root to keep state on the host instead of
 the page-level signal store. `:_wc` extends the existing `_` family
-(no grammar change), so all the normal dKey rules apply.
+(no grammar change), so all the normal dKey rules apply — including
+the write-mode mods (`^inc`, `^dec`, `^merge`, `^append`, `^rw`, …).
 
 ```html
-<my-counter data-m-ex:.text-content@:_wc.count="String(val)">
-  <button data-m-ex:dmSet@.click=":_wc.count, val - 1">-</button>
-  <button data-m-ex:dmSet@.click=":_wc.count, val + 1">+</button>
+<my-counter data-m-ex:.text-content@:_wc.count>
+  <button data-m-ex:_wc.count^dec@.click>-1</button>
+  <button data-m-ex:_wc.count^inc@.click>+1</button>
 </my-counter>
 ```
 
@@ -84,7 +85,8 @@ walking up the DOM to the nearest ancestor with an initialized
 
 The public helpers `dmGetHost(host, path)` and `dmSetHost(host, path, val)`
 read and write per-host state. `dmSet` refuses `:_wc` targets so the
-distinction between page-level and per-host signals stays clear.
+distinction between page-level and per-host signals stays clear —
+use `dmSetHost` for any write that crosses into host scope.
 
 ## Host prop input
 

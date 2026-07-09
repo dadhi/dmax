@@ -219,15 +219,25 @@ the page-level store. Each host gets its own `_wc`; siblings do not
 share it.
 
 ```html
-<my-counter data-m-ex:.text-content@:_wc.count="String(val)">
-  <button data-m-ex:dmSet@.click=":_wc.count, val - 1">-</button>
-  <button data-m-ex:dmSet@.click=":_wc.count, val + 1">+</button>
+<my-counter data-m-ex:.text-content@:_wc.count>
+  <button data-m-ex:_wc.count^dec@.click>-1</button>
+  <button data-m-ex:_wc.count^inc@.click>+1</button>
 </my-counter>
 ```
 
 The helpers `dmGetHost(host, path)` and `dmSetHost(host, path, val)`
 read and write per-host state. `dmSet` refuses `:_wc` targets to
 keep page-level and per-host signals distinct.
+
+CSS custom property dKeys support an explicit `--` prefix:
+
+```html
+<div data-m-ex:.style.--accent-color@accent></div>
+<div data-m-ex:.style.--gap-2@theme.gap="val * 2"></div>
+```
+
+The leading `--` is preserved verbatim and not mangled by
+camel/kebab conversion.
 
 ## Actions and SSE
 
