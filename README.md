@@ -111,6 +111,15 @@ Imperative helpers for dynamic code paths: `dmSet(...)`, `dmSub(...)`, `dmScan(.
 
 CSS custom property binding: any `style.*` target that doesn't match a known CSS prop falls through to `style.setProperty('--<kebab>', val)`.
 
+For explicit custom property names, write the leading `--` in the dKey:
+
+```html
+<div data-m-ex:.style.--accent-color@accent></div>
+<div data-m-ex:.style.--gap-2@theme.gap="val * 2"></div>
+```
+
+The leading `--` is preserved verbatim and not mangled by camel/kebab conversion.
+
 ## Read modifiers (pipeline)
 
 Read mods compose left-to-right. The first selector picks a value source; transforms map it; `^` extracts a sub-path or array index.
@@ -188,6 +197,47 @@ Drive host props with normal `data-m-ex`:
 
 <mx-uplot data-m-ex:chart-last^merge@.point="{ from: 'chart-1', ...val }"></mx-uplot>
 ```
+
+### Shadow DOM and per-host state
+
+Opt a custom element into a shadow root with a `^dom` mod on
+`dmWc`. `^dom` attaches an open shadow root, `^dom.closed` attaches
+a closed one. In both cases the host's `data-m-*` attrs are still
+wired normally.
+
+```js
+dmWc('my-card', '<style>:host{display:block}</style><article><slot></slot></article>',
+     undefined, [{ root: 'dom', path: ['open'] }])
+```
+
+Slots project automatically: in light DOM, child elements fall into
+matching `<slot>` elements; in shadow mode, light-DOM children of
+the host are projected into the shadow slots by the browser.
+
+Use `:_wc` as a signal root to keep state on the host instead of
+the page-level store. Each host gets its own `_wc`; siblings do not
+share it.
+
+```html
+<my-counter data-m-ex:.text-content@:_wc.count>
+  <button data-m-ex:_wc.count^dec@.click>-1</button>
+  <button data-m-ex:_wc.count^inc@.click>+1</button>
+</my-counter>
+```
+
+The helpers `dmGetHost(host, path)` and `dmSetHost(host, path, val)`
+read and write per-host state. `dmSet` refuses `:_wc` targets to
+keep page-level and per-host signals distinct.
+
+CSS custom property dKeys support an explicit `--` prefix:
+
+```html
+<div data-m-ex:.style.--accent-color@accent></div>
+<div data-m-ex:.style.--gap-2@theme.gap="val * 2"></div>
+```
+
+The leading `--` is preserved verbatim and not mangled by
+camel/kebab conversion.
 
 ## Actions and SSE
 

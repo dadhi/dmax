@@ -241,6 +241,16 @@ function* generateDataSubCombinations() {
     yield { attr, valid: true, category: 'discard-bad-parts' }
   for (const attr of ['data-m-ex@!xxx@!', 'data-m-ex@!!!!'])
     yield { attr, valid: false, category: 'discard-bad-parts-log', expectedLog: 'error', logPattern: 'bare !:' }
+
+  // :_wc per-host signal combinations
+  yield { attr: 'data-m-ex:_wc.count^inc@.click', valid: true, category: '_wc-inc' }
+  yield { attr: 'data-m-ex:.@_wc.count', valid: true, category: '_wc-read' }
+  yield { attr: 'data-m-ex:_wc.x@.input', valid: true, category: '_wc-write-event' }
+  yield { attr: 'data-m-ex@.^rw@_wc.draft', valid: true, category: '_wc-rw' }
+  yield { attr: 'data-m-ex:_wc.items^merge@.click', valid: true, category: '_wc-merge' }
+  yield { attr: 'data-m-ex:_wc.n^dec@.click', valid: true, category: '_wc-dec' }
+  yield { attr: 'data-m-ex:.style.color@_wc.color', valid: true, category: '_wc-style' }
+  yield { attr: 'data-m-ex:_wc.deep.nested@foo', valid: true, category: '_wc-deep-path' }
 }
 
 function* generateDataSubRwCombinations() {

@@ -45,6 +45,49 @@ Default stance:
 - light DOM first
 - shadow DOM only when style or library isolation is really needed
 
+## Shadow modes
+
+Opt a WC into shadow DOM by passing a `^dom` mod to `dmWc`:
+
+```js
+dmWc('my-card', '<style>:host{display:block}</style><article><slot></slot></article>',
+     undefined, [{ root: 'dom', path: ['open'] }])
+```
+
+`^dom` alone attaches an open shadow root. `^dom.closed` attaches a
+closed shadow root. In both cases the host's `data-m-*` attrs are
+still wired normally — shadow mode only changes where the template
+content is mounted.
+
+Slots work automatically:
+- in light DOM, the browser projects child elements into matching
+  `<slot>` elements
+- in shadow mode, light-DOM children of the host are projected into
+  shadow slots by the browser as usual
+
+## Per-host state with `:_wc`
+
+Use `:_wc` as a signal root to keep state on the host instead of
+the page-level signal store. `:_wc` extends the existing `_` family
+(no grammar change), so all the normal dKey rules apply — including
+the write-mode mods (`^inc`, `^dec`, `^merge`, `^append`, `^rw`, …).
+
+```html
+<my-counter data-m-ex:.text-content@:_wc.count>
+  <button data-m-ex:_wc.count^dec@.click>-1</button>
+  <button data-m-ex:_wc.count^inc@.click>+1</button>
+</my-counter>
+```
+
+Each `<my-counter>` instance gets its own `_wc` store, looked up by
+walking up the DOM to the nearest ancestor with an initialized
+`_wc`. Two sibling counters do not share state.
+
+The public helpers `dmGetHost(host, path)` and `dmSetHost(host, path, val)`
+read and write per-host state. `dmSet` refuses `:_wc` targets so the
+distinction between page-level and per-host signals stays clear —
+use `dmSetHost` for any write that crosses into host scope.
+
 ## Host prop input
 
 Drive public host props with `data-m-ex`.

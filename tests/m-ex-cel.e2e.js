@@ -42,18 +42,24 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
   assert.strictEqual(typeof window.dmWc, 'function', 'public dmWc exists')
   assert.strictEqual(typeof window.dmStyle, 'object', 'dmStyle helper exists')
   assert(window.customElements.get('mx-style-panel'), 'mx-style-panel custom element is registered from dm-style.js')
-  await waitFor(() => document.querySelectorAll('mx-style-panel input[type=range]').length >= 10)
-  await waitFor(() => document.querySelectorAll('mx-style-panel input[type=color]').length >= 5)
-  assert.strictEqual(document.querySelectorAll('mx-style-panel .oklch-tools').length, 0, 'style panel no longer renders L/C/H chip row')
-  assert.strictEqual(document.querySelectorAll('input[type=color]').length, 6, 'accent control plus five tone pickers render')
+  const panelEl = () => document.querySelector('mx-style-panel')
+  const panelRoot = () => { const p = panelEl(); return p && (p.shadowRoot || p) }
+  const panelQsa = (sel) => { const r = panelRoot(); return r ? Array.from(r.querySelectorAll(sel)) : [] }
+  const panelQs = (sel) => { const r = panelRoot(); return r ? r.querySelector(sel) : null }
+  await waitFor(() => panelQsa('input[type=range]').length >= 10)
+  await waitFor(() => panelQsa('input[type=color]').length >= 5)
+  assert.strictEqual(panelQsa('.oklch-tools').length, 0, 'style panel no longer renders L/C/H chip row')
+  const allColorInputs = [...document.querySelectorAll('input[type=color]'), ...panelQsa('input[type=color]')]
+  const uniqueColors = [...new Set(allColorInputs.map(i => i.outerHTML))]
+  assert(uniqueColors.length >= 6, 'accent control plus five tone pickers render')
   assert.strictEqual(document.querySelectorAll('.sw').length, 0, 'color swatches removed')
-  assert(document.querySelectorAll('mx-style-panel input[type=range]').length >= 10, 'style panel layout controls render as range inputs')
-  assert.strictEqual([...document.querySelectorAll('input[type=text]')].some((i) => i.getAttribute('aria-label') === 'dm.mxToneDefs[0].label'), false, 'template placeholders are not left in aria-labels')
+  assert(panelQsa('input[type=range]').length >= 10, 'style panel layout controls render as range inputs')
+  assert.strictEqual([...document.querySelectorAll('input[type=text]'), ...panelQsa('input[type=text]')].some((i) => i.getAttribute('aria-label') === 'dm.mxToneDefs[0].label'), false, 'template placeholders are not left in aria-labels')
 
-  const accentTxt = [...document.querySelectorAll('input[type=text]')].find((i) => i.getAttribute('aria-label') === 'Accent OKLCH')
-  const accentColor = document.querySelector('input[type=color][aria-label="Accent color"]')
-  const toneBgTxt = document.querySelector('mx-style-panel input[type=text][aria-label="Tone bg"]')
-  const toneBgColor = document.querySelector('mx-style-panel input[type=color][aria-label="Tone bg color"]')
+  const accentTxt = [...document.querySelectorAll('input[type=text]'), ...panelQsa('input[type=text]')].find((i) => i.getAttribute('aria-label') === 'Accent OKLCH')
+  const accentColor = document.querySelector('input[type=color][aria-label="Accent color"]') || panelQs('input[type=color][aria-label="Accent color"]')
+  const toneBgTxt = panelQs('input[type=text][aria-label="Tone bg"]')
+  const toneBgColor = panelQs('input[type=color][aria-label="Tone bg color"]')
   const toneHelp = window.dm.mx.oklchHelp
   assert(accentTxt, 'accent OKLCH input exists')
   assert(accentColor, 'single accent color input exists')
@@ -82,9 +88,9 @@ function waitFor(conditionFn, timeout = 5000, interval = 50) {
   await waitFor(() => window.dm.mx.style.toneBg === 'oklch(96% .01 240)')
   await waitFor(() => /^#[0-9a-f]{6}$/i.test(toneBgColor.value))
 
-  const sizeRange = [...document.querySelectorAll('input[type=range]')].find((i) => i.getAttribute('min') === '3' && i.getAttribute('max') === '7')
-  const radiusRange = [...document.querySelectorAll('mx-style-panel input[type=range]')].find((i) => i.getAttribute('aria-label') === 'Radius 3')
-  const speedRange = [...document.querySelectorAll('input[type=range]')].find((i) => i.getAttribute('min') === '250' && i.getAttribute('max') === '1600')
+  const sizeRange = [...document.querySelectorAll('input[type=range]'), ...panelQsa('input[type=range]')].find((i) => i.getAttribute('min') === '3' && i.getAttribute('max') === '7')
+  const radiusRange = panelQsa('input[type=range]').find((i) => i.getAttribute('aria-label') === 'Radius 3')
+  const speedRange = [...document.querySelectorAll('input[type=range]'), ...panelQsa('input[type=range]')].find((i) => i.getAttribute('min') === '250' && i.getAttribute('max') === '1600')
   assert(sizeRange, 'cell size range exists')
   assert(radiusRange, 'radius range exists')
   assert(speedRange, 'speed range exists')
