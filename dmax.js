@@ -26,7 +26,6 @@
     const SI = 's', EP = DOT, SP = '_'
 
     const M_WITH_SHAPE = 'with_shape', M_SHAPE_ONLY = 'shape_only', M_DOM = 'dom'
-    const M_DOM_OPEN = 'open', M_DOM_CLOSED = 'closed'
     const WC_HOST_ROOT = '_wc'
     const M_IMMEDIATE = 'immediate', M_NOT_IMMEDIATE = 'notImmediate'
     const M_ONCE = 'once', M_ALWAYS = 'always', M_DEBOUNCE = 'debounce', M_THROTTLE = 'throttle', M_RAF = 'raf', M_PREVENT = 'prevent'
@@ -217,23 +216,15 @@
       }
       return el
     }
-    // Collect all signal subscriptions that are scoped to any element
-    // between (and including) the binding element and an ancestor with _wc.
-    // A binding registered on `el` lives in _wcSubs.get(el), and we walk
-    // up to ancestor hosts to notify on writes. We also walk DOWN the host's
-    // subtree to catch bindings that were registered before the host's _wc
-    // was initialized (so they ended up keyed on themselves).
+    // Collect _wc subscriptions from the host and its descendants.
     const getWcSubsFor = (host) => {
-      const out = []
-      const seen = new Set()
-      const subs = _wcSubs.get(host)
-      if (subs && subs.length) for (const s of subs) { seen.add(s); out.push(s) }
+      const out = _wcSubs.get(host) || []
       const stack = [host.firstElementChild]
       while (stack.length) {
         const el = stack.pop()
         if (!el) continue
         const s = _wcSubs.get(el)
-        if (s && s.length) for (const sub of s) if (!seen.has(sub)) { seen.add(sub); out.push(sub) }
+        if (s && s.length) for (const sub of s) out.push(sub)
         if (el.shadowRoot) for (let ch = el.shadowRoot.firstElementChild; ch; ch = ch.nextElementSibling) stack.push(ch)
         for (let ch = el.lastElementChild; ch; ch = ch.previousElementSibling) stack.push(ch)
       }
@@ -252,30 +243,12 @@
     // - data-m-si:foo='{bar: "hey"}' // foo signal
     // - data-m-si:foo:baz='`js expr ${42}`' // eval expr as Function body and set to all signals
     // - data-m-si:foo='el.Value * dm.bar' // you may use other signals and element props
-    const setSiRaw = (root, path, val, host) => {
-      if (isWcRoot(root)) {
-        if (!host) return null
-        if (!path || !path.length) {
-          host._wc = val && typeof val === 'object' ? val : noProto()
-          return host._wc
-        }
-        if (!host._wc || typeof host._wc !== 'object') host._wc = noProto()
-        let parent = host._wc
-        for (let i = 0; i < path.length - 1; ++i) {
-          parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
-        }
-        parent[path.at(-1)] = val
-        return host._wc
-      }
-      if (!path || !path.length) { _dm.set(root, val); return val }
-      let cur = _dm.get(root)
-      if (!cur || typeof cur !== 'object') _dm.set(root, cur = noProto())
-      let parent = cur
-      for (let i = 0; i < path.length - 1; ++i) {
-        parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
-      }
+    const initWcStore = (host, path, val) => {
+      if (!path || !path.length) { host._wc = val && typeof val === 'object' ? val : noProto(); return }
+      if (!host._wc || typeof host._wc !== 'object') host._wc = noProto()
+      let parent = host._wc
+      for (let i = 0; i < path.length - 1; ++i) parent = parent[path[i]] && typeof parent[path[i]] === 'object' ? parent[path[i]] : (parent[path[i]] = noProto())
       parent[path.at(-1)] = val
-      return cur
     }
 
     const dmSi = (el, dKey, dVal) => {
@@ -292,7 +265,7 @@
       for (const t of tars) {
         if (t.kind != SI) { logErr('signal targets only:', t, dKey); continue }
         if (t.mods.length) warn('mods ignored:', t.mods, dKey)
-        if (isWcRoot(t.root)) { if (!el) { logErr('dmSi :_wc needs a host element:', dKey); continue } setSiRaw(t.root, t.path, val, el) }
+        if (isWcRoot(t.root)) { if (!el) { logErr('dmSi :_wc needs a host element:', dKey); continue } initWcStore(el, t.path, val) }
         else _dm.set(t.root, val)
       }
     }
@@ -791,33 +764,8 @@
       if (typeof CSS !== 'undefined' && CSS?.escape) return CSS.escape(s)
       return s.replace(/["\\]/g, '\\$&')
     }
-    const dmSel = (sel, root = document) => {
-      const found = root.querySelector(sel || '')
-      if (found) return found
-      const all = root.querySelectorAll('*')
-      for (let i = 0; i < all.length; ++i) if (all[i].shadowRoot) {
-        const deep = dmSel(sel, all[i].shadowRoot)
-        if (deep) return deep
-      }
-      return null
-    }
-    const splitCompound = (sel) => {
-      const s = sel || '', i = s.indexOf(' ')
-      return i < 0 ? [s, null] : [s.slice(0, i), s.slice(i + 1)]
-    }
-    const dmSelAll = (sel, root = document) => {
-      const out = Array.from(root.querySelectorAll(sel || ''))
-      const [head, tail] = splitCompound(sel)
-      const all = root.querySelectorAll('*')
-      for (let i = 0; i < all.length; ++i) {
-        const el = all[i]
-        if (el.shadowRoot) {
-          if (tail && el.matches && el.matches(head)) out.push(...dmSelAll(tail, el.shadowRoot))
-          else if (!tail) out.push(...dmSelAll(sel, el.shadowRoot))
-        }
-      }
-      return out
-    }
+    const dmSel = (sel, root = document) => root.querySelector(sel || '')
+    const dmSelAll = (sel, root = document) => Array.from(root.querySelectorAll(sel || ''))
     const dmEl = (id, root = document) => {
       if (!id) return null
       const rid = String(id)[0] === '#' ? String(id).slice(1) : String(id)
@@ -945,7 +893,7 @@
       // if change detected it means ALL parents of cur  and SOME of children changed
       if (!valChangedDeep(curVal, val)) return;
 
-      const handlers = wc ? getWcSubsFor(actualHost) : (() => { const h = _subs.get(root); return h && h.length ? h : NIL })();
+      const handlers = wc ? getWcSubsFor(actualHost) : _subs.get(root) || NIL
       if (!handlers || !handlers.length) {
         if (!path) {
           if (wc) actualHost._wc = val && typeof val === 'object' ? val : noProto()
@@ -1320,13 +1268,12 @@
       if (!host) return undefined
       const sig = host._wc
       if (!path) return sig
-      const parts = String(path).replace(/^_wc\.?/, '').split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1))
+      const parts = String(path).split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1))
       return parts.length ? getPrValAndDepth(sig, parts)[0] : sig
     }
     const dmSetHost = (host, path, val) => {
       if (!host) return logErr('dmSetHost: host required'), null
-      const s = path ? String(path).replace(/^_wc\.?/, '') : ''
-      const parts = s ? s.split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1)) : null
+      const parts = path ? String(path).split('.').map(p => /^\d+$/.test(p) ? p : toName(p, 1)) : null
       setSiAndNotifySubsNDeep('dmSetHost', mkIt(SI, null, WC_HOST_ROOT, parts), val, host)
       return val
     }
@@ -1555,17 +1502,16 @@
     const projectSlots = (host, contentFrag) => {
       const slots = contentFrag.querySelectorAll('slot')
       if (!slots.length) return
-      const hostChildren = []
-      for (let i = host.children.length - 1; i >= 0; --i) hostChildren.push(host.children[i])
+      const children = Array.from(host.children)
       const defaultSlot = [], namedSlots = noProto()
-      for (const ch of hostChildren) {
-        const slotName = ch.getAttribute && ch.getAttribute('slot')
-        if (slotName) (namedSlots[slotName] || (namedSlots[slotName] = [])).push(ch)
+      for (const ch of children) {
+        const sn = ch.getAttribute && ch.getAttribute('slot')
+        if (sn) (namedSlots[sn] || (namedSlots[sn] = [])).push(ch)
         else defaultSlot.push(ch)
       }
       for (const slot of slots) {
-        const slotName = slot.getAttribute('name') || ''
-        const projected = slotName ? namedSlots[slotName] : defaultSlot
+        const sn = slot.getAttribute('name') || ''
+        const projected = sn ? namedSlots[sn] : defaultSlot
         if (projected && projected.length) {
           const parent = slot.parentNode
           if (!parent) continue
@@ -1581,8 +1527,7 @@
       const props = (tpl.getAttribute(DM_KEY + 'wc-props') || '').match(WC_PROP_RE) || NIL
       let shadowMode = null
       if (mods) for (const m of mods) {
-        if (m.root === M_DOM && m.path && m.path[0] === M_DOM_OPEN) shadowMode = 'open'
-        else if (m.root === M_DOM && m.path && m.path[0] === M_DOM_CLOSED) shadowMode = 'closed'
+        if (m.root === M_DOM && m.path) shadowMode = m.path[0] === 'open' ? 'open' : m.path[0] === 'closed' ? 'closed' : null
       }
       const WC = class extends HTMLElement { connectedCallback() {
         if (WC_INITS.has(this)) return
