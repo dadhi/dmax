@@ -41,7 +41,7 @@
     const M_SPREAD = 'spread', M_SEND_ALL = 'sendAll', M_PATCH_ALL = 'patchAll', M_SYNC_ALL = 'syncAll'
     const M_DEBOUNCE_MS = 500, M_THROTTLE_MS = 500, M_RETRY_MS = 1000
     const H_ACCEPT = 'accept', H_ACCEPT_ENCODING = 'accept-encoding', H_AUTHORIZATION = 'authorization'
-    const H_CACHE_CONTROL = 'cache-control', H_CONTENT_TYPE = 'content-type', H_PRAGMA = 'pragma'
+    const H_CACHE_CONTROL = 'cache-control', H_CONNECTION = 'connection', H_CONTENT_TYPE = 'content-type', H_PRAGMA = 'pragma'
     const noProto = () => Object.create(null)
     const ACT_HS_EMPTY = Object.freeze(noProto())
     const ACT_HS_JSON = Object.freeze({ [H_CONTENT_TYPE]: 'application/json', [H_ACCEPT]: 'application/json' })
@@ -49,7 +49,7 @@
     const ACT_HS_FORM = Object.freeze({ [H_CONTENT_TYPE]: 'application/x-www-form-urlencoded' })
     const ACT_HS_TEXT = Object.freeze({ [H_CONTENT_TYPE]: 'text/plain;charset=UTF-8' })
     const ACT_HS_NO_CACHE = Object.freeze({ [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
-    const ACT_HS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_PRAGMA]: 'no-cache' })
+    const ACT_HS_SSE = Object.freeze({ [H_ACCEPT]: 'text/event-stream', [H_CACHE_CONTROL]: 'no-cache', [H_CONNECTION]: 'keep-alive', [H_PRAGMA]: 'no-cache' })
     const SP_WIN = 'window', SP_DOC = 'document', SP_HISTORY = 'history', SP_FORM = 'form', SP_INTERVAL = 'interval', SP_TIMEOUT = 'timeout', SP_VIEWED = 'viewed', SP_INIT = 'init'
     const SPS = [SP_WIN, SP_DOC, SP_HISTORY, SP_FORM, SP_INTERVAL, SP_TIMEOUT, SP_VIEWED, SP_INIT]
     const SP_WIN_EV = 'resize', SP_DOC_EV = 'visibilitychange', SP_INTERVAL_MS = 500, SP_TIMEOUT_MS = 500
