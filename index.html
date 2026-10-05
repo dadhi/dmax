@@ -258,7 +258,7 @@
         <button id="replaceHash" data-m-ex:_history.replace-state@.="[null, '', '#demo-replace']">Replace #demo-replace</button>
       </p>
       <p>Current hash: <span id="hashOut" data-m-ex:.@_init@_window.hashchange^.location.hash="val || '#'"></span></p>
-      <mx-step id="wcStep" data-m-ex:.@wc-step="'' + val" data-m-ex:wc-picked@.step-picked^ev="val.step"></mx-step>
+      <mx-step id="wcStep" data-m-ex:.@wc-step data-m-ex:wc-picked:wc-step@.step-picked^ev="val.step"></mx-step>
       <p>WC default <code>value</code> prop: <span data-m-ex:.@wc-step></span></p>
       <p>WC custom event detail: <span data-m-ex:.@wc-picked></span></p>
       <ul><li class="sel-all-demo-item">alpha</li><li class="sel-all-demo-item">beta</li><li class="sel-all-demo-item">gamma</li></ul>
@@ -487,7 +487,7 @@
       get value() { return this._value }
       set value(v) { this._value = +v || 0; this.shadowRoot.querySelector('output').textContent = '' + this._value }
       connectedCallback() {
-        this.shadowRoot.querySelector('button').onclick = () => this.dispatchEvent(new CustomEvent('step-picked', { detail: { step: this._value + 1 } }))
+        this.shadowRoot.querySelector('button').onclick = () => { this.value = this._value + 1; this.dispatchEvent(new CustomEvent('step-picked', { detail: { step: this._value } })) }
         this.value = this._value
       }
     })
