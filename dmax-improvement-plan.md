@@ -12,6 +12,21 @@ Simplify responsibilities before compressing code. Fix correctness and lifetime 
 
 The intended result is a no-build, batteries-included release that can be used for a real interactive page without application authors repairing the runtime's lifecycle, transport, or state behavior.
 
+## API design principle: preserve expert control, make responsibilities explicit
+
+The intended users include expert developers. The library cannot predict every integration, ownership model, or performance requirement. Do not solve an implementation difficulty by prohibiting a useful capability. First look for a small change in naming, responsibility, scope, or contract that makes the capability clear and composable.
+
+Use this approach throughout the plan:
+
+- Distinguish a safe/convenient default from a platform or security invariant. A default is not a universal restriction.
+- Separate operations with different effects. Names should reveal mutation, notification, serialization, ownership, and cancellation rather than conceal them behind a generic method.
+- Keep lower-level control available through documented public APIs, not private internals or workarounds. Expert paths need predictable guarantees and tests too.
+- Prefer a few orthogonal primitives plus convenience compositions over feature bans, flag cross-products, or a generic plugin framework.
+- Before removing a capability, show the concrete invariant it violates and why a clearer API or explicit ownership cannot preserve it. Lack of imagined use cases is not evidence that the capability is unnecessary.
+- Preserve non-negotiable security/trust boundaries. Expert control does not make prototype pollution, unauthorized server actions, or misleading guarantees acceptable.
+
+For each material API decision record: common default, expert-controlled operation, effects guaranteed by each, caller-owned obligations, and examples/tests. A small rename that removes a false expectation can be a material improvement even when runtime code does not shrink.
+
 ## Objectives and constraints
 
 The following product direction comes from the project owner's request. Acceptance measures below are proposed engineering gates, not measured results.
@@ -55,16 +70,16 @@ These are the recommended choices. They are not approval records.
 
 | Decision | Recommended choice | Main benefit | Cost or limitation | Rejected alternative |
 | --- | --- | --- | --- | --- |
-| State mutation | Explicit setters/patches; immutable replacement where appropriate; read access does not imply reactive assignment | One notification authority; fewer equality and proxy edge cases | Direct `dm.x = value` and nested in-place mutation must be rejected or clearly disallowed | Silently mixing notified setters with unnotified object writes |
-| Dependency model | Explicit trigger dependencies; references inside expressions do not add hidden subscriptions | Predictable dataflow without a second tracking model | Every dependency must be declared; dynamic dependencies require explicit handling | Adding a parallel automatic-tracking system without replacing the explicit model |
+| State mutation and notification | Preserve direct and nested mutation; distinguish mutation-only `set` from `setAndTrigger` and explicit `trigger` | One notification engine with clearly named responsibilities; expert-controlled publication | Raw mutation does not notify by itself; callers must publish affected paths; deep old/new diffs are not implicit | Ambiguous methods that hide whether they notify, or blanket bans on direct mutation |
+| Dependency model | Explicit dependencies by default; public subscription/disposal operations support dynamic dependencies | Predictable common behavior with expert control | Dynamic dependency owners must update and dispose subscriptions explicitly | Hidden subscriptions or a blanket ban on dynamic dependency use cases |
 | Scope | Explicit page/component/item scope supplied to bindings | Isolation without ancestor-state heuristics or textual scope substitution | Scope/context representation becomes a maintained internal contract | Discovering ownership from whichever ancestor has initialized state |
 | DOM lifecycle | Idempotent mounted bindings with one disposer and move-aware reconciliation | Consistent scanning, streaming, lists, and components | Binding registry and reconciliation work | Independent cleanup rules in each feature |
 | Directive syntax | One DOM-safe grammar; selectors/complex data in values | Ordinary DOM operations work; fewer parallel-attribute workarounds | Breaking syntax and documentation changes | Preserving syntax that the HTML parser accepts but DOM setters reject |
 | Components | Template-once default, small prop contract, explicit setup/cleanup | Reusable components without a second render framework | Less render flexibility than Rocket; required lifecycle work remains | Copying Rocket's entire API or retaining a template-only shell with incomplete lifetime semantics |
-| SSE recovery | Snapshot-on-reconnect for read streams; no automatic replay guarantee | Small, understandable recovery contract | Backend must send a complete authoritative snapshot first | Implicit event replay without cursor, ordering, and deduplication semantics |
+| SSE recovery | Snapshot-on-reconnect default; expose cursor/header and recovery hooks for application-owned replay | Simple common recovery without closing expert integration paths | Replay users own cursor validity, ordering, deduplication, and resynchronization | Implicit replay guarantees or prohibiting replay because the default uses snapshots |
 | Packaging | One default distribution includes the agreed batteries | No assembly tax for users | All included runtime bytes count toward the budget | Reporting a tiny core while excluding required capabilities |
 
-If a required use case needs event replay or automatic dependency tracking, reopen that decision before implementing dependent behavior. Do not conceal the extra responsibility in application code.
+Defaults do not exhaust the API. Preserve explicit integration points for other use cases, with responsibilities visible in the contract. A built-in replay service or automatic tracking engine still needs a separately justified design; exposing primitives does not claim those guarantees exist.
 
 ## Material design check: less work for the common case
 
@@ -76,7 +91,7 @@ This is a design check, not a source-line quota. Fewer lines achieved by dense f
 
 1. Name the common user task and its required normal, failure, and recovery outcomes. Choose representative tasks from real examples, not a favorable microbenchmark.
 2. Compare the smallest complete current solution with the proposal. Count author-written markup/JS, runtime mechanisms, mutable states, special cases, setup steps, and interactions separately. Do not collapse them into one score.
-3. First ask whether the responsibility is needed. Can native HTML/CSS, one authoritative model, a better input contract, explicit ownership, or a different workflow make it disappear?
+3. First ask whether the responsibility is needed in this layer. Can native HTML/CSS, one authoritative model, a better input contract, explicit ownership, or a different workflow make it disappear? Remove redundant machinery, not developer capability; preserve the outcome and an explicit expert path where needed.
 4. Write the causal chain: small design change -> responsibility removed -> code/state/interactions no longer needed -> preserved user effects -> new or relocated obligations.
 5. Verify the common task and its edge cases against the same acceptance. Measure resource use and shipped size separately; fewer mechanisms do not prove faster execution.
 6. Record the result as **simplified**, **necessary added complexity**, **complexity relocated**, or **not demonstrated**. Reject unowned relocation and lost required effects. A justified increase is allowed, but must name the guarantee or user work it buys back.
@@ -105,7 +120,7 @@ Order expresses necessity, not estimated effort. Tests are written with each cha
 | 1 | P0: correctness blocker | Repair state notification and scope correctness | Pinned reproductions; state/scope decisions | O2, O3, O4 |
 | 2 | P0: correctness and memory blocker | Make SSE decoding conform to one protocol and retain no history | Protocol/recovery decisions | O3, O4, O6 |
 | 3 | P0: lifetime blocker | Unify binding mounting, cleanup, and move/reconnect behavior | Scope and syntax decisions | O1, O2, O3, O4 |
-| 4 | P0: failure and security blocker | Define request ownership, concurrency, errors, retries, and trust boundaries | Mutation and lifecycle contracts | O3, O4, O6 |
+| 4 | P0: failure and security blocker | Define request ownership, concurrency, errors, retries, and trust boundaries | Mutation/publication and lifecycle contracts | O3, O4, O6 |
 | 5 | P1: authoring foundation | Replace fragile directive syntax and separate cached definitions from live instances | Grammar decision; lifecycle integration | O2, O4, O5 |
 | 6 | P1: rounded capability | Complete native DOM binding and form semantics | 3-5 | O1, O2, O3, O6 |
 | 7 | P1: identity and reuse | Complete keyed lists and component contracts | 1, 3, 5 | O1, O2, O3, O4 |
@@ -121,20 +136,55 @@ P2 is not optional. It is later because optimization must operate on behavior th
 - Correct recursive comparison depth: descend with `depth + 1`, never increment depth across siblings.
 - Make the recursion guard unwind on every path, including guard rejection. Fail the offending cascade with a clear error; subsequent independent writes must remain usable.
 - Do not mutate subscription registries while collecting handlers. Component subscriptions belong to their explicit owning scope.
-- Give `dmSet`, initialization, action results, SSE patches, and host writes one mutation authority. Initialization may suppress effects until mounting, but cannot have different final-state semantics.
-- Make direct assignment policy enforceable. For the recommended explicit-write model, reject direct root assignment and prevent/document unsupported nested mutation; do not expose it as reactive syntax.
+- Give initialization, action results, SSE patches, host writes, and explicit publication one notification engine. Multiple mutation paths are valid; they must not imply notification they do not perform.
+- Preserve direct root assignment and nested in-place mutation. Define them as mutation-only operations, useful for staging, foreign integrations, and developer-controlled publication.
+- Separate mutation from notification in the public API. Proposed names are `set(path, value)` for mutation only, `setAndTrigger(path, value)` for mutation plus publication, and `trigger(path)` for publishing a value already changed. The existing `dmSet` behavior must be renamed or explicitly mapped; do not silently change it beneath unchanged examples.
+- Explicit publication must work after same-reference in-place mutation. `trigger` invalidates the declared path and its affected ancestor/descendant dependencies without requiring an old-value comparison. `setAndTrigger` combines assignment and that publication. Deduplicate scheduled work within a declared transaction, but do not suppress it solely because references are equal.
+- Equality-based no-op optimization is a separate documented policy for writes where old/new evidence is available, not the contract of an explicit trigger.
 - Verify descendant notification against nested writes. Resolve descendant paths relative to the changed path, not against an unrelated full-root path.
 - Validate patch types and path segments. Reject prototype-manipulation paths and avoid inherited-property traversal.
-- Define supported signal values. Recommend JSON-like state; keep DOM nodes, abort functions, and resource handles outside the serializable signal store.
+- Separate local state from wire serialization. Recommend JSON-like values for transferable state, but retain expert use of objects/functions/handles locally with explicit ownership and serialization exclusion or a caller-supplied encoder. Never silently transmit or deep-compare unsupported resource objects as if they were JSON.
 
 ### Benefits and costs
 
-Correct updates and isolated components come before speed. Explicit operations can later remove unnecessary deep comparisons. The cost is a breaking mutation contract and deliberate handling of unsupported values. Do not remove equality safeguards until the new mutation contract is enforced.
+Correct updates and isolated components come before speed. Named operations remove false expectations without removing mutation capabilities. Explicit invalidation can remove old-value reconstruction and repeated deep comparisons on expert-controlled paths. The costs are naming migration, publication responsibility for raw writes, and conservative invalidation when a fine-grained change description is unavailable. An API rename alone does not establish performance improvement.
+
+### Proposed operation contract
+
+These names illustrate the responsibility split; they are proposed, not APIs already present in dmax.
+
+| Operation | State effect | Notification effect | Caller responsibility |
+| --- | --- | --- | --- |
+| `dm.x = value` or nested in-place mutation | Ordinary assignment/mutation | None implicitly | Publish affected paths when dependent behavior should run |
+| `set(path, value)` | Assign through the library's path resolver | None | Select publication timing and ownership |
+| `setAndTrigger(path, value)` | Assign, then publish | Invalidate declared affected dependencies even for the same object reference | Select the path; respect documented ordering/reentrancy |
+| `trigger(path)` | No additional mutation | Publish current state at the declared path | Include every externally affected path; a root trigger can conservatively cover a subtree |
+
+```js
+// Illustrative proposed API: stage a foreign-library update, then publish once.
+const user = dm.user;
+user.name = 'Ada';
+user.preferences.theme = 'dark';
+trigger('user');
+
+// Common convenience: assign and publish together.
+setAndTrigger('count', 1);
+
+// Expert control: mutate now and choose publication time later.
+set('count', 2);
+trigger('count');
+```
+
+Subscribers observe current state. After an arbitrary in-place mutation, the runtime cannot reconstruct the previous contents from the same reference. Do not promise old/new deep diffs on this path. If a consumer needs historical values or precise changed-path evidence, provide an explicit snapshot/change-record contract and account for its cost.
+
+Define scope, missing paths, root replacement, error behavior, reentrant triggers, and transaction deduplication for all three operations. For aliasing, triggering one path invalidates its declared dependencies, not unknowable aliases elsewhere; developers publish the other affected paths or use a documented broader invalidation operation.
 
 ### Acceptance
 
-- Equal arrays/objects do not notify only because they have many siblings.
-- A nested write notifies affected ancestors and descendants, not unrelated paths.
+- Equality-controlled writes do not notify only because arrays/objects have many siblings; explicit triggers still notify according to their contract.
+- A nested write through `setAndTrigger`, or a raw mutation followed by `trigger`, invalidates affected ancestors/descendants and not unrelated declared paths. Mutation-only operations emit no implicit notification.
+- Same-reference nested mutation followed by a root trigger updates dependent UI. Raw writes can be staged and published once without requiring a clone.
+- Declarative writes and imperative composed operations use the same notification rules; callbacks are not given fabricated old values.
 - A failed recursive cascade does not poison later writes.
 - Sibling and nested component instances do not share local state unintentionally.
 - Subscription collection leaves registries unchanged.
@@ -158,11 +208,11 @@ Keep these event names only if useful. Do not support old mixed body formats sol
 
 The parser must handle UTF-8 split across chunks, LF/CRLF/CR line endings, comments, field order, and multiline data. Dispatch only completed frames; an incomplete event at EOF is not applied. Enforce a documented finite event-size limit and expose a diagnostic on overflow or malformed known-event bodies. Ignore unknown events without retaining their payloads. The exact limit requires workload-based approval.
 
-Reconnect read streams with bounded backoff. The first application event on a new connection establishes a full read-model snapshot before subsequent deltas. Application command endpoints are not retried as replayable streams by default.
+Reconnect read streams with bounded backoff. In the default snapshot policy, the first application event on a new connection establishes a full read-model snapshot before subsequent deltas. Preserve explicit cursor/header and reconnect hooks for application-owned replay. Replay integrations must define cursor persistence/expiry, ordering, duplicate handling, and snapshot fallback; the runtime does not imply these guarantees. Application command endpoints are not retried as replayable streams by default.
 
 ### Benefits and costs
 
-Removes growing historical payload retention and format ambiguity. Raw HTML preserves the common-case convenience. Snapshot recovery avoids a cursor/replay subsystem but shifts snapshot production to the backend; that responsibility must be explicit.
+Removes growing historical payload retention and format ambiguity. Raw HTML preserves the common-case convenience. Default snapshot recovery avoids a built-in cursor/replay subsystem but shifts snapshot production to the backend. Replay hooks preserve expert control without promising an unimplemented recovery system; each integration owns its recovery contract.
 
 ### Acceptance
 
@@ -176,7 +226,7 @@ Removes growing historical payload retention and format ambiguity. Raw HTML pres
 
 ### Changes
 
-Use an internal binding record with an immutable definition, resolved scope, element, mounted state, and idempotent disposer. The disposer owns listeners, subscriptions, timers, RAF callbacks, observers, and associated requests.
+Use an internal binding record with an immutable definition, resolved scope, element, mounted state, and idempotent disposer. The disposer owns listeners, subscriptions, timers, RAF callbacks, observers, and owner-bound requests. Expert integrations may explicitly transfer a resource to a longer-lived scope with a disposal handle; detachment must not silently mean either cancellation or abandoned ownership.
 
 Reconcile these cases through the same mechanism:
 
@@ -198,7 +248,7 @@ Removes duplicate installations, dead moved nodes, and abandoned async work. A s
 - Streamed new controls work without manual repair calls.
 - Changed directives stop old behavior and start new behavior once.
 - Reordered nodes retain working listeners and intended local state.
-- Removed owners stop callbacks, requests, retries, and observations.
+- Removed owners stop callbacks, owner-bound requests, retries, and observations. Explicitly transferred resources retain a named live owner and can still be disposed.
 - Reconnected components work without duplicated markup or bindings.
 
 ## 4. Make request failures, concurrency, and trust explicit
@@ -208,7 +258,7 @@ Removes duplicate installations, dead moved nodes, and abandoned async work. A s
 Create one owner-bound request controller. It owns cancellation, generation identity, retry timer, completion/error state, and response acceptance.
 
 - Default replace-style reads to latest-wins. Abort the prior request and reject stale generations even if abort arrived too late.
-- Default commands to one active request per binding; a repeat trigger is explicitly rejected while busy. Other concurrency modes require declared semantics.
+- Default commands to one active request per binding; document the busy outcome. Expose explicit allow-concurrent, queue, or application-controlled cancellation policies for expert use with clear status/result ownership. A default must not become a blanket prohibition on concurrent commands.
 - Check HTTP status before applying a success response. A 4xx/5xx is an error, not completion-as-success. Handle 204 without parsing a nonexistent payload.
 - Automatically retry eligible read-stream connection failures only, with finite backoff and cancellation. Do not retry commands without an explicit server idempotency/recovery contract.
 - Define timeout, abort, network-error, HTTP-error, and normal stream-close outcomes. Keep status coherent under all paths.
@@ -225,7 +275,7 @@ Security contract:
 
 ### Benefits and costs
 
-Prevents stale data, ambiguous busy states, silent HTTP failures, and detached requests. Adds a small controller and explicit policy. Command rejection while busy is an observable choice, so document it rather than silently treating all actions as latest-wins.
+Prevents stale data, ambiguous busy states, silent HTTP failures, and detached requests. Adds a small controller and explicit policy. Single-flight command behavior is an observable default, not a restriction on expert-controlled concurrency. Keep the policies explicit instead of treating every action as latest-wins.
 
 ### Acceptance
 
@@ -397,6 +447,7 @@ A ready-to-go version exists only when all of the following are true:
 
 - [ ] Required objectives O1-O6 map to passing tests and measurements.
 - [ ] The material design check accounts for common-task code, mechanisms, and shifted obligations. Claimed simplifications name removed responsibilities and preserved effects; necessary added complexity is justified.
+- [ ] API review distinguishes defaults from invariants and retains explicit expert control. Mutation-only and mutation-plus-notification paths pass their contracts, including same-reference updates; no useful capability was removed merely to avoid implementation effort.
 - [ ] Priorities 1-9 pass their stated acceptance; confirmed findings are fixed or disproved against the pinned commit.
 - [ ] All public contract choices and numerical limits are approved and documented.
 - [ ] One default distribution contains all agreed batteries; no application build or backend SDK is required.
@@ -423,7 +474,7 @@ The current release keeps its finite acceptance scope. The opportunities below a
 | One dataflow definition for page, row, and component | Can one scoped binding model serve all three without specialized rewriting? | Implement the same editable field in page, nested keyed row, and two component instances | It removes special paths while preserving identity, isolation, and lifecycle | A generic abstraction may introduce more context plumbing than it removes |
 | A common subset with no expression compilation | Can frequent bindings and commands run without dynamic functions while retaining an explicit JS escape hatch? | Inventory starter/dogfood expressions; implement the common patterns and test under strict CSP | Real workflows become simpler and any extra bytes are justified; unsupported behavior stays explicit | Two execution languages or an expanding miniature JS interpreter |
 | Shared mechanics for local and streamed structure | Can template insertion and server patches reuse ownership/reconciliation without giving up their distinct authority? | Exercise local keyed rows and a streamed interactive fragment through shared lifecycle machinery | Cleanup and identity improve without redundant parsing or a second DOM representation | Trying to force unlike updates into a slow universal renderer |
-| An obvious client/server state boundary | Can scope or payload contracts remove accidental state transmission and redundant mirrored state? | Run a form draft plus snapshot stream with an explicit submitted payload | Draft preservation, authorization boundaries, reconnect, and command recovery remain correct | Moving synchronization and recovery complexity to the backend |
+| An obvious client/server state boundary | Can scope, explicit publication, and payload contracts remove accidental state transmission and redundant mirrored state? | Run a form draft plus snapshot stream with an explicit submitted payload | Draft preservation, authorization boundaries, reconnect, and command recovery remain correct | Moving synchronization and recovery complexity to the backend |
 | CSS-native design tokens with an integrated editor | Can one token definition support static styling, live controls, and export without a style runtime? | Build a themed starter and change/export/import its tokens | Styling works without JS; editing stays ordinary dataflow; total complexity falls | Turning token metadata into a second styling language |
 
 ### Exploration rules
